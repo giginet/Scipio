@@ -1,5 +1,5 @@
 import XCTest
-@testable import Scipio
+@testable import ScipioKit
 
 final class ScipioTests: XCTestCase {
     func testExample() throws {

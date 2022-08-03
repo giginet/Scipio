@@ -1,0 +1,68 @@
+{
+  "pins" : [
+    {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser.git",
+      "state" : {
+        "revision" : "e394bf350e38cb100b6bc4172834770ede1b7232",
+        "version" : "1.0.3"
+      }
+    },
+    {
+      "identity" : "swift-crypto",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-crypto.git",
+      "state" : {
+        "revision" : "ddb07e896a2a8af79512543b1c7eb9797f8898a5",
+        "version" : "1.1.7"
+      }
+    },
+    {
+      "identity" : "swift-driver",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-driver.git",
+      "state" : {
+        "branch" : "release/5.6",
+        "revision" : "9982f32f96a2e0e597d1b4a0af4a7e997dc471be"
+      }
+    },
+    {
+      "identity" : "swift-llbuild",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-llbuild.git",
+      "state" : {
+        "branch" : "release/5.6",
+        "revision" : "acd686530e56122d916acd49a166beb9198e9b87"
+      }
+    },
+    {
+      "identity" : "swift-package-manager",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-package-manager.git",
+      "state" : {
+        "branch" : "release/5.6",
+        "revision" : "286f6dc58e7211d925c3c8ef28593b45f8bfdd85"
+      }
+    },
+    {
+      "identity" : "swift-tools-support-core",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-tools-support-core.git",
+      "state" : {
+        "branch" : "release/5.6",
+        "revision" : "f6c8048a76e280d0f14cc378b8b5c3cfb77c61fb"
+      }
+    },
+    {
+      "identity" : "yams",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jpsim/Yams.git",
+      "state" : {
+        "revision" : "9ff1cc9327586db4e0c8f46f064b6a82ec1566fa",
+        "version" : "4.0.6"
+      }
+    }
+  ],
+  "version" : 2
+}

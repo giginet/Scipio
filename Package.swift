@@ -9,20 +9,24 @@ let package = Package(
         .macOS(.v11),
     ],
     products: [
+        .executable(name: "scipio",
+                    targets: ["scipio"]),
         .library(
-            name: "Scipio",
-            targets: ["Scipio"]),
+            name: "ScipioKit",
+            targets: ["ScipioKit"]),
     ],
     dependencies: [
-        .package(name: "SwiftPM", url: "https://github.com/apple/swift-package-manager.git", .branch("release/5.6")),
+        .package(url: "https://github.com/apple/swift-package-manager.git",
+                 branch: "release/5.6"),
     ],
     targets: [
-        .executableTarget(name: "scipio"),
+        .executableTarget(name: "scipio",
+                          dependencies: ["ScipioKit"]),
         .target(
             name: "ScipioKit",
             dependencies: []),
         .testTarget(
             name: "ScipioKitTests",
-            dependencies: ["Scipio"]),
+            dependencies: ["ScipioKit"]),
     ]
 )
