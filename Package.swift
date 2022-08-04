@@ -16,17 +16,20 @@ let package = Package(
             targets: ["ScipioKit"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-package-manager.git",
-                 branch: "release/5.6"),
+        .package(name: "SwiftPM",
+                 url: "https://github.com/apple/swift-package-manager.git",
+                 .branch("release/5.6")),
     ],
     targets: [
         .executableTarget(name: "scipio",
                           dependencies: ["ScipioKit"]),
         .target(
             name: "ScipioKit",
-            dependencies: []),
+            dependencies: ["SwiftPM"]),
         .testTarget(
             name: "ScipioKitTests",
-            dependencies: ["ScipioKit"]),
+            dependencies: ["ScipioKit"],
+            exclude: ["Resources/Fixtures"],
+            resources: [.copy("Resources/Fixtures/Package.swift")]),
     ]
 )
