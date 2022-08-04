@@ -7,13 +7,23 @@ import PackageGraph
 import Basics
 
 struct Package {
+    let packageDirectory: AbsolutePath
     let toolchain: UserToolchain
     let workspace: Workspace
     let graph: PackageGraph
     let manifest: Manifest
 
-    public init(packageDirectory: URL) throws {
+    var name: String {
+        manifest.displayName
+    }
+
+    var buildDirectory: AbsolutePath {
+        packageDirectory.appending(component: ".build")
+    }
+
+    init(packageDirectory: URL) throws {
         let root = AbsolutePath(packageDirectory.path)
+        self.packageDirectory = root
 
         self.toolchain = try UserToolchain(destination: try .hostDestination())
 

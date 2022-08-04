@@ -4,21 +4,28 @@ import TSCBasic
 import Basics
 
 struct ProjectGenerator {
+    private let outputDirectory: AbsolutePath
     private let fileSystem: any FileSystem
 
-    init(fileSystem: any FileSystem = LocalFileSystem()) {
+    init(outputDirectory: AbsolutePath, fileSystem: any FileSystem = LocalFileSystem()) {
+        self.outputDirectory = outputDirectory
         self.fileSystem = fileSystem
     }
 
-    func generate(for package: Package, to outputDirectory: AbsolutePath) throws -> Xcode.Project {
+    struct Result {
+        var project: Xcode.Project
+        var projectPath: AbsolutePath
+    }
+
+    func generate(for package: Package) throws -> Result {
         let observabilitySystem = ObservabilitySystem { _, diagnostics in
             print("\(diagnostics.severity): \(diagnostics.message)")
         }
 
-        let projectPath = outputDirectory.appending(component: "test.xcodeproj")
+        let projectPath = outputDirectory.appending(component: "\(package.name).xcodeproj")
 
         let project = try Xcodeproj.generate(
-            projectName: "test",
+            projectName: package.name,
             xcodeprojPath: projectPath,
             graph: package.graph,
             options: .init(),
@@ -44,45 +51,47 @@ struct ProjectGenerator {
             let name = "\(target.name.spm_mangledToC99ExtendedIdentifier())_Info.plist"
             let path = projectPath.appending(RelativePath(name))
             try fileSystem.writeFileContents(path) { stream in
-                stream.write(
-                    """
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <plist version="1.0">
-                    <dict>
-                    <key>CFBundleDevelopmentRegion</key>
-                    <string>en</string>
-                    <key>CFBundleExecutable</key>
-                    <string>$(EXECUTABLE_NAME)</string>
-                    <key>CFBundleIdentifier</key>
-                    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-                    <key>CFBundleInfoDictionaryVersion</key>
-                    <string>6.0</string>
-                    <key>CFBundleName</key>
-                    <string>$(PRODUCT_NAME)</string>
-                    <key>CFBundlePackageType</key>
-                    <string>FMWK</string>
-                    <key>CFBundleShortVersionString</key>
-                    <string>1.0</string>
-                    <key>CFBundleSignature</key>
-                    <string>????</string>
-                    <key>CFBundleVersion</key>
-                    <string>$(CURRENT_PROJECT_VERSION)</string>
-                    <key>NSPrincipalClass</key>
-                    <string></string>
-                    </dict>
-                    </plist>
-                    """
-                )
+                stream.write(infoPlist)
             }
         }
 
-        return project
+        return .init(project: project, projectPath: projectPath)
     }
 
     private var distributionXCConfigContents: String {
-"""
-BUILD_LIBRARY_FOR_DISTRIBUTION=YES
-"""
+        """
+        BUILD_LIBRARY_FOR_DISTRIBUTION=YES
+        """
+    }
+
+    private var infoPlist: String {
+        """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <plist version="1.0">
+        <dict>
+        <key>CFBundleDevelopmentRegion</key>
+        <string>en</string>
+        <key>CFBundleExecutable</key>
+        <string>$(EXECUTABLE_NAME)</string>
+        <key>CFBundleIdentifier</key>
+        <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+        <key>CFBundleInfoDictionaryVersion</key>
+        <string>6.0</string>
+        <key>CFBundleName</key>
+        <string>$(PRODUCT_NAME)</string>
+        <key>CFBundlePackageType</key>
+        <string>FMWK</string>
+        <key>CFBundleShortVersionString</key>
+        <string>1.0</string>
+        <key>CFBundleSignature</key>
+        <string>????</string>
+        <key>CFBundleVersion</key>
+        <string>$(CURRENT_PROJECT_VERSION)</string>
+        <key>NSPrincipalClass</key>
+        <string></string>
+        </dict>
+        </plist>
+        """
     }
 
     private func createOrGetConfigsGroup(project: Xcode.Project) -> Xcode.Group {
