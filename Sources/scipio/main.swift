@@ -8,7 +8,8 @@ let runner = Runner()
 let packageDirectory = URL(fileURLWithPath: "/Users/jp30698/work/xcframeworks/test-package")
 
 Task {
-    try await runner.run(packageDirectory: packageDirectory)
+    try await runner.run(packageDirectory: packageDirectory,
+                         frameworkOutputDir: packageDirectory.appendingPathComponent("XCFrameworks"))
     semaphore.signal()
 }
 

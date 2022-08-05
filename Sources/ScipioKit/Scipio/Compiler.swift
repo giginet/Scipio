@@ -2,75 +2,6 @@ import Foundation
 import PackageGraph
 import TSCBasic
 
-struct ExportOptions: Encodable {
-    var compileBitcode: Bool
-}
-
-private func buildOptionPlistPath(for package: Package) -> AbsolutePath {
-    package.buildDirectory.appending(component: "options.plist")
-}
-
-protocol Executor {
-    @discardableResult
-    func execute(_ arguments: [String]) async throws -> ExecutorResult
-    func outputStream(_: Data)
-    func errorOutputStream(_: Data)
-}
-
-protocol ExecutorResult {
-    var arguments: [String] { get }
-    /// The environment with which the process was launched.
-    var environment: [String: String] { get }
-
-    /// The exit status of the process.
-    var exitStatus: ProcessResult.ExitStatus { get }
-
-    /// The output bytes of the process. Available only if the process was
-    /// asked to redirect its output and no stdout output closure was set.
-    var output: Result<[UInt8], Swift.Error> { get }
-
-    /// The output bytes of the process. Available only if the process was
-    /// asked to redirect its output and no stderr output closure was set.
-    var stderrOutput: Result<[UInt8], Swift.Error> { get }
-}
-
-extension Executor {
-    func execute(_ arguments: String...) async throws -> ExecutorResult {
-        try await execute(arguments)
-    }
-}
-
-extension ProcessResult: ExecutorResult { }
-
-struct ProcessExecutor: Executor {
-    func outputStream(_ data: Data) {
-        logger.info("\(String(data: data, encoding: .utf8)!)")
-    }
-
-    func errorOutputStream(_ data: Data) {
-        logger.error("\(String(data: data, encoding: .utf8)!)")
-    }
-
-    func execute(_ arguments: [String]) async throws -> ExecutorResult {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Error>) in
-            let process = Process(
-                arguments: arguments,
-                outputRedirection:
-                        .stream(stdout: { outputStream(Data($0)) },
-                                stderr: { errorOutputStream(Data($0)) })
-            )
-
-            do {
-                try process.launch()
-                let result = try process.waitUntilExit()
-                continuation.resume(with: .success(result))
-            } catch {
-                continuation.resume(with: .failure(error))
-            }
-        }
-    }
-}
-
 enum SDK: String {
     case iOS = "iphoneos"
     case iOSSimulator = "iphonesimulator"
@@ -117,6 +48,10 @@ extension XcodeBuildCommand {
     }
 }
 
+private func buildXCArchivePath(package: Package, target: ResolvedTarget, sdk: SDK) -> AbsolutePath {
+    package.archivesPath.appending(component: "\(target.name)_\(sdk.name).xcarchive")
+}
+
 struct Compiler<E: Executor> {
     let package: Package
     let projectPath: AbsolutePath
@@ -130,17 +65,7 @@ struct Compiler<E: Executor> {
         self.fileSystem = fileSystem
     }
 
-    @discardableResult
-    private func createOptionsPlist() throws -> AbsolutePath {
-        let options = ExportOptions(compileBitcode: true)
-        let encoder = PropertyListEncoder()
-        let data = try encoder.encode(options)
-        let outputPath = buildOptionPlistPath(for: package)
-        try fileSystem.writeFileContents(outputPath, data: data)
-        return outputPath
-    }
-
-    func build() async throws {
+    func build(outputDir: AbsolutePath) async throws {
         let targets = targetsForBuild(for: package)
 
         logger.info("Cleaning \(package.name)...")
@@ -149,12 +74,13 @@ struct Compiler<E: Executor> {
             buildDirectory: package.buildDirectory
         ))
 
-        try createOptionsPlist()
-
         for target in targets {
             logger.info("Building framework \(target.name)")
             try await execute(ArchiveCommand(package: package, target: target, projectPath: projectPath, sdk: .iOS))
             try await execute(ArchiveCommand(package: package, target: target, projectPath: projectPath, sdk: .iOSSimulator))
+
+            logger.info("Combining into XCFramework...")
+            try await execute(CreateXCFrameworkCommand(package: package, target: target, sdks: [.iOS, .iOSSimulator], outputDir: outputDir))
         }
         // TODO Error handling
     }
@@ -189,6 +115,9 @@ struct Compiler<E: Executor> {
         var target: ResolvedTarget
         var projectPath: AbsolutePath
         var sdk: SDK
+        var xcArchivePath: AbsolutePath {
+            buildXCArchivePath(package: package, target: target, sdk: sdk)
+        }
 
         let subCommand: String = "archive"
         var options: [Pair] {
@@ -196,7 +125,7 @@ struct Compiler<E: Executor> {
                 ("project", projectPath.pathString),
                 ("configuration", "Release"),
                 ("scheme", target.name),
-                ("archivePath", package.buildDirectory.appending(component: "iphoneos.xcarchive").pathString),
+                ("archivePath", xcArchivePath.pathString),
                 ("destination", sdk.destination),
                 ("sdk", sdk.name),
             ].map(Pair.init(key:value:))
@@ -210,10 +139,45 @@ struct Compiler<E: Executor> {
             ].map(Pair.init(key:value:))
         }
     }
+
+    struct CreateXCFrameworkCommand: XcodeBuildCommand {
+        let subCommand: String = "-create-xcframework"
+        let package: Package
+        let target: ResolvedTarget
+        let sdks: [SDK]
+        let outputDir: AbsolutePath
+
+        var xcFrameworkPath: AbsolutePath {
+            outputDir.appending(component: "\(target.name).xcframework")
+        }
+
+        func buildFrameworkPath(package: Package, target: ResolvedTarget, sdk: SDK) -> AbsolutePath {
+            buildXCArchivePath(package: package, target: target, sdk: sdk)
+                .appending(components: "Products", "Library", "Frameworks")
+                .appending(component: "\(target.name).framework")
+        }
+
+        var options: [Pair] {
+            sdks.map { sdk in
+                .init(key: "framework", value: buildFrameworkPath(package: package, target: target, sdk: sdk).pathString)
+            }
+            + [.init(key: "output", value: xcFrameworkPath.pathString)]
+        }
+
+        var environmentVariables: [Pair] {
+            []
+        }
+    }
 }
 
 extension Compiler where E == ProcessExecutor {
     init(package: Package, projectPath: AbsolutePath) {
         self.init(package: package, projectPath: projectPath, executor: E())
+    }
+}
+
+extension Package {
+    fileprivate var archivesPath: AbsolutePath {
+        buildDirectory.appending(component: "archives")
     }
 }
