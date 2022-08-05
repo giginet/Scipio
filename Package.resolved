@@ -37,6 +37,15 @@
       }
     },
     {
+      "identity" : "swift-log",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-log.git",
+      "state" : {
+        "revision" : "5d66f7ba25daf4f94100e7022febf3c75e37a6c7",
+        "version" : "1.4.2"
+      }
+    },
+    {
       "identity" : "swift-package-manager",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-package-manager.git",

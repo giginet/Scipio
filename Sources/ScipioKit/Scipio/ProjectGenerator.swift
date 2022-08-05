@@ -7,7 +7,7 @@ struct ProjectGenerator {
     private let outputDirectory: AbsolutePath
     private let fileSystem: any FileSystem
 
-    init(outputDirectory: AbsolutePath, fileSystem: any FileSystem = LocalFileSystem()) {
+    init(outputDirectory: AbsolutePath, fileSystem: any FileSystem = localFileSystem) {
         self.outputDirectory = outputDirectory
         self.fileSystem = fileSystem
     }
@@ -18,20 +18,15 @@ struct ProjectGenerator {
     }
 
     func generate(for package: Package) throws -> Result {
-        let observabilitySystem = ObservabilitySystem { _, diagnostics in
-            print("\(diagnostics.severity): \(diagnostics.message)")
-        }
-
         let projectPath = outputDirectory.appending(component: "\(package.name).xcodeproj")
 
         let project = try Xcodeproj.generate(
             projectName: package.name,
             xcodeprojPath: projectPath,
             graph: package.graph,
-            options: .init(),
+            options: .init(useLegacySchemeGenerator: true),
             fileSystem: fileSystem,
             observabilityScope: observabilitySystem.topScope)
-        
 
         let distributionXCConfig = RelativePath("Distribution.xcconfig")
         try fileSystem.writeFileContents(AbsolutePath(outputDirectory, distributionXCConfig),
@@ -52,6 +47,15 @@ struct ProjectGenerator {
             let path = projectPath.appending(RelativePath(name))
             try fileSystem.writeFileContents(path) { stream in
                 stream.write(infoPlist)
+            }
+        }
+
+        try fileSystem.writeFileContents(projectPath.appending(component: "project.pbxproj")) { stream in
+            // Serialize the project model we created to a plist, and return
+            // its string description.
+            if let plist = try? project.generatePlist() {
+                let str = "// !$*UTF8*$!\n" + plist.description
+                stream.write(str)
             }
         }
 

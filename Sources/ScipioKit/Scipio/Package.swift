@@ -31,10 +31,6 @@ struct Package {
         let loader = ManifestLoader(toolchain: resources)
         let workspace = try Workspace(forRootPackage: root, customManifestLoader: loader)
 
-        let observabilitySystem = ObservabilitySystem { _, diagnostics in
-            print("\(diagnostics.severity): \(diagnostics.message)")
-        }
-
         self.graph = try workspace.loadPackageGraph(rootPath: root, observabilityScope: observabilitySystem.topScope)
         let scope = observabilitySystem.topScope
         self.manifest = try tsc_await {

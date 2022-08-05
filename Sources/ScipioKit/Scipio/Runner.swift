@@ -1,19 +1,18 @@
 import Foundation
 import TSCBasic
+import Logging
 
 public struct Runner {
-    public init() { }
+    public init() {
+        LoggingSystem.bootstrap(StreamLogHandler.standardError)
+    }
 
     public func run(packageDirectory: URL) async throws {
         let package = try Package(packageDirectory: packageDirectory)
-
-        let destination = AbsolutePath("/Users/jp30698/work/xcframeworks")
-
-        let generator = ProjectGenerator(outputDirectory: destination)
+        let generator = ProjectGenerator(outputDirectory: package.buildDirectory)
 
         let generationResult = try generator.generate(for: package)
-        print(package.graph.packages)
-//        let compiler = Compiler<ProcessExecutor>(projectPath: generationResult.projectPath)
-//        try await compiler.build(package: package)
+        let compiler = Compiler<ProcessExecutor>(package: package, projectPath: generationResult.projectPath)
+        try await compiler.build()
     }
 }
