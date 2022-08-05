@@ -20,11 +20,12 @@ struct ProjectGenerator {
     func generate(for package: Package) throws -> Result {
         let projectPath = outputDirectory.appending(component: "\(package.name).xcodeproj")
 
-        let project = try Xcodeproj.generate(
-            projectName: package.name,
+        let project = try pbxproj(
             xcodeprojPath: projectPath,
             graph: package.graph,
-            options: .init(useLegacySchemeGenerator: true),
+            extraDirs: [],
+            extraFiles: [],
+            options: .init(useLegacySchemeGenerator: false),
             fileSystem: fileSystem,
             observabilityScope: observabilitySystem.topScope)
 
@@ -38,7 +39,7 @@ struct ProjectGenerator {
             name: distributionXCConfig.basename
         )
 
-        for target in project.targets {
+        for target in project.frameworkTargets {
             target.buildSettings.xcconfigFileRef = reference
         }
 

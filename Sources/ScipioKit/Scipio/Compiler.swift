@@ -2,6 +2,14 @@ import Foundation
 import PackageGraph
 import TSCBasic
 
+struct ExportOptions: Encodable {
+    var compileBitcode: Bool
+}
+
+private func buildOptionPlistPath(for package: Package) -> AbsolutePath {
+    package.buildDirectory.appending(component: "options.plist")
+}
+
 protocol Executor {
     @discardableResult
     func execute(_ arguments: [String]) async throws -> ExecutorResult
@@ -96,7 +104,7 @@ extension XcodeBuildCommand {
     func buildArguments() -> [String] {
         ["/usr/bin/xcrun", "xcodebuild"]
         + environmentVariables.map { pair in
-            "\(pair.value!)=\(pair.key)"
+            "\(pair.key)=\(pair.value!)"
         }
         + [subCommand]
         + options.flatMap { option in
@@ -113,11 +121,23 @@ struct Compiler<E: Executor> {
     let package: Package
     let projectPath: AbsolutePath
     let executor: E
+    let fileSystem: any FileSystem
 
-    init(package: Package, projectPath: AbsolutePath, executor: E) {
+    init(package: Package, projectPath: AbsolutePath, executor: E, fileSystem: any FileSystem = localFileSystem) {
         self.package = package
         self.projectPath = projectPath
         self.executor = executor
+        self.fileSystem = fileSystem
+    }
+
+    @discardableResult
+    private func createOptionsPlist() throws -> AbsolutePath {
+        let options = ExportOptions(compileBitcode: true)
+        let encoder = PropertyListEncoder()
+        let data = try encoder.encode(options)
+        let outputPath = buildOptionPlistPath(for: package)
+        try fileSystem.writeFileContents(outputPath, data: data)
+        return outputPath
     }
 
     func build() async throws {
@@ -128,6 +148,8 @@ struct Compiler<E: Executor> {
             projectPath: projectPath,
             buildDirectory: package.buildDirectory
         ))
+
+        try createOptionsPlist()
 
         for target in targets {
             logger.info("Building framework \(target.name)")
@@ -171,12 +193,10 @@ struct Compiler<E: Executor> {
         let subCommand: String = "archive"
         var options: [Pair] {
             [
-                ("exportArchive", nil),
                 ("project", projectPath.pathString),
                 ("configuration", "Release"),
-                ("archivePath", package.buildDirectory.appending(component: target.name).pathString),
-                ("target", target.name),
-                // TODO plist
+                ("scheme", target.name),
+                ("archivePath", package.buildDirectory.appending(component: "iphoneos.xcarchive").pathString),
                 ("destination", sdk.destination),
                 ("sdk", sdk.name),
             ].map(Pair.init(key:value:))
