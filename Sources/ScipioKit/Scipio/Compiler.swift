@@ -82,6 +82,10 @@ struct Compiler<E: Executor> {
         self.fileSystem = fileSystem
     }
 
+    private func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> AbsolutePath {
+        return package.workspaceDirectory.appending(components: "\(buildConfiguration.settingsValue)-\(sdk.name)", "\(target).framework.dSYM")
+    }
+
     func build(outputDir: AbsolutePath) async throws {
         let targets = targetsForBuild(for: package)
 
@@ -91,13 +95,29 @@ struct Compiler<E: Executor> {
             buildDirectory: package.workspaceDirectory
         ))
 
+        let buildConfiguration: BuildConfiguration = .release // TODO setting from option
+        let sdks: [SDK] = [.iOS, .iOSSimulator]
+
         for target in targets {
             logger.info("Building framework \(target.name)")
-            try await execute(ArchiveCommand(context: .init(package: package, target: target, buildConfiguration: .debug, sdk: .iOS)))
+            for sdk in sdks {
+                try await execute(ArchiveCommand(context: .init(package: package, target: target, buildConfiguration: buildConfiguration, sdk: sdk)))
+            }
 
             logger.info("Combining into XCFramework...")
+
+            let debugSymbolPaths = sdks.map {
+                buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: $0, target: target)
+            }.filter {
+                fileSystem.exists($0)
+            }
+
             try await execute(CreateXCFrameworkCommand(
-                context: .init(package: package, target: target, buildConfiguration: .debug, sdks: [.iOS, .iOSSimulator]),
+                context: .init(package: package,
+                               target: target,
+                               buildConfiguration: buildConfiguration,
+                               sdks: sdks,
+                               debugSymbolPaths: debugSymbolPaths),
                 outputDir: outputDir
             ))
         }
@@ -169,6 +189,7 @@ struct Compiler<E: Executor> {
             let target: ResolvedTarget
             let buildConfiguration: BuildConfiguration
             let sdks: [SDK]
+            let debugSymbolPaths: [AbsolutePath]
         }
         let context: Context
         let subCommand: String = "-create-xcframework"
@@ -187,6 +208,11 @@ struct Compiler<E: Executor> {
         var options: [Pair] {
             context.sdks.map { sdk in
                 .init(key: "framework", value: buildFrameworkPath(sdk: sdk).pathString)
+            }
+            // TODO bcsymbolmap
+            +
+            context.debugSymbolPaths.map {
+                .init(key: "debug-symbols", value: $0.pathString)
             }
             + [.init(key: "output", value: xcFrameworkPath.pathString)]
         }
@@ -217,4 +243,11 @@ extension Compiler.ArchiveCommand.Context {
     var xcArchivePath: AbsolutePath {
         buildXCArchivePath(sdk: sdk)
     }
+}
+
+struct DebugSymbol {
+    var dSYMPath: AbsolutePath
+    var target: ResolvedTarget
+    var sdk: SDK
+    var buildConfiguration: BuildConfiguration
 }

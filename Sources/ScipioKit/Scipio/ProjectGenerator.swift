@@ -67,6 +67,9 @@ struct ProjectGenerator {
         BUILD_LIBRARY_FOR_DISTRIBUTION = YES
         DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
         """
+
+        //        ENABLE_BITCODE = YES
+        //        OTHER_CFLAGS = -fembed-bitcode
     }
 
     private var infoPlist: String {
