@@ -4,11 +4,9 @@ import TSCBasic
 import Basics
 
 struct ProjectGenerator {
-    private let outputDirectory: AbsolutePath
     private let fileSystem: any FileSystem
 
-    init(outputDirectory: AbsolutePath, fileSystem: any FileSystem = localFileSystem) {
-        self.outputDirectory = outputDirectory
+    init(fileSystem: any FileSystem = localFileSystem) {
         self.fileSystem = fileSystem
     }
 
@@ -17,8 +15,9 @@ struct ProjectGenerator {
         var projectPath: AbsolutePath
     }
 
+    @discardableResult
     func generate(for package: Package) throws -> Result {
-        let projectPath = outputDirectory.appending(component: "\(package.name).xcodeproj")
+        let projectPath = package.projectPath
 
         let project = try pbxproj(
             xcodeprojPath: projectPath,
@@ -29,14 +28,14 @@ struct ProjectGenerator {
             fileSystem: fileSystem,
             observabilityScope: observabilitySystem.topScope)
 
-        let distributionXCConfig = RelativePath("Distribution.xcconfig")
-        try fileSystem.writeFileContents(AbsolutePath(outputDirectory, distributionXCConfig),
+        let distributionXCConfigPath = package.workspaceDirectory.appending(component: "Distribution.xcconfig")
+        try fileSystem.writeFileContents(distributionXCConfigPath,
                                          string: distributionXCConfigContents)
 
         let group = createOrGetConfigsGroup(project: project)
         let reference = group.addFileReference (
-            path: distributionXCConfig.pathString,
-            name: distributionXCConfig.basename
+            path: distributionXCConfigPath.pathString,
+            name: distributionXCConfigPath.basename
         )
 
         for target in project.frameworkTargets {
@@ -65,7 +64,8 @@ struct ProjectGenerator {
 
     private var distributionXCConfigContents: String {
         """
-        BUILD_LIBRARY_FOR_DISTRIBUTION=YES
+        BUILD_LIBRARY_FOR_DISTRIBUTION = YES
+        DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
         """
     }
 

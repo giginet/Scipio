@@ -18,13 +18,12 @@ public struct Runner {
         let resolver = Resolver(package: package)
         try await resolver.resolve()
 
-        let generator = ProjectGenerator(outputDirectory: package.workspaceDirectory)
+        let generator = ProjectGenerator()
 
         let outputDir = AbsolutePath(frameworkOutputDir.path)
 
-        let generationResult = try generator.generate(for: package)
+        try generator.generate(for: package)
         let compiler = Compiler<ProcessExecutor>(package: package,
-                                                 projectPath: generationResult.projectPath,
                                                  fileSystem: fileSystem)
         try await compiler.build(outputDir: outputDir)
     }

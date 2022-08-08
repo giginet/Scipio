@@ -25,6 +25,10 @@ struct Package {
         buildDirectory.appending(component: "scipio")
     }
 
+    var projectPath: AbsolutePath {
+        buildDirectory.appending(component: "\(name).xcodeproj")
+    }
+
     init(packageDirectory: URL) throws {
         let root = AbsolutePath(packageDirectory.path)
         self.packageDirectory = root

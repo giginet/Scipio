@@ -2,12 +2,17 @@ import Foundation
 import PackageGraph
 import TSCBasic
 
-enum SDK: String {
-    case iOS = "iphoneos"
-    case iOSSimulator = "iphonesimulator"
+enum SDK {
+    case iOS
+    case iOSSimulator
 
     var name: String {
-        rawValue
+        switch self {
+        case .iOS:
+            return "iphoneos"
+        case .iOSSimulator:
+            return "iphonesimulator"
+        }
     }
 
     var destination: String {
@@ -48,19 +53,13 @@ extension XcodeBuildCommand {
     }
 }
 
-private func buildXCArchivePath(package: Package, target: ResolvedTarget, sdk: SDK) -> AbsolutePath {
-    package.archivesPath.appending(component: "\(target.name)_\(sdk.name).xcarchive")
-}
-
 struct Compiler<E: Executor> {
     let package: Package
-    let projectPath: AbsolutePath
     let executor: E
     let fileSystem: any FileSystem
 
-    init(package: Package, projectPath: AbsolutePath, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
+    init(package: Package, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
         self.package = package
-        self.projectPath = projectPath
         self.executor = executor
         self.fileSystem = fileSystem
     }
@@ -70,14 +69,13 @@ struct Compiler<E: Executor> {
 
         logger.info("Cleaning \(package.name)...")
         try await execute(CleanCommand(
-            projectPath: projectPath,
+            projectPath: package.projectPath,
             buildDirectory: package.workspaceDirectory
         ))
 
         for target in targets {
             logger.info("Building framework \(target.name)")
-            try await execute(ArchiveCommand(package: package, target: target, projectPath: projectPath, sdk: .iOS))
-            try await execute(ArchiveCommand(package: package, target: target, projectPath: projectPath, sdk: .iOSSimulator))
+            try await execute(ArchiveCommand(context: .init(package: package, target: target, buildConfiguration: .debug, sdk: .iOS)))
 
             logger.info("Combining into XCFramework...")
             try await execute(CreateXCFrameworkCommand(package: package, target: target, sdks: [.iOS, .iOSSimulator], outputDir: outputDir))
@@ -111,31 +109,47 @@ struct Compiler<E: Executor> {
     }
 
     struct ArchiveCommand: XcodeBuildCommand {
-        var package: Package
-        var target: ResolvedTarget
-        var projectPath: AbsolutePath
-        var sdk: SDK
+        struct Context {
+            enum BuildConfiguration {
+                case debug
+                case release
+
+                var settingsValue: String {
+                    switch self {
+                    case .debug: return "Debug"
+                    case .release: return "Release"
+                    }
+                }
+            }
+            var package: Package
+            var target: ResolvedTarget
+            var buildConfiguration: BuildConfiguration
+            var sdk: SDK
+        }
+
+        var context: Context
         var xcArchivePath: AbsolutePath {
-            buildXCArchivePath(package: package, target: target, sdk: sdk)
+            context.xcArchivePath
         }
 
         let subCommand: String = "archive"
         var options: [Pair] {
             [
-                ("project", projectPath.pathString),
-                ("configuration", "Release"),
-                ("scheme", target.name),
+                ("project", context.projectPath.pathString),
+                ("configuration", context.buildConfiguration.settingsValue),
+                ("scheme", context.target.name),
                 ("archivePath", xcArchivePath.pathString),
-                ("destination", sdk.destination),
-                ("sdk", sdk.name),
+                ("destination", context.sdk.destination),
+                ("sdk", context.sdk.name),
             ].map(Pair.init(key:value:))
         }
 
         var environmentVariables: [Pair] {
             [
-                ("BUILD_DIR", package.workspaceDirectory.pathString),
+                ("BUILD_DIR", context.package.workspaceDirectory.pathString),
                 ("SKIP_INSTALL", "NO"),
-                ("BUILD_LIBRARY_FOR_DISTRIBUTION", "YES")
+//                ("BUILD_LIBRARY_FOR_DISTRIBUTION", "YES"),
+//                ("DEBUG_INFORMATION_FORMAT", "dwarf-with-dsym") // TODO
             ].map(Pair.init(key:value:))
         }
     }
@@ -170,14 +184,22 @@ struct Compiler<E: Executor> {
     }
 }
 
-extension Compiler where E == ProcessExecutor {
-    init(package: Package, projectPath: AbsolutePath) {
-        self.init(package: package, projectPath: projectPath, executor: E())
-    }
-}
-
 extension Package {
     fileprivate var archivesPath: AbsolutePath {
         workspaceDirectory.appending(component: "archives")
     }
+}
+
+extension Compiler.ArchiveCommand.Context {
+    fileprivate var xcArchivePath: AbsolutePath {
+        buildXCArchivePath(package: package, target: target, sdk: sdk)
+    }
+
+    fileprivate var projectPath: AbsolutePath {
+        package.projectPath
+    }
+}
+
+private func buildXCArchivePath(package: Package, target: ResolvedTarget, sdk: SDK) -> AbsolutePath {
+    package.archivesPath.appending(component: "\(target.name)_\(sdk.name).xcarchive")
 }
