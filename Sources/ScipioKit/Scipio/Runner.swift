@@ -9,6 +9,10 @@ public struct Runner {
 
     public func run(packageDirectory: URL, frameworkOutputDir: URL) async throws {
         let package = try Package(packageDirectory: packageDirectory)
+
+        let resolver = Resolver(package: package)
+        try await resolver.resolve()
+
         let generator = ProjectGenerator(outputDirectory: package.buildDirectory)
 
         let outputDir = AbsolutePath(frameworkOutputDir.path)

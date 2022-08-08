@@ -26,6 +26,7 @@ protocol ExecutorResult {
 }
 
 extension Executor {
+    @discardableResult
     func execute(_ arguments: String...) async throws -> ExecutorResult {
         try await execute(arguments)
     }
@@ -34,6 +35,12 @@ extension Executor {
 extension ProcessResult: ExecutorResult { }
 
 struct ProcessExecutor: Executor {
+    enum Error: Swift.Error {
+        case terminated(ExecutorResult)
+        case signalled(Int32)
+        case executionError(Swift.Error)
+    }
+
     func outputStream(_ data: Data) {
         logger.info("\(String(data: data, encoding: .utf8)!)")
     }
@@ -43,7 +50,7 @@ struct ProcessExecutor: Executor {
     }
 
     func execute(_ arguments: [String]) async throws -> ExecutorResult {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Error>) in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Swift.Error>) in
             let process = Process(
                 arguments: arguments,
                 outputRedirection:
@@ -54,9 +61,16 @@ struct ProcessExecutor: Executor {
             do {
                 try process.launch()
                 let result = try process.waitUntilExit()
-                continuation.resume(with: .success(result))
+                switch result.exitStatus {
+                case .terminated(let code) where code == 0:
+                    continuation.resume(returning: result)
+                case .terminated:
+                    continuation.resume(throwing: Error.terminated(result))
+                case .signalled(let signal):
+                    continuation.resume(throwing: Error.signalled(signal))
+                }
             } catch {
-                continuation.resume(with: .failure(error))
+                continuation.resume(with: .failure(Error.executionError(error)))
             }
         }
     }
