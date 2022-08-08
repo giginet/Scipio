@@ -1,3 +1,5 @@
 # Scipio
 
-A description of this package.
+Carthago delenda est
+
+Scipio proposes new workflow to integrate dependencies to your applications.
