@@ -58,7 +58,7 @@ struct Compiler<E: Executor> {
     let executor: E
     let fileSystem: any FileSystem
 
-    init(package: Package, projectPath: AbsolutePath, executor: E, fileSystem: any FileSystem = localFileSystem) {
+    init(package: Package, projectPath: AbsolutePath, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
         self.package = package
         self.projectPath = projectPath
         self.executor = executor
@@ -71,7 +71,7 @@ struct Compiler<E: Executor> {
         logger.info("Cleaning \(package.name)...")
         try await execute(CleanCommand(
             projectPath: projectPath,
-            buildDirectory: package.buildDirectory
+            buildDirectory: package.workspaceDirectory
         ))
 
         for target in targets {
@@ -133,7 +133,7 @@ struct Compiler<E: Executor> {
 
         var environmentVariables: [Pair] {
             [
-                ("BUILD_DIR", package.buildDirectory.pathString),
+                ("BUILD_DIR", package.workspaceDirectory.pathString),
                 ("SKIP_INSTALL", "NO"),
                 ("BUILD_LIBRARY_FOR_DISTRIBUTION", "YES")
             ].map(Pair.init(key:value:))
@@ -178,6 +178,6 @@ extension Compiler where E == ProcessExecutor {
 
 extension Package {
     fileprivate var archivesPath: AbsolutePath {
-        buildDirectory.appending(component: "archives")
+        workspaceDirectory.appending(component: "archives")
     }
 }

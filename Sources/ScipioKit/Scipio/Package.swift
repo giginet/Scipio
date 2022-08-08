@@ -21,6 +21,10 @@ struct Package {
         packageDirectory.appending(component: ".build")
     }
 
+    var workspaceDirectory: AbsolutePath {
+        buildDirectory.appending(component: "scipio")
+    }
+
     init(packageDirectory: URL) throws {
         let root = AbsolutePath(packageDirectory.path)
         self.packageDirectory = root
