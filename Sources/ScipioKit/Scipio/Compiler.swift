@@ -53,6 +53,24 @@ extension XcodeBuildCommand {
     }
 }
 
+enum BuildConfiguration {
+    case debug
+    case release
+
+    var settingsValue: String {
+        switch self {
+        case .debug: return "Debug"
+        case .release: return "Release"
+        }
+    }
+}
+
+private protocol BuildContext {
+    var package: Package { get }
+    var target: ResolvedTarget { get }
+    var buildConfiguration: BuildConfiguration { get }
+}
+
 struct Compiler<E: Executor> {
     let package: Package
     let executor: E
@@ -78,7 +96,10 @@ struct Compiler<E: Executor> {
             try await execute(ArchiveCommand(context: .init(package: package, target: target, buildConfiguration: .debug, sdk: .iOS)))
 
             logger.info("Combining into XCFramework...")
-            try await execute(CreateXCFrameworkCommand(package: package, target: target, sdks: [.iOS, .iOSSimulator], outputDir: outputDir))
+            try await execute(CreateXCFrameworkCommand(
+                context: .init(package: package, target: target, buildConfiguration: .debug, sdks: [.iOS, .iOSSimulator]),
+                outputDir: outputDir
+            ))
         }
         // TODO Error handling
     }
@@ -109,24 +130,12 @@ struct Compiler<E: Executor> {
     }
 
     struct ArchiveCommand: XcodeBuildCommand {
-        struct Context {
-            enum BuildConfiguration {
-                case debug
-                case release
-
-                var settingsValue: String {
-                    switch self {
-                    case .debug: return "Debug"
-                    case .release: return "Release"
-                    }
-                }
-            }
+        struct Context: BuildContext {
             var package: Package
             var target: ResolvedTarget
             var buildConfiguration: BuildConfiguration
             var sdk: SDK
         }
-
         var context: Context
         var xcArchivePath: AbsolutePath {
             context.xcArchivePath
@@ -155,25 +164,29 @@ struct Compiler<E: Executor> {
     }
 
     struct CreateXCFrameworkCommand: XcodeBuildCommand {
+        struct Context: BuildContext {
+            let package: Package
+            let target: ResolvedTarget
+            let buildConfiguration: BuildConfiguration
+            let sdks: [SDK]
+        }
+        let context: Context
         let subCommand: String = "-create-xcframework"
-        let package: Package
-        let target: ResolvedTarget
-        let sdks: [SDK]
         let outputDir: AbsolutePath
 
         var xcFrameworkPath: AbsolutePath {
-            outputDir.appending(component: "\(target.name).xcframework")
+            outputDir.appending(component: "\(context.target.name).xcframework")
         }
 
-        func buildFrameworkPath(package: Package, target: ResolvedTarget, sdk: SDK) -> AbsolutePath {
-            buildXCArchivePath(package: package, target: target, sdk: sdk)
+        func buildFrameworkPath(sdk: SDK) -> AbsolutePath {
+            context.buildXCArchivePath(sdk: sdk)
                 .appending(components: "Products", "Library", "Frameworks")
-                .appending(component: "\(target.name).framework")
+                .appending(component: "\(context.target.name).framework")
         }
 
         var options: [Pair] {
-            sdks.map { sdk in
-                .init(key: "framework", value: buildFrameworkPath(package: package, target: target, sdk: sdk).pathString)
+            context.sdks.map { sdk in
+                .init(key: "framework", value: buildFrameworkPath(sdk: sdk).pathString)
             }
             + [.init(key: "output", value: xcFrameworkPath.pathString)]
         }
@@ -190,9 +203,9 @@ extension Package {
     }
 }
 
-extension Compiler.ArchiveCommand.Context {
-    fileprivate var xcArchivePath: AbsolutePath {
-        buildXCArchivePath(package: package, target: target, sdk: sdk)
+extension BuildContext {
+    fileprivate func buildXCArchivePath(sdk: SDK) -> AbsolutePath {
+        package.archivesPath.appending(component: "\(target.name)_\(sdk.name).xcarchive")
     }
 
     fileprivate var projectPath: AbsolutePath {
@@ -200,6 +213,8 @@ extension Compiler.ArchiveCommand.Context {
     }
 }
 
-private func buildXCArchivePath(package: Package, target: ResolvedTarget, sdk: SDK) -> AbsolutePath {
-    package.archivesPath.appending(component: "\(target.name)_\(sdk.name).xcarchive")
+extension Compiler.ArchiveCommand.Context {
+    var xcArchivePath: AbsolutePath {
+        buildXCArchivePath(sdk: sdk)
+    }
 }
