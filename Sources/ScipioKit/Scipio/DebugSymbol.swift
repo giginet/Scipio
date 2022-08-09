@@ -21,8 +21,8 @@ struct DwarfExtractor<E: Executor> {
     }
 
     typealias Arch = String
-    func dump(_ debugSymbol: DebugSymbol) async throws -> [Arch: UUID] {
-        let result = try await executor.execute("/usr/bin/xcrun", "dwarfdump", "--uuid", debugSymbol.dwarfPath.pathString)
+    func dump(dwarfPath: AbsolutePath) async throws -> [Arch: UUID] {
+        let result = try await executor.execute("/usr/bin/xcrun", "dwarfdump", "--uuid", dwarfPath.pathString)
 
         guard let output = try result.unwrapOutput() else {
             return [:]
@@ -33,8 +33,8 @@ struct DwarfExtractor<E: Executor> {
 
     private func parseUUIDs(from outputString: String) -> [Arch: UUID] {
         // TODO Use modern Regex
-        let regex = try! NSRegularExpression(pattern: "(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\t\\((?<arch>.+)\\)")
-        return regex.matches(in: outputString, range: NSRangeFromString(outputString)).compactMap { match -> (String, UUID)? in
+        let regex = try! NSRegularExpression(pattern: "(?<uuid>[0-9A-F]{8}\\-[0-9A-F]{4}\\-[0-9A-F]{4}\\-[0-9A-F]{4}\\-[0-9A-F]{12})\\s\\((?<arch>.+)\\)")
+        return regex.matches(in: outputString, range: NSMakeRange(0, outputString.utf16.count)).compactMap { match -> (String, UUID)? in
             guard let uuidString = match.captured(by: "uuid", in: outputString), let uuid = UUID(uuidString: uuidString) else { return nil }
             guard let arch = match.captured(by: "arch", in: outputString) else { return nil }
             return (arch, uuid)
