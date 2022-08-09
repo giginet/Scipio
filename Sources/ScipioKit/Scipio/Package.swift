@@ -35,8 +35,12 @@ struct Package {
 
         self.toolchain = try UserToolchain(destination: try .hostDestination())
 
+#if swift(>=5.7)
+        let loader = ManifestLoader(toolchain: toolchain)
+#else // for Swift 5.6
         let resources = ToolchainConfiguration(swiftCompilerPath: toolchain.swiftCompilerPath)
         let loader = ManifestLoader(toolchain: resources)
+#endif
         let workspace = try Workspace(forRootPackage: root, customManifestLoader: loader)
 
         self.graph = try workspace.loadPackageGraph(rootPath: root, observabilityScope: observabilitySystem.topScope)

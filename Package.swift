@@ -17,10 +17,11 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-package-manager.git",
-                 branch: "release/5.6"),
+                 branch: "release/5.7"),
         .package(url: "https://github.com/apple/swift-log.git",
-            .upToNextMinor(from: "1.4.2")),
-        .package(url: "https://github.com/apple/swift-argument-parser.git", .upToNextMinor(from: "1.0.0")),
+                 .upToNextMinor(from: "1.4.2")),
+        .package(url: "https://github.com/apple/swift-argument-parser.git", 
+                 .upToNextMinor(from: "1.0.0")),
     ],
     targets: [
         .executableTarget(name: "scipio",
