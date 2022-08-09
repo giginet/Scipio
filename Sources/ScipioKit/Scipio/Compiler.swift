@@ -75,15 +75,21 @@ struct Compiler<E: Executor> {
     let package: Package
     let executor: E
     let fileSystem: any FileSystem
+    private let extractor: DwarfExtractor<E>
 
     init(package: Package, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
         self.package = package
         self.executor = executor
         self.fileSystem = fileSystem
+        self.extractor = DwarfExtractor(executor: executor)
+    }
+
+    private func buildArtifactsDirectoryPath(buildConfiguration: BuildConfiguration, sdk: SDK) -> AbsolutePath {
+        package.workspaceDirectory.appending(component: "\(buildConfiguration.settingsValue)-\(sdk.name)")
     }
 
     private func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> AbsolutePath {
-        return package.workspaceDirectory.appending(components: "\(buildConfiguration.settingsValue)-\(sdk.name)", "\(target).framework.dSYM")
+        buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appending(component: "\(target).framework.dSYM")
     }
 
     func build(outputDir: AbsolutePath) async throws {
@@ -106,11 +112,9 @@ struct Compiler<E: Executor> {
 
             logger.info("Combining into XCFramework...")
 
-            let debugSymbolPaths = sdks.map {
-                buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: $0, target: target)
-            }.filter {
-                fileSystem.exists($0)
-            }
+            let debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
+                                                                     buildConfiguration: buildConfiguration,
+                                                                     sdks: sdks)
 
             try await execute(CreateXCFrameworkCommand(
                 context: .init(package: package,
@@ -122,6 +126,28 @@ struct Compiler<E: Executor> {
             ))
         }
         // TODO Error handling
+    }
+
+    private func extractDebugSymbolPaths(target: ResolvedTarget, buildConfiguration: BuildConfiguration, sdks: [SDK]) async throws -> [AbsolutePath] {
+        let debugSymbols: [DebugSymbol] = sdks.compactMap { sdk in
+            let dsymPath = buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: sdk, target: target)
+            guard fileSystem.exists(dsymPath) else { return nil }
+            return DebugSymbol(dSYMPath: dsymPath,
+                               target: target,
+                               sdk: sdk,
+                               buildConfiguration: buildConfiguration)
+        }
+        // You can use AsyncStream
+        var symbolMapPaths: [AbsolutePath] = []
+        for dSYMs in debugSymbols {
+            let maps = try await self.extractor.dump(dwarfPath: dSYMs.dwarfPath)
+            let paths = maps.values.map { uuid in
+                buildArtifactsDirectoryPath(buildConfiguration: dSYMs.buildConfiguration, sdk: dSYMs.sdk)
+                    .appending(component: "\(uuid.uuidString).bcsymbolmap")
+            }
+            symbolMapPaths.append(contentsOf: paths)
+        }
+        return debugSymbols.map { $0.dSYMPath } + symbolMapPaths
     }
 
     @discardableResult
@@ -177,8 +203,8 @@ struct Compiler<E: Executor> {
             [
                 ("BUILD_DIR", context.package.workspaceDirectory.pathString),
                 ("SKIP_INSTALL", "NO"),
-//                ("BUILD_LIBRARY_FOR_DISTRIBUTION", "YES"),
-//                ("DEBUG_INFORMATION_FORMAT", "dwarf-with-dsym") // TODO
+                //                ("BUILD_LIBRARY_FOR_DISTRIBUTION", "YES"),
+                //                ("DEBUG_INFORMATION_FORMAT", "dwarf-with-dsym") // TODO
             ].map(Pair.init(key:value:))
         }
     }
@@ -207,7 +233,7 @@ struct Compiler<E: Executor> {
 
         var options: [Pair] {
             context.sdks.map { sdk in
-                .init(key: "framework", value: buildFrameworkPath(sdk: sdk).pathString)
+                    .init(key: "framework", value: buildFrameworkPath(sdk: sdk).pathString)
             }
             // TODO bcsymbolmap
             +
