@@ -245,9 +245,3 @@ extension Compiler.ArchiveCommand.Context {
     }
 }
 
-struct DebugSymbol {
-    var dSYMPath: AbsolutePath
-    var target: ResolvedTarget
-    var sdk: SDK
-    var buildConfiguration: BuildConfiguration
-}

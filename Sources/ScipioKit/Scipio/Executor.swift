@@ -75,3 +75,14 @@ struct ProcessExecutor: Executor {
         }
     }
 }
+
+extension ExecutorResult {
+    func unwrapOutput() throws -> String? {
+        switch output {
+        case .success(let data):
+            return String(data: Data(data), encoding: .utf8)
+        case .failure(let error):
+            throw error
+        }
+    }
+}
