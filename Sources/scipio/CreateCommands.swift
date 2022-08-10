@@ -1,17 +1,23 @@
 import Foundation
 import ScipioKit
 import ArgumentParser
-import TSCBasic
 
 extension Scipio {
     struct Create: AsyncParsableCommand {
+        @Argument(help: "Path indicates a package directory.")
+        var packageDirectory: URL = .init(fileURLWithPath: ".")
+
+        @Option(help: "Path indicates a XCFrameworks output directory.")
+        var output: URL?
+
+        @Option(help: "Build Configuration for generated frameworks. (debug / release)")
+        var configuration: BuildConfiguration = .release
+
         mutating func run() async throws {
             let runner = Runner()
 
-            let packageDirectory = URL(fileURLWithPath: "/Users/jp30698/work/xcframeworks/test-package")
-
             try await runner.run(packageDirectory: packageDirectory,
-                                 frameworkOutputDir: packageDirectory.appendingPathComponent("XCFrameworks"))
+                                 frameworkOutputDir: output)
         }
     }
 }

@@ -25,12 +25,12 @@ enum SDK {
     }
 }
 
-struct Pair {
+private struct Pair {
     var key: String
     var value: String?
 }
 
-protocol XcodeBuildCommand {
+private protocol XcodeBuildCommand {
     var subCommand: String { get }
     var options: [Pair] { get }
     var environmentVariables: [Pair] { get }
@@ -53,7 +53,7 @@ extension XcodeBuildCommand {
     }
 }
 
-enum BuildConfiguration {
+public enum BuildConfiguration {
     case debug
     case release
 
@@ -151,7 +151,7 @@ struct Compiler<E: Executor> {
     }
 
     @discardableResult
-    func execute<Command: XcodeBuildCommand>(_ command: Command) async throws -> ExecutorResult {
+    private func execute<Command: XcodeBuildCommand>(_ command: Command) async throws -> ExecutorResult {
         try await executor.execute(command.buildArguments())
     }
 
@@ -161,7 +161,7 @@ struct Compiler<E: Executor> {
             .filter { $0.name != package.name }
     }
 
-    struct CleanCommand: XcodeBuildCommand {
+    private struct CleanCommand: XcodeBuildCommand {
         let projectPath: AbsolutePath
         let buildDirectory: AbsolutePath
 
@@ -175,7 +175,7 @@ struct Compiler<E: Executor> {
         }
     }
 
-    struct ArchiveCommand: XcodeBuildCommand {
+    fileprivate struct ArchiveCommand: XcodeBuildCommand {
         struct Context: BuildContext {
             var package: Package
             var target: ResolvedTarget
@@ -209,7 +209,7 @@ struct Compiler<E: Executor> {
         }
     }
 
-    struct CreateXCFrameworkCommand: XcodeBuildCommand {
+    private struct CreateXCFrameworkCommand: XcodeBuildCommand {
         struct Context: BuildContext {
             let package: Package
             let target: ResolvedTarget
