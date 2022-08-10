@@ -78,9 +78,13 @@ struct Compiler<E: Executor> {
             buildDirectory: package.workspaceDirectory
         ))
 
-        let buildConfiguration: BuildConfiguration = .release // TODO setting from option
-        let sdks: [SDK] = [.iOS, .iOSSimulator]
-
+        let buildConfiguration: BuildConfiguration = buildOptions.buildConfiguration
+        let sdks: Set<SDK> // TODO load from manifest
+        if buildOptions.isSimulatorSupported {
+            sdks = SDK.iOS.extractForSimulators()
+        } else {
+            sdks = [.iOS]
+        }
         for target in targets {
             logger.info("📦 Building \(target.name) for all SDKs")
             for sdk in sdks {
@@ -122,7 +126,7 @@ struct Compiler<E: Executor> {
         // TODO Error handling
     }
 
-    private func extractDebugSymbolPaths(target: ResolvedTarget, buildConfiguration: BuildConfiguration, sdks: [SDK]) async throws -> [AbsolutePath] {
+    private func extractDebugSymbolPaths(target: ResolvedTarget, buildConfiguration: BuildConfiguration, sdks: Set<SDK>) async throws -> [AbsolutePath] {
         let debugSymbols: [DebugSymbol] = sdks.compactMap { sdk in
             let dsymPath = buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: sdk, target: target)
             guard fileSystem.exists(dsymPath) else { return nil }
@@ -206,7 +210,7 @@ struct Compiler<E: Executor> {
             let package: Package
             let target: ResolvedTarget
             let buildConfiguration: BuildConfiguration
-            let sdks: [SDK]
+            let sdks: Set<SDK>
             let debugSymbolPaths: [AbsolutePath]?
         }
         let context: Context

@@ -18,11 +18,15 @@ extension Scipio {
 
         @Flag(name: .customLong("enable-cache"),
               help: "Whether skip building already built frameworks or not.")
-        var isCacheEnabled = false
+        var cacheEnabled = false
 
         @Flag(name: .customLong("embed-debug-symbols"),
               help: "Whether embed debug symbols to frameworks or not.")
-        var isDebugSymbolEmbedded = false
+        var debugSymbolEmbedded = false
+
+        @Flag(name: .customLong("support-simulator"),
+              help: "Whether also building for simulators of each SDKs or not.")
+        var supportSimulator = false
 
         @Flag(name: [.short, .long],
               help: "Whether to overwrite existing frameworks.")
@@ -36,11 +40,11 @@ extension Scipio {
             let runner = Runner(options: .init(
                 buildOptions: .init(tag: nil,
                                     buildConfiguration: buildConfiguration,
-                                    isSimulatorSupported: true,
-                                    isDebugSymbolsEmbedded: isDebugSymbolEmbedded),
+                                    isSimulatorSupported: supportSimulator,
+                                    isDebugSymbolsEmbedded: debugSymbolEmbedded),
                 packageDirectory: packageDirectory,
                 outputDirectory: outputDirectory,
-                isCacheEnabled: isCacheEnabled,
+                isCacheEnabled: cacheEnabled,
                 force: force,
                 verbose: verbose)
             )
