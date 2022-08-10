@@ -21,8 +21,7 @@ public struct Runner {
     }
 
     public struct Options {
-        public init(tag: String? = nil, buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, packageDirectory: URL, outputDirectory: URL? = nil, isCacheEnabled: Bool, verbose: Bool) {
-            self.tag = tag
+        public init(buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, packageDirectory: URL, outputDirectory: URL? = nil, isCacheEnabled: Bool, verbose: Bool) {
             self.buildConfiguration = buildConfiguration
             self.isSimulatorSupported = isSimulatorSupported
             self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
@@ -32,7 +31,6 @@ public struct Runner {
             self.verbose = verbose
         }
 
-        public var tag: String?
         public var buildConfiguration: BuildConfiguration
         public var isSimulatorSupported: Bool
         public var isDebugSymbolsEmbedded: Bool
