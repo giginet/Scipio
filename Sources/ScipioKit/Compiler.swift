@@ -67,11 +67,11 @@ struct Compiler<E: Executor> {
         ))
 
         let buildConfiguration: BuildConfiguration = buildOptions.buildConfiguration
-        let sdks: Set<SDK> // TODO load from manifest
+        let sdks: Set<SDK>
         if buildOptions.isSimulatorSupported {
-            sdks = SDK.iOS.extractForSimulators()
+            sdks = Set(buildOptions.sdks.flatMap { $0.extractForSimulators() })
         } else {
-            sdks = [.iOS]
+            sdks = buildOptions.sdks
         }
 
         let packages = packagesForBuild(for: rootPackage)

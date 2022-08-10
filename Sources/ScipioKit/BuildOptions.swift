@@ -1,17 +1,11 @@
 import Foundation
 
-public struct BuildOptions: Hashable, Codable {
-    public init(tag: String? = nil, buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool) {
-        self.tag = tag
-        self.buildConfiguration = buildConfiguration
-        self.isSimulatorSupported = isSimulatorSupported
-        self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
-    }
-
-    public var tag: String?
-    public var buildConfiguration: BuildConfiguration
-    public var isSimulatorSupported: Bool
-    public var isDebugSymbolsEmbedded: Bool
+struct BuildOptions: Hashable, Codable {
+    var tag: String?
+    var buildConfiguration: BuildConfiguration
+    var isSimulatorSupported: Bool
+    var isDebugSymbolsEmbedded: Bool
+    var sdks: Set<SDK>
 }
 
 public enum BuildConfiguration: Codable {
@@ -26,7 +20,7 @@ public enum BuildConfiguration: Codable {
     }
 }
 
-enum SDK {
+enum SDK: Codable {
     case macOS
     case macCatalyst
     case iOS
@@ -35,6 +29,23 @@ enum SDK {
     case tvOSSimulator
     case watchOS
     case watchOSSimulator
+
+    init?(platformName: String) {
+        switch platformName {
+        case "macos":
+            self = .macOS
+        case "ios":
+            self = .iOS
+        case "maccatalyst":
+            self = .macCatalyst
+        case "tvos":
+            self = .tvOS
+        case "watchos":
+            self = .watchOS
+        default:
+            return nil
+        }
+    }
 
     func extractForSimulators() -> Set<SDK> {
         switch self {

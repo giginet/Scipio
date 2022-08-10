@@ -62,9 +62,13 @@ struct CacheSystem {
         let versionFilePath = versionFilePath(for: target)
         guard fileSystem.exists(versionFilePath) else { return false }
         let decoder = JSONDecoder()
-        let versionFileKey = try decoder.decode(path: versionFilePath, fileSystem: fileSystem, as: CacheKey.self)
-        let expectedKey = try await calculateCacheKey(package: package, target: target)
-        return versionFileKey == expectedKey
+        do {
+            let versionFileKey = try decoder.decode(path: versionFilePath, fileSystem: fileSystem, as: CacheKey.self)
+            let expectedKey = try await calculateCacheKey(package: package, target: target)
+            return versionFileKey == expectedKey
+        } catch {
+            return false
+        }
     }
 
     private func calculateCacheKey(package: ResolvedPackage, target: ResolvedTarget) async throws -> CacheKey {

@@ -29,6 +29,10 @@ struct Package {
         buildDirectory.appending(component: "\(name).xcodeproj")
     }
 
+    var supportedSDKs: Set<SDK> {
+        Set(manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:)))
+    }
+
     init(packageDirectory: AbsolutePath) throws {
         self.packageDirectory = packageDirectory
 

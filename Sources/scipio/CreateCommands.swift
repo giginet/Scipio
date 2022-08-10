@@ -22,7 +22,7 @@ extension Scipio {
 
         @Flag(name: .customLong("embed-debug-symbols"),
               help: "Whether embed debug symbols to frameworks or not.")
-        var debugSymbolEmbedded = false
+        var embedDebugSymbols = false
 
         @Flag(name: .customLong("support-simulator"),
               help: "Whether also building for simulators of each SDKs or not.")
@@ -34,12 +34,10 @@ extension Scipio {
 
         mutating func run() async throws {
             let runner = Runner(options: .init(
-                buildOptions: .init(tag: nil,
-                                    buildConfiguration: buildConfiguration,
-                                    isSimulatorSupported: supportSimulator,
-                                    isDebugSymbolsEmbedded: debugSymbolEmbedded),
+                buildConfiguration: buildConfiguration,
+                isSimulatorSupported: supportSimulator,
+                isDebugSymbolsEmbedded: embedDebugSymbols,
                 packageDirectory: packageDirectory,
-                outputDirectory: outputDirectory,
                 isCacheEnabled: cacheEnabled,
                 verbose: verbose)
             )
