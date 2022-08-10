@@ -29,10 +29,6 @@ extension Scipio {
         var supportSimulator = false
 
         @Flag(name: [.short, .long],
-              help: "Whether to overwrite existing frameworks.")
-        var force: Bool = false
-
-        @Flag(name: [.short, .long],
               help: "Provide additional build progress.")
         var verbose: Bool = false
 
@@ -45,7 +41,6 @@ extension Scipio {
                 packageDirectory: packageDirectory,
                 outputDirectory: outputDirectory,
                 isCacheEnabled: cacheEnabled,
-                force: force,
                 verbose: verbose)
             )
 

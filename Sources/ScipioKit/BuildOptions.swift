@@ -14,6 +14,18 @@ public struct BuildOptions: Hashable, Codable {
     public var isDebugSymbolsEmbedded: Bool
 }
 
+public enum BuildConfiguration: Codable {
+    case debug
+    case release
+
+    var settingsValue: String {
+        switch self {
+        case .debug: return "Debug"
+        case .release: return "Release"
+        }
+    }
+}
+
 enum SDK {
     case macOS
     case macCatalyst

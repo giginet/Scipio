@@ -30,18 +30,6 @@ extension XcodeBuildCommand {
     }
 }
 
-public enum BuildConfiguration: Codable {
-    case debug
-    case release
-
-    var settingsValue: String {
-        switch self {
-        case .debug: return "Debug"
-        case .release: return "Release"
-        }
-    }
-}
-
 private protocol BuildContext {
     var package: Package { get }
     var target: ResolvedTarget { get }
@@ -69,7 +57,7 @@ struct Compiler<E: Executor> {
         buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appending(component: "\(target).framework.dSYM")
     }
 
-    func build(buildOptions: BuildOptions, outputDir: AbsolutePath, isCacheEnabled: Bool, force: Bool) async throws {
+    func build(buildOptions: BuildOptions, outputDir: AbsolutePath, isCacheEnabled: Bool) async throws {
         let cacheSystem = CacheSystem(rootPackage: rootPackage, outputDirectory: outputDir, buildOptions: buildOptions)
 
         logger.info("🗑️ Cleaning \(rootPackage.name)...")
@@ -92,26 +80,19 @@ struct Compiler<E: Executor> {
                 let xcframeworkPath = outputDir.appending(component: "\(target.name).xcframework")
                 let exists = fileSystem.exists(xcframeworkPath)
 
-                if isCacheEnabled {
-                    let isValidCache = try await cacheSystem.existsValidCache(package: subPackage, target: target)
-                    if isValidCache {
-                        logger.warning("✅ Valid \(target.name).xcframework is exists. Skip building.")
-                        continue
-                    } else {
-                        logger.warning("⚠️ Existing \(target.name).xcframework is outdated. Start re-building...")
-                        try fileSystem.removeFileTree(xcframeworkPath)
-                    }
-                }
-
                 if exists {
-                    logger.warning("\(target.name).xcframework is already exists")
-                    if force {
-                        logger.info("💥 Delete \(target.name).xcframework")
-                        try fileSystem.removeFileTree(xcframeworkPath)
-                    } else {
-                        logger.info("☑️ Skip building \(target.name)")
-                        continue
+                    if isCacheEnabled {
+                        let isValidCache = try await cacheSystem.existsValidCache(package: subPackage, target: target)
+                        if isValidCache {
+                            logger.warning("✅ Valid \(target.name).xcframework is exists. Skip building.")
+                            continue
+                        } else {
+                            logger.warning("⚠️ Existing \(target.name).xcframework is outdated.")
+                            logger.info("💥 Delete \(target.name).xcframework")
+                            try fileSystem.removeFileTree(xcframeworkPath)
+                        }
                     }
+                    try fileSystem.removeFileTree(xcframeworkPath)
                 }
                 logger.info("📦 Building \(target.name) for all SDKs")
 

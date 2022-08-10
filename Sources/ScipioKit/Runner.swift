@@ -7,12 +7,11 @@ public struct Runner {
     private let fileSystem: any FileSystem
 
     public struct Options {
-        public init(buildOptions: BuildOptions, packageDirectory: URL, outputDirectory: URL? = nil, isCacheEnabled: Bool, force: Bool, verbose: Bool) {
+        public init(buildOptions: BuildOptions, packageDirectory: URL, outputDirectory: URL? = nil, isCacheEnabled: Bool, verbose: Bool) {
             self.buildOptions = buildOptions
             self.packageDirectory = packageDirectory
             self.outputDirectory = outputDirectory
             self.isCacheEnabled = isCacheEnabled
-            self.force = force
             self.verbose = verbose
         }
 
@@ -20,7 +19,6 @@ public struct Runner {
         public var packageDirectory: URL
         public var outputDirectory: URL?
         public var isCacheEnabled: Bool
-        public var force: Bool
         public var verbose: Bool
     }
 
@@ -69,8 +67,7 @@ public struct Runner {
             try await compiler.build(
                 buildOptions: options.buildOptions,
                 outputDir: outputDir,
-                isCacheEnabled: options.isCacheEnabled,
-                force: options.force
+                isCacheEnabled: options.isCacheEnabled
             )
         } catch {
             logger.error("Something went wrong to generate XCFramework")
