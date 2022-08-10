@@ -73,7 +73,7 @@ public struct Runner {
             let compiler = Compiler<ProcessExecutor>(package: package,
                                                      fileSystem: fileSystem)
             try await compiler.build(outputDir: outputDir,
-                                     isDebugBinaryEmbeded: configuration.isDebugSymbolEmbedded,
+                                     isDebugSymbolsEmbeded: configuration.isDebugSymbolEmbedded,
                                      isCacheEnabled: configuration.isCacheEnabled,
                                      force: configuration.force)
         } catch {

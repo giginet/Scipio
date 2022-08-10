@@ -92,7 +92,7 @@ struct Compiler<E: Executor> {
         buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appending(component: "\(target).framework.dSYM")
     }
 
-    func build(outputDir: AbsolutePath, isDebugBinaryEmbeded: Bool, isCacheEnabled: Bool, force: Bool) async throws {
+    func build(outputDir: AbsolutePath, isDebugSymbolsEmbeded: Bool, isCacheEnabled: Bool, force: Bool) async throws {
         let targets = targetsForBuild(for: package)
 
         logger.info("🗑️ Cleaning \(package.name)...")
@@ -125,7 +125,7 @@ struct Compiler<E: Executor> {
             logger.info("🚀 Combining into XCFramework...")
 
             let debugSymbolPaths: [AbsolutePath]?
-            if isDebugBinaryEmbeded {
+            if isDebugSymbolsEmbeded {
                 debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
                                                                      buildConfiguration: buildConfiguration,
                                                                      sdks: sdks)
@@ -250,7 +250,6 @@ struct Compiler<E: Executor> {
             context.sdks.map { sdk in
                     .init(key: "framework", value: buildFrameworkPath(sdk: sdk).pathString)
             }
-            // TODO bcsymbolmap
             +
             (context.debugSymbolPaths.flatMap {
                 $0.map { .init(key: "debug-symbols", value: $0.pathString) }
