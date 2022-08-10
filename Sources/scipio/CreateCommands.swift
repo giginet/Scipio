@@ -4,19 +4,37 @@ import ArgumentParser
 
 extension Scipio {
     struct Create: AsyncParsableCommand {
-        @Argument(help: "Path indicates a package directory.")
-        var packageDirectory: URL = .init(fileURLWithPath: ".")
+        @Argument(help: "Path indicates a package directory.",
+                  completion: .directory)
+        var packageDirectory: URL = URL(fileURLWithPath: ".")
 
-        @Option(help: "Path indicates a XCFrameworks output directory.")
-        var output: URL?
+        @Option(name: .customShort("o"),
+                help: "Path indicates a XCFrameworks output directory.")
+        var outputDirectory: URL?
 
-        @Option(help: "Build Configuration for generated frameworks. (debug / release)")
+        @Option(name: [.customLong("configuration"), .customShort("c")],
+                help: "Build configuration for generated frameworks. (debug / release)")
         var buildConfiguration: BuildConfiguration = .release
+
+        @Flag(name: .customLong("enable-cache"),
+              help: "Whether skip building already built frameworks or not.")
+        var isCacheEnabled = false
+
+        @Flag(name: .customLong("embed-debug-symbols"),
+              help: "Whether embed debug symbols to frameworks or not.")
+        var isDebugSymbolEmbedded = false
+
+        @Flag(name: [.short, .long],
+              help: "Whether to overwrite existing frameworks.")
+        var force: Bool = false
+
+        @Flag(name: [.short, .long])
+        var verbose: Bool = false
 
         mutating func run() async throws {
             let runner = Runner(configuration: .init(
                 packageDirectory: packageDirectory,
-                outputDirectory: output,
+                outputDirectory: outputDirectory,
                 buildConfiguration: self.buildConfiguration,
                 targetSDKs: [],
                 isCacheEnabled: false,
@@ -26,7 +44,7 @@ extension Scipio {
             )
 
             try await runner.run(packageDirectory: packageDirectory,
-                                 frameworkOutputDir: output)
+                                 frameworkOutputDir: outputDirectory)
         }
     }
 }
