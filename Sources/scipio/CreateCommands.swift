@@ -38,10 +38,10 @@ extension Scipio {
                 outputDirectory: outputDirectory,
                 buildConfiguration: self.buildConfiguration,
                 targetSDKs: [],
-                isCacheEnabled: false,
-                isDebugSymbolEmbedded: false,
-                force: false,
-                verbose: false)
+                isCacheEnabled: isCacheEnabled,
+                isDebugSymbolEmbedded: isDebugSymbolEmbedded,
+                force: force,
+                verbose: verbose)
             )
 
             try await runner.run(packageDirectory: packageDirectory,

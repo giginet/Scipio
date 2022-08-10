@@ -95,7 +95,7 @@ struct Compiler<E: Executor> {
     func build(outputDir: AbsolutePath, isDebugBinaryEmbeded: Bool, isCacheEnabled: Bool, force: Bool) async throws {
         let targets = targetsForBuild(for: package)
 
-        logger.info("Cleaning \(package.name)...")
+        logger.info("🗑️ Cleaning \(package.name)...")
         try await execute(CleanCommand(
             projectPath: package.projectPath,
             buildDirectory: package.workspaceDirectory
@@ -105,12 +105,24 @@ struct Compiler<E: Executor> {
         let sdks: [SDK] = [.iOS, .iOSSimulator]
 
         for target in targets {
-            logger.info("Building framework \(target.name)")
+            logger.info("📦 Building \(target.name) for all SDKs")
             for sdk in sdks {
                 try await execute(ArchiveCommand(context: .init(package: package, target: target, buildConfiguration: buildConfiguration, sdk: sdk)))
             }
 
-            logger.info("Combining into XCFramework...")
+            let xcframeworkPath = outputDir.appending(component: "\(target.name).xcframework")
+            let exists = fileSystem.exists(xcframeworkPath)
+            if exists {
+                logger.warning("\(target.name).xcframework is already exists")
+                if force {
+                    logger.info("💥 Delete \(target.name).xcframework")
+                    try fileSystem.removeFileTree(xcframeworkPath)
+                } else {
+                    logger.info("☑️ Skip building \(target.name)")
+                    continue
+                }
+            }
+            logger.info("🚀 Combining into XCFramework...")
 
             let debugSymbolPaths: [AbsolutePath]?
             if isDebugBinaryEmbeded {
@@ -208,8 +220,6 @@ struct Compiler<E: Executor> {
             [
                 ("BUILD_DIR", context.package.workspaceDirectory.pathString),
                 ("SKIP_INSTALL", "NO"),
-                //                ("BUILD_LIBRARY_FOR_DISTRIBUTION", "YES"),
-                //                ("DEBUG_INFORMATION_FORMAT", "dwarf-with-dsym") // TODO
             ].map(Pair.init(key:value:))
         }
     }
