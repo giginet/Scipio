@@ -24,9 +24,7 @@ struct DwarfExtractor<E: Executor> {
     func dump(dwarfPath: AbsolutePath) async throws -> [Arch: UUID] {
         let result = try await executor.execute("/usr/bin/xcrun", "dwarfdump", "--uuid", dwarfPath.pathString)
 
-        guard let output = try result.unwrapOutput() else {
-            return [:]
-        }
+        let output = try result.unwrapOutput()
 
         return parseUUIDs(from: output)
     }
@@ -44,7 +42,7 @@ struct DwarfExtractor<E: Executor> {
 }
 
 extension NSTextCheckingResult {
-    fileprivate func captured(by name: String, in originalText: String) -> String? {
+    func captured(by name: String, in originalText: String) -> String? {
         let range = range(withName: name)
         guard let swiftyRange = Range(range, in: originalText) else {
             return nil
