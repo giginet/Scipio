@@ -33,13 +33,14 @@ extension Scipio {
         var verbose: Bool = false
 
         mutating func run() async throws {
-            let runner = Runner(configuration: .init(
+            let runner = Runner(options: .init(
+                buildOptions: .init(tag: nil,
+                                    buildConfiguration: buildConfiguration,
+                                    isSimulatorSupported: true,
+                                    isDebugSymbolsEmbedded: isDebugSymbolEmbedded),
                 packageDirectory: packageDirectory,
                 outputDirectory: outputDirectory,
-                buildConfiguration: self.buildConfiguration,
-                targetSDKs: [],
                 isCacheEnabled: isCacheEnabled,
-                isDebugSymbolEmbedded: isDebugSymbolEmbedded,
                 force: force,
                 verbose: verbose)
             )

@@ -2,29 +2,6 @@ import Foundation
 import PackageGraph
 import TSCBasic
 
-public enum SDK {
-    case iOS
-    case iOSSimulator
-
-    var name: String {
-        switch self {
-        case .iOS:
-            return "iphoneos"
-        case .iOSSimulator:
-            return "iphonesimulator"
-        }
-    }
-
-    var destination: String {
-        switch self {
-        case .iOS:
-            return "generic/platform=iOS"
-        case .iOSSimulator:
-            return "generic/platform=iOS Simulator"
-        }
-    }
-}
-
 private struct Pair {
     var key: String
     var value: String?
@@ -92,7 +69,7 @@ struct Compiler<E: Executor> {
         buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appending(component: "\(target).framework.dSYM")
     }
 
-    func build(outputDir: AbsolutePath, isDebugSymbolsEmbeded: Bool, isCacheEnabled: Bool, force: Bool) async throws {
+    func build(buildOptions: BuildOptions, outputDir: AbsolutePath, isCacheEnabled: Bool, force: Bool) async throws {
         let targets = targetsForBuild(for: package)
 
         logger.info("🗑️ Cleaning \(package.name)...")
@@ -125,7 +102,7 @@ struct Compiler<E: Executor> {
             logger.info("🚀 Combining into XCFramework...")
 
             let debugSymbolPaths: [AbsolutePath]?
-            if isDebugSymbolsEmbeded {
+            if buildOptions.isDebugSymbolsEmbedded {
                 debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
                                                                      buildConfiguration: buildConfiguration,
                                                                      sdks: sdks)

@@ -3,42 +3,36 @@ import TSCBasic
 import Logging
 
 public struct Runner {
-    private let configuration: Configuration
+    private let options: Options
     private let fileSystem: any FileSystem
 
-    public struct Configuration {
-        public init(tag: String? = nil, packageDirectory: URL, outputDirectory: URL?, buildConfiguration: BuildConfiguration, targetSDKs: Set<SDK>, isCacheEnabled: Bool, isDebugSymbolEmbedded: Bool, force: Bool, verbose: Bool) {
-            self.tag = tag
+    public struct Options {
+        public init(buildOptions: BuildOptions, packageDirectory: URL, outputDirectory: URL? = nil, isCacheEnabled: Bool, force: Bool, verbose: Bool) {
+            self.buildOptions = buildOptions
             self.packageDirectory = packageDirectory
             self.outputDirectory = outputDirectory
-            self.buildConfiguration = buildConfiguration
-            self.targetSDKs = targetSDKs
             self.isCacheEnabled = isCacheEnabled
-            self.isDebugSymbolEmbedded = isDebugSymbolEmbedded
             self.force = force
             self.verbose = verbose
         }
 
-        public var tag: String?
+        public var buildOptions: BuildOptions
         public var packageDirectory: URL
         public var outputDirectory: URL?
-        public var buildConfiguration: BuildConfiguration
-        public var targetSDKs: Set<SDK>
         public var isCacheEnabled: Bool
-        public var isDebugSymbolEmbedded: Bool
         public var force: Bool
         public var verbose: Bool
     }
 
-    public init(configuration: Configuration, fileSystem: FileSystem = localFileSystem) {
+    public init(options: Options, fileSystem: FileSystem = localFileSystem) {
         LoggingSystem.bootstrap(StreamLogHandler.standardError)
-        if configuration.verbose {
+        if options.verbose {
             setLogLevel(.trace)
         } else {
             setLogLevel(.info)
         }
 
-        self.configuration = configuration
+        self.options = options
         self.fileSystem = fileSystem
     }
 
@@ -62,7 +56,7 @@ public struct Runner {
             try await resolver.resolve()
 
             let generator = ProjectGenerator()
-            try generator.generate(for: package, embedDebugSymbols: configuration.isDebugSymbolEmbedded)
+            try generator.generate(for: package, embedDebugSymbols: options.buildOptions.isDebugSymbolsEmbedded)
 
             let outputDir: AbsolutePath
             if let dir = frameworkOutputDir {
@@ -72,10 +66,12 @@ public struct Runner {
             }
             let compiler = Compiler<ProcessExecutor>(package: package,
                                                      fileSystem: fileSystem)
-            try await compiler.build(outputDir: outputDir,
-                                     isDebugSymbolsEmbeded: configuration.isDebugSymbolEmbedded,
-                                     isCacheEnabled: configuration.isCacheEnabled,
-                                     force: configuration.force)
+            try await compiler.build(
+                buildOptions: options.buildOptions,
+                outputDir: outputDir,
+                isCacheEnabled: options.isCacheEnabled,
+                force: options.force
+            )
         } catch {
             logger.error("Something went wrong to generate XCFramework")
             logger.error("Please execute with --verbose option.")
