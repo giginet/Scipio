@@ -22,6 +22,6 @@ let package = Package(
             dependencies: []),
         .testTarget(
             name: "BasicPackageTests",
-            dependencies: ["BasicPackage"], exclude: ["Resources/Fixtures"]),
+            dependencies: ["BasicPackage"]),
     ]
 )
