@@ -64,7 +64,7 @@ public struct Runner {
             } else {
                 outputDir = AbsolutePath(packageDirectory.path).appending(component: "XCFrameworks")
             }
-            let compiler = Compiler<ProcessExecutor>(package: package,
+            let compiler = Compiler<ProcessExecutor>(rootPackage: package,
                                                      fileSystem: fileSystem)
             try await compiler.build(
                 buildOptions: options.buildOptions,

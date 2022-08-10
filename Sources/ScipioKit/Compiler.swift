@@ -49,20 +49,20 @@ private protocol BuildContext {
 }
 
 struct Compiler<E: Executor> {
-    let package: Package
+    let rootPackage: Package
     let executor: E
     let fileSystem: any FileSystem
     private let extractor: DwarfExtractor<E>
 
-    init(package: Package, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
-        self.package = package
+    init(rootPackage: Package, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
+        self.rootPackage = rootPackage
         self.executor = executor
         self.fileSystem = fileSystem
         self.extractor = DwarfExtractor(executor: executor)
     }
 
     private func buildArtifactsDirectoryPath(buildConfiguration: BuildConfiguration, sdk: SDK) -> AbsolutePath {
-        package.workspaceDirectory.appending(component: "\(buildConfiguration.settingsValue)-\(sdk.name)")
+        rootPackage.workspaceDirectory.appending(component: "\(buildConfiguration.settingsValue)-\(sdk.name)")
     }
 
     private func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> AbsolutePath {
@@ -70,12 +70,12 @@ struct Compiler<E: Executor> {
     }
 
     func build(buildOptions: BuildOptions, outputDir: AbsolutePath, isCacheEnabled: Bool, force: Bool) async throws {
-        let targets = targetsForBuild(for: package)
+        let cacheSystem = CacheSystem(rootPackage: rootPackage, outputDirectory: outputDir, buildOptions: buildOptions)
 
-        logger.info("🗑️ Cleaning \(package.name)...")
+        logger.info("🗑️ Cleaning \(rootPackage.name)...")
         try await execute(CleanCommand(
-            projectPath: package.projectPath,
-            buildDirectory: package.workspaceDirectory
+            projectPath: rootPackage.projectPath,
+            buildDirectory: rootPackage.workspaceDirectory
         ))
 
         let buildConfiguration: BuildConfiguration = buildOptions.buildConfiguration
@@ -85,45 +85,65 @@ struct Compiler<E: Executor> {
         } else {
             sdks = [.iOS]
         }
-        for target in targets {
-            logger.info("📦 Building \(target.name) for all SDKs")
-            for sdk in sdks {
-                try await execute(ArchiveCommand(context: .init(package: package, target: target, buildConfiguration: buildConfiguration, sdk: sdk)))
-            }
 
-            let xcframeworkPath = outputDir.appending(component: "\(target.name).xcframework")
-            let exists = fileSystem.exists(xcframeworkPath)
-            if exists {
-                logger.warning("\(target.name).xcframework is already exists")
-                if force {
-                    logger.info("💥 Delete \(target.name).xcframework")
-                    try fileSystem.removeFileTree(xcframeworkPath)
-                } else {
-                    logger.info("☑️ Skip building \(target.name)")
-                    continue
+        let packages = packagesForBuild(for: rootPackage)
+        for subPackage in packages {
+            for target in subPackage.targets {
+                let xcframeworkPath = outputDir.appending(component: "\(target.name).xcframework")
+                let exists = fileSystem.exists(xcframeworkPath)
+
+                if isCacheEnabled {
+                    let isValidCache = try await cacheSystem.existsValidCache(package: subPackage, target: target)
+                    if isValidCache {
+                        logger.warning("✅ Valid \(target.name).xcframework is exists. Skip building.")
+                        continue
+                    } else {
+                        logger.warning("⚠️ Existing \(target.name).xcframework is outdated. Start re-building...")
+                        try fileSystem.removeFileTree(xcframeworkPath)
+                    }
                 }
-            }
-            logger.info("🚀 Combining into XCFramework...")
 
-            let debugSymbolPaths: [AbsolutePath]?
-            if buildOptions.isDebugSymbolsEmbedded {
-                debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
-                                                                     buildConfiguration: buildConfiguration,
-                                                                     sdks: sdks)
-            } else {
-                debugSymbolPaths = nil
-            }
+                if exists {
+                    logger.warning("\(target.name).xcframework is already exists")
+                    if force {
+                        logger.info("💥 Delete \(target.name).xcframework")
+                        try fileSystem.removeFileTree(xcframeworkPath)
+                    } else {
+                        logger.info("☑️ Skip building \(target.name)")
+                        continue
+                    }
+                }
+                logger.info("📦 Building \(target.name) for all SDKs")
 
-            try await execute(CreateXCFrameworkCommand(
-                context: .init(package: package,
-                               target: target,
-                               buildConfiguration: buildConfiguration,
-                               sdks: sdks,
-                               debugSymbolPaths: debugSymbolPaths),
-                outputDir: outputDir
-            ))
+                for sdk in sdks {
+                    try await execute(ArchiveCommand(context: .init(package: rootPackage, target: target, buildConfiguration: buildConfiguration, sdk: sdk)))
+                }
+
+                logger.info("🚀 Combining into XCFramework...")
+
+                let debugSymbolPaths: [AbsolutePath]?
+                if buildOptions.isDebugSymbolsEmbedded {
+                    debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
+                                                                         buildConfiguration: buildConfiguration,
+                                                                         sdks: sdks)
+                } else {
+                    debugSymbolPaths = nil
+                }
+
+                try await execute(CreateXCFrameworkCommand(
+                    context: .init(package: rootPackage,
+                                   target: target,
+                                   buildConfiguration: buildConfiguration,
+                                   sdks: sdks,
+                                   debugSymbolPaths: debugSymbolPaths),
+                    outputDir: outputDir
+                ))
+
+
+                try await cacheSystem.generateVersionFile(package: subPackage, target: target)
+            }
+            // TODO Error handling
         }
-        // TODO Error handling
     }
 
     private func extractDebugSymbolPaths(target: ResolvedTarget, buildConfiguration: BuildConfiguration, sdks: Set<SDK>) async throws -> [AbsolutePath] {
@@ -153,10 +173,9 @@ struct Compiler<E: Executor> {
         try await executor.execute(command.buildArguments())
     }
 
-    private func targetsForBuild(for package: Package) -> [ResolvedTarget] {
-        package.graph.allTargets
-            .filter { $0.type == .library }
-            .filter { $0.name != package.name }
+    private func packagesForBuild(for package: Package) -> [ResolvedPackage] {
+        package.graph.packages
+            .filter { $0.manifest.displayName != package.manifest.displayName }
     }
 
     private struct CleanCommand: XcodeBuildCommand {

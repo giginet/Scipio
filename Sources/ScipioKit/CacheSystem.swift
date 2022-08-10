@@ -28,6 +28,7 @@ struct ClangChecker<E: Executor> {
 
 struct CacheSystem {
     private let rootPackage: Package
+    private let outputDirectory: AbsolutePath
     private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem
 
@@ -36,27 +37,29 @@ struct CacheSystem {
         case compilerVersionNotDetected
     }
 
-    init(rootPackage: Package, buildOptions: BuildOptions, fileSystem: any FileSystem = localFileSystem) {
+    init(rootPackage: Package, outputDirectory: AbsolutePath, buildOptions: BuildOptions, fileSystem: any FileSystem = localFileSystem) {
         self.rootPackage = rootPackage
+        self.outputDirectory = outputDirectory
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
     }
 
-    private func buildVersionFilePath(for target: ResolvedTarget) -> AbsolutePath {
-        rootPackage.workspaceDirectory.appending(component: ".\(target.name).version")
+    private func versionFilePath(for target: ResolvedTarget) -> AbsolutePath {
+        outputDirectory.appending(component: ".\(target.name).version")
     }
 
     func generateVersionFile(package: ResolvedPackage, target: ResolvedTarget) async throws {
         let key = try await calculateCacheKey(package: package, target: target)
 
         let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
         let data = try encoder.encode(key)
-        let versionFilePath = buildVersionFilePath(for: target)
+        let versionFilePath = versionFilePath(for: target)
         try fileSystem.writeFileContents(versionFilePath, data: data)
     }
 
     func existsValidCache(package: ResolvedPackage, target: ResolvedTarget) async throws -> Bool {
-        let versionFilePath = buildVersionFilePath(for: target)
+        let versionFilePath = versionFilePath(for: target)
         guard fileSystem.exists(versionFilePath) else { return false }
         let decoder = JSONDecoder()
         let versionFileKey = try decoder.decode(path: versionFilePath, fileSystem: fileSystem, as: CacheKey.self)

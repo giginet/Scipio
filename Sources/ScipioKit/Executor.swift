@@ -41,6 +41,8 @@ struct ProcessExecutor: Executor {
         case executionError(Swift.Error)
     }
 
+    var outputRedirection: TSCBasic.Process.OutputRedirection = .collect
+
     func outputStream(_ data: Data) {
         logger.trace("\(String(data: data, encoding: .utf8)!)")
     }
@@ -53,10 +55,10 @@ struct ProcessExecutor: Executor {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Swift.Error>) in
             let process = Process(
                 arguments: arguments,
-                outputRedirection:
-                        .stream(stdout: { outputStream(Data($0)) },
-                                stderr: { errorOutputStream(Data($0)) })
-            )
+                outputRedirection: outputRedirection)
+
+//                .stream(stdout: { self.outputStream(Data($0)) },
+//                        stderr: { self.errorOutputStream(Data($0)) })
 
             do {
                 try process.launch()
