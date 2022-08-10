@@ -76,7 +76,3 @@ enum SDK {
         }
     }
 }
-
-struct CacheSystem {
-
-}
