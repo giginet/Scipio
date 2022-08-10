@@ -8,7 +8,7 @@ extension Scipio {
                   completion: .directory)
         var packageDirectory: URL = URL(fileURLWithPath: ".")
 
-        @Option(name: .customShort("o"),
+        @Option(name: [.customShort("o"), .customLong("output")],
                 help: "Path indicates a XCFrameworks output directory.")
         var outputDirectory: URL?
 
