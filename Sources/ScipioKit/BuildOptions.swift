@@ -1,6 +1,6 @@
 import Foundation
 
-public struct BuildOptions: Hashable {
+public struct BuildOptions: Hashable, Codable {
     public init(tag: String? = nil, buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool) {
         self.tag = tag
         self.buildConfiguration = buildConfiguration

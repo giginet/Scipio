@@ -30,7 +30,7 @@ extension XcodeBuildCommand {
     }
 }
 
-public enum BuildConfiguration {
+public enum BuildConfiguration: Codable {
     case debug
     case release
 
