@@ -7,11 +7,16 @@ final class DwarfExtractorTests: XCTestCase {
     let fixture = "UUID: 1B6B77A9-436C-3A55-884D-4E78EFCAC3ED (arm64) Delegate.framework.dSYM/Contents/Resources/DWARF/Delegate"
 
     func testExtractDwarfDump() async throws {
-        let extractor = DwarfExtractor(executor: StubbableExecutor { arguments in
+        let executor = StubbableExecutor { arguments in
             return StubbableExecutorResult(arguments: arguments, success: self.fixture)
-        })
+        }
+        let extractor = DwarfExtractor(executor: executor)
+        let dwarfPath = AbsolutePath("/dev/null")
+        let uuids = try await extractor.dump(dwarfPath: dwarfPath)
 
-        let uuids = try await extractor.dump(dwarfPath: AbsolutePath("/dev/null"))
+        let firstArguments = try XCTUnwrap(executor.calledArguments.first)
+        XCTAssertEqual(firstArguments, ["/usr/bin/xcrun", "dwarfdump", "--uuid", dwarfPath.pathString])
+
         XCTAssertEqual(uuids.count, 1)
         XCTAssertEqual(uuids["arm64"], UUID(uuidString: "1B6B77A9-436C-3A55-884D-4E78EFCAC3ED"))
     }

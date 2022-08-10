@@ -2,10 +2,20 @@ import Foundation
 @testable import ScipioKit
 import TSCBasic
 
-struct StubbableExecutor: Executor {
+final class StubbableExecutor: Executor {
+    init(executeHook: @escaping (([String]) throws -> ExecutorResult)) {
+        self.executeHook = executeHook
+    }
+
     let executeHook: (([String]) throws -> any ExecutorResult)
+    private(set) var calledArguments: [[String]] = []
+
+    var calledCount: Int {
+        calledArguments.count
+    }
 
     func execute(_ arguments: [String]) async throws -> ScipioKit.ExecutorResult {
+        calledArguments.append(arguments)
         return try executeHook(arguments)
     }
 

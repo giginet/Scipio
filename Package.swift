@@ -39,6 +39,6 @@ let package = Package(
             name: "ScipioKitTests",
             dependencies: ["ScipioKit"],
             exclude: ["Resources/Fixtures"],
-            resources: [.copy("Resources/Fixtures/Package.swift")]),
+            resources: [.copy("Resources/Fixtures/BasicPackage/Package.swift")]),
     ]
 )
