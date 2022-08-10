@@ -46,7 +46,7 @@ struct ProcessExecutor: Executor {
     }
 
     func errorOutputStream(_ data: Data) {
-        logger.warning("\(String(data: data, encoding: .utf8)!)")
+        logger.trace("\(String(data: data, encoding: .utf8)!)")
     }
 
     func execute(_ arguments: [String]) async throws -> ExecutorResult {

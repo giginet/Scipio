@@ -2,7 +2,11 @@ import Foundation
 import Logging
 import class Basics.ObservabilitySystem
 
-let logger = Logger(label: "me.giginet.Scipio")
+private(set) var logger = Logger(label: "me.giginet.Scipio")
+
+func setLogLevel(_ level: Logger.Level) {
+    logger.logLevel = level
+}
 
 let observabilitySystem = ObservabilitySystem { _, diagnostics in
     switch diagnostics.severity {

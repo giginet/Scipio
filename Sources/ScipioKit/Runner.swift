@@ -32,6 +32,12 @@ public struct Runner {
 
     public init(configuration: Configuration, fileSystem: FileSystem = localFileSystem) {
         LoggingSystem.bootstrap(StreamLogHandler.standardError)
+        if configuration.verbose {
+            setLogLevel(.trace)
+        } else {
+            setLogLevel(.info)
+        }
+
         self.configuration = configuration
         self.fileSystem = fileSystem
     }
@@ -47,24 +53,29 @@ public struct Runner {
     }
 
     public func run(packageDirectory: URL, frameworkOutputDir: URL? = nil) async throws {
-        let package = try Package(packageDirectory: resolveURL(packageDirectory))
+        do {
+            let package = try Package(packageDirectory: resolveURL(packageDirectory))
 
-        try fileSystem.createDirectory(package.workspaceDirectory, recursive: true)
+            try fileSystem.createDirectory(package.workspaceDirectory, recursive: true)
 
-        let resolver = Resolver(package: package)
-        try await resolver.resolve()
+            let resolver = Resolver(package: package)
+            try await resolver.resolve()
 
-        let generator = ProjectGenerator()
-        try generator.generate(for: package)
+            let generator = ProjectGenerator()
+            try generator.generate(for: package)
 
-        let outputDir: AbsolutePath
-        if let dir = frameworkOutputDir {
-            outputDir = AbsolutePath(dir.path)
-        } else {
-            outputDir = AbsolutePath(packageDirectory.path).appending(component: "XCFrameworks")
+            let outputDir: AbsolutePath
+            if let dir = frameworkOutputDir {
+                outputDir = AbsolutePath(dir.path)
+            } else {
+                outputDir = AbsolutePath(packageDirectory.path).appending(component: "XCFrameworks")
+            }
+            let compiler = Compiler<ProcessExecutor>(package: package,
+                                                     fileSystem: fileSystem)
+            try await compiler.build(outputDir: outputDir)
+        } catch {
+            logger.error("Something went wrong to generate XCFramework")
+            logger.error("Please execute with --verbose option.")
         }
-        let compiler = Compiler<ProcessExecutor>(package: package,
-                                                 fileSystem: fileSystem)
-        try await compiler.build(outputDir: outputDir)
     }
 }
