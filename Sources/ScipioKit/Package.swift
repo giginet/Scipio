@@ -29,9 +29,8 @@ struct Package {
         buildDirectory.appending(component: "\(name).xcodeproj")
     }
 
-    init(packageDirectory: URL) throws {
-        let root = AbsolutePath(packageDirectory.path)
-        self.packageDirectory = root
+    init(packageDirectory: AbsolutePath) throws {
+        self.packageDirectory = packageDirectory
 
         self.toolchain = try UserToolchain(destination: try .hostDestination())
 
@@ -41,13 +40,13 @@ struct Package {
         let resources = ToolchainConfiguration(swiftCompilerPath: toolchain.swiftCompilerPath)
         let loader = ManifestLoader(toolchain: resources)
 #endif
-        let workspace = try Workspace(forRootPackage: root, customManifestLoader: loader)
+        let workspace = try Workspace(forRootPackage: packageDirectory, customManifestLoader: loader)
 
-        self.graph = try workspace.loadPackageGraph(rootPath: root, observabilityScope: observabilitySystem.topScope)
+        self.graph = try workspace.loadPackageGraph(rootPath: packageDirectory, observabilityScope: observabilitySystem.topScope)
         let scope = observabilitySystem.topScope
         self.manifest = try tsc_await {
             workspace.loadRootManifest(
-                at: root,
+                at: packageDirectory,
                 observabilityScope: scope,
                 completion: $0
             )

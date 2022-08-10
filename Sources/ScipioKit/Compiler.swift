@@ -2,7 +2,7 @@ import Foundation
 import PackageGraph
 import TSCBasic
 
-enum SDK {
+public enum SDK {
     case iOS
     case iOSSimulator
 
