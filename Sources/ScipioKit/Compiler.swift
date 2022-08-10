@@ -92,7 +92,7 @@ struct Compiler<E: Executor> {
         buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appending(component: "\(target).framework.dSYM")
     }
 
-    func build(outputDir: AbsolutePath) async throws {
+    func build(outputDir: AbsolutePath, isDebugBinaryEmbeded: Bool, isCacheEnabled: Bool, force: Bool) async throws {
         let targets = targetsForBuild(for: package)
 
         logger.info("Cleaning \(package.name)...")
@@ -112,9 +112,14 @@ struct Compiler<E: Executor> {
 
             logger.info("Combining into XCFramework...")
 
-            let debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
+            let debugSymbolPaths: [AbsolutePath]?
+            if isDebugBinaryEmbeded {
+                debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
                                                                      buildConfiguration: buildConfiguration,
                                                                      sdks: sdks)
+            } else {
+                debugSymbolPaths = nil
+            }
 
             try await execute(CreateXCFrameworkCommand(
                 context: .init(package: package,
@@ -215,7 +220,7 @@ struct Compiler<E: Executor> {
             let target: ResolvedTarget
             let buildConfiguration: BuildConfiguration
             let sdks: [SDK]
-            let debugSymbolPaths: [AbsolutePath]
+            let debugSymbolPaths: [AbsolutePath]?
         }
         let context: Context
         let subCommand: String = "-create-xcframework"
@@ -237,9 +242,9 @@ struct Compiler<E: Executor> {
             }
             // TODO bcsymbolmap
             +
-            context.debugSymbolPaths.map {
-                .init(key: "debug-symbols", value: $0.pathString)
-            }
+            (context.debugSymbolPaths.flatMap {
+                $0.map { .init(key: "debug-symbols", value: $0.pathString) }
+            } ?? [])
             + [.init(key: "output", value: xcFrameworkPath.pathString)]
         }
 

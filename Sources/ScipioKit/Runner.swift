@@ -62,7 +62,7 @@ public struct Runner {
             try await resolver.resolve()
 
             let generator = ProjectGenerator()
-            try generator.generate(for: package)
+            try generator.generate(for: package, embedDebugSymbols: configuration.isDebugSymbolEmbedded)
 
             let outputDir: AbsolutePath
             if let dir = frameworkOutputDir {
@@ -72,7 +72,10 @@ public struct Runner {
             }
             let compiler = Compiler<ProcessExecutor>(package: package,
                                                      fileSystem: fileSystem)
-            try await compiler.build(outputDir: outputDir)
+            try await compiler.build(outputDir: outputDir,
+                                     isDebugBinaryEmbeded: configuration.isDebugSymbolEmbedded,
+                                     isCacheEnabled: configuration.isCacheEnabled,
+                                     force: configuration.force)
         } catch {
             logger.error("Something went wrong to generate XCFramework")
             logger.error("Please execute with --verbose option.")

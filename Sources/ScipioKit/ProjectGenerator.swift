@@ -16,7 +16,7 @@ struct ProjectGenerator {
     }
 
     @discardableResult
-    func generate(for package: Package) throws -> Result {
+    func generate(for package: Package, embedDebugSymbols isDebugSymbolsEmbedded: Bool) throws -> Result {
         let projectPath = package.projectPath
 
         let project = try pbxproj(
@@ -30,7 +30,7 @@ struct ProjectGenerator {
 
         let distributionXCConfigPath = package.workspaceDirectory.appending(component: "Distribution.xcconfig")
         try fileSystem.writeFileContents(distributionXCConfigPath,
-                                         string: distributionXCConfigContents)
+                                         string: buildDistributionXCConfigContents(embedDebugSymbols: isDebugSymbolsEmbedded))
 
         let group = createOrGetConfigsGroup(project: project)
         let reference = group.addFileReference (
@@ -62,14 +62,19 @@ struct ProjectGenerator {
         return .init(project: project, projectPath: projectPath)
     }
 
-    private var distributionXCConfigContents: String {
-        """
+    private func buildDistributionXCConfigContents(embedDebugSymbols: Bool) -> String {
+        let base = """
         BUILD_LIBRARY_FOR_DISTRIBUTION = YES
+        ENABLE_BITCODE = YES
+        OTHER_CFLAGS = -fembed-bitcode
+        """
+        if embedDebugSymbols {
+            let debugSymbol = """
         DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
         """
-
-        //        ENABLE_BITCODE = YES
-        //        OTHER_CFLAGS = -fembed-bitcode
+            return [base, debugSymbol].joined(separator: "\n")
+        }
+        return base
     }
 
     private var infoPlist: String {

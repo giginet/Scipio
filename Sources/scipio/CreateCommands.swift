@@ -28,7 +28,8 @@ extension Scipio {
               help: "Whether to overwrite existing frameworks.")
         var force: Bool = false
 
-        @Flag(name: [.short, .long])
+        @Flag(name: [.short, .long],
+              help: "Provide additional build progress.")
         var verbose: Bool = false
 
         mutating func run() async throws {
