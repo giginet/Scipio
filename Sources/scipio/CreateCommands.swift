@@ -37,7 +37,6 @@ extension Scipio {
                 buildConfiguration: buildConfiguration,
                 isSimulatorSupported: supportSimulator,
                 isDebugSymbolsEmbedded: embedDebugSymbols,
-                packageDirectory: packageDirectory,
                 isCacheEnabled: cacheEnabled,
                 verbose: verbose)
             )

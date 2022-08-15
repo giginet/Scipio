@@ -9,6 +9,7 @@ public struct Runner {
     public enum Error: Swift.Error, LocalizedError {
         case invalidPackage(AbsolutePath)
         case platformNotSpecified
+        case compilerError(Swift.Error)
 
         public var errorDescription: String? {
             switch self {
@@ -16,16 +17,17 @@ public struct Runner {
                 return "Any platforms are not spcified in Package.swift"
             case .invalidPackage(let path):
                 return "Invalid package. \(path.pathString)"
+            case .compilerError(let error):
+                return "\(error.localizedDescription)"
             }
         }
     }
 
     public struct Options {
-        public init(buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, packageDirectory: URL, outputDirectory: URL? = nil, isCacheEnabled: Bool, verbose: Bool) {
+        public init(buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, outputDirectory: URL? = nil, isCacheEnabled: Bool, verbose: Bool) {
             self.buildConfiguration = buildConfiguration
             self.isSimulatorSupported = isSimulatorSupported
             self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
-            self.packageDirectory = packageDirectory
             self.outputDirectory = outputDirectory
             self.isCacheEnabled = isCacheEnabled
             self.verbose = verbose
@@ -34,7 +36,6 @@ public struct Runner {
         public var buildConfiguration: BuildConfiguration
         public var isSimulatorSupported: Bool
         public var isDebugSymbolsEmbedded: Bool
-        public var packageDirectory: URL
         public var outputDirectory: URL?
         public var isCacheEnabled: Bool
         public var verbose: Bool
@@ -105,7 +106,7 @@ public struct Runner {
         } catch {
             logger.error("Something went wrong during building")
             logger.error("Please execute with --verbose option.")
-            logger.error("\(error.localizedDescription)")
+            throw Error.compilerError(error)
         }
     }
 }
