@@ -105,6 +105,7 @@ public struct Runner {
         } catch {
             logger.error("Something went wrong during building")
             logger.error("Please execute with --verbose option.")
+            logger.error("\(error.localizedDescription)")
         }
     }
 }

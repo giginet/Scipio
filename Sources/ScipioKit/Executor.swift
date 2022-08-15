@@ -35,10 +35,28 @@ extension Executor {
 extension ProcessResult: ExecutorResult { }
 
 struct ProcessExecutor: Executor {
-    enum Error: Swift.Error {
+    enum Error: LocalizedError {
         case terminated(ExecutorResult)
         case signalled(Int32)
-        case executionError(Swift.Error)
+        case unknownError(Swift.Error)
+
+        var errorDescription: String? {
+            switch self {
+            case .terminated(let result):
+                var errors = ["Execution was terminated:"]
+                if let output = try? result.unwrapOutput() {
+                    errors.append(output)
+                }
+                return errors.joined(separator: "\n")
+            case .signalled(let signal):
+                return "Execution was stopped by signal \(signal)"
+            case .unknownError(let error):
+                return """
+Unknown error occurered.
+\(error.localizedDescription)
+"""
+            }
+        }
     }
 
     var outputRedirection: TSCBasic.Process.OutputRedirection = .collect
@@ -72,7 +90,7 @@ struct ProcessExecutor: Executor {
                     continuation.resume(throwing: Error.signalled(signal))
                 }
             } catch {
-                continuation.resume(with: .failure(Error.executionError(error)))
+                continuation.resume(with: .failure(Error.unknownError(error)))
             }
         }
     }
