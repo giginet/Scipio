@@ -1,8 +1,7 @@
 import Foundation
 
 struct BuildOptions: Hashable, Codable {
-    var tag: String?
-    var buildConfiguration: BuildConfiguration
+   var buildConfiguration: BuildConfiguration
     var isSimulatorSupported: Bool
     var isDebugSymbolsEmbedded: Bool
     var sdks: Set<SDK>

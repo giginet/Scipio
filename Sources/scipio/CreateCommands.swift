@@ -1,6 +1,7 @@
 import Foundation
 import ScipioKit
 import ArgumentParser
+import Logging
 
 extension Scipio {
     struct Create: AsyncParsableCommand {
@@ -33,6 +34,8 @@ extension Scipio {
         var verbose: Bool = false
 
         mutating func run() async throws {
+            LoggingSystem.bootstrap(StreamLogHandler.standardError)
+
             let runner = Runner(options: .init(
                 buildConfiguration: buildConfiguration,
                 isSimulatorSupported: supportSimulator,

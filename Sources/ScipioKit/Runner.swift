@@ -1,6 +1,5 @@
 import Foundation
 import TSCBasic
-import Logging
 
 public struct Runner {
     private let options: Options
@@ -42,7 +41,6 @@ public struct Runner {
     }
 
     public init(options: Options, fileSystem: FileSystem = localFileSystem) {
-        LoggingSystem.bootstrap(StreamLogHandler.standardError)
         if options.verbose {
             setLogLevel(.trace)
         } else {
