@@ -58,7 +58,9 @@ struct Compiler<E: Executor> {
     }
 
     func build(buildOptions: BuildOptions, outputDir: AbsolutePath, isCacheEnabled: Bool) async throws {
-        let cacheSystem = CacheSystem(rootPackage: rootPackage, outputDirectory: outputDir, buildOptions: buildOptions)
+        let cacheSystem = CacheSystem(rootPackage: rootPackage,
+                                      buildOptions: buildOptions,
+                                      storage: ProjectCacheStorage(outputDirectory: outputDir))
 
         logger.info("🗑️ Cleaning \(rootPackage.name)...")
         try await execute(CleanCommand(
@@ -82,9 +84,10 @@ struct Compiler<E: Executor> {
 
                 if exists {
                     if isCacheEnabled {
-                        let isValidCache = try await cacheSystem.existsValidCache(package: subPackage, target: target)
+                        let isValidCache = try await cacheSystem.existsValidCache(subPackage: subPackage, target: target)
                         if isValidCache {
                             logger.warning("✅ Valid \(target.name).xcframework is exists. Skip building.")
+                            try await cacheSystem.fetchArtifacts(subPackage: subPackage, target: target, to: outputDir)
                             continue
                         } else {
                             logger.warning("⚠️ Existing \(target.name).xcframework is outdated.")
@@ -122,7 +125,7 @@ struct Compiler<E: Executor> {
                 ))
 
 
-                try await cacheSystem.generateVersionFile(package: subPackage, target: target)
+                try await cacheSystem.generateVersionFile(subPackage: subPackage, target: target)
             }
             // TODO Error handling
         }
