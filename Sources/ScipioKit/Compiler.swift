@@ -94,7 +94,8 @@ struct Compiler<E: Executor> {
                     }
                     try fileSystem.removeFileTree(xcframeworkPath)
                 }
-                logger.info("📦 Building \(target.name) for all SDKs")
+                let sdkNames = sdks.map(\.displayName).joined(separator: ",")
+                logger.info("📦 Building \(target.name) for \(sdkNames)")
 
                 for sdk in sdks {
                     try await execute(ArchiveCommand(context: .init(package: rootPackage, target: target, buildConfiguration: buildConfiguration, sdk: sdk)))

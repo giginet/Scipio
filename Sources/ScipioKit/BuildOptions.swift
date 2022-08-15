@@ -57,6 +57,27 @@ enum SDK: Codable {
         }
     }
 
+    var displayName: String {
+        switch self {
+        case .macOS:
+            return "macOS"
+        case .macCatalyst:
+            return "Catalyst"
+        case .iOS:
+            return "iOS"
+        case .iOSSimulator:
+            return "iPhone Simulator"
+        case .watchOS:
+            return "watchOS"
+        case .watchOSSimulator:
+            return "Watch Simulator"
+        case .tvOS:
+            return "tvOS"
+        case .tvOSSimulator:
+            return "TV Simulator"
+        }
+    }
+
     var name: String {
         switch self {
         case .macOS:
