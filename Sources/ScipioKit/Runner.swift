@@ -101,7 +101,7 @@ public struct Runner {
             outputDir = AbsolutePath(packageDirectory.path).appending(component: "XCFrameworks")
         }
         try fileSystem.createDirectory(outputDir, recursive: true)
-        
+
         let compiler = Compiler<ProcessExecutor>(rootPackage: package,
                                                  fileSystem: fileSystem)
         do {
@@ -121,6 +121,7 @@ public struct Runner {
                     isCacheEnabled: options.isCacheEnabled
                 )
             }
+            logger.info("❇️ Succeeded.")
         } catch {
             logger.error("Something went wrong during building")
             logger.error("Please execute with --verbose option.")

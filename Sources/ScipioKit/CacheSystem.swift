@@ -91,9 +91,18 @@ struct CacheSystem<Storage: CacheStorage> {
     private let buildOptions: BuildOptions
     private let storage: Storage
 
-    enum Error: Swift.Error {
+    enum Error: LocalizedError {
         case revisionNotDetected(String)
         case compilerVersionNotDetected
+
+        var errorDescription: String? {
+            switch self {
+            case .revisionNotDetected:
+                return "Repository version is not detected."
+            case .compilerVersionNotDetected:
+                return "Compiler version not detected. Please check your environment"
+            }
+        }
     }
 
     init(rootPackage: Package, buildOptions: BuildOptions, storage: Storage) {

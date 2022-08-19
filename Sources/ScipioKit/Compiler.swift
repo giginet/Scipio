@@ -90,7 +90,7 @@ struct Compiler<E: Executor> {
         }
         for subPackage in packages {
             for target in subPackage.targets {
-                let xcframeworkPath = outputDir.appending(component: "\(target.name).xcframework")
+                let xcframeworkPath = outputDir.appending(component: "\(target.name.packageNamed()).xcframework")
                 let exists = fileSystem.exists(xcframeworkPath)
 
                 if exists {
@@ -108,7 +108,7 @@ struct Compiler<E: Executor> {
                     }
                     try fileSystem.removeFileTree(xcframeworkPath)
                 }
-                let sdkNames = sdks.map(\.displayName).joined(separator: ",")
+                let sdkNames = sdks.map(\.displayName).joined(separator: ", ")
                 logger.info("📦 Building \(target.name) for \(sdkNames)")
 
                 for sdk in sdks {
@@ -135,10 +135,14 @@ struct Compiler<E: Executor> {
                     outputDir: outputDir
                 ))
 
-
-                try await cacheSystem.generateVersionFile(subPackage: subPackage, target: target)
+                if case .prepareDependencies = mode {
+                    do {
+                        try await cacheSystem.generateVersionFile(subPackage: subPackage, target: target)
+                    } catch {
+                        logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.")
+                    }
+                }
             }
-            // TODO Error handling
         }
     }
 
@@ -233,13 +237,13 @@ struct Compiler<E: Executor> {
         let outputDir: AbsolutePath
 
         var xcFrameworkPath: AbsolutePath {
-            outputDir.appending(component: "\(context.target.name).xcframework")
+            outputDir.appending(component: "\(context.target.name.packageNamed()).xcframework")
         }
 
         func buildFrameworkPath(sdk: SDK) -> AbsolutePath {
             context.buildXCArchivePath(sdk: sdk)
                 .appending(components: "Products", "Library", "Frameworks")
-                .appending(component: "\(context.target.name).framework")
+                .appending(component: "\(context.target.name.packageNamed()).framework")
         }
 
         var options: [Pair] {
@@ -281,3 +285,12 @@ extension Compiler.ArchiveCommand.Context {
     }
 }
 
+extension String {
+    fileprivate func packageNamed() -> String {
+        // Xcode replaces any non-alphanumeric characters in the target with an underscore
+        // https://developer.apple.com/documentation/swift/imported_c_and_objective-c_apis/importing_swift_into_objective-c
+        return self
+            .replacingOccurrences(of: "[^0-9a-zA-Z]", with: "_", options: .regularExpression)
+            .replacingOccurrences(of: "^[0-9]", with: "_", options: .regularExpression)
+    }
+}
