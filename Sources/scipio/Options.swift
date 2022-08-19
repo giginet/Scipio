@@ -21,7 +21,7 @@ struct BuildOptionGroup: ParsableArguments {
           help: "Whether embed debug symbols to frameworks or not.")
     var embedDebugSymbols = false
 
-    @Flag(name: .customLong("support-simulator"),
+    @Flag(name: .customLong("support-simulators"),
           help: "Whether also building for simulators of each SDKs or not.")
-    var supportSimulator = false
+    var supportSimulators = false
 }

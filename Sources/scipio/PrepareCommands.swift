@@ -28,7 +28,7 @@ extension Scipio {
                 mode: .prepareDependencies,
                 options: .init(
                     buildConfiguration: buildOptions.buildConfiguration,
-                    isSimulatorSupported: buildOptions.supportSimulator,
+                    isSimulatorSupported: buildOptions.supportSimulators,
                     isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
                     isCacheEnabled: cacheEnabled,
                     verbose: globalOptions.verbose)

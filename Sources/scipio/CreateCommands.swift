@@ -22,7 +22,7 @@ extension Scipio {
             let runner = Runner(mode: .createPackage,
                                 options: .init(
                                     buildConfiguration: buildOptions.buildConfiguration,
-                                    isSimulatorSupported: buildOptions.supportSimulator,
+                                    isSimulatorSupported: buildOptions.supportSimulators,
                                     isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
                                     isCacheEnabled: false,
                                     verbose: globalOptions.verbose)
