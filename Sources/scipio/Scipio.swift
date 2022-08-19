@@ -5,6 +5,6 @@ import ArgumentParser
 struct Scipio: AsyncParsableCommand {
     static var configuration = CommandConfiguration(
         abstract: "A build tool to create XCFrameworks from Swift packages.",
-        subcommands: [Create.self],
-        defaultSubcommand: Create.self)
+        subcommands: [Prepare.self],
+        defaultSubcommand: Prepare.self)
 }

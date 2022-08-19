@@ -61,7 +61,7 @@ public struct Runner {
         }
     }
 
-    public func run(packageDirectory: URL, frameworkOutputDir: URL? = nil) async throws {
+    public func prepareDependencies(packageDirectory: URL, frameworkOutputDir: URL? = nil) async throws {
         let packagePath = resolveURL(packageDirectory)
         let package: Package
         do {
