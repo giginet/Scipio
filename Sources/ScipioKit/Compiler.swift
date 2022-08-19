@@ -89,7 +89,7 @@ struct Compiler<E: Executor> {
             packages = dependenciesPackages(for: rootPackage)
         }
         for subPackage in packages {
-            for target in subPackage.targets {
+            for target in subPackage.targets where target.type == .library {
                 let xcframeworkPath = outputDir.appending(component: "\(target.name.packageNamed()).xcframework")
                 let exists = fileSystem.exists(xcframeworkPath)
 
