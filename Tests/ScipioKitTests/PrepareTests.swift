@@ -9,21 +9,23 @@ private let fixturePath = URL(fileURLWithPath: #file)
     .appendingPathComponent("Fixtures")
 private let testPackagePath = fixturePath.appendingPathComponent("BasicPackage")
 
-final class RunnerTests: XCTestCase {
+final class PrepareTests: XCTestCase {
     private let fileManager: FileManager = .default
 
     func testBuildXCFramework() async throws {
         let frameworkOutputDir = AbsolutePath(NSTemporaryDirectory()).appending(component: "XCFramework")
         try fileManager.createDirectory(at: frameworkOutputDir.asURL, withIntermediateDirectories: true)
 
-        let runner = Runner(options: .init(
-            buildConfiguration: .release,
-            isSimulatorSupported: false,
-            isDebugSymbolsEmbedded: false,
-            isCacheEnabled: false,
-            verbose: false))
+        let runner = Runner(
+            mode: .prepareDependencies,
+            options: .init(
+                buildConfiguration: .release,
+                isSimulatorSupported: false,
+                isDebugSymbolsEmbedded: false,
+                isCacheEnabled: false,
+                verbose: false))
         do {
-            try await runner.prepareDependencies(packageDirectory: testPackagePath, frameworkOutputDir: frameworkOutputDir.asURL)
+            try await runner.run(packageDirectory: testPackagePath, frameworkOutputDir: frameworkOutputDir.asURL)
         } catch {
             XCTFail("Build should be succeeded.")
         }
@@ -70,14 +72,16 @@ final class RunnerTests: XCTestCase {
         let versionFile2 = frameworkOutputDir.appending(component: ".APNGKit.version")
         XCTAssertTrue(fileManager.fileExists(atPath: versionFile2.pathString))
 
-        let runner = Runner(options: .init(
-            buildConfiguration: .release,
-            isSimulatorSupported: false,
-            isDebugSymbolsEmbedded: false,
-            isCacheEnabled: true,
-            verbose: false))
+        let runner = Runner(
+            mode: .prepareDependencies,
+            options: .init(
+                buildConfiguration: .release,
+                isSimulatorSupported: false,
+                isDebugSymbolsEmbedded: false,
+                isCacheEnabled: true,
+                verbose: false))
         do {
-            try await runner.prepareDependencies(packageDirectory: testPackagePath, frameworkOutputDir: frameworkOutputDir.asURL)
+            try await runner.run(packageDirectory: testPackagePath, frameworkOutputDir: frameworkOutputDir.asURL)
         } catch {
             XCTFail("Build should be succeeded.")
         }
@@ -86,7 +90,7 @@ final class RunnerTests: XCTestCase {
             let xcFramework = frameworkOutputDir.appending(components: "\(library).xcframework", "Info.plist")
             let versionFile = frameworkOutputDir.appending(component: ".\(library).version")
             XCTAssertFalse(fileManager.fileExists(atPath: xcFramework.pathString),
-                          "Should skip to build \(library).xcramework")
+                           "Should skip to build \(library).xcramework")
             XCTAssertTrue(fileManager.fileExists(atPath: versionFile.pathString),
                           "Should create .\(library).version")
         }

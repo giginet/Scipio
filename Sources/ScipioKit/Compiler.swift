@@ -42,6 +42,11 @@ struct Compiler<E: Executor> {
     let fileSystem: any FileSystem
     private let extractor: DwarfExtractor<E>
 
+    enum BuildMode {
+        case createPackage
+        case prepareDependencies
+    }
+
     init(rootPackage: Package, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
         self.rootPackage = rootPackage
         self.executor = executor
@@ -57,7 +62,7 @@ struct Compiler<E: Executor> {
         buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appending(component: "\(target).framework.dSYM")
     }
 
-    func build(buildOptions: BuildOptions, outputDir: AbsolutePath, isCacheEnabled: Bool) async throws {
+    func build(mode: BuildMode, buildOptions: BuildOptions, outputDir: AbsolutePath, isCacheEnabled: Bool) async throws {
         let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                       buildOptions: buildOptions,
                                       storage: ProjectCacheStorage(outputDirectory: outputDir))
@@ -76,7 +81,13 @@ struct Compiler<E: Executor> {
             sdks = buildOptions.sdks
         }
 
-        let packages = packagesForBuild(for: rootPackage)
+        let packages: [ResolvedPackage]
+        switch mode {
+        case .createPackage:
+            packages = rootPackage.graph.rootPackages
+        case .prepareDependencies:
+            packages = dependenciesPackages(for: rootPackage)
+        }
         for subPackage in packages {
             for target in subPackage.targets {
                 let xcframeworkPath = outputDir.appending(component: "\(target.name).xcframework")
@@ -158,7 +169,7 @@ struct Compiler<E: Executor> {
         try await executor.execute(command.buildArguments())
     }
 
-    private func packagesForBuild(for package: Package) -> [ResolvedPackage] {
+    private func dependenciesPackages(for package: Package) -> [ResolvedPackage] {
         package.graph.packages
             .filter { $0.manifest.displayName != package.manifest.displayName }
     }

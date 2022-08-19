@@ -5,6 +5,11 @@ public struct Runner {
     private let options: Options
     private let fileSystem: any FileSystem
 
+    public enum Mode {
+        case createPackage
+        case prepareDependencies
+    }
+
     public enum Error: Swift.Error, LocalizedError {
         case invalidPackage(AbsolutePath)
         case platformNotSpecified
@@ -39,8 +44,10 @@ public struct Runner {
         public var isCacheEnabled: Bool
         public var verbose: Bool
     }
+    private var mode: Mode
 
-    public init(options: Options, fileSystem: FileSystem = localFileSystem) {
+    public init(mode: Mode, options: Options, fileSystem: FileSystem = localFileSystem) {
+        self.mode = mode
         if options.verbose {
             setLogLevel(.trace)
         } else {
@@ -61,7 +68,7 @@ public struct Runner {
         }
     }
 
-    public func prepareDependencies(packageDirectory: URL, frameworkOutputDir: URL? = nil) async throws {
+    public func run(packageDirectory: URL, frameworkOutputDir: URL? = nil) async throws {
         let packagePath = resolveURL(packageDirectory)
         let package: Package
         do {
@@ -96,11 +103,22 @@ public struct Runner {
         let compiler = Compiler<ProcessExecutor>(rootPackage: package,
                                                  fileSystem: fileSystem)
         do {
-            try await compiler.build(
-                buildOptions: buildOptions,
-                outputDir: outputDir,
-                isCacheEnabled: options.isCacheEnabled
-            )
+            switch mode {
+            case .createPackage:
+                try await compiler.build(
+                    mode: .createPackage,
+                    buildOptions: buildOptions,
+                    outputDir: outputDir,
+                    isCacheEnabled: false
+                )
+            case .prepareDependencies:
+                try await compiler.build(
+                    mode: .prepareDependencies,
+                    buildOptions: buildOptions,
+                    outputDir: outputDir,
+                    isCacheEnabled: options.isCacheEnabled
+                )
+            }
         } catch {
             logger.error("Something went wrong during building")
             logger.error("Please execute with --verbose option.")
