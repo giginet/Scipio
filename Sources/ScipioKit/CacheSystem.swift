@@ -117,8 +117,12 @@ struct CacheSystem<Storage: CacheStorage> {
     }
 
     func existsValidCache(subPackage: ResolvedPackage, target: ResolvedTarget) async throws -> Bool {
-        let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
-        return try await storage.existsValidCache(for: target, cacheKey: cacheKey)
+        do {
+            let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
+            return try await storage.existsValidCache(for: target, cacheKey: cacheKey)
+        } catch {
+            return false
+        }
     }
 
     func fetchArtifacts(subPackage: ResolvedPackage, target: ResolvedTarget, to destination: AbsolutePath) async throws {
