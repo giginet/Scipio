@@ -100,6 +100,8 @@ public struct Runner {
         } else {
             outputDir = AbsolutePath(packageDirectory.path).appending(component: "XCFrameworks")
         }
+        try fileSystem.createDirectory(outputDir, recursive: true)
+        
         let compiler = Compiler<ProcessExecutor>(rootPackage: package,
                                                  fileSystem: fileSystem)
         do {
@@ -109,7 +111,7 @@ public struct Runner {
                     mode: .createPackage,
                     buildOptions: buildOptions,
                     outputDir: outputDir,
-                    isCacheEnabled: false
+                    isCacheEnabled: options.isCacheEnabled
                 )
             case .prepareDependencies:
                 try await compiler.build(
@@ -122,6 +124,7 @@ public struct Runner {
         } catch {
             logger.error("Something went wrong during building")
             logger.error("Please execute with --verbose option.")
+            logger.error("\(error.localizedDescription)")
             throw Error.compilerError(error)
         }
     }

@@ -44,7 +44,7 @@ struct ProcessExecutor: Executor {
             switch self {
             case .terminated(let result):
                 var errors = ["Execution was terminated:"]
-                if let output = try? result.unwrapOutput() {
+                if let output = try? result.unwrapStdErrOutput() {
                     errors.append(output)
                 }
                 return errors.joined(separator: "\n")
@@ -70,7 +70,8 @@ Unknown error occurered.
     }
 
     func execute(_ arguments: [String]) async throws -> ExecutorResult {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Swift.Error>) in
+        logger.debug("\(arguments.joined(separator: " "))")
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Swift.Error>) in
             let process = Process(
                 arguments: arguments,
                 outputRedirection: outputRedirection)
@@ -99,6 +100,15 @@ Unknown error occurered.
 extension ExecutorResult {
     func unwrapOutput() throws -> String {
         switch output {
+        case .success(let data):
+            return String(data: Data(data), encoding: .utf8)!
+        case .failure(let error):
+            throw error
+        }
+    }
+
+    func unwrapStdErrOutput() throws -> String {
+        switch stderrOutput {
         case .success(let data):
             return String(data: Data(data), encoding: .utf8)!
         case .failure(let error):
