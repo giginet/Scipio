@@ -102,16 +102,34 @@ $ swift run scipio prepare --enable-cache path/to/MyAppDependencies
 > ❇️ Succeeded.
 ```
 
-Scipio creates **VersionFile**($OUTPUT_DIR/.$FRAMEWORK_NAME.version) to describe built framework details with XCFrameworks.
+Scipio generates **VersionFile** to describe built framework details within building XCFrameworks.
 
 `VersionFile` contains the following information:
 
 - Revision
     - Revision of packages. If resolved versions are updated, they may change.
-- Build Option
+- Build Options
     - Build options built with.
 - Compiler Version
     - Xcode or Swift compiler version.
+
+These are stored on `$OUTPUT_DIR/.$FRAMEWORK_NAME.version` as a JSON file.
+
+```json
+{
+  "revision" : "2.2.1",
+  "buildOptions" : {
+    "buildConfiguration" : "release",
+    "isDebugSymbolsEmbedded" : false,
+    "sdks" : [
+      "iOS"
+    ],
+    "isSimulatorSupported" : false
+  },
+  "targetName" : "APNGKit",
+  "clangVersion" : "clang-1400.0.29.102"
+}
+```
 
 If they are changed, Spicio regards them as a cache are invalid, and then it's re-built.
 
