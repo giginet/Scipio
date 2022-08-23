@@ -23,7 +23,7 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
 
     func testEncodeCacheKey() throws {
         let cacheKey = CacheKey(targetName: "MyTarget",
-                                revision: "111111111",
+                                pin: .revision("111111111"),
                                 buildOptions: .init(buildConfiguration: .release,
                                                     isSimulatorSupported: false,
                                                     isDebugSymbolsEmbedded: false,
@@ -35,7 +35,6 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
         let rawString = try XCTUnwrap(String(data: data, encoding: .utf8))
         let expected = """
 {
-  "revision" : "111111111",
   "buildOptions" : {
     "buildConfiguration" : "release",
     "isDebugSymbolsEmbedded" : false,
@@ -45,7 +44,10 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
     "isSimulatorSupported" : false
   },
   "targetName" : "MyTarget",
-  "clangVersion" : "clang-1400.0.29.102"
+  "clangVersion" : "clang-1400.0.29.102",
+  "pin" : {
+    "revision" : "111111111"
+  }
 }
 """
         XCTAssertEqual(rawString, expected)
