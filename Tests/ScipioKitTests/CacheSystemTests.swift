@@ -20,4 +20,34 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
         let version = try await clangParser.fetchClangVersion()
         XCTAssertEqual(version, "clang-1400.0.29.102")
     }
+
+    func testEncodeCacheKey() throws {
+        let cacheKey = CacheKey(targetName: "MyTarget",
+                                revision: "111111111",
+                                buildOptions: .init(buildConfiguration: .release,
+                                                    isSimulatorSupported: false,
+                                                    isDebugSymbolsEmbedded: false,
+                                                    sdks: [.iOS]),
+                                clangVersion: "clang-1400.0.29.102")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .prettyPrinted
+        let data = try encoder.encode(cacheKey)
+        let rawString = try XCTUnwrap(String(data: data, encoding: .utf8))
+        let expected = """
+{
+  "revision" : "111111111",
+  "buildOptions" : {
+    "buildConfiguration" : "release",
+    "isDebugSymbolsEmbedded" : false,
+    "sdks" : [
+      "iOS"
+    ],
+    "isSimulatorSupported" : false
+  },
+  "targetName" : "MyTarget",
+  "clangVersion" : "clang-1400.0.29.102"
+}
+"""
+        XCTAssertEqual(rawString, expected)
+    }
 }

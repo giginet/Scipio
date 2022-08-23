@@ -7,7 +7,7 @@ struct BuildOptions: Hashable, Codable {
     var sdks: Set<SDK>
 }
 
-public enum BuildConfiguration: Codable {
+public enum BuildConfiguration: String, Codable {
     case debug
     case release
 
@@ -19,7 +19,7 @@ public enum BuildConfiguration: Codable {
     }
 }
 
-enum SDK: Codable {
+enum SDK: String, Codable {
     case macOS
     case macCatalyst
     case iOS
