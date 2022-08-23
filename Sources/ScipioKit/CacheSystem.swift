@@ -34,7 +34,7 @@ struct CacheKey: Hashable, Codable, Equatable {
 }
 
 protocol CacheStorage {
-    func existsValidCache(for target: ResolvedTarget, cacheKey: CacheKey) async throws -> Bool
+    func existsValidCache(for target: ResolvedTarget, cacheKey: CacheKey) async -> Bool
     func generateCache(for target: ResolvedTarget, cacheKey: CacheKey) async throws
     func fetchArtifacts(for target: ResolvedTarget, cacheKey: CacheKey, to destination: AbsolutePath) async throws
 }
@@ -48,7 +48,7 @@ struct ProjectCacheStorage: CacheStorage {
         self.fileSystem = fileSystem
     }
 
-    func existsValidCache(for target: ResolvedTarget, cacheKey: CacheKey) async throws -> Bool {
+    func existsValidCache(for target: ResolvedTarget, cacheKey: CacheKey) async -> Bool {
         let versionFilePath = versionFilePath(for: target)
         guard fileSystem.exists(versionFilePath) else { return false }
         let decoder = JSONDecoder()
@@ -97,8 +97,8 @@ struct CacheSystem<Storage: CacheStorage> {
 
         var errorDescription: String? {
             switch self {
-            case .revisionNotDetected:
-                return "Repository version is not detected."
+            case .revisionNotDetected(let packageName):
+                return "Repository version is not detected for \(packageName)."
             case .compilerVersionNotDetected:
                 return "Compiler version not detected. Please check your environment"
             }
@@ -116,10 +116,10 @@ struct CacheSystem<Storage: CacheStorage> {
         try await storage.generateCache(for: target, cacheKey: cacheKey)
     }
 
-    func existsValidCache(subPackage: ResolvedPackage, target: ResolvedTarget) async throws -> Bool {
+    func existsValidCache(subPackage: ResolvedPackage, target: ResolvedTarget) async -> Bool {
         do {
             let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
-            return try await storage.existsValidCache(for: target, cacheKey: cacheKey)
+            return await storage.existsValidCache(for: target, cacheKey: cacheKey)
         } catch {
             return false
         }
@@ -132,12 +132,19 @@ struct CacheSystem<Storage: CacheStorage> {
 
     private func calculateCacheKey(package: ResolvedPackage, target: ResolvedTarget) async throws -> CacheKey {
         let targetName = target.name
-        guard let revision = package.manifest.version?.description ?? package.manifest.revision else {
-            throw Error.revisionNotDetected(targetName)
-        }
+        let pin = try retrievePin(package: package, target: target)
+        let revision = pin.state.description
         let buildOptions = buildOptions
         guard let clangVersion = try await ClangChecker().fetchClangVersion() else { throw Error.compilerVersionNotDetected } // TODO DI
         return CacheKey(targetName: targetName, revision: revision, buildOptions: buildOptions, clangVersion: clangVersion)
+    }
+
+    private func retrievePin(package: ResolvedPackage, target: ResolvedTarget) throws -> PinsStore.Pin {
+        let pinsStore = try rootPackage.workspace.pinsStore.load()
+        guard let pin = pinsStore.pinsMap[package.identity] else {
+            throw Error.revisionNotDetected(package.manifest.displayName)
+        }
+        return pin
     }
 }
 

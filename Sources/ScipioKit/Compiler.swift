@@ -95,7 +95,7 @@ struct Compiler<E: Executor> {
 
                 if exists {
                     if isCacheEnabled {
-                        let isValidCache = try await cacheSystem.existsValidCache(subPackage: subPackage, target: target)
+                        let isValidCache = await cacheSystem.existsValidCache(subPackage: subPackage, target: target)
                         if isValidCache {
                             logger.warning("✅ Valid \(target.name).xcframework is exists. Skip building.")
                             try await cacheSystem.fetchArtifacts(subPackage: subPackage, target: target, to: outputDir)
