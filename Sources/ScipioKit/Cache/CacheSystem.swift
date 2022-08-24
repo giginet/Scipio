@@ -92,11 +92,11 @@ public protocol CacheStrategy {
     func cacheFramework(_ frameworkPath: AbsolutePath, for cacheKey: CacheKey) async throws
 }
 
-struct CacheSystem<Strategy: CacheStrategy> {
+struct CacheSystem {
     private let rootPackage: Package
     private let buildOptions: BuildOptions
     private let outputDir: AbsolutePath
-    private let strategy: Strategy
+    private let strategy: any CacheStrategy
     private let fileSystem: any FileSystem
     
     enum Error: LocalizedError {
@@ -113,7 +113,7 @@ struct CacheSystem<Strategy: CacheStrategy> {
         }
     }
     
-    init(rootPackage: Package, buildOptions: BuildOptions, outputDir: AbsolutePath, strategy: Strategy, fileSystem: FileSystem = localFileSystem) {
+    init(rootPackage: Package, buildOptions: BuildOptions, outputDir: AbsolutePath, strategy: any CacheStrategy, fileSystem: FileSystem = localFileSystem) {
         self.rootPackage = rootPackage
         self.buildOptions = buildOptions
         self.outputDir = outputDir

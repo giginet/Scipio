@@ -3,14 +3,14 @@ import TSCUtility
 import PackageGraph
 import TSCBasic
 
-public struct LocalCacheStrategy: CacheStrategy {
+struct LocalCacheStrategy: CacheStrategy {
     private let fileSystem: any FileSystem
 
     enum Error: Swift.Error {
         case cacheDirectoryIsNotFound
     }
 
-    public init(fileSystem: FileSystem = localFileSystem) {
+    init(fileSystem: FileSystem = localFileSystem) {
         self.fileSystem = fileSystem
     }
 
@@ -31,7 +31,7 @@ public struct LocalCacheStrategy: CacheStrategy {
         return baseDirectory.appending(components: targetName, cacheKey.sha256Hash, xcFrameworkFileName(for: cacheKey))
     }
 
-    public func existsValidCache(for cacheKey: CacheKey) async -> Bool {
+    func existsValidCache(for cacheKey: CacheKey) async -> Bool {
         do {
             let xcFrameworkPath = try cacheFrameworkPath(for: cacheKey)
             return fileSystem.exists(xcFrameworkPath)
@@ -40,7 +40,7 @@ public struct LocalCacheStrategy: CacheStrategy {
         }
     }
 
-    public func cacheFramework(_ frameworkPath: TSCBasic.AbsolutePath, for cacheKey: CacheKey) async throws {
+    func cacheFramework(_ frameworkPath: TSCBasic.AbsolutePath, for cacheKey: CacheKey) async throws {
         let destination = try cacheFrameworkPath(for: cacheKey)
         let directoryPath = AbsolutePath(destination.dirname)
         try fileSystem.createDirectory(directoryPath, recursive: true)
@@ -48,7 +48,7 @@ public struct LocalCacheStrategy: CacheStrategy {
         try fileSystem.copy(from: frameworkPath, to: destination)
     }
 
-    public func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: TSCBasic.AbsolutePath) async throws {
+    func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: TSCBasic.AbsolutePath) async throws {
         let source = try cacheFrameworkPath(for: cacheKey)
         let destination = destinationDir.appending(component: xcFrameworkFileName(for: cacheKey))
         try fileSystem.copy(from: source, to: destination)

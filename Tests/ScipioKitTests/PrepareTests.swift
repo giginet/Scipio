@@ -30,6 +30,7 @@ final class PrepareTests: XCTestCase {
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
                 isCacheEnabled: false,
+                cacheStrategy: .project,
                 verbose: false))
         do {
             try await runner.run(packageDirectory: testPackagePath,
@@ -88,7 +89,9 @@ final class PrepareTests: XCTestCase {
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
                 isCacheEnabled: true,
-                verbose: false))
+                cacheStrategy: .project,
+                verbose: false)
+        )
         do {
             try await runner.run(packageDirectory: testPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir.asURL))

@@ -13,6 +13,8 @@ extension Scipio {
                   completion: .directory)
         var packageDirectory: URL = URL(fileURLWithPath: ".")
 
+        @Argument(help: "Cache mode to store built artifacts. (local / project)", completion: .list(["local", "project"]))
+        var cacheMode: Runner.CacheStrategyMode = .project
 
         @Flag(name: .customLong("enable-cache"),
               help: "Whether skip building already built frameworks or not.")
@@ -31,6 +33,7 @@ extension Scipio {
                     isSimulatorSupported: buildOptions.supportSimulators,
                     isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
                     isCacheEnabled: cacheEnabled,
+                    cacheStrategy: cacheMode,
                     verbose: globalOptions.verbose)
             )
 

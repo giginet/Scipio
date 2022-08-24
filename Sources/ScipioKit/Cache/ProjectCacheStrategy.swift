@@ -3,16 +3,16 @@ import TSCUtility
 import PackageGraph
 import TSCBasic
 
-public struct ProjectCacheStrategy: CacheStrategy {
+struct ProjectCacheStrategy: CacheStrategy {
     private let outputDirectory: AbsolutePath
     private let fileSystem: any FileSystem
 
-    public init(outputDirectory: AbsolutePath, fileSystem: any FileSystem = localFileSystem) {
+    init(outputDirectory: AbsolutePath, fileSystem: any FileSystem = localFileSystem) {
         self.outputDirectory = outputDirectory
         self.fileSystem = fileSystem
     }
 
-    public func existsValidCache(for cacheKey: CacheKey) async -> Bool {
+    func existsValidCache(for cacheKey: CacheKey) async -> Bool {
         let versionFilePath = versionFilePath(for: cacheKey.targetName)
         guard fileSystem.exists(versionFilePath) else { return false }
         let decoder = JSONDecoder()
@@ -24,7 +24,7 @@ public struct ProjectCacheStrategy: CacheStrategy {
         }
     }
 
-    public func fetchArtifacts(for cacheKey: CacheKey, to destination: AbsolutePath) async throws {
+    func fetchArtifacts(for cacheKey: CacheKey, to destination: AbsolutePath) async throws {
         guard outputDirectory != destination else {
             return
         }
@@ -33,7 +33,7 @@ public struct ProjectCacheStrategy: CacheStrategy {
                             to: destination.appending(component: versionFileName))
     }
 
-    public func cacheFramework(_ frameworkPath: TSCBasic.AbsolutePath, for cacheKey: CacheKey) async throws {
+    func cacheFramework(_ frameworkPath: TSCBasic.AbsolutePath, for cacheKey: CacheKey) async throws {
         // do nothing
     }
 

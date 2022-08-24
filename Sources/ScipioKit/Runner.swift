@@ -10,6 +10,12 @@ public struct Runner {
         case prepareDependencies
     }
 
+    public enum CacheStrategyMode {
+        case project
+        case local
+        case custom(any CacheStrategy)
+    }
+
     public enum Error: Swift.Error, LocalizedError {
         case invalidPackage(AbsolutePath)
         case platformNotSpecified
@@ -28,12 +34,13 @@ public struct Runner {
     }
 
     public struct Options {
-        public init(buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, outputDirectory: URL? = nil, isCacheEnabled: Bool, verbose: Bool) {
+        public init(buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, outputDirectory: URL? = nil, isCacheEnabled: Bool, cacheStrategy: CacheStrategyMode, verbose: Bool) {
             self.buildConfiguration = buildConfiguration
             self.isSimulatorSupported = isSimulatorSupported
             self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
             self.outputDirectory = outputDirectory
             self.isCacheEnabled = isCacheEnabled
+            self.cacheStrategy = cacheStrategy
             self.verbose = verbose
         }
 
@@ -42,6 +49,7 @@ public struct Runner {
         public var isDebugSymbolsEmbedded: Bool
         public var outputDirectory: URL?
         public var isCacheEnabled: Bool
+        public var cacheStrategy: CacheStrategyMode
         public var verbose: Bool
     }
     private var mode: Mode
@@ -112,8 +120,20 @@ public struct Runner {
         
         try fileSystem.createDirectory(outputDir, recursive: true)
 
-        let compiler = Compiler<ProcessExecutor>(rootPackage: package,
-                                                 fileSystem: fileSystem)
+        let cacheStrategy: any CacheStrategy
+        switch options.cacheStrategy {
+        case .project:
+            cacheStrategy = ProjectCacheStrategy(outputDirectory: outputDir)
+        case .local:
+            cacheStrategy = LocalCacheStrategy()
+        case .custom(let strategy):
+            cacheStrategy = strategy
+        }
+
+        let compiler = Compiler(rootPackage: package,
+                                cacheStrategy: cacheStrategy,
+                                executor: ProcessExecutor(),
+                                fileSystem: fileSystem)
         do {
             switch mode {
             case .createPackage:
