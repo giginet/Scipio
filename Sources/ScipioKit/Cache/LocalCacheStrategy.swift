@@ -40,12 +40,16 @@ struct LocalCacheStrategy: CacheStrategy {
         }
     }
 
-    func cacheFramework(_ frameworkPath: TSCBasic.AbsolutePath, for cacheKey: CacheKey) async throws {
-        let destination = try cacheFrameworkPath(for: cacheKey)
-        let directoryPath = AbsolutePath(destination.dirname)
-        try fileSystem.createDirectory(directoryPath, recursive: true)
+    func cacheFramework(_ frameworkPath: TSCBasic.AbsolutePath, for cacheKey: CacheKey) async {
+        do {
+            let destination = try cacheFrameworkPath(for: cacheKey)
+            let directoryPath = AbsolutePath(destination.dirname)
 
-        try fileSystem.copy(from: frameworkPath, to: destination)
+            try fileSystem.copy(from: frameworkPath, to: destination)
+            try fileSystem.createDirectory(directoryPath, recursive: true)
+        } catch {
+            // ignore error
+        }
     }
 
     func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: TSCBasic.AbsolutePath) async throws {

@@ -33,7 +33,7 @@ struct ProjectCacheStrategy: CacheStrategy {
                             to: destination.appending(component: versionFileName))
     }
 
-    func cacheFramework(_ frameworkPath: TSCBasic.AbsolutePath, for cacheKey: CacheKey) async throws {
+    func cacheFramework(_ frameworkPath: TSCBasic.AbsolutePath, for cacheKey: CacheKey) async {
         // do nothing
     }
 

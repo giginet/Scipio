@@ -67,7 +67,7 @@ struct Compiler<E: Executor> {
     func build(mode: BuildMode, buildOptions: BuildOptions, outputDir: AbsolutePath, isCacheEnabled: Bool) async throws {
         let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                       buildOptions: buildOptions,
-                                      outputDir: outputDir,
+                                      outputDirectory: outputDir,
                                       strategy: cacheStrategy)
 
         logger.info("🗑️ Cleaning \(rootPackage.name)...")
@@ -93,7 +93,8 @@ struct Compiler<E: Executor> {
         }
         for subPackage in packages {
             for target in subPackage.targets where target.type == .library {
-                let xcframeworkPath = outputDir.appending(component: "\(target.name.packageNamed()).xcframework")
+                let frameworkName = frameworkName(for: target)
+                let xcframeworkPath = outputDir.appending(component: frameworkName)
                 let exists = fileSystem.exists(xcframeworkPath)
 
                 if exists {
@@ -101,45 +102,29 @@ struct Compiler<E: Executor> {
                         let isValidCache = await cacheSystem.existsValidCache(subPackage: subPackage, target: target)
                         if isValidCache {
                             logger.info("✅ Valid \(target.name).xcframework is exists. Skip building.", metadata: .color(.green))
-                            try await cacheSystem.fetchArtifacts(subPackage: subPackage, target: target, to: outputDir)
                             continue
                         } else {
-                            logger.warning("⚠️ Existing \(target.name).xcframework is outdated.", metadata: .color(.yellow))
-                            logger.info("💥 Delete \(target.name).xcframework", metadata: .color(.red))
+                            logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
+                            logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
                             try fileSystem.removeFileTree(xcframeworkPath)
                         }
                     }
                     try fileSystem.removeFileTree(xcframeworkPath)
                 }
-                let sdkNames = sdks.map(\.displayName).joined(separator: ", ")
-                logger.info("📦 Building \(target.name) for \(sdkNames)")
 
-                for sdk in sdks {
-                    try await execute(ArchiveCommand(context: .init(package: rootPackage, target: target, buildConfiguration: buildConfiguration, sdk: sdk)))
-                }
-
-                logger.info("🚀 Combining into XCFramework...")
-
-                let debugSymbolPaths: [AbsolutePath]?
-                if buildOptions.isDebugSymbolsEmbedded {
-                    debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
-                                                                         buildConfiguration: buildConfiguration,
-                                                                         sdks: Set(sdks))
+                let frameworkPath = outputDir.appending(component: frameworkName)
+                if await cacheSystem.restoreCacheIfPossible(subPackage: subPackage, target: target) {
+                    logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
                 } else {
-                    debugSymbolPaths = nil
+                    try await createXCFramework(target: target,
+                                                buildConfiguration: buildConfiguration,
+                                                isDebugSymbolsEmbedded: buildOptions.isDebugSymbolsEmbedded,
+                                                sdks: Set(sdks),
+                                                outputDirectory: outputDir)
                 }
 
-                try await execute(CreateXCFrameworkCommand(
-                    context: .init(package: rootPackage,
-                                   target: target,
-                                   buildConfiguration: buildConfiguration,
-                                   sdks: Set(sdks),
-                                   debugSymbolPaths: debugSymbolPaths),
-                    outputDir: outputDir
-                ))
-                let frameworkPath = outputDir.appending(component: "\(target.name.packageNamed()).xcframework")
                 do {
-                    try await cacheSystem.cachePackage(frameworkPath, subPackage: subPackage, target: target)
+                    try await cacheSystem.cacheFramework(frameworkPath, subPackage: subPackage, target: target)
                 }
 
                 if case .prepareDependencies = mode {
@@ -151,6 +136,43 @@ struct Compiler<E: Executor> {
                 }
             }
         }
+    }
+
+    private func frameworkName(for target: ResolvedTarget) -> String {
+        "\(target.name.packageNamed()).xcframework"
+    }
+
+    private func createXCFramework(target: ResolvedTarget,
+                                   buildConfiguration: BuildConfiguration,
+                                   isDebugSymbolsEmbedded: Bool,
+                                   sdks: Set<SDK>,
+                                   outputDirectory: AbsolutePath) async throws {
+        let sdkNames = sdks.map(\.displayName).joined(separator: ", ")
+        logger.info("📦 Building \(target.name) for \(sdkNames)")
+
+        for sdk in sdks {
+            try await execute(ArchiveCommand(context: .init(package: rootPackage, target: target, buildConfiguration: buildConfiguration, sdk: sdk)))
+        }
+
+        logger.info("🚀 Combining into XCFramework...")
+
+        let debugSymbolPaths: [AbsolutePath]?
+        if isDebugSymbolsEmbedded {
+            debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
+                                                                 buildConfiguration: buildConfiguration,
+                                                                 sdks: sdks)
+        } else {
+            debugSymbolPaths = nil
+        }
+
+        try await execute(CreateXCFrameworkCommand(
+            context: .init(package: rootPackage,
+                           target: target,
+                           buildConfiguration: buildConfiguration,
+                           sdks: sdks,
+                           debugSymbolPaths: debugSymbolPaths),
+            outputDir: outputDirectory
+        ))
     }
 
     private func extractDebugSymbolPaths(target: ResolvedTarget, buildConfiguration: BuildConfiguration, sdks: Set<SDK>) async throws -> [AbsolutePath] {

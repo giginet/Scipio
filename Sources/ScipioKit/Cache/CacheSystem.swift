@@ -95,13 +95,13 @@ public struct CacheKey: Hashable, Codable, Equatable {
 public protocol CacheStrategy {
     func existsValidCache(for cacheKey: CacheKey) async -> Bool
     func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: AbsolutePath) async throws
-    func cacheFramework(_ frameworkPath: AbsolutePath, for cacheKey: CacheKey) async throws
+    func cacheFramework(_ frameworkPath: AbsolutePath, for cacheKey: CacheKey) async
 }
 
 struct CacheSystem {
     private let rootPackage: Package
     private let buildOptions: BuildOptions
-    private let outputDir: AbsolutePath
+    private let outputDirectory: AbsolutePath
     private let strategy: any CacheStrategy
     private let fileSystem: any FileSystem
     
@@ -119,38 +119,56 @@ struct CacheSystem {
         }
     }
     
-    init(rootPackage: Package, buildOptions: BuildOptions, outputDir: AbsolutePath, strategy: any CacheStrategy, fileSystem: FileSystem = localFileSystem) {
+    init(rootPackage: Package, buildOptions: BuildOptions, outputDirectory: AbsolutePath, strategy: any CacheStrategy, fileSystem: FileSystem = localFileSystem) {
         self.rootPackage = rootPackage
         self.buildOptions = buildOptions
-        self.outputDir = outputDir
+        self.outputDirectory = outputDirectory
         self.strategy = strategy
         self.fileSystem = fileSystem
     }
 
-    func cachePackage(_ frameworkPath: AbsolutePath, subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
+    func cacheFramework(_ frameworkPath: AbsolutePath, subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
         let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
 
-        try await strategy.cacheFramework(frameworkPath, for: cacheKey)
+        await strategy.cacheFramework(frameworkPath, for: cacheKey)
     }
     
     func generateVersionFile(subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
         let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
 
         let data = try jsonEncoder.encode(cacheKey)
-        let versionFilePath = outputDir.appending(component: versionFileName(for: target.name))
+        let versionFilePath = outputDirectory.appending(component: versionFileName(for: target.name))
         try fileSystem.writeFileContents(versionFilePath, data: data)
     }
     
     func existsValidCache(subPackage: ResolvedPackage, target: ResolvedTarget) async -> Bool {
         do {
             let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
-            return await strategy.existsValidCache(for: cacheKey)
+            let versionFilePath = versionFilePath(for: cacheKey.targetName)
+            guard fileSystem.exists(versionFilePath) else { return false }
+            let decoder = JSONDecoder()
+            let versionFileKey = try decoder.decode(path: versionFilePath, fileSystem: fileSystem, as: CacheKey.self)
+            return versionFileKey == cacheKey
+        } catch {
+            return false
+        }
+    }
+
+    func restoreCacheIfPossible(subPackage: ResolvedPackage, target: ResolvedTarget) async -> Bool {
+        do {
+            let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
+            if await strategy.existsValidCache(for: cacheKey) {
+                try await strategy.fetchArtifacts(for: cacheKey, to: outputDirectory)
+                return true
+            } else {
+                return false
+            }
         } catch {
             return false
         }
     }
     
-    func fetchArtifacts(subPackage: ResolvedPackage, target: ResolvedTarget, to destination: AbsolutePath) async throws {
+    private func fetchArtifacts(subPackage: ResolvedPackage, target: ResolvedTarget, to destination: AbsolutePath) async throws {
         let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
         try await strategy.fetchArtifacts(for: cacheKey, to: destination)
     }
@@ -174,6 +192,10 @@ struct CacheSystem {
             throw Error.revisionNotDetected(package.manifest.displayName)
         }
         return pin
+    }
+
+    private func versionFilePath(for targetName: String) -> AbsolutePath {
+        outputDirectory.appending(component: versionFileName(for: targetName))
     }
 
     private func versionFileName(for targetName: String) -> String {
