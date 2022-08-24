@@ -21,13 +21,11 @@ extension BuildConfiguration: ExpressibleByArgument {
     }
 }
 
-extension Runner.CacheStrategyMode: ExpressibleByArgument {
+extension Runner.CacheStrategyMode?: ExpressibleByArgument {
     public init?(argument: String) {
         switch argument {
         case "local":
             self = .local
-        case "project":
-            self = .project
         default:
             return nil
         }

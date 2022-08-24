@@ -16,7 +16,7 @@ extension Scipio {
         @Option(name: [.customLong("cache-mode")],
                 help: "Cache mode to store built artifacts. (local / project)",
                 completion: .list(["local", "project"]))
-        var cacheMode: Runner.CacheStrategyMode = .project
+        var cacheMode: Runner.CacheStrategyMode? = nil
 
         @Flag(name: .customLong("enable-cache"),
               help: "Whether skip building already built frameworks or not.")

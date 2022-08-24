@@ -39,7 +39,7 @@ private protocol BuildContext {
 struct Compiler<E: Executor> {
     let rootPackage: Package
     let executor: E
-    let cacheStrategy: any CacheStrategy
+    let cacheStrategy: (any CacheStrategy)?
     let fileSystem: any FileSystem
     private let extractor: DwarfExtractor<E>
 
@@ -48,7 +48,7 @@ struct Compiler<E: Executor> {
         case prepareDependencies
     }
 
-    init(rootPackage: Package, cacheStrategy: any CacheStrategy, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
+    init(rootPackage: Package, cacheStrategy: (any CacheStrategy)?, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
         self.rootPackage = rootPackage
         self.executor = executor
         self.cacheStrategy = cacheStrategy

@@ -102,7 +102,7 @@ struct CacheSystem {
     private let rootPackage: Package
     private let buildOptions: BuildOptions
     private let outputDirectory: AbsolutePath
-    private let strategy: any CacheStrategy
+    private let strategy: (any CacheStrategy)?
     private let fileSystem: any FileSystem
     
     enum Error: LocalizedError {
@@ -119,7 +119,7 @@ struct CacheSystem {
         }
     }
     
-    init(rootPackage: Package, buildOptions: BuildOptions, outputDirectory: AbsolutePath, strategy: any CacheStrategy, fileSystem: FileSystem = localFileSystem) {
+    init(rootPackage: Package, buildOptions: BuildOptions, outputDirectory: AbsolutePath, strategy: (any CacheStrategy)?, fileSystem: FileSystem = localFileSystem) {
         self.rootPackage = rootPackage
         self.buildOptions = buildOptions
         self.outputDirectory = outputDirectory
@@ -130,7 +130,7 @@ struct CacheSystem {
     func cacheFramework(_ frameworkPath: AbsolutePath, subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
         let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
 
-        await strategy.cacheFramework(frameworkPath, for: cacheKey)
+        await strategy?.cacheFramework(frameworkPath, for: cacheKey)
     }
     
     func generateVersionFile(subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
@@ -155,6 +155,7 @@ struct CacheSystem {
     }
 
     func restoreCacheIfPossible(subPackage: ResolvedPackage, target: ResolvedTarget) async -> Bool {
+        guard let strategy = strategy else { return false }
         do {
             let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
             if await strategy.existsValidCache(for: cacheKey) {
@@ -169,6 +170,7 @@ struct CacheSystem {
     }
     
     private func fetchArtifacts(subPackage: ResolvedPackage, target: ResolvedTarget, to destination: AbsolutePath) async throws {
+        guard let strategy = strategy else { return }
         let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
         try await strategy.fetchArtifacts(for: cacheKey, to: destination)
     }

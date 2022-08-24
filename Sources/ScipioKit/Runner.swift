@@ -11,7 +11,6 @@ public struct Runner {
     }
 
     public enum CacheStrategyMode {
-        case project
         case local
         case custom(any CacheStrategy)
     }
@@ -34,7 +33,7 @@ public struct Runner {
     }
 
     public struct Options {
-        public init(buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, outputDirectory: URL? = nil, isCacheEnabled: Bool, cacheStrategy: CacheStrategyMode, verbose: Bool) {
+        public init(buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, outputDirectory: URL? = nil, isCacheEnabled: Bool, cacheStrategy: CacheStrategyMode?, verbose: Bool) {
             self.buildConfiguration = buildConfiguration
             self.isSimulatorSupported = isSimulatorSupported
             self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
@@ -49,7 +48,7 @@ public struct Runner {
         public var isDebugSymbolsEmbedded: Bool
         public var outputDirectory: URL?
         public var isCacheEnabled: Bool
-        public var cacheStrategy: CacheStrategyMode
+        public var cacheStrategy: CacheStrategyMode?
         public var verbose: Bool
     }
     private var mode: Mode
@@ -120,10 +119,10 @@ public struct Runner {
         
         try fileSystem.createDirectory(outputDir, recursive: true)
 
-        let cacheStrategy: any CacheStrategy
+        let cacheStrategy: (any CacheStrategy)?
         switch options.cacheStrategy {
-        case .project:
-            cacheStrategy = ProjectCacheStrategy(outputDirectory: outputDir)
+        case .none:
+            cacheStrategy = nil
         case .local:
             cacheStrategy = LocalCacheStrategy()
         case .custom(let strategy):
