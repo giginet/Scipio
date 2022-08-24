@@ -77,9 +77,9 @@ struct Compiler<E: Executor> {
         ))
 
         let buildConfiguration: BuildConfiguration = buildOptions.buildConfiguration
-        let sdks: Set<SDK>
+        let sdks: [SDK]
         if buildOptions.isSimulatorSupported {
-            sdks = Set(buildOptions.sdks.flatMap { $0.extractForSimulators() })
+            sdks = buildOptions.sdks.flatMap { $0.extractForSimulators() }
         } else {
             sdks = buildOptions.sdks
         }
@@ -124,7 +124,7 @@ struct Compiler<E: Executor> {
                 if buildOptions.isDebugSymbolsEmbedded {
                     debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
                                                                          buildConfiguration: buildConfiguration,
-                                                                         sdks: sdks)
+                                                                         sdks: Set(sdks))
                 } else {
                     debugSymbolPaths = nil
                 }
@@ -133,11 +133,11 @@ struct Compiler<E: Executor> {
                     context: .init(package: rootPackage,
                                    target: target,
                                    buildConfiguration: buildConfiguration,
-                                   sdks: sdks,
+                                   sdks: Set(sdks),
                                    debugSymbolPaths: debugSymbolPaths),
                     outputDir: outputDir
                 ))
-                let frameworkPath = outputDir.appending(component: "\(target.name).xcframework")
+                let frameworkPath = outputDir.appending(component: "\(target.name.packageNamed()).xcframework")
                 do {
                     try await cacheSystem.cachePackage(frameworkPath, subPackage: subPackage, target: target)
                 }
@@ -289,15 +289,5 @@ extension BuildContext {
 extension Compiler.ArchiveCommand.Context {
     var xcArchivePath: AbsolutePath {
         buildXCArchivePath(sdk: sdk)
-    }
-}
-
-extension String {
-    fileprivate func packageNamed() -> String {
-        // Xcode replaces any non-alphanumeric characters in the target with an underscore
-        // https://developer.apple.com/documentation/swift/imported_c_and_objective-c_apis/importing_swift_into_objective-c
-        return self
-            .replacingOccurrences(of: "[^0-9a-zA-Z]", with: "_", options: .regularExpression)
-            .replacingOccurrences(of: "^[0-9]", with: "_", options: .regularExpression)
     }
 }

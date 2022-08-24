@@ -22,13 +22,13 @@ struct LocalCacheStrategy: CacheStrategy {
     }
 
     private func xcFrameworkFileName(for cacheKey: CacheKey) -> String {
-        "\(cacheKey.targetName).xcframework"
+        "\(cacheKey.targetName.packageNamed()).xcframework"
     }
 
     private func cacheFrameworkPath(for cacheKey: CacheKey) throws -> AbsolutePath {
-        let targetName = cacheKey.targetName
         let baseDirectory = try buildBaseDirectoryPath()
-        return baseDirectory.appending(components: targetName, cacheKey.sha256Hash, xcFrameworkFileName(for: cacheKey))
+        let checksum = try cacheKey.calculateChecksum()
+        return baseDirectory.appending(components: cacheKey.targetName.packageNamed(), checksum, xcFrameworkFileName(for: cacheKey))
     }
 
     func existsValidCache(for cacheKey: CacheKey) async -> Bool {

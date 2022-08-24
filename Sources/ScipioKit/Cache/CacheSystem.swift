@@ -3,6 +3,12 @@ import TSCUtility
 import PackageGraph
 import TSCBasic
 
+private let jsonEncoder = {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .prettyPrinted
+    return encoder
+}()
+
 struct ClangChecker<E: Executor> {
     private let executor: E
     
@@ -130,9 +136,7 @@ struct CacheSystem {
     func generateVersionFile(subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
         let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
 
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
-        let data = try encoder.encode(cacheKey)
+        let data = try jsonEncoder.encode(cacheKey)
         let versionFilePath = outputDir.appending(component: versionFileName(for: target.name))
         try fileSystem.writeFileContents(versionFilePath, data: data)
     }
@@ -178,7 +182,8 @@ struct CacheSystem {
 }
 
 extension CacheKey {
-    var sha256Hash: String {
-        return SHA256().hash(.init(hashValue)).sha256Checksum
+    func calculateChecksum() throws -> String {
+        let data = try jsonEncoder.encode(self)
+        return ByteString(data).sha256Checksum
     }
 }

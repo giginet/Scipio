@@ -4,7 +4,7 @@ struct BuildOptions: Hashable, Codable {
    var buildConfiguration: BuildConfiguration
     var isSimulatorSupported: Bool
     var isDebugSymbolsEmbedded: Bool
-    var sdks: Set<SDK>
+    var sdks: [SDK]
 }
 
 public enum BuildConfiguration: String, Codable {
