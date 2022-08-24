@@ -20,14 +20,3 @@ extension BuildConfiguration: ExpressibleByArgument {
         }
     }
 }
-
-extension Runner.CacheStorageKind?: ExpressibleByArgument {
-    public init?(argument: String) {
-        switch argument {
-        case "local":
-            self = .local
-        default:
-            return nil
-        }
-    }
-}

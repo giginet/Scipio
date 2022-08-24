@@ -33,13 +33,12 @@ public struct Runner {
     }
 
     public struct Options {
-        public init(buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, outputDirectory: URL? = nil, isCacheEnabled: Bool, cacheStorage: CacheStorageKind?, verbose: Bool) {
+        public init(buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, outputDirectory: URL? = nil, cacheMode: CacheMode, verbose: Bool) {
             self.buildConfiguration = buildConfiguration
             self.isSimulatorSupported = isSimulatorSupported
             self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
             self.outputDirectory = outputDirectory
-            self.isCacheEnabled = isCacheEnabled
-            self.cacheStorage = cacheStorage
+            self.cacheMode = cacheMode
             self.verbose = verbose
         }
 
@@ -47,9 +46,22 @@ public struct Runner {
         public var isSimulatorSupported: Bool
         public var isDebugSymbolsEmbedded: Bool
         public var outputDirectory: URL?
-        public var isCacheEnabled: Bool
-        public var cacheStorage: CacheStorageKind?
+        public var cacheMode: CacheMode
         public var verbose: Bool
+
+        public enum CacheMode {
+            case disabled
+            case storage((any CacheStorage)?)
+
+            func extract() -> (Bool, (any CacheStorage)?) {
+                switch self {
+                case .disabled:
+                    return (false, nil)
+                case .storage(let cacheStorage):
+                    return (true, cacheStorage)
+                }
+            }
+        }
     }
     private var mode: Mode
 
@@ -119,16 +131,7 @@ public struct Runner {
         
         try fileSystem.createDirectory(outputDir, recursive: true)
 
-        let cacheStorage: (any CacheStorage)?
-        switch options.cacheStorage {
-        case .none:
-            cacheStorage = nil
-        case .local:
-            cacheStorage = LocalCacheStorage()
-        case .custom(let storage):
-            cacheStorage = storage
-        }
-
+        let (isCacheEnabled, cacheStorage) = options.cacheMode.extract()
         let compiler = Compiler(rootPackage: package,
                                 cacheStorage: cacheStorage,
                                 executor: ProcessExecutor(),
@@ -140,14 +143,14 @@ public struct Runner {
                     mode: .createPackage,
                     buildOptions: buildOptions,
                     outputDir: outputDir,
-                    isCacheEnabled: options.isCacheEnabled
+                    isCacheEnabled: isCacheEnabled
                 )
             case .prepareDependencies:
                 try await compiler.build(
                     mode: .prepareDependencies,
                     buildOptions: buildOptions,
                     outputDir: outputDir,
-                    isCacheEnabled: options.isCacheEnabled
+                    isCacheEnabled: isCacheEnabled
                 )
             }
             logger.info("❇️ Succeeded.", metadata: .color(.green))

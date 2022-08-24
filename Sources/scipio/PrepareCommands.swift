@@ -5,6 +5,12 @@ import Logging
 
 extension Scipio {
     struct Prepare: AsyncParsableCommand {
+        enum CachePolicy: String, CaseIterable, ExpressibleByArgument {
+            case disabled
+            case project
+            case local
+        }
+
         static var configuration: CommandConfiguration = .init(
             abstract: "Prepare all dependencies in a specific manifest."
         )
@@ -13,10 +19,10 @@ extension Scipio {
                   completion: .directory)
         var packageDirectory: URL = URL(fileURLWithPath: ".")
 
-        @Option(name: [.customLong("cache-storege")],
-                help: "Cache mode to store built artifacts. (local / project)",
-                completion: .list(["local", "project"]))
-        var cacheStorageKind: Runner.CacheStorageKind? = nil
+        @Option(name: [.customLong("cache-policy")],
+                help: "Cache management policy to reuse built frameworks. (\(CachePolicy.allCases.map(\.rawValue).joined(separator: ","))",
+                completion: .list(CachePolicy.allCases.map(\.rawValue)))
+        var cachePolicy: CachePolicy = .project
 
         @Flag(name: .customLong("enable-cache"),
               help: "Whether skip building already built frameworks or not.")
@@ -27,6 +33,16 @@ extension Scipio {
         
         mutating func run() async throws {
             LoggingSystem.bootstrap()
+
+            let runnerCacheMode: Runner.Options.CacheMode
+            switch cachePolicy {
+            case .disabled:
+                runnerCacheMode = .disabled
+            case .project:
+                runnerCacheMode = .storage(nil)
+            case .local:
+                runnerCacheMode = .storage(LocalCacheStorage())
+            }
             
             let runner = Runner(
                 mode: .prepareDependencies,
@@ -34,8 +50,7 @@ extension Scipio {
                     buildConfiguration: buildOptions.buildConfiguration,
                     isSimulatorSupported: buildOptions.supportSimulators,
                     isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
-                    isCacheEnabled: cacheEnabled,
-                    cacheStorage: cacheStorageKind,
+                    cacheMode: runnerCacheMode,
                     verbose: globalOptions.verbose)
             )
 

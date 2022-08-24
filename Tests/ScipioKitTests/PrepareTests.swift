@@ -29,8 +29,7 @@ final class PrepareTests: XCTestCase {
                 buildConfiguration: .release,
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
-                isCacheEnabled: false,
-                cacheStorage: nil,
+                cacheMode: .disabled,
                 verbose: false))
         do {
             try await runner.run(packageDirectory: testPackagePath,
@@ -88,8 +87,7 @@ final class PrepareTests: XCTestCase {
                 buildConfiguration: .release,
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
-                isCacheEnabled: true,
-                cacheStorage: nil,
+                cacheMode: .storage(nil),
                 verbose: false)
         )
         do {
