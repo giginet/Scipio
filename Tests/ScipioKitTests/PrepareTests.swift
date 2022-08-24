@@ -32,7 +32,8 @@ final class PrepareTests: XCTestCase {
                 isCacheEnabled: false,
                 verbose: false))
         do {
-            try await runner.run(packageDirectory: testPackagePath, frameworkOutputDir: frameworkOutputDir.asURL)
+            try await runner.run(packageDirectory: testPackagePath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir.asURL))
         } catch {
             XCTFail("Build should be succeeded.")
         }
@@ -89,7 +90,8 @@ final class PrepareTests: XCTestCase {
                 isCacheEnabled: true,
                 verbose: false))
         do {
-            try await runner.run(packageDirectory: testPackagePath, frameworkOutputDir: frameworkOutputDir.asURL)
+            try await runner.run(packageDirectory: testPackagePath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir.asURL))
         } catch {
             XCTFail("Build should be succeeded.")
         }

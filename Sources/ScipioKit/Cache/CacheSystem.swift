@@ -79,14 +79,14 @@ extension PinsStore.PinState: Hashable {
     }
 }
 
-struct CacheKey: Hashable, Codable, Equatable {
+public struct CacheKey: Hashable, Codable, Equatable {
     var targetName: String
     var pin: PinsStore.PinState
     var buildOptions: BuildOptions
     var clangVersion: String
 }
 
-protocol CacheStrategy {
+public protocol CacheStrategy {
     func existsValidCache(for cacheKey: CacheKey) async -> Bool
     func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: AbsolutePath) async throws
     func cacheFramework(_ frameworkPath: AbsolutePath, for cacheKey: CacheKey) async throws

@@ -33,9 +33,16 @@ extension Scipio {
                     isCacheEnabled: cacheEnabled,
                     verbose: globalOptions.verbose)
             )
+
+            let outputDir: Runner.OutputDirectory
+            if let customOutputDir = buildOptions.customOutputDirectory {
+                outputDir = .custom(customOutputDir)
+            } else {
+                outputDir = .default
+            }
             
             try await runner.run(packageDirectory: packageDirectory,
-                                 frameworkOutputDir: buildOptions.outputDirectory)
+                                 frameworkOutputDir: outputDir)
         }
     }
 }

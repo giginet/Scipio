@@ -11,7 +11,7 @@ struct GlobalOptionGroup: ParsableArguments {
 struct BuildOptionGroup: ParsableArguments {
     @Option(name: [.customShort("o"), .customLong("output")],
             help: "Path indicates a XCFrameworks output directory.")
-    var outputDirectory: URL?
+    var customOutputDirectory: URL?
 
     @Option(name: [.customLong("configuration"), .customShort("c")],
             help: "Build configuration for generated frameworks. (debug / release)")

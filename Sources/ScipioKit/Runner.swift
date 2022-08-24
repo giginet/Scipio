@@ -68,7 +68,21 @@ public struct Runner {
         }
     }
 
-    public func run(packageDirectory: URL, frameworkOutputDir: URL? = nil) async throws {
+    public enum OutputDirectory {
+        case `default`
+        case custom(URL)
+
+        fileprivate func resolve(packageDirectory: URL) -> AbsolutePath {
+            switch self {
+            case .default:
+                return AbsolutePath(packageDirectory.appendingPathComponent("XCFramework").path)
+            case .custom(let url):
+                return AbsolutePath(url.path)
+            }
+        }
+    }
+
+    public func run(packageDirectory: URL, frameworkOutputDir: OutputDirectory) async throws {
         let packagePath = resolveURL(packageDirectory)
         let package: Package
         do {
@@ -94,12 +108,8 @@ public struct Runner {
         let generator = ProjectGenerator()
         try generator.generate(for: package, embedDebugSymbols: buildOptions.isDebugSymbolsEmbedded)
 
-        let outputDir: AbsolutePath
-        if let dir = frameworkOutputDir {
-            outputDir = AbsolutePath(dir.path)
-        } else {
-            outputDir = AbsolutePath(packageDirectory.path).appending(component: "XCFrameworks")
-        }
+        let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
+        
         try fileSystem.createDirectory(outputDir, recursive: true)
 
         let compiler = Compiler<ProcessExecutor>(rootPackage: package,
