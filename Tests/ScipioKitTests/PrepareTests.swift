@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 @testable import ScipioKit
+import Logging
 import TSCBasic
 
 private let fixturePath = URL(fileURLWithPath: #file)
@@ -11,6 +12,12 @@ private let testPackagePath = fixturePath.appendingPathComponent("BasicPackage")
 
 final class PrepareTests: XCTestCase {
     private let fileManager: FileManager = .default
+
+    override class func setUp() {
+        LoggingSystem.bootstrap { _ in SwiftLogNoOpLogHandler() }
+
+        super.setUp()
+    }
 
     func testBuildXCFramework() async throws {
         let frameworkOutputDir = AbsolutePath(NSTemporaryDirectory()).appending(component: "XCFramework")

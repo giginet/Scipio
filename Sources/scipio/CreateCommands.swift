@@ -17,7 +17,7 @@ extension Scipio {
         @OptionGroup var globalOptions: GlobalOptionGroup
 
         mutating func run() async throws {
-            LoggingSystem.bootstrap(StreamLogHandler.standardError)
+            LoggingSystem.bootstrap()
 
             let runner = Runner(mode: .createPackage,
                                 options: .init(
