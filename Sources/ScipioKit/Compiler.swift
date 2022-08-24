@@ -97,12 +97,12 @@ struct Compiler<E: Executor> {
                     if isCacheEnabled {
                         let isValidCache = await cacheSystem.existsValidCache(subPackage: subPackage, target: target)
                         if isValidCache {
-                            logger.warning("✅ Valid \(target.name).xcframework is exists. Skip building.")
+                            logger.info("✅ Valid \(target.name).xcframework is exists. Skip building.", metadata: .color(.green))
                             try await cacheSystem.fetchArtifacts(subPackage: subPackage, target: target, to: outputDir)
                             continue
                         } else {
-                            logger.warning("⚠️ Existing \(target.name).xcframework is outdated.")
-                            logger.info("💥 Delete \(target.name).xcframework")
+                            logger.warning("⚠️ Existing \(target.name).xcframework is outdated.", metadata: .color(.yellow))
+                            logger.info("💥 Delete \(target.name).xcframework", metadata: .color(.red))
                             try fileSystem.removeFileTree(xcframeworkPath)
                         }
                     }
@@ -139,7 +139,7 @@ struct Compiler<E: Executor> {
                     do {
                         try await cacheSystem.generateVersionFile(subPackage: subPackage, target: target)
                     } catch {
-                        logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.")
+                        logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
                     }
                 }
             }

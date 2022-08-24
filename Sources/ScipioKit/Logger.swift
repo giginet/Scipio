@@ -1,8 +1,19 @@
 import Foundation
 import Logging
+import Rainbow
 import class Basics.ObservabilitySystem
 
 private(set) var logger = Logger(label: "me.giginet.Scipio")
+
+extension Logger.MetadataValue {
+    static func color(_ color: NamedColor) -> Self {
+        .stringConvertible(color.rawValue)
+    }
+}
+
+extension Logger.Metadata {
+    static func color(_ color: NamedColor) -> Self { ["color": .color(color)] }
+}
 
 struct ScipioLogHandler: LogHandler {
     var logLevel: Logger.Level = .info
@@ -26,7 +37,17 @@ struct ScipioLogHandler: LogHandler {
              file: String,
              function: String,
              line: UInt) {
-        print(message)
+        let color: NamedColor?
+        if let metadata = metadata, let rawColorString = metadata["color"], let colorCode = UInt8(rawColorString.description), let namedColor = NamedColor(rawValue: colorCode) {
+            color = namedColor
+        } else {
+            color = nil
+        }
+        if let color = color {
+            print(message.description.applyingColor(color))
+        } else {
+            print(message.description)
+        }
     }
 }
 
