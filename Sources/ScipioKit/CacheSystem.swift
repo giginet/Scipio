@@ -86,19 +86,24 @@ struct CacheKey: Hashable, Codable, Equatable {
     var clangVersion: String
 }
 
-protocol CacheStorage {
+protocol CacheStrategy {
+    func prepare(for target: ResolvedTarget, cacheKey: CacheKey) async throws
     func existsValidCache(for target: ResolvedTarget, cacheKey: CacheKey) async -> Bool
     func generateCache(for target: ResolvedTarget, cacheKey: CacheKey) async throws
     func fetchArtifacts(for target: ResolvedTarget, cacheKey: CacheKey, to destination: AbsolutePath) async throws
 }
 
-struct ProjectCacheStorage: CacheStorage {
+struct ProjectCacheStrategy: CacheStrategy {
     private let outputDirectory: AbsolutePath
     private let fileSystem: any FileSystem
     
     init(outputDirectory: AbsolutePath, fileSystem: any FileSystem = localFileSystem) {
         self.outputDirectory = outputDirectory
         self.fileSystem = fileSystem
+    }
+
+    func prepare(for target: ResolvedTarget, cacheKey: CacheKey) async throws {
+        // do nothing
     }
     
     func existsValidCache(for target: ResolvedTarget, cacheKey: CacheKey) async -> Bool {
@@ -139,10 +144,10 @@ struct ProjectCacheStorage: CacheStorage {
     }
 }
 
-struct CacheSystem<Storage: CacheStorage> {
+struct CacheSystem<Strategy: CacheStrategy> {
     private let rootPackage: Package
     private let buildOptions: BuildOptions
-    private let storage: Storage
+    private let strategy: Strategy
     
     enum Error: LocalizedError {
         case revisionNotDetected(String)
@@ -158,21 +163,26 @@ struct CacheSystem<Storage: CacheStorage> {
         }
     }
     
-    init(rootPackage: Package, buildOptions: BuildOptions, storage: Storage) {
+    init(rootPackage: Package, buildOptions: BuildOptions, strategy: Strategy) {
         self.rootPackage = rootPackage
         self.buildOptions = buildOptions
-        self.storage = storage
+        self.strategy = strategy
+    }
+
+    func prepareCache(subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
+        let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
+        try await strategy.prepare(for: target, cacheKey: cacheKey)
     }
     
     func generateVersionFile(subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
         let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
-        try await storage.generateCache(for: target, cacheKey: cacheKey)
+        try await strategy.generateCache(for: target, cacheKey: cacheKey)
     }
     
     func existsValidCache(subPackage: ResolvedPackage, target: ResolvedTarget) async -> Bool {
         do {
             let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
-            return await storage.existsValidCache(for: target, cacheKey: cacheKey)
+            return await strategy.existsValidCache(for: target, cacheKey: cacheKey)
         } catch {
             return false
         }
@@ -180,7 +190,7 @@ struct CacheSystem<Storage: CacheStorage> {
     
     func fetchArtifacts(subPackage: ResolvedPackage, target: ResolvedTarget, to destination: AbsolutePath) async throws {
         let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
-        try await storage.fetchArtifacts(for: target, cacheKey: cacheKey, to: destination)
+        try await strategy.fetchArtifacts(for: target, cacheKey: cacheKey, to: destination)
     }
     
     private func calculateCacheKey(package: ResolvedPackage, target: ResolvedTarget) async throws -> CacheKey {

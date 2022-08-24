@@ -65,7 +65,7 @@ struct Compiler<E: Executor> {
     func build(mode: BuildMode, buildOptions: BuildOptions, outputDir: AbsolutePath, isCacheEnabled: Bool) async throws {
         let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                       buildOptions: buildOptions,
-                                      storage: ProjectCacheStorage(outputDirectory: outputDir))
+                                      strategy: ProjectCacheStrategy(outputDirectory: outputDir))
 
         logger.info("🗑️ Cleaning \(rootPackage.name)...")
         try await execute(CleanCommand(
