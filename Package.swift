@@ -22,22 +22,27 @@ let package = Package(
                  .upToNextMinor(from: "1.4.2")),
         .package(url: "https://github.com/apple/swift-argument-parser.git", 
                  .upToNextMinor(from: "1.0.0")),
+        .package(url: "https://github.com/onevcat/Rainbow",
+                 .upToNextMinor(from: "4.0.1")),
     ],
     targets: [
         .executableTarget(name: "scipio",
                           dependencies: [
                             .target(name: "ScipioKit"),
-                            .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                            .productItem(name: "ArgumentParser", package: "swift-argument-parser"),
                           ]),
         .target(
             name: "ScipioKit",
             dependencies: [
-                .product(name: "SwiftPM", package: "swift-package-manager"),
-                .product(name: "Logging", package: "swift-log"),
+                .productItem(name: "SwiftPM", package: "swift-package-manager"),
+                .productItem(name: "Logging", package: "swift-log"),
+                .productItem(name: "Rainbow", package: "Rainbow"),
             ]),
         .testTarget(
             name: "ScipioKitTests",
-            dependencies: ["ScipioKit"],
+            dependencies: [
+                .target(name: "ScipioKit"),
+            ],
             exclude: ["Resources/Fixtures/BasicPackage"],
             resources: [.copy("Resources/Fixtures/BasicPackage/Package.swift")]),
     ]
