@@ -21,7 +21,7 @@ extension BuildConfiguration: ExpressibleByArgument {
     }
 }
 
-extension Runner.CacheStrategyMode?: ExpressibleByArgument {
+extension Runner.CacheStorageKind?: ExpressibleByArgument {
     public init?(argument: String) {
         switch argument {
         case "local":

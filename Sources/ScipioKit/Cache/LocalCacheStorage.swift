@@ -3,7 +3,7 @@ import TSCUtility
 import PackageGraph
 import TSCBasic
 
-struct LocalCacheStrategy: CacheStrategy {
+struct LocalCacheStorage: CacheStorage {
     private let fileSystem: any FileSystem
 
     enum Error: Swift.Error {

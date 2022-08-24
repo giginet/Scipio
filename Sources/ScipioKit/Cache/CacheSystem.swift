@@ -92,7 +92,7 @@ public struct CacheKey: Hashable, Codable, Equatable {
     var clangVersion: String
 }
 
-public protocol CacheStrategy {
+public protocol CacheStorage {
     func existsValidCache(for cacheKey: CacheKey) async -> Bool
     func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: AbsolutePath) async throws
     func cacheFramework(_ frameworkPath: AbsolutePath, for cacheKey: CacheKey) async
@@ -102,7 +102,7 @@ struct CacheSystem {
     private let rootPackage: Package
     private let buildOptions: BuildOptions
     private let outputDirectory: AbsolutePath
-    private let strategy: (any CacheStrategy)?
+    private let storage: (any CacheStorage)?
     private let fileSystem: any FileSystem
     
     enum Error: LocalizedError {
@@ -119,18 +119,18 @@ struct CacheSystem {
         }
     }
     
-    init(rootPackage: Package, buildOptions: BuildOptions, outputDirectory: AbsolutePath, strategy: (any CacheStrategy)?, fileSystem: FileSystem = localFileSystem) {
+    init(rootPackage: Package, buildOptions: BuildOptions, outputDirectory: AbsolutePath, storage: (any CacheStorage)?, fileSystem: FileSystem = localFileSystem) {
         self.rootPackage = rootPackage
         self.buildOptions = buildOptions
         self.outputDirectory = outputDirectory
-        self.strategy = strategy
+        self.storage = storage
         self.fileSystem = fileSystem
     }
 
     func cacheFramework(_ frameworkPath: AbsolutePath, subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
         let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
 
-        await strategy?.cacheFramework(frameworkPath, for: cacheKey)
+        await storage?.cacheFramework(frameworkPath, for: cacheKey)
     }
     
     func generateVersionFile(subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
@@ -155,11 +155,11 @@ struct CacheSystem {
     }
 
     func restoreCacheIfPossible(subPackage: ResolvedPackage, target: ResolvedTarget) async -> Bool {
-        guard let strategy = strategy else { return false }
+        guard let storage = storage else { return false }
         do {
             let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
-            if await strategy.existsValidCache(for: cacheKey) {
-                try await strategy.fetchArtifacts(for: cacheKey, to: outputDirectory)
+            if await storage.existsValidCache(for: cacheKey) {
+                try await storage.fetchArtifacts(for: cacheKey, to: outputDirectory)
                 return true
             } else {
                 return false
@@ -170,9 +170,9 @@ struct CacheSystem {
     }
     
     private func fetchArtifacts(subPackage: ResolvedPackage, target: ResolvedTarget, to destination: AbsolutePath) async throws {
-        guard let strategy = strategy else { return }
+        guard let storage = storage else { return }
         let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
-        try await strategy.fetchArtifacts(for: cacheKey, to: destination)
+        try await storage.fetchArtifacts(for: cacheKey, to: destination)
     }
     
     private func calculateCacheKey(package: ResolvedPackage, target: ResolvedTarget) async throws -> CacheKey {

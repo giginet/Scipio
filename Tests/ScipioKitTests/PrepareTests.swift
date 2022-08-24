@@ -30,7 +30,7 @@ final class PrepareTests: XCTestCase {
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
                 isCacheEnabled: false,
-                cacheStrategy: nil,
+                cacheStorage: nil,
                 verbose: false))
         do {
             try await runner.run(packageDirectory: testPackagePath,
@@ -68,7 +68,7 @@ final class PrepareTests: XCTestCase {
                                                           isDebugSymbolsEmbedded: false,
                                                           sdks: [.iOS]),
                                       outputDirectory: frameworkOutputDir,
-                                      strategy: nil)
+                                      storage: nil)
         let packages = rootPackage.graph.packages
             .filter { $0.manifest.displayName != rootPackage.manifest.displayName }
 
@@ -89,7 +89,7 @@ final class PrepareTests: XCTestCase {
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
                 isCacheEnabled: true,
-                cacheStrategy: nil,
+                cacheStorage: nil,
                 verbose: false)
         )
         do {

@@ -39,7 +39,7 @@ private protocol BuildContext {
 struct Compiler<E: Executor> {
     let rootPackage: Package
     let executor: E
-    let cacheStrategy: (any CacheStrategy)?
+    let cacheStorage: (any CacheStorage)?
     let fileSystem: any FileSystem
     private let extractor: DwarfExtractor<E>
 
@@ -48,10 +48,10 @@ struct Compiler<E: Executor> {
         case prepareDependencies
     }
 
-    init(rootPackage: Package, cacheStrategy: (any CacheStrategy)?, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
+    init(rootPackage: Package, cacheStorage: (any CacheStorage)?, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
         self.rootPackage = rootPackage
         self.executor = executor
-        self.cacheStrategy = cacheStrategy
+        self.cacheStorage = cacheStorage
         self.fileSystem = fileSystem
         self.extractor = DwarfExtractor(executor: executor)
     }
@@ -68,7 +68,7 @@ struct Compiler<E: Executor> {
         let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                       buildOptions: buildOptions,
                                       outputDirectory: outputDir,
-                                      strategy: cacheStrategy)
+                                      storage: cacheStorage)
 
         logger.info("🗑️ Cleaning \(rootPackage.name)...")
         try await execute(CleanCommand(

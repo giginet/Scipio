@@ -10,9 +10,9 @@ public struct Runner {
         case prepareDependencies
     }
 
-    public enum CacheStrategyMode {
+    public enum CacheStorageKind {
         case local
-        case custom(any CacheStrategy)
+        case custom(any CacheStorage)
     }
 
     public enum Error: Swift.Error, LocalizedError {
@@ -33,13 +33,13 @@ public struct Runner {
     }
 
     public struct Options {
-        public init(buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, outputDirectory: URL? = nil, isCacheEnabled: Bool, cacheStrategy: CacheStrategyMode?, verbose: Bool) {
+        public init(buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, outputDirectory: URL? = nil, isCacheEnabled: Bool, cacheStorage: CacheStorageKind?, verbose: Bool) {
             self.buildConfiguration = buildConfiguration
             self.isSimulatorSupported = isSimulatorSupported
             self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
             self.outputDirectory = outputDirectory
             self.isCacheEnabled = isCacheEnabled
-            self.cacheStrategy = cacheStrategy
+            self.cacheStorage = cacheStorage
             self.verbose = verbose
         }
 
@@ -48,7 +48,7 @@ public struct Runner {
         public var isDebugSymbolsEmbedded: Bool
         public var outputDirectory: URL?
         public var isCacheEnabled: Bool
-        public var cacheStrategy: CacheStrategyMode?
+        public var cacheStorage: CacheStorageKind?
         public var verbose: Bool
     }
     private var mode: Mode
@@ -119,18 +119,18 @@ public struct Runner {
         
         try fileSystem.createDirectory(outputDir, recursive: true)
 
-        let cacheStrategy: (any CacheStrategy)?
-        switch options.cacheStrategy {
+        let cacheStorage: (any CacheStorage)?
+        switch options.cacheStorage {
         case .none:
-            cacheStrategy = nil
+            cacheStorage = nil
         case .local:
-            cacheStrategy = LocalCacheStrategy()
-        case .custom(let strategy):
-            cacheStrategy = strategy
+            cacheStorage = LocalCacheStorage()
+        case .custom(let storage):
+            cacheStorage = storage
         }
 
         let compiler = Compiler(rootPackage: package,
-                                cacheStrategy: cacheStrategy,
+                                cacheStorage: cacheStorage,
                                 executor: ProcessExecutor(),
                                 fileSystem: fileSystem)
         do {

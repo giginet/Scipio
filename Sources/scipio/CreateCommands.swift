@@ -25,7 +25,7 @@ extension Scipio {
                                     isSimulatorSupported: buildOptions.supportSimulators,
                                     isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
                                     isCacheEnabled: false,
-                                    cacheStrategy: nil,
+                                    cacheStorage: nil,
                                     verbose: globalOptions.verbose)
             )
 
