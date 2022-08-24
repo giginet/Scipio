@@ -65,6 +65,7 @@ struct Compiler<E: Executor> {
     func build(mode: BuildMode, buildOptions: BuildOptions, outputDir: AbsolutePath, isCacheEnabled: Bool) async throws {
         let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                       buildOptions: buildOptions,
+                                      outputDir: outputDir,
                                       strategy: ProjectCacheStrategy(outputDirectory: outputDir))
 
         logger.info("🗑️ Cleaning \(rootPackage.name)...")
@@ -134,6 +135,10 @@ struct Compiler<E: Executor> {
                                    debugSymbolPaths: debugSymbolPaths),
                     outputDir: outputDir
                 ))
+                let frameworkPath = outputDir.appending(component: "\(target.name).xcframework")
+                do {
+                    try await cacheSystem.cachePackage(frameworkPath, subPackage: subPackage, target: target)
+                }
 
                 if case .prepareDependencies = mode {
                     do {

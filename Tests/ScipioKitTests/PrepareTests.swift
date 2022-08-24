@@ -65,7 +65,8 @@ final class PrepareTests: XCTestCase {
                                                           isSimulatorSupported: false,
                                                           isDebugSymbolsEmbedded: false,
                                                           sdks: [.iOS]),
-                                      storage: ProjectCacheStorage(outputDirectory: frameworkOutputDir))
+                                      outputDir: frameworkOutputDir,
+                                      strategy: ProjectCacheStrategy(outputDirectory: frameworkOutputDir))
         let packages = rootPackage.graph.packages
             .filter { $0.manifest.displayName != rootPackage.manifest.displayName }
 
