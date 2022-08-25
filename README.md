@@ -113,11 +113,10 @@ Scipio generates **VersionFile** to describe built framework details within buil
 - Compiler Version
     - Xcode or Swift compiler version.
 
-These are stored on `$OUTPUT_DIR/.$FRAMEWORK_NAME.version` as a JSON file.
+They are stored on `$OUTPUT_DIR/.$FRAMEWORK_NAME.version` as a JSON file.
 
 ```json
 {
-  "revision" : "2.2.1",
   "buildOptions" : {
     "buildConfiguration" : "release",
     "isDebugSymbolsEmbedded" : false,
@@ -127,7 +126,11 @@ These are stored on `$OUTPUT_DIR/.$FRAMEWORK_NAME.version` as a JSON file.
     "isSimulatorSupported" : false
   },
   "targetName" : "APNGKit",
-  "clangVersion" : "clang-1400.0.29.102"
+  "clangVersion" : "clang-1400.0.29.102",
+  "pin" : {
+    "version" : "2.2.1",
+    "revision" : "f1807697d455b258cae7522b939372b4652437c1"
+  }
 }
 ```
 
