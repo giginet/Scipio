@@ -84,14 +84,14 @@ All XCFrameworks are generated into `MyAppDependencies/XCFramework` in default.
 |-\-output, -o|Path indicates a XCFrameworks output directory|$PACKAGE_ROOT/XCFramework|
 |-\-embed-debug-symbols|Whether embed debug symbols to frameworks or not|-|
 |-\-support-simulators|Whether also building for simulators of each SDKs or not|-|
-|-\-enable-cache|Whether skip building already built frameworks or not|-|
+|-\-cache-policy|How to reuse built frameworks|project|
 
 
 See `--help` for details.
 
 #### Build cache
 
-With `--enable-cache` option, Scipio checks whether re-building is required or not for existing XCFrameworks.
+In default, Scipio checks whether re-building is required or not for existing XCFrameworks.
 
 ```
 $ swift run scipio prepare --enable-cache path/to/MyAppDependencies
@@ -132,6 +132,24 @@ These are stored on `$OUTPUT_DIR/.$FRAMEWORK_NAME.version` as a JSON file.
 ```
 
 If they are changed, Spicio regards them as a cache are invalid, and then it's re-built.
+
+#### Cache Policy
+
+You can specify cache behavior with `--cache-policy` option. Default value is `project`.
+
+##### disabled
+
+Never reuse already built frameworks. Overwrite existing frameworks everytime.
+
+##### project(default)
+
+VersionFiles are stored in output directories. Skip re-building when existing XCFramework is valid.
+
+##### local
+
+Copy every build artifacts to `~/Library/Caches`. If there are same binaries are exists in cache directory, skip re-building and copy them to the output directory.
+
+Thanks to this strategy, you can reuse built artifacts in past.
 
 ### Create XCFramework for single Swift Packages
 

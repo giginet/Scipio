@@ -20,13 +20,9 @@ extension Scipio {
         var packageDirectory: URL = URL(fileURLWithPath: ".")
 
         @Option(name: [.customLong("cache-policy")],
-                help: "Cache management policy to reuse built frameworks. (\(CachePolicy.allCases.map(\.rawValue).joined(separator: ","))",
+                help: "Specify how to reuse cache. (\(CachePolicy.allCases.map(\.rawValue).joined(separator: " / ")))",
                 completion: .list(CachePolicy.allCases.map(\.rawValue)))
         var cachePolicy: CachePolicy = .project
-
-        @Flag(name: .customLong("enable-cache"),
-              help: "Whether skip building already built frameworks or not.")
-        var cacheEnabled = false
 
         @OptionGroup var buildOptions: BuildOptionGroup
         @OptionGroup var globalOptions: GlobalOptionGroup
