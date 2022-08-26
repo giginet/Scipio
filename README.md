@@ -94,7 +94,7 @@ See `--help` for details.
 In default, Scipio checks whether re-building is required or not for existing XCFrameworks.
 
 ```
-$ swift run scipio prepare --enable-cache path/to/MyAppDependencies
+$ swift run scipio prepare --cache-policy project path/to/MyAppDependencies
 > 🔁 Resolving Dependencies...
 > 🗑️ Cleaning MyAppDependency...
 > ✅ Valid APNGKit.xcframework is exists. Skip building.
