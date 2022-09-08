@@ -123,9 +123,7 @@ struct Compiler<E: Executor> {
                                                 outputDirectory: outputDir)
                 }
 
-                do {
-                    try await cacheSystem.cacheFramework(frameworkPath, subPackage: subPackage, target: target)
-                }
+                try? await cacheSystem.cacheFramework(frameworkPath, subPackage: subPackage, target: target)
 
                 if case .prepareDependencies = mode {
                     do {

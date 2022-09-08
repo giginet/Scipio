@@ -10,9 +10,9 @@ private let fixturePath = URL(fileURLWithPath: #file)
 
 final class PackageTests: XCTestCase {
     func testPackage() throws {
-        let rootPath = fixturePath.appendingPathComponent("BasicPackage")
+        let rootPath = fixturePath.appendingPathComponent("TestingPackage")
         let package = try XCTUnwrap(try Package(packageDirectory: AbsolutePath(rootPath.path)))
-        XCTAssertEqual(package.name, "BasicPackage")
+        XCTAssertEqual(package.name, "TestingPackage")
 
         let delegate = try XCTUnwrap(package.graph.packages.last)
         XCTAssertEqual(delegate.manifest.displayName, "Delegate")

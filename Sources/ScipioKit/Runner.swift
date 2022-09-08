@@ -94,7 +94,7 @@ public struct Runner {
         fileprivate func resolve(packageDirectory: URL) -> AbsolutePath {
             switch self {
             case .default:
-                return AbsolutePath(packageDirectory.appendingPathComponent("XCFramework").path)
+                return AbsolutePath(packageDirectory.appendingPathComponent("XCFrameworks").path)
             case .custom(let url):
                 return AbsolutePath(url.path)
             }
