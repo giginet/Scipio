@@ -13,7 +13,7 @@ let package = Package(
             targets: ["TestingPackage"]),
     ],
     dependencies: [
-        .package(path: "../SomePackage"),
+        .package(url: "https://github.com/apple/swift-log.git", .upToNextMinor(from: "1.4.4")),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -21,7 +21,7 @@ let package = Package(
         .target(
             name: "TestingPackage",
             dependencies: [
-                .product(name: "SomePackage", package: "SomePackage"),
+                .product(name: "Logging", package: "swift-log"),
             ]),
     ]
 )

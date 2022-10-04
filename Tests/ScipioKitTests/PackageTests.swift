@@ -14,7 +14,7 @@ final class PackageTests: XCTestCase {
         let package = try XCTUnwrap(try Package(packageDirectory: AbsolutePath(rootPath.path)))
         XCTAssertEqual(package.name, "TestingPackage")
 
-        let delegate = try XCTUnwrap(package.graph.packages.last)
-        XCTAssertEqual(delegate.manifest.displayName, "Delegate")
+        let packageNames = package.graph.packages.map(\.manifest.displayName)
+        XCTAssertEqual(packageNames, ["TestingPackage", "swift-log"])
     }
 }

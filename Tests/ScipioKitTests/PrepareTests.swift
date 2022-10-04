@@ -38,14 +38,14 @@ final class PrepareTests: XCTestCase {
             XCTFail("Build should be succeeded.")
         }
 
-        ["SomePackage"].forEach { library in
+        ["Logging"].forEach { library in
             let xcFramework = frameworkOutputDir.appending(component: "\(library).xcframework")
             let versionFile = frameworkOutputDir.appending(component: ".\(library).version")
             let simulatorFramework = xcFramework.appending(component: "ios-arm64_x86_64-simulator")
             XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.pathString),
                           "Should create \(library).xcramework")
-//            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.pathString),
-//                          "Should create .\(library).version")
+            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.pathString),
+                          "Should create .\(library).version")
             XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.pathString),
                            "Should not create Simulator framework")
         }
@@ -78,7 +78,7 @@ final class PrepareTests: XCTestCase {
                 try fileManager.createDirectory(at: frameworkOutputDir.appending(component: "\(target.name).xcframework").asURL, withIntermediateDirectories: true)
             }
         }
-        let versionFile2 = frameworkOutputDir.appending(component: ".SomePackage.version")
+        let versionFile2 = frameworkOutputDir.appending(component: ".Logging.version")
         XCTAssertTrue(fileManager.fileExists(atPath: versionFile2.pathString))
 
         let runner = Runner(
@@ -97,7 +97,7 @@ final class PrepareTests: XCTestCase {
             XCTFail("Build should be succeeded.")
         }
 
-        ["SomePackage"].forEach { library in
+        ["Logging"].forEach { library in
             let xcFramework = frameworkOutputDir.appending(components: "\(library).xcframework", "Info.plist")
             let versionFile = frameworkOutputDir.appending(component: ".\(library).version")
             XCTAssertFalse(fileManager.fileExists(atPath: xcFramework.pathString),
