@@ -68,8 +68,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-package-manager.git",
       "state" : {
-        "branch" : "release/5.7",
-        "revision" : "32bd2bdef837d10858b0141304d86e7d5529250e"
+        "branch" : "swift-5.7-RELEASE",
+        "revision" : "7b898e6cad75a3c096ad947508eb948ad5f614d4"
       }
     },
     {
