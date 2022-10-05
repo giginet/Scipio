@@ -1,12 +1,12 @@
 # Scipio
 
+**⚠️ This project is currently under development. Please moment until a stable release. Of-course, feedbacks and pull requests are welcome.**
+
 ## Carthago delenda est
 
 Scipio proposes a new workflow to integrate dependencies into your applications.
 
 This product is highly inspired by [Carthage](https://github.com/Carthage/Carthage) and [swift-create-xcframework](https://github.com/unsignedapps/swift-create-xcframework).
-
-This is developed in working time for [LINE corp](https://github.com/LINE).
 
 ## Abstract
 
