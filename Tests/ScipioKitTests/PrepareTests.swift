@@ -87,7 +87,7 @@ final class PrepareTests: XCTestCase {
                 buildConfiguration: .release,
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
-                cacheMode: .storage(nil),
+                cacheMode: .project,
                 verbose: false)
         )
         do {

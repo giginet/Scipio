@@ -51,12 +51,15 @@ public struct Runner {
 
         public enum CacheMode {
             case disabled
-            case storage((any CacheStorage)?)
+            case project
+            case storage(any CacheStorage)
 
-            func extract() -> (Bool, (any CacheStorage)?) {
+            func extract() -> (Bool, CacheStorage?) {
                 switch self {
                 case .disabled:
                     return (false, nil)
+                case .project:
+                    return (true, nil)
                 case .storage(let cacheStorage):
                     return (true, cacheStorage)
                 }

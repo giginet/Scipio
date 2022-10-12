@@ -35,7 +35,7 @@ extension Scipio {
             case .disabled:
                 runnerCacheMode = .disabled
             case .project:
-                runnerCacheMode = .storage(nil)
+                runnerCacheMode = .project
             case .local:
                 runnerCacheMode = .storage(LocalCacheStorage())
             }
