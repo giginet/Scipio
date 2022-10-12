@@ -8,7 +8,7 @@ private let fixturePath = URL(fileURLWithPath: #file)
     .deletingLastPathComponent()
     .appendingPathComponent("Resources")
     .appendingPathComponent("Fixtures")
-private let testPackagePath = fixturePath.appendingPathComponent("TestingPackage")
+private let testPackagePath = fixturePath.appendingPathComponent("E2ETestPackage")
 
 final class PrepareTests: XCTestCase {
     private let fileManager: FileManager = .default
@@ -38,7 +38,7 @@ final class PrepareTests: XCTestCase {
             XCTFail("Build should be succeeded.")
         }
 
-        ["Logging"].forEach { library in
+        ["ScipioTesting"].forEach { library in
             let xcFramework = frameworkOutputDir.appending(component: "\(library).xcframework")
             let versionFile = frameworkOutputDir.appending(component: ".\(library).version")
             let simulatorFramework = xcFramework.appending(component: "ios-arm64_x86_64-simulator")
@@ -78,7 +78,7 @@ final class PrepareTests: XCTestCase {
                 try fileManager.createDirectory(at: frameworkOutputDir.appending(component: "\(target.name).xcframework").asURL, withIntermediateDirectories: true)
             }
         }
-        let versionFile2 = frameworkOutputDir.appending(component: ".Logging.version")
+        let versionFile2 = frameworkOutputDir.appending(component: ".ScipioTesting.version")
         XCTAssertTrue(fileManager.fileExists(atPath: versionFile2.pathString))
 
         let runner = Runner(
@@ -97,7 +97,7 @@ final class PrepareTests: XCTestCase {
             XCTFail("Build should be succeeded.")
         }
 
-        ["Logging"].forEach { library in
+        ["ScipioTesting"].forEach { library in
             let xcFramework = frameworkOutputDir.appending(components: "\(library).xcframework", "Info.plist")
             let versionFile = frameworkOutputDir.appending(component: ".\(library).version")
             XCTAssertFalse(fileManager.fileExists(atPath: xcFramework.pathString),
