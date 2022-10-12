@@ -10,13 +10,28 @@ public struct LocalCacheStorage: CacheStorage {
         case cacheDirectoryIsNotFound
     }
 
-    public init(fileSystem: FileSystem = localFileSystem) {
+    public enum CacheDirectory {
+        case system
+        case custom(AbsolutePath)
+    }
+
+    private let cacheDirectroy: CacheDirectory
+
+    public init(cacheDirectory: CacheDirectory = .system, fileSystem: FileSystem = localFileSystem) {
+        self.cacheDirectroy = cacheDirectory
         self.fileSystem = fileSystem
     }
 
     private func buildBaseDirectoryPath() throws -> AbsolutePath {
-        guard let cacheDir = fileSystem.cachesDirectory else {
-            throw Error.cacheDirectoryIsNotFound
+        let cacheDir: AbsolutePath
+        switch cacheDirectroy {
+        case .system:
+            guard let systemCacheDir = fileSystem.cachesDirectory else {
+                throw Error.cacheDirectoryIsNotFound
+            }
+            cacheDir = systemCacheDir
+        case .custom(let customPath):
+            cacheDir = customPath
         }
         return cacheDir.appending(component: "Scipio")
     }
