@@ -111,4 +111,50 @@ final class PrepareTests: XCTestCase {
             try self.fileManager.removeItem(at: frameworkOutputDir.asURL)
         }
     }
+
+    func testLocalStorage() async throws {
+        let frameworkOutputDir = AbsolutePath(NSTemporaryDirectory()).appending(component: "XCFrameworks")
+        try fileManager.createDirectory(at: frameworkOutputDir.asURL, withIntermediateDirectories: true)
+        
+        let tempDir = AbsolutePath(fileManager.temporaryDirectory.path)
+        let storage = LocalCacheStorage(cacheDirectory: .custom(tempDir))
+        let storageDir = tempDir.appending(component: "Scipio")
+
+        let runner = Runner(
+            mode: .prepareDependencies,
+            options: .init(
+                buildConfiguration: .release,
+                isSimulatorSupported: false,
+                isDebugSymbolsEmbedded: false,
+                cacheMode: .storage(storage),
+                verbose: false)
+        )
+        do {
+            try await runner.run(packageDirectory: testPackagePath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir.asURL))
+        } catch {
+            XCTFail("Build should be succeeded.")
+        }
+
+        XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appending(component: "ScipioTesting").pathString))
+
+        let outputFrameworkPath = frameworkOutputDir.appending(component: "ScipioTesting.xcframework")
+
+        try self.fileManager.removeItem(atPath: outputFrameworkPath.pathString)
+
+        // Fetch from local storage
+        do {
+            try await runner.run(packageDirectory: testPackagePath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir.asURL))
+        } catch {
+            XCTFail("Build should be succeeded.")
+        }
+
+        XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appending(component: "ScipioTesting").pathString))
+
+        addTeardownBlock {
+            try self.fileManager.removeItem(atPath: frameworkOutputDir.pathString)
+            try self.fileManager.removeItem(atPath: storageDir.pathString)
+        }
+    }
 }
