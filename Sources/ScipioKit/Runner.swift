@@ -123,7 +123,7 @@ public struct Runner {
         let buildOptions = BuildOptions(buildConfiguration: options.buildConfiguration,
                                         isSimulatorSupported: options.isSimulatorSupported,
                                         isDebugSymbolsEmbedded: options.isDebugSymbolsEmbedded,
-                                        frameworkType: .dynamic,
+                                        frameworkType: options.frameworkType,
                                         sdks: sdks)
         try fileSystem.createDirectory(package.workspaceDirectory, recursive: true)
 
