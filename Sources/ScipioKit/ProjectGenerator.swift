@@ -3,6 +3,34 @@ import Xcodeproj
 import TSCBasic
 import Basics
 
+protocol XCConfigValue {
+    var value: String { get }
+}
+
+extension Bool: XCConfigValue {
+    var value: String {
+        self ? "YES" : "NO"
+    }
+}
+
+extension String: XCConfigValue {
+    var value: String {
+        self
+    }
+}
+
+struct XCConfigEncoder {
+    func generate(configs: [String: any XCConfigValue]) -> Data {
+        configs
+            .sorted { $0.key < $1.key }
+            .map { pair -> String in
+            "\(pair.key) = \(pair.value.value)"
+        }
+        .joined(separator: "\n")
+        .data(using: .utf8)!
+    }
+}
+
 struct ProjectGenerator {
     private let fileSystem: any FileSystem
 
@@ -33,8 +61,14 @@ struct ProjectGenerator {
             observabilityScope: observabilitySystem.topScope)
 
         let distributionXCConfigPath = package.workspaceDirectory.appending(component: "Distribution.xcconfig")
+
+        let isStaticFramework = frameworkType == .static
+        let xcConfigData = makeXCConfigData(
+            shouldEmbedDebugSymbols: isDebugSymbolsEmbedded,
+            isStaticFramework: isStaticFramework
+        )
         try fileSystem.writeFileContents(distributionXCConfigPath,
-                                         string: buildDistributionXCConfigContents(embedDebugSymbols: isDebugSymbolsEmbedded))
+                                         data: xcConfigData)
 
         let group = createOrGetConfigsGroup(project: project)
         let reference = group.addFileReference (
@@ -66,20 +100,21 @@ struct ProjectGenerator {
         return .init(project: project, projectPath: projectPath)
     }
 
-    private func buildDistributionXCConfigContents(embedDebugSymbols: Bool) -> String {
-        let base = """
-        BUILD_LIBRARY_FOR_DISTRIBUTION = YES
-        ENABLE_BITCODE = YES
-        OTHER_CFLAGS = -fembed-bitcode
-        MACH_O_TYPE = staticlib
-        """
-        if embedDebugSymbols {
-            let debugSymbol = """
-        DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
-        """
-            return [base, debugSymbol].joined(separator: "\n")
+    private func makeXCConfigData(shouldEmbedDebugSymbols: Bool, isStaticFramework: Bool) -> Data {
+        var configs: [String: any XCConfigValue] = [
+            "BUILD_LIBRARY_FOR_DISTRIBUTION": true,
+        ]
+
+        if shouldEmbedDebugSymbols {
+            configs["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
         }
-        return base
+
+        if isStaticFramework {
+            configs["MACH_O_TYPE"] = "staticlib"
+        }
+
+        let encoder = XCConfigEncoder()
+        return encoder.generate(configs: configs)
     }
 
     private var infoPlist: String {
