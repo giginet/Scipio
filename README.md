@@ -121,6 +121,7 @@ They are stored on `$OUTPUT_DIR/.$FRAMEWORK_NAME.version` as a JSON file.
   "buildOptions" : {
     "buildConfiguration" : "release",
     "isDebugSymbolsEmbedded" : false,
+    "frameworkType" : "dynamic",
     "sdks" : [
       "iOS"
     ],
