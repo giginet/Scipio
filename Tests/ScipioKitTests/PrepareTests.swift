@@ -65,6 +65,7 @@ final class PrepareTests: XCTestCase {
                                       buildOptions: .init(buildConfiguration: .release,
                                                           isSimulatorSupported: false,
                                                           isDebugSymbolsEmbedded: false,
+                                                          frameworkType: .dynamic,
                                                           sdks: [.iOS]),
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)

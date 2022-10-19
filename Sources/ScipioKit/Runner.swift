@@ -121,6 +121,7 @@ public struct Runner {
         let buildOptions = BuildOptions(buildConfiguration: options.buildConfiguration,
                                         isSimulatorSupported: options.isSimulatorSupported,
                                         isDebugSymbolsEmbedded: options.isDebugSymbolsEmbedded,
+                                        frameworkType: .dynamic,
                                         sdks: sdks)
         try fileSystem.createDirectory(package.workspaceDirectory, recursive: true)
 
@@ -128,7 +129,9 @@ public struct Runner {
         try await resolver.resolve()
 
         let generator = ProjectGenerator()
-        try generator.generate(for: package, embedDebugSymbols: buildOptions.isDebugSymbolsEmbedded)
+        try generator.generate(for: package,
+                               embedDebugSymbols: buildOptions.isDebugSymbolsEmbedded,
+                               frameworkType: buildOptions.frameworkType)
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
         

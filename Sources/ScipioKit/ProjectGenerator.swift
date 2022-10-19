@@ -16,7 +16,11 @@ struct ProjectGenerator {
     }
 
     @discardableResult
-    func generate(for package: Package, embedDebugSymbols isDebugSymbolsEmbedded: Bool) throws -> Result {
+    func generate(
+        for package: Package,
+        embedDebugSymbols isDebugSymbolsEmbedded: Bool,
+        frameworkType: FrameworkType
+    ) throws -> Result {
         let projectPath = package.projectPath
 
         let project = try pbxproj(

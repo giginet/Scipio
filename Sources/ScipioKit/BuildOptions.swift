@@ -4,6 +4,7 @@ struct BuildOptions: Hashable, Codable {
    var buildConfiguration: BuildConfiguration
     var isSimulatorSupported: Bool
     var isDebugSymbolsEmbedded: Bool
+    var frameworkType: FrameworkType
     var sdks: [SDK]
 }
 
@@ -17,6 +18,11 @@ public enum BuildConfiguration: String, Codable {
         case .release: return "Release"
         }
     }
+}
+
+public enum FrameworkType: String, Codable {
+    case dynamic
+    case `static`
 }
 
 enum SDK: String, Codable {
