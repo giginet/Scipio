@@ -67,6 +67,7 @@ struct ProjectGenerator {
         BUILD_LIBRARY_FOR_DISTRIBUTION = YES
         ENABLE_BITCODE = YES
         OTHER_CFLAGS = -fembed-bitcode
+        MACH_O_TYPE = staticlib
         """
         if embedDebugSymbols {
             let debugSymbol = """
