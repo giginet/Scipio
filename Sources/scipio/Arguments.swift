@@ -20,3 +20,5 @@ extension BuildConfiguration: ExpressibleByArgument {
         }
     }
 }
+
+extension FrameworkType: ExpressibleByArgument { }

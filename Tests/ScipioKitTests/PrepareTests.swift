@@ -29,6 +29,7 @@ final class PrepareTests: XCTestCase {
                 buildConfiguration: .release,
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
                 cacheMode: .disabled,
                 verbose: true))
         do {
@@ -88,6 +89,7 @@ final class PrepareTests: XCTestCase {
                 buildConfiguration: .release,
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
                 cacheMode: .project,
                 verbose: false)
         )
@@ -127,6 +129,7 @@ final class PrepareTests: XCTestCase {
                 buildConfiguration: .release,
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
                 cacheMode: .storage(storage),
                 verbose: false)
         )
