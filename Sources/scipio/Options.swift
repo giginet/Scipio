@@ -17,10 +17,6 @@ struct BuildOptionGroup: ParsableArguments {
             help: "Build configuration for generated frameworks. (debug / release)")
     var buildConfiguration: BuildConfiguration = .release
 
-    @Option(name: [.customLong("framework-type"), .customShort("t")],
-            help: "Framework type for generated frameworks. (dynamic / static)")
-    var frameworkType: FrameworkType
-
     @Flag(name: .customLong("embed-debug-symbols"),
           help: "Whether embed debug symbols to frameworks or not.")
     var embedDebugSymbols = false
@@ -28,4 +24,14 @@ struct BuildOptionGroup: ParsableArguments {
     @Flag(name: .customLong("support-simulators"),
           help: "Whether also building for simulators of each SDKs or not.")
     var supportSimulators = false
+
+    @Flag(name: [.customLong("--static")],
+          help: "Whether generated frameworks is a Static Framework or not")
+    var shouldBuildStaticFramework = false
+}
+
+extension BuildOptionGroup {
+    var frameworkType: FrameworkType {
+        shouldBuildStaticFramework ? .static : .dynamic
+    }
 }
