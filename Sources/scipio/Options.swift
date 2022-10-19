@@ -25,7 +25,7 @@ struct BuildOptionGroup: ParsableArguments {
           help: "Whether also building for simulators of each SDKs or not.")
     var supportSimulators = false
 
-    @Flag(name: [.customLong("--static")],
+    @Flag(name: [.customLong("static")],
           help: "Whether generated frameworks are Static Frameworks or not")
     var shouldBuildStaticFramework = false
 }
