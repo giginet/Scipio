@@ -130,13 +130,11 @@ struct Compiler<E: Executor> {
         }
 
         try await xcodebuild.createXCFramework(
-            context: .init(
-                package: rootPackage,
-                target: target,
-                buildConfiguration: buildConfiguration,
-                sdks: sdks,
-                debugSymbolPaths: debugSymbolPaths
-            ),
+            package: rootPackage,
+            target: target,
+            buildConfiguration: buildConfiguration,
+            sdks: sdks,
+            debugSymbolPaths: debugSymbolPaths,
             outputDir: outputDirectory
         )
     }

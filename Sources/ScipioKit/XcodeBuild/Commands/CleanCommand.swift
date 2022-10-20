@@ -1,10 +1,11 @@
 import TSCBasic
 
 struct CleanCommand: XcodeBuildCommand {
-    var projectPath: AbsolutePath
-    var buildDirectory: AbsolutePath
 
     let subCommand = "clean"
+
+    var projectPath: AbsolutePath
+    var buildDirectory: AbsolutePath
 
     var options: [XcodeBuildOption] {
         [.init(key: "project", value: projectPath.pathString)]

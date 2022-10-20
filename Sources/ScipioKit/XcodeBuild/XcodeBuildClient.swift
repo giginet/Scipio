@@ -4,17 +4,31 @@ import PackageGraph
 struct XcodeBuildClient<E: Executor> {
     let executor: E
 
-    func createXCFramework(context: CreateXCFrameworkCommand.Context, outputDir: AbsolutePath) async throws {
-        try await executor.execute(CreateXCFrameworkCommand(context: context, outputDir: outputDir))
+    func createXCFramework(
+        package: Package,
+        target: ResolvedTarget,
+        buildConfiguration: BuildConfiguration,
+        sdks: Set<SDK>,
+        debugSymbolPaths: [AbsolutePath]?,
+        outputDir: AbsolutePath
+    ) async throws {
+        try await executor.execute(CreateXCFrameworkCommand(
+            package: package,
+            target: target,
+            buildConfiguration: buildConfiguration,
+            sdks: sdks,
+            debugSymbolPaths: debugSymbolPaths,
+            outputDir: outputDir
+        ))
     }
 
     func archive(package: Package, target: ResolvedTarget, buildConfiguration: BuildConfiguration, sdk: SDK) async throws {
-        try await executor.execute(ArchiveCommand(context: .init(
+        try await executor.execute(ArchiveCommand(
             package: package,
             target: target,
             buildConfiguration: buildConfiguration,
             sdk: sdk
-        )))
+        ))
     }
 
     func clean(projectPath: AbsolutePath, buildDirectory: AbsolutePath) async throws {

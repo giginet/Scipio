@@ -27,18 +27,12 @@ struct XcodeBuildEnvironmentVariable {
     var value: String
 }
 
-protocol XcodeBuildContext {
-    var package: Package { get }
-    var target: ResolvedTarget { get }
-    var buildConfiguration: BuildConfiguration { get }
-}
-
-extension XcodeBuildContext {
-    func buildXCArchivePath(sdk: SDK) -> AbsolutePath {
+extension XcodeBuildCommand {
+    func buildXCArchivePath(
+        package: Package,
+        target: ResolvedTarget,
+        sdk: SDK
+    ) -> AbsolutePath {
         package.archivesPath.appending(component: "\(target.name)_\(sdk.name).xcarchive")
-    }
-
-    var projectPath: AbsolutePath {
-        package.projectPath
     }
 }
