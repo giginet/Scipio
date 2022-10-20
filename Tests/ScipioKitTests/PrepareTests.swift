@@ -29,6 +29,7 @@ final class PrepareTests: XCTestCase {
                 buildConfiguration: .release,
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
                 cacheMode: .disabled,
                 verbose: true))
         do {
@@ -65,6 +66,7 @@ final class PrepareTests: XCTestCase {
                                       buildOptions: .init(buildConfiguration: .release,
                                                           isSimulatorSupported: false,
                                                           isDebugSymbolsEmbedded: false,
+                                                          frameworkType: .dynamic,
                                                           sdks: [.iOS]),
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
@@ -87,6 +89,7 @@ final class PrepareTests: XCTestCase {
                 buildConfiguration: .release,
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
                 cacheMode: .project,
                 verbose: false)
         )
@@ -126,6 +129,7 @@ final class PrepareTests: XCTestCase {
                 buildConfiguration: .release,
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
                 cacheMode: .storage(storage),
                 verbose: false)
         )

@@ -27,6 +27,7 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
                                 buildOptions: .init(buildConfiguration: .release,
                                                     isSimulatorSupported: false,
                                                     isDebugSymbolsEmbedded: false,
+                                                    frameworkType: .dynamic,
                                                     sdks: [.iOS]),
                                 clangVersion: "clang-1400.0.29.102")
         let encoder = JSONEncoder()
@@ -38,6 +39,7 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
   "buildOptions" : {
     "buildConfiguration" : "release",
     "isDebugSymbolsEmbedded" : false,
+    "frameworkType" : "dynamic",
     "sdks" : [
       "iOS"
     ],

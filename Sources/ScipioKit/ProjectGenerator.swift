@@ -3,6 +3,34 @@ import Xcodeproj
 import TSCBasic
 import Basics
 
+struct XCConfigValue {
+    let rawString: String
+}
+
+extension XCConfigValue: ExpressibleByBooleanLiteral {
+    init(booleanLiteral value: BooleanLiteralType) {
+        self.rawString = value ? "YES" : "NO"
+    }
+}
+
+extension XCConfigValue: ExpressibleByStringLiteral {
+    init(stringLiteral value: StringLiteralType) {
+        self.rawString = value
+    }
+}
+
+struct XCConfigEncoder {
+    func generate(configs: [String: XCConfigValue]) -> Data {
+        configs
+            .sorted { $0.key < $1.key }
+            .map { pair -> String in
+                "\(pair.key) = \(pair.value.rawString)"
+             }
+             .joined(separator: "\n")
+             .data(using: .utf8)!
+    }
+}
+
 struct ProjectGenerator {
     private let fileSystem: any FileSystem
 
@@ -16,7 +44,11 @@ struct ProjectGenerator {
     }
 
     @discardableResult
-    func generate(for package: Package, embedDebugSymbols isDebugSymbolsEmbedded: Bool) throws -> Result {
+    func generate(
+        for package: Package,
+        embedDebugSymbols isDebugSymbolsEmbedded: Bool,
+        frameworkType: FrameworkType
+    ) throws -> Result {
         let projectPath = package.projectPath
 
         let project = try pbxproj(
@@ -29,8 +61,14 @@ struct ProjectGenerator {
             observabilityScope: observabilitySystem.topScope)
 
         let distributionXCConfigPath = package.workspaceDirectory.appending(component: "Distribution.xcconfig")
+
+        let isStaticFramework = frameworkType == .static
+        let xcConfigData = makeXCConfigData(
+            isDebugSymbolsEmbedded: isDebugSymbolsEmbedded,
+            isStaticFramework: isStaticFramework
+        )
         try fileSystem.writeFileContents(distributionXCConfigPath,
-                                         string: buildDistributionXCConfigContents(embedDebugSymbols: isDebugSymbolsEmbedded))
+                                         data: xcConfigData)
 
         let group = createOrGetConfigsGroup(project: project)
         let reference = group.addFileReference (
@@ -62,19 +100,21 @@ struct ProjectGenerator {
         return .init(project: project, projectPath: projectPath)
     }
 
-    private func buildDistributionXCConfigContents(embedDebugSymbols: Bool) -> String {
-        let base = """
-        BUILD_LIBRARY_FOR_DISTRIBUTION = YES
-        ENABLE_BITCODE = YES
-        OTHER_CFLAGS = -fembed-bitcode
-        """
-        if embedDebugSymbols {
-            let debugSymbol = """
-        DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
-        """
-            return [base, debugSymbol].joined(separator: "\n")
+    private func makeXCConfigData(isDebugSymbolsEmbedded: Bool, isStaticFramework: Bool) -> Data {
+        var configs: [String: XCConfigValue] = [
+            "BUILD_LIBRARY_FOR_DISTRIBUTION": true,
+        ]
+
+        if isDebugSymbolsEmbedded {
+            configs["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
         }
-        return base
+
+        if isStaticFramework {
+            configs["MACH_O_TYPE"] = "staticlib"
+        }
+
+        let encoder = XCConfigEncoder()
+        return encoder.generate(configs: configs)
     }
 
     private var infoPlist: String {
