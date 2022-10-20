@@ -64,7 +64,7 @@ struct ProjectGenerator {
 
         let isStaticFramework = frameworkType == .static
         let xcConfigData = makeXCConfigData(
-            shouldEmbedDebugSymbols: isDebugSymbolsEmbedded,
+            isDebugSymbolsEmbedded: isDebugSymbolsEmbedded,
             isStaticFramework: isStaticFramework
         )
         try fileSystem.writeFileContents(distributionXCConfigPath,
@@ -100,12 +100,12 @@ struct ProjectGenerator {
         return .init(project: project, projectPath: projectPath)
     }
 
-    private func makeXCConfigData(shouldEmbedDebugSymbols: Bool, isStaticFramework: Bool) -> Data {
+    private func makeXCConfigData(isDebugSymbolsEmbedded: Bool, isStaticFramework: Bool) -> Data {
         var configs: [String: any XCConfigValue] = [
             "BUILD_LIBRARY_FOR_DISTRIBUTION": true,
         ]
 
-        if shouldEmbedDebugSymbols {
+        if isDebugSymbolsEmbedded {
             configs["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
         }
 
