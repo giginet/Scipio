@@ -11,5 +11,4 @@ disabled_rules:
   - force_try
   - todo
   - function_body_length
-  - identifier_name
   - cyclomatic_complexity

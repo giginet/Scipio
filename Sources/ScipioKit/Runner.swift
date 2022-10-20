@@ -85,8 +85,8 @@ public struct Runner {
     private func resolveURL(_ fileURL: URL) -> AbsolutePath {
         if fileURL.path.hasPrefix("/") {
             return AbsolutePath(fileURL.path)
-        } else if let cd = fileSystem.currentWorkingDirectory {
-            return cd.appending(RelativePath(fileURL.path))
+        } else if let currentDirectory = fileSystem.currentWorkingDirectory {
+            return currentDirectory.appending(RelativePath(fileURL.path))
         } else {
             return AbsolutePath(fileURL.path)
         }
