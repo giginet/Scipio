@@ -1,0 +1,15 @@
+included:
+  - Sources
+  - Tests
+excluded:
+  - .build
+  - Tests/ScipioKitTests/Resources/Fixtures
+disabled_rules:
+  - line_length
+  - nesting
+  - function_parameter_count
+  - force_try
+  - todo
+  - function_body_length
+  - identifier_name
+  - cyclomatic_complexity
