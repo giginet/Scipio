@@ -170,99 +170,10 @@ struct Compiler<E: Executor> {
         package.graph.packages
             .filter { $0.manifest.displayName != package.manifest.displayName }
     }
-
-    private struct CleanCommand: XcodeBuildCommand {
-        let projectPath: AbsolutePath
-        let buildDirectory: AbsolutePath
-
-        let subCommand: String = "clean"
-        var options: [XcodeBuildOption] {
-            [.init(key: "project", value: projectPath.pathString)]
-        }
-
-        var environmentVariables: [XcodeBuildEnvironmentVariable] {
-            [.init(key: "BUILD_DIR", value: buildDirectory.pathString)]
-        }
-    }
-
-    fileprivate struct ArchiveCommand: XcodeBuildCommand {
-        struct Context: XcodeBuildContext {
-            var package: Package
-            var target: ResolvedTarget
-            var buildConfiguration: BuildConfiguration
-            var sdk: SDK
-        }
-        var context: Context
-        var xcArchivePath: AbsolutePath {
-            context.xcArchivePath
-        }
-
-        let subCommand: String = "archive"
-        var options: [XcodeBuildOption] {
-            [
-                ("project", context.projectPath.pathString),
-                ("configuration", context.buildConfiguration.settingsValue),
-                ("scheme", context.target.name),
-                ("archivePath", xcArchivePath.pathString),
-                ("destination", context.sdk.destination),
-            ].map(XcodeBuildOption.init(key:value:))
-        }
-
-        var environmentVariables: [XcodeBuildEnvironmentVariable] {
-            [
-                ("BUILD_DIR", context.package.workspaceDirectory.pathString),
-                ("SKIP_INSTALL", "NO"),
-            ].map(XcodeBuildEnvironmentVariable.init(key:value:))
-        }
-    }
-
-    private struct CreateXCFrameworkCommand: XcodeBuildCommand {
-        struct Context: XcodeBuildContext {
-            let package: Package
-            let target: ResolvedTarget
-            let buildConfiguration: BuildConfiguration
-            let sdks: Set<SDK>
-            let debugSymbolPaths: [AbsolutePath]?
-        }
-        let context: Context
-        let subCommand: String = "-create-xcframework"
-        let outputDir: AbsolutePath
-
-        var xcFrameworkPath: AbsolutePath {
-            outputDir.appending(component: "\(context.target.name.packageNamed()).xcframework")
-        }
-
-        func buildFrameworkPath(sdk: SDK) -> AbsolutePath {
-            context.buildXCArchivePath(sdk: sdk)
-                .appending(components: "Products", "Library", "Frameworks")
-                .appending(component: "\(context.target.name.packageNamed()).framework")
-        }
-
-        var options: [XcodeBuildOption] {
-            context.sdks.map { sdk in
-                    .init(key: "framework", value: buildFrameworkPath(sdk: sdk).pathString)
-            }
-            +
-            (context.debugSymbolPaths.flatMap {
-                $0.map { .init(key: "debug-symbols", value: $0.pathString) }
-            } ?? [])
-            + [.init(key: "output", value: xcFrameworkPath.pathString)]
-        }
-
-        var environmentVariables: [XcodeBuildEnvironmentVariable] {
-            []
-        }
-    }
 }
 
 extension Package {
     var archivesPath: AbsolutePath {
         workspaceDirectory.appending(component: "archives")
-    }
-}
-
-extension Compiler.ArchiveCommand.Context {
-    var xcArchivePath: AbsolutePath {
-        buildXCArchivePath(sdk: sdk)
     }
 }
