@@ -3,28 +3,28 @@ import Xcodeproj
 import TSCBasic
 import Basics
 
-protocol XCConfigValue {
-    var value: String { get }
+struct XCConfigValue {
+    let rawString: String
 }
 
-extension Bool: XCConfigValue {
-    var value: String {
-        self ? "YES" : "NO"
+extension XCConfigValue: ExpressibleByBooleanLiteral {
+    init(booleanLiteral value: BooleanLiteralType) {
+        self.rawString = value ? "YES" : "NO"
     }
 }
 
-extension String: XCConfigValue {
-    var value: String {
-        self
+extension XCConfigValue: ExpressibleByStringLiteral {
+    init(stringLiteral value: StringLiteralType) {
+        self.rawString = value
     }
 }
 
 struct XCConfigEncoder {
-    func generate(configs: [String: any XCConfigValue]) -> Data {
+    func generate(configs: [String: XCConfigValue]) -> Data {
         configs
             .sorted { $0.key < $1.key }
             .map { pair -> String in
-                 "\(pair.key) = \(pair.value.value)"
+                "\(pair.key) = \(pair.value.rawString)"
              }
              .joined(separator: "\n")
              .data(using: .utf8)!
@@ -101,7 +101,7 @@ struct ProjectGenerator {
     }
 
     private func makeXCConfigData(isDebugSymbolsEmbedded: Bool, isStaticFramework: Bool) -> Data {
-        var configs: [String: any XCConfigValue] = [
+        var configs: [String: XCConfigValue] = [
             "BUILD_LIBRARY_FOR_DISTRIBUTION": true,
         ]
 
