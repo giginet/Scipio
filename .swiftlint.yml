@@ -8,8 +8,10 @@ disabled_rules:
   - function_parameter_count
   - force_try
   - todo
-  - function_body_length
-  - cyclomatic_complexity
 line_length: 150
 nesting:
   type_level: 2
+function_body_length:
+  warning: 60
+cyclomatic_complexity:
+  warning: 12
