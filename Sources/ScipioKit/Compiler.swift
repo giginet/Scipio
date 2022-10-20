@@ -2,12 +2,6 @@ import Foundation
 import PackageGraph
 import TSCBasic
 
-private protocol BuildContext {
-    var package: Package { get }
-    var target: ResolvedTarget { get }
-    var buildConfiguration: BuildConfiguration { get }
-}
-
 struct Compiler<E: Executor> {
     let rootPackage: Package
     let executor: E
@@ -192,7 +186,7 @@ struct Compiler<E: Executor> {
     }
 
     fileprivate struct ArchiveCommand: XcodeBuildCommand {
-        struct Context: BuildContext {
+        struct Context: XcodeBuildContext {
             var package: Package
             var target: ResolvedTarget
             var buildConfiguration: BuildConfiguration
@@ -223,7 +217,7 @@ struct Compiler<E: Executor> {
     }
 
     private struct CreateXCFrameworkCommand: XcodeBuildCommand {
-        struct Context: BuildContext {
+        struct Context: XcodeBuildContext {
             let package: Package
             let target: ResolvedTarget
             let buildConfiguration: BuildConfiguration
@@ -262,18 +256,8 @@ struct Compiler<E: Executor> {
 }
 
 extension Package {
-    fileprivate var archivesPath: AbsolutePath {
+    var archivesPath: AbsolutePath {
         workspaceDirectory.appending(component: "archives")
-    }
-}
-
-extension BuildContext {
-    fileprivate func buildXCArchivePath(sdk: SDK) -> AbsolutePath {
-        package.archivesPath.appending(component: "\(target.name)_\(sdk.name).xcarchive")
-    }
-
-    fileprivate var projectPath: AbsolutePath {
-        package.projectPath
     }
 }
 

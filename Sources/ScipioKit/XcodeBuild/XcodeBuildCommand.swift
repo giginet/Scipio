@@ -1,3 +1,6 @@
+import PackageGraph
+import TSCBasic
+
 protocol XcodeBuildCommand {
     var subCommand: String { get }
     var options: [XcodeBuildOption] { get }
@@ -22,4 +25,20 @@ struct XcodeBuildOption {
 struct XcodeBuildEnvironmentVariable {
     var key: String
     var value: String
+}
+
+protocol XcodeBuildContext {
+    var package: Package { get }
+    var target: ResolvedTarget { get }
+    var buildConfiguration: BuildConfiguration { get }
+}
+
+extension XcodeBuildContext {
+    func buildXCArchivePath(sdk: SDK) -> AbsolutePath {
+        package.archivesPath.appending(component: "\(target.name)_\(sdk.name).xcarchive")
+    }
+
+    var projectPath: AbsolutePath {
+        package.projectPath
+    }
 }
