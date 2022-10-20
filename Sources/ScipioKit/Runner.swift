@@ -33,7 +33,14 @@ public struct Runner {
     }
 
     public struct Options {
-        public init(buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, frameworkType: FrameworkType, outputDirectory: URL? = nil, cacheMode: CacheMode, verbose: Bool) {
+        public init(
+            buildConfiguration: BuildConfiguration,
+            isSimulatorSupported: Bool,
+            isDebugSymbolsEmbedded: Bool,
+            outputDirectory: URL? = nil,
+            cacheMode: CacheMode,
+            verbose: Bool
+        ) {
             self.buildConfiguration = buildConfiguration
             self.isSimulatorSupported = isSimulatorSupported
             self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded

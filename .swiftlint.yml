@@ -5,10 +5,10 @@ excluded:
   - .build
   - Tests/ScipioKitTests/Resources/Fixtures
 disabled_rules:
-  - line_length
   - nesting
   - function_parameter_count
   - force_try
   - todo
   - function_body_length
   - cyclomatic_complexity
+line_length: 150

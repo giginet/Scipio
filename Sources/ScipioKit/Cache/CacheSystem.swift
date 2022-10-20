@@ -119,7 +119,13 @@ struct CacheSystem {
         }
     }
 
-    init(rootPackage: Package, buildOptions: BuildOptions, outputDirectory: AbsolutePath, storage: (any CacheStorage)?, fileSystem: FileSystem = localFileSystem) {
+    init(
+        rootPackage: Package,
+        buildOptions: BuildOptions,
+        outputDirectory: AbsolutePath,
+        storage: (any CacheStorage)?,
+        fileSystem: FileSystem = localFileSystem
+    ) {
         self.rootPackage = rootPackage
         self.buildOptions = buildOptions
         self.outputDirectory = outputDirectory
