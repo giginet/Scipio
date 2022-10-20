@@ -102,7 +102,7 @@ struct ProjectGenerator {
 
     private func makeXCConfigData(isDebugSymbolsEmbedded: Bool, isStaticFramework: Bool) -> Data {
         var configs: [String: XCConfigValue] = [
-            "BUILD_LIBRARY_FOR_DISTRIBUTION": true
+            "BUILD_LIBRARY_FOR_DISTRIBUTION": true,
         ]
 
         if isDebugSymbolsEmbedded {

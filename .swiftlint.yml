@@ -15,3 +15,5 @@ function_body_length:
   warning: 60
 cyclomatic_complexity:
   warning: 12
+trailing_comma:
+  mandatory_comma: true
