@@ -1,4 +1,5 @@
 import TSCBasic
+import PackageGraph
 
 struct XcodeBuildClient<E: Executor> {
     let executor: E
@@ -7,8 +8,13 @@ struct XcodeBuildClient<E: Executor> {
         try await executor.execute(CreateXCFrameworkCommand(context: context, outputDir: outputDir))
     }
 
-    func archive(context: ArchiveCommand.Context) async throws {
-        try await executor.execute(ArchiveCommand(context: context))
+    func archive(package: Package, target: ResolvedTarget, buildConfiguration: BuildConfiguration, sdk: SDK) async throws {
+        try await executor.execute(ArchiveCommand(context: .init(
+            package: package,
+            target: target,
+            buildConfiguration: buildConfiguration,
+            sdk: sdk
+        )))
     }
 
     func clean(projectPath: AbsolutePath, buildDirectory: AbsolutePath) async throws {

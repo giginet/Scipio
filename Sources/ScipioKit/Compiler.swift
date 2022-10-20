@@ -4,9 +4,9 @@ import TSCBasic
 
 struct Compiler<E: Executor> {
     let rootPackage: Package
-    let executor: E
     let cacheStorage: (any CacheStorage)?
     let fileSystem: any FileSystem
+    private let xcodebuild: XcodeBuildClient<E>
     private let extractor: DwarfExtractor<E>
 
     enum BuildMode {
@@ -16,9 +16,9 @@ struct Compiler<E: Executor> {
 
     init(rootPackage: Package, cacheStorage: (any CacheStorage)?, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
         self.rootPackage = rootPackage
-        self.executor = executor
         self.cacheStorage = cacheStorage
         self.fileSystem = fileSystem
+        self.xcodebuild = XcodeBuildClient(executor: executor)
         self.extractor = DwarfExtractor(executor: executor)
     }
 
@@ -37,10 +37,10 @@ struct Compiler<E: Executor> {
                                       storage: cacheStorage)
 
         logger.info("🗑️ Cleaning \(rootPackage.name)...")
-        try await execute(CleanCommand(
+        try await xcodebuild.clean(
             projectPath: rootPackage.projectPath,
             buildDirectory: rootPackage.workspaceDirectory
-        ))
+        )
 
         let buildConfiguration: BuildConfiguration = buildOptions.buildConfiguration
         let sdks: [SDK]
@@ -115,7 +115,7 @@ struct Compiler<E: Executor> {
         logger.info("📦 Building \(target.name) for \(sdkNames)")
 
         for sdk in sdks {
-            try await execute(ArchiveCommand(context: .init(package: rootPackage, target: target, buildConfiguration: buildConfiguration, sdk: sdk)))
+            try await xcodebuild.archive(package: rootPackage, target: target, buildConfiguration: buildConfiguration, sdk: sdk)
         }
 
         logger.info("🚀 Combining into XCFramework...")
@@ -129,14 +129,16 @@ struct Compiler<E: Executor> {
             debugSymbolPaths = nil
         }
 
-        try await execute(CreateXCFrameworkCommand(
-            context: .init(package: rootPackage,
-                           target: target,
-                           buildConfiguration: buildConfiguration,
-                           sdks: sdks,
-                           debugSymbolPaths: debugSymbolPaths),
+        try await xcodebuild.createXCFramework(
+            context: .init(
+                package: rootPackage,
+                target: target,
+                buildConfiguration: buildConfiguration,
+                sdks: sdks,
+                debugSymbolPaths: debugSymbolPaths
+            ),
             outputDir: outputDirectory
-        ))
+        )
     }
 
     private func extractDebugSymbolPaths(target: ResolvedTarget, buildConfiguration: BuildConfiguration, sdks: Set<SDK>) async throws -> [AbsolutePath] {
@@ -159,11 +161,6 @@ struct Compiler<E: Executor> {
             symbolMapPaths.append(contentsOf: paths)
         }
         return debugSymbols.map { $0.dSYMPath } + symbolMapPaths
-    }
-
-    @discardableResult
-    private func execute<Command: XcodeBuildCommand>(_ command: Command) async throws -> ExecutorResult {
-        try await executor.execute(command.buildArguments())
     }
 
     private func dependenciesPackages(for package: Package) -> [ResolvedPackage] {
