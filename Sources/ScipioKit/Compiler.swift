@@ -2,31 +2,29 @@ import Foundation
 import PackageGraph
 import TSCBasic
 
-private struct Pair {
+private struct XcodeBuildOption {
     var key: String
     var value: String?
 }
 
+private struct XcodeBuildEnvironmentVariable {
+    var key: String
+    var value: String
+}
+
 private protocol XcodeBuildCommand {
     var subCommand: String { get }
-    var options: [Pair] { get }
-    var environmentVariables: [Pair] { get }
+    var options: [XcodeBuildOption] { get }
+    var environmentVariables: [XcodeBuildEnvironmentVariable] { get }
 }
 
 extension XcodeBuildCommand {
     func buildArguments() -> [String] {
         ["/usr/bin/xcrun", "xcodebuild"]
-        + environmentVariables.map { pair in
-            "\(pair.key)=\(pair.value!)"
-        }
+        + environmentVariables.map { pair in "\(pair.key)=\(pair.value)" }
         + [subCommand]
-        + options.flatMap { option in
-            if let value = option.value {
-                return ["-\(option.key)", value]
-            } else {
-                return ["-\(option.key)"]
-            }
-        }
+        + options.flatMap { option in ["-\(option.key)", option.value] }
+            .compactMap { $0 }
     }
 }
 
@@ -210,11 +208,11 @@ struct Compiler<E: Executor> {
         let buildDirectory: AbsolutePath
 
         let subCommand: String = "clean"
-        var options: [Pair] {
+        var options: [XcodeBuildOption] {
             [.init(key: "project", value: projectPath.pathString)]
         }
 
-        var environmentVariables: [Pair] {
+        var environmentVariables: [XcodeBuildEnvironmentVariable] {
             [.init(key: "BUILD_DIR", value: buildDirectory.pathString)]
         }
     }
@@ -232,21 +230,21 @@ struct Compiler<E: Executor> {
         }
 
         let subCommand: String = "archive"
-        var options: [Pair] {
+        var options: [XcodeBuildOption] {
             [
                 ("project", context.projectPath.pathString),
                 ("configuration", context.buildConfiguration.settingsValue),
                 ("scheme", context.target.name),
                 ("archivePath", xcArchivePath.pathString),
                 ("destination", context.sdk.destination),
-            ].map(Pair.init(key:value:))
+            ].map(XcodeBuildOption.init(key:value:))
         }
 
-        var environmentVariables: [Pair] {
+        var environmentVariables: [XcodeBuildEnvironmentVariable] {
             [
                 ("BUILD_DIR", context.package.workspaceDirectory.pathString),
                 ("SKIP_INSTALL", "NO"),
-            ].map(Pair.init(key:value:))
+            ].map(XcodeBuildEnvironmentVariable.init(key:value:))
         }
     }
 
@@ -272,7 +270,7 @@ struct Compiler<E: Executor> {
                 .appending(component: "\(context.target.name.packageNamed()).framework")
         }
 
-        var options: [Pair] {
+        var options: [XcodeBuildOption] {
             context.sdks.map { sdk in
                     .init(key: "framework", value: buildFrameworkPath(sdk: sdk).pathString)
             }
@@ -283,7 +281,7 @@ struct Compiler<E: Executor> {
             + [.init(key: "output", value: xcFrameworkPath.pathString)]
         }
 
-        var environmentVariables: [Pair] {
+        var environmentVariables: [XcodeBuildEnvironmentVariable] {
             []
         }
     }
