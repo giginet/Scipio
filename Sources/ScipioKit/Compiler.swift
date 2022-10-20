@@ -239,14 +239,14 @@ struct Compiler<E: Executor> {
                 ("scheme", context.target.name),
                 ("archivePath", xcArchivePath.pathString),
                 ("destination", context.sdk.destination),
-                ("sdk", context.sdk.name),
+                ("sdk", context.sdk.name)
             ].map(Pair.init(key:value:))
         }
 
         var environmentVariables: [Pair] {
             [
                 ("BUILD_DIR", context.package.workspaceDirectory.pathString),
-                ("SKIP_INSTALL", "NO"),
+                ("SKIP_INSTALL", "NO")
             ].map(Pair.init(key:value:))
         }
     }

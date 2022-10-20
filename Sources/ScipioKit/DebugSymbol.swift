@@ -32,7 +32,7 @@ struct DwarfExtractor<E: Executor> {
     private func parseUUIDs(from outputString: String) -> [Arch: UUID] {
         // TODO Use modern Regex
         let regex = try! NSRegularExpression(pattern: "(?<uuid>[0-9A-F]{8}\\-[0-9A-F]{4}\\-[0-9A-F]{4}\\-[0-9A-F]{4}\\-[0-9A-F]{12})\\s\\((?<arch>.+)\\)")
-        return regex.matches(in: outputString, range: NSMakeRange(0, outputString.utf16.count)).compactMap { match -> (String, UUID)? in
+        return regex.matches(in: outputString, range: NSRange(location: 0, length: outputString.utf16.count)).compactMap { match -> (String, UUID)? in
             guard let uuidString = match.captured(by: "uuid", in: outputString), let uuid = UUID(uuidString: uuidString) else { return nil }
             guard let arch = match.captured(by: "arch", in: outputString) else { return nil }
             return (arch, uuid)

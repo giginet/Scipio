@@ -59,7 +59,7 @@ public struct LocalCacheStorage: CacheStorage {
         do {
             let destination = try cacheFrameworkPath(for: cacheKey)
             let directoryPath = AbsolutePath(destination.dirname)
-            
+
             try fileSystem.createDirectory(directoryPath, recursive: true)
             try fileSystem.copy(from: frameworkPath, to: destination)
         } catch {

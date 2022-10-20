@@ -118,7 +118,7 @@ final class PrepareTests: XCTestCase {
     func testLocalStorage() async throws {
         let frameworkOutputDir = AbsolutePath(NSTemporaryDirectory()).appending(component: "XCFrameworks")
         try fileManager.createDirectory(at: frameworkOutputDir.asURL, withIntermediateDirectories: true)
-        
+
         let tempDir = AbsolutePath(fileManager.temporaryDirectory.path)
         let storage = LocalCacheStorage(cacheDirectory: .custom(tempDir))
         let storageDir = tempDir.appending(component: "Scipio")

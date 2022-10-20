@@ -136,7 +136,7 @@ public struct Runner {
                                frameworkType: buildOptions.frameworkType)
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
-        
+
         try fileSystem.createDirectory(outputDir, recursive: true)
 
         let (isCacheEnabled, cacheStorage) = options.cacheMode.extract()

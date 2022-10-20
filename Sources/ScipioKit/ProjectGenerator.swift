@@ -71,7 +71,7 @@ struct ProjectGenerator {
                                          data: xcConfigData)
 
         let group = createOrGetConfigsGroup(project: project)
-        let reference = group.addFileReference (
+        let reference = group.addFileReference(
             path: distributionXCConfigPath.pathString,
             name: distributionXCConfigPath.basename
         )
