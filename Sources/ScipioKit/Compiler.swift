@@ -239,7 +239,6 @@ struct Compiler<E: Executor> {
                 ("scheme", context.target.name),
                 ("archivePath", xcArchivePath.pathString),
                 ("destination", context.sdk.destination),
-                ("sdk", context.sdk.name),
             ].map(Pair.init(key:value:))
         }
 
