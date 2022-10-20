@@ -24,10 +24,10 @@ struct XCConfigEncoder {
         configs
             .sorted { $0.key < $1.key }
             .map { pair -> String in
-            "\(pair.key) = \(pair.value.value)"
-        }
-        .joined(separator: "\n")
-        .data(using: .utf8)!
+                 "\(pair.key) = \(pair.value.value)"
+             }
+             .joined(separator: "\n")
+             .data(using: .utf8)!
     }
 }
 
