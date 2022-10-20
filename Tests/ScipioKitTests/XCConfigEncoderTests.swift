@@ -7,7 +7,7 @@ final class XCConfigEncoderTests: XCTestCase {
         let encoder = XCConfigEncoder()
         let configs: [String: XCConfigValue] = [
             "MACH_O_TYPE": "staticlib",
-            "BUILD_LIBRARY_FOR_DISTRIBUTION": true,
+            "BUILD_LIBRARY_FOR_DISTRIBUTION": true
         ]
         let data = encoder.generate(configs: configs)
         XCTAssertEqual(
