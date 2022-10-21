@@ -14,7 +14,12 @@ struct Compiler<E: Executor> {
         case prepareDependencies
     }
 
-    init(rootPackage: Package, cacheStorage: (any CacheStorage)?, executor: E = ProcessExecutor(), fileSystem: any ScipioKit.FileSystem = ScipioKit.localFileSystem) {
+    init(
+        rootPackage: Package,
+        cacheStorage: (any CacheStorage)?,
+        executor: E = ProcessExecutor(),
+        fileSystem: any ScipioKit.FileSystem = ScipioKit.localFileSystem
+    ) {
         self.rootPackage = rootPackage
         self.cacheStorage = cacheStorage
         self.fileSystem = fileSystem
