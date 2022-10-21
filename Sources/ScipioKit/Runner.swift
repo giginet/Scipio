@@ -37,6 +37,7 @@ public struct Runner {
             buildConfiguration: BuildConfiguration,
             isSimulatorSupported: Bool,
             isDebugSymbolsEmbedded: Bool,
+            frameworkType: FrameworkType,
             outputDirectory: URL? = nil,
             cacheMode: CacheMode,
             verbose: Bool
