@@ -79,6 +79,8 @@ struct ProjectGenerator {
             target.buildSettings.xcconfigFileRef = reference
         }
 
+        try fileSystem.createDirectory(projectPath.asURL, recursive: true)
+
         for target in project.frameworkTargets {
             let name = "\(target.name.spm_mangledToC99ExtendedIdentifier())_Info.plist"
             let path = projectPath.asURL.appendingPathComponent(name)
