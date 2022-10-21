@@ -103,11 +103,12 @@ struct CacheSystem {
     private let buildOptions: BuildOptions
     private let outputDirectory: AbsolutePath
     private let storage: (any CacheStorage)?
-    private let fileSystem: any FileSystem
+    private let fileSystem: any ScipioKit.FileSystem
 
     enum Error: LocalizedError {
         case revisionNotDetected(String)
         case compilerVersionNotDetected
+        case couldNotReadVersionFile(Foundation.URL)
 
         var errorDescription: String? {
             switch self {
@@ -115,6 +116,8 @@ struct CacheSystem {
                 return "Repository version is not detected for \(packageName)."
             case .compilerVersionNotDetected:
                 return "Compiler version not detected. Please check your environment"
+            case .couldNotReadVersionFile(let path):
+                return "Could not read VersionFile \(path.path)"
             }
         }
     }
@@ -124,7 +127,7 @@ struct CacheSystem {
         buildOptions: BuildOptions,
         outputDirectory: AbsolutePath,
         storage: (any CacheStorage)?,
-        fileSystem: FileSystem = localFileSystem
+        fileSystem: ScipioKit.FileSystem = ScipioKit.localFileSystem
     ) {
         self.rootPackage = rootPackage
         self.buildOptions = buildOptions
@@ -144,16 +147,19 @@ struct CacheSystem {
 
         let data = try jsonEncoder.encode(cacheKey)
         let versionFilePath = outputDirectory.appending(component: versionFileName(for: target.name))
-        try fileSystem.writeFileContents(versionFilePath, data: data)
+        fileSystem.write(data, to: versionFilePath.asURL)
     }
 
     func existsValidCache(subPackage: ResolvedPackage, target: ResolvedTarget) async -> Bool {
         do {
             let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
             let versionFilePath = versionFilePath(for: cacheKey.targetName)
-            guard fileSystem.exists(versionFilePath) else { return false }
+            guard fileSystem.exists(versionFilePath.asURL) else { return false }
             let decoder = JSONDecoder()
-            let versionFileKey = try decoder.decode(path: versionFilePath, fileSystem: fileSystem, as: CacheKey.self)
+            guard let contents = fileSystem.contents(at: versionFilePath.asURL) else {
+                throw Error.couldNotReadVersionFile(versionFilePath.asURL)
+            }
+            let versionFileKey = try decoder.decode(CacheKey.self, from: contents)
             return versionFileKey == cacheKey
         } catch {
             return false

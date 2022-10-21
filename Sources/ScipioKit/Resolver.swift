@@ -4,9 +4,9 @@ import TSCBasic
 struct Resolver<E: Executor> {
     private let package: Package
     private let executor: E
-    private let fileSystem: any FileSystem
+    private let fileSystem: any ScipioKit.FileSystem
 
-    init(package: Package, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
+    init(package: Package, executor: E = ProcessExecutor(), fileSystem: any ScipioKit.FileSystem = ScipioKit.localFileSystem) {
         self.package = package
         self.executor = executor
         self.fileSystem = fileSystem
@@ -15,7 +15,7 @@ struct Resolver<E: Executor> {
     func resolve() async throws {
         logger.info("🔁 Resolving Dependencies...")
 
-        try fileSystem.changeCurrentWorkingDirectory(to: package.packageDirectory)
+        fileSystem.changeCurrentWorkingDirectory(to: package.packageDirectory.asURL)
         try await executor.execute("/usr/bin/xcrun", "swift", "package", "resolve")
     }
 }

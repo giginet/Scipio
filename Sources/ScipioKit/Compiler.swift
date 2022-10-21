@@ -5,7 +5,7 @@ import TSCBasic
 struct Compiler<E: Executor> {
     let rootPackage: Package
     let cacheStorage: (any CacheStorage)?
-    let fileSystem: any FileSystem
+    let fileSystem: any ScipioKit.FileSystem
     private let xcodebuild: XcodeBuildClient<E>
     private let extractor: DwarfExtractor<E>
 
@@ -14,7 +14,7 @@ struct Compiler<E: Executor> {
         case prepareDependencies
     }
 
-    init(rootPackage: Package, cacheStorage: (any CacheStorage)?, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
+    init(rootPackage: Package, cacheStorage: (any CacheStorage)?, executor: E = ProcessExecutor(), fileSystem: any ScipioKit.FileSystem = ScipioKit.localFileSystem) {
         self.rootPackage = rootPackage
         self.cacheStorage = cacheStorage
         self.fileSystem = fileSystem
@@ -58,7 +58,7 @@ struct Compiler<E: Executor> {
             for target in subPackage.targets where target.type == .library {
                 let frameworkName = frameworkName(for: target)
                 let xcframeworkPath = outputDir.appending(component: frameworkName)
-                let exists = fileSystem.exists(xcframeworkPath)
+                let exists = fileSystem.exists(xcframeworkPath.asURL)
 
                 if exists {
                     if isCacheEnabled {
@@ -69,10 +69,10 @@ struct Compiler<E: Executor> {
                         } else {
                             logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
                             logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
-                            try fileSystem.removeFileTree(xcframeworkPath)
+                            try fileSystem.removeFileTree(at: xcframeworkPath.asURL)
                         }
                     }
-                    try fileSystem.removeFileTree(xcframeworkPath)
+                    try fileSystem.removeFileTree(at: xcframeworkPath.asURL)
                 }
 
                 let frameworkPath = outputDir.appending(component: frameworkName)
@@ -143,7 +143,7 @@ struct Compiler<E: Executor> {
     ) async throws -> [AbsolutePath] {
         let debugSymbols: [DebugSymbol] = sdks.compactMap { sdk in
             let dsymPath = buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: sdk, target: target)
-            guard fileSystem.exists(dsymPath) else { return nil }
+            guard fileSystem.exists(dsymPath.asURL) else { return nil }
             return DebugSymbol(dSYMPath: dsymPath,
                                target: target,
                                sdk: sdk,

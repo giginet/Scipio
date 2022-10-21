@@ -32,9 +32,9 @@ struct XCConfigEncoder {
 }
 
 struct ProjectGenerator {
-    private let fileSystem: any FileSystem
+    private let fileSystem: any ScipioKit.FileSystem
 
-    init(fileSystem: any FileSystem = localFileSystem) {
+    init(fileSystem: any ScipioKit.FileSystem = ScipioKit.localFileSystem) {
         self.fileSystem = fileSystem
     }
 
@@ -57,7 +57,7 @@ struct ProjectGenerator {
             extraDirs: [],
             extraFiles: [],
             options: .init(useLegacySchemeGenerator: false),
-            fileSystem: fileSystem,
+            fileSystem: TSCBasic.localFileSystem,
             observabilityScope: observabilitySystem.topScope)
 
         let distributionXCConfigPath = package.workspaceDirectory.appending(component: "Distribution.xcconfig")
@@ -67,8 +67,7 @@ struct ProjectGenerator {
             isDebugSymbolsEmbedded: isDebugSymbolsEmbedded,
             isStaticFramework: isStaticFramework
         )
-        try fileSystem.writeFileContents(distributionXCConfigPath,
-                                         data: xcConfigData)
+        fileSystem.write(xcConfigData, to: distributionXCConfigPath.asURL)
 
         let group = createOrGetConfigsGroup(project: project)
         let reference = group.addFileReference(
@@ -82,19 +81,16 @@ struct ProjectGenerator {
 
         for target in project.frameworkTargets {
             let name = "\(target.name.spm_mangledToC99ExtendedIdentifier())_Info.plist"
-            let path = projectPath.appending(RelativePath(name))
-            try fileSystem.writeFileContents(path) { stream in
-                stream.write(infoPlist)
-            }
+            let path = projectPath.asURL.appendingPathComponent(name)
+            fileSystem.write(infoPlist.data(using: .utf8)!, to: path)
         }
 
-        try fileSystem.writeFileContents(projectPath.appending(component: "project.pbxproj")) { stream in
-            // Serialize the project model we created to a plist, and return
-            // its string description.
-            if let plist = try? project.generatePlist() {
-                let str = "// !$*UTF8*$!\n" + plist.description
-                stream.write(str)
-            }
+        let pbxprojPath = projectPath.appending(component: "project.pbxproj")
+        // Serialize the project model we created to a plist, and return
+        // its string description.
+        if let plist = try? project.generatePlist() {
+            let str = "// !$*UTF8*$!\n" + plist.description
+            fileSystem.write(str.data(using: .utf8)!, to: pbxprojPath.asURL)
         }
 
         return .init(project: project, projectPath: projectPath)

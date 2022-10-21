@@ -3,7 +3,7 @@ import TSCBasic
 
 public struct Runner {
     private let options: Options
-    private let fileSystem: any FileSystem
+    private let fileSystem: any ScipioKit.FileSystem
 
     public enum Mode {
         case createPackage
@@ -78,7 +78,7 @@ public struct Runner {
     }
     private var mode: Mode
 
-    public init(mode: Mode, options: Options, fileSystem: FileSystem = localFileSystem) {
+    public init(mode: Mode, options: Options, fileSystem: (any ScipioKit.FileSystem) = ScipioKit.localFileSystem) {
         self.mode = mode
         if options.verbose {
             setLogLevel(.trace)
@@ -90,13 +90,13 @@ public struct Runner {
         self.fileSystem = fileSystem
     }
 
-    private func resolveURL(_ fileURL: URL) -> AbsolutePath {
+    private func resolveURL(_ fileURL: URL) -> URL {
         if fileURL.path.hasPrefix("/") {
-            return AbsolutePath(fileURL.path)
+            return fileURL
         } else if let currentDirectory = fileSystem.currentWorkingDirectory {
-            return currentDirectory.appending(RelativePath(fileURL.path))
+            return URL(fileURLWithPath: fileURL.path, relativeTo: currentDirectory)
         } else {
-            return AbsolutePath(fileURL.path)
+            return fileURL
         }
     }
 
@@ -115,7 +115,7 @@ public struct Runner {
     }
 
     public func run(packageDirectory: URL, frameworkOutputDir: OutputDirectory) async throws {
-        let packagePath = resolveURL(packageDirectory)
+        let packagePath = AbsolutePath(resolveURL(packageDirectory).path)
         let package: Package
         do {
             package = try Package(packageDirectory: packagePath)
@@ -133,7 +133,7 @@ public struct Runner {
                                         isDebugSymbolsEmbedded: options.isDebugSymbolsEmbedded,
                                         frameworkType: options.frameworkType,
                                         sdks: sdks)
-        try fileSystem.createDirectory(package.workspaceDirectory, recursive: true)
+        try fileSystem.createDirectory(package.workspaceDirectory.asURL, recursive: true)
 
         let resolver = Resolver(package: package)
         try await resolver.resolve()
@@ -145,7 +145,7 @@ public struct Runner {
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
 
-        try fileSystem.createDirectory(outputDir, recursive: true)
+        try fileSystem.createDirectory(outputDir.asURL, recursive: true)
 
         let (isCacheEnabled, cacheStorage) = options.cacheMode.extract()
         let compiler = Compiler(rootPackage: package,

@@ -4,7 +4,7 @@ import PackageGraph
 import TSCBasic
 
 public struct LocalCacheStorage: CacheStorage {
-    private let fileSystem: any FileSystem
+    private let fileSystem: any ScipioKit.FileSystem
 
     enum Error: Swift.Error {
         case cacheDirectoryIsNotFound
@@ -17,13 +17,13 @@ public struct LocalCacheStorage: CacheStorage {
 
     private let cacheDirectroy: CacheDirectory
 
-    public init(cacheDirectory: CacheDirectory = .system, fileSystem: FileSystem = localFileSystem) {
+    public init(cacheDirectory: CacheDirectory = .system, fileSystem: ScipioKit.FileSystem = ScipioKit.localFileSystem) {
         self.cacheDirectroy = cacheDirectory
         self.fileSystem = fileSystem
     }
 
     private func buildBaseDirectoryPath() throws -> AbsolutePath {
-        let cacheDir: AbsolutePath
+        let cacheDir: Foundation.URL
         switch cacheDirectroy {
         case .system:
             guard let systemCacheDir = fileSystem.cachesDirectory else {
@@ -31,9 +31,9 @@ public struct LocalCacheStorage: CacheStorage {
             }
             cacheDir = systemCacheDir
         case .custom(let customPath):
-            cacheDir = customPath
+            cacheDir = customPath.asURL
         }
-        return cacheDir.appending(component: "Scipio")
+        return AbsolutePath(cacheDir.appendingPathComponent("Scipio").path)
     }
 
     private func xcFrameworkFileName(for cacheKey: CacheKey) -> String {
@@ -49,7 +49,7 @@ public struct LocalCacheStorage: CacheStorage {
     public func existsValidCache(for cacheKey: CacheKey) async -> Bool {
         do {
             let xcFrameworkPath = try cacheFrameworkPath(for: cacheKey)
-            return fileSystem.exists(xcFrameworkPath)
+            return fileSystem.exists(xcFrameworkPath.asURL)
         } catch {
             return false
         }
@@ -60,8 +60,8 @@ public struct LocalCacheStorage: CacheStorage {
             let destination = try cacheFrameworkPath(for: cacheKey)
             let directoryPath = AbsolutePath(destination.dirname)
 
-            try fileSystem.createDirectory(directoryPath, recursive: true)
-            try fileSystem.copy(from: frameworkPath, to: destination)
+            try fileSystem.createDirectory(directoryPath.asURL, recursive: true)
+            try fileSystem.copy(at: frameworkPath.asURL, to: destination.asURL)
         } catch {
             // ignore error
         }
@@ -70,6 +70,6 @@ public struct LocalCacheStorage: CacheStorage {
     public func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: TSCBasic.AbsolutePath) async throws {
         let source = try cacheFrameworkPath(for: cacheKey)
         let destination = destinationDir.appending(component: xcFrameworkFileName(for: cacheKey))
-        try fileSystem.copy(from: source, to: destination)
+        try fileSystem.copy(at: source.asURL, to: destination.asURL)
     }
 }
