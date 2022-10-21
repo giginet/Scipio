@@ -37,10 +37,7 @@ struct Compiler<E: Executor> {
                                       storage: cacheStorage)
 
         logger.info("🗑️ Cleaning \(rootPackage.name)...")
-        try await xcodebuild.clean(
-            projectPath: rootPackage.projectPath,
-            buildDirectory: rootPackage.workspaceDirectory
-        )
+        try await xcodebuild.clean(package: rootPackage)
 
         let buildConfiguration: BuildConfiguration = buildOptions.buildConfiguration
         let sdks: [SDK]

@@ -4,14 +4,13 @@ struct CleanCommand: XcodeBuildCommand {
 
     let subCommand = "clean"
 
-    var projectPath: AbsolutePath
-    var buildDirectory: AbsolutePath
+    var package: Package
 
     var options: [XcodeBuildOption] {
-        [.init(key: "project", value: projectPath.pathString)]
+        [.init(key: "project", value: package.projectPath.pathString)]
     }
 
     var environmentVariables: [XcodeBuildEnvironmentVariable] {
-        [.init(key: "BUILD_DIR", value: buildDirectory.pathString)]
+        [.init(key: "BUILD_DIR", value: package.workspaceDirectory.pathString)]
     }
 }

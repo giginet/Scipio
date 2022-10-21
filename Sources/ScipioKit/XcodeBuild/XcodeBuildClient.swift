@@ -31,8 +31,8 @@ struct XcodeBuildClient<E: Executor> {
         ))
     }
 
-    func clean(projectPath: AbsolutePath, buildDirectory: AbsolutePath) async throws {
-        try await executor.execute(CleanCommand(projectPath: projectPath, buildDirectory: buildDirectory))
+    func clean(package: Package) async throws {
+        try await executor.execute(CleanCommand(package: package))
     }
 }
 
