@@ -173,7 +173,11 @@ struct Compiler<E: Executor> {
         ))
     }
 
-    private func extractDebugSymbolPaths(target: ResolvedTarget, buildConfiguration: BuildConfiguration, sdks: Set<SDK>) async throws -> [AbsolutePath] {
+    private func extractDebugSymbolPaths(
+        target: ResolvedTarget,
+        buildConfiguration: BuildConfiguration,
+        sdks: Set<SDK>
+    ) async throws -> [AbsolutePath] {
         let debugSymbols: [DebugSymbol] = sdks.compactMap { sdk in
             let dsymPath = buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: sdk, target: target)
             guard fileSystem.exists(dsymPath) else { return nil }

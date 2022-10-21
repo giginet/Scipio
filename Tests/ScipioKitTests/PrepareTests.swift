@@ -77,7 +77,10 @@ final class PrepareTests: XCTestCase {
             for target in subPackage.targets {
                 try await cacheSystem.generateVersionFile(subPackage: subPackage, target: target)
                 // generate dummy directory
-                try fileManager.createDirectory(at: frameworkOutputDir.appending(component: "\(target.name).xcframework").asURL, withIntermediateDirectories: true)
+                try fileManager.createDirectory(
+                    at: frameworkOutputDir.appending(component: "\(target.name).xcframework").asURL,
+                    withIntermediateDirectories: true
+                )
             }
         }
         let versionFile2 = frameworkOutputDir.appending(component: ".ScipioTesting.version")
@@ -118,7 +121,7 @@ final class PrepareTests: XCTestCase {
     func testLocalStorage() async throws {
         let frameworkOutputDir = AbsolutePath(NSTemporaryDirectory()).appending(component: "XCFrameworks")
         try fileManager.createDirectory(at: frameworkOutputDir.asURL, withIntermediateDirectories: true)
-        
+
         let tempDir = AbsolutePath(fileManager.temporaryDirectory.path)
         let storage = LocalCacheStorage(cacheDirectory: .custom(tempDir))
         let storageDir = tempDir.appending(component: "Scipio")
