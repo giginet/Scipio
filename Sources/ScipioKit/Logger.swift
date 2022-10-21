@@ -38,7 +38,10 @@ struct ScipioLogHandler: LogHandler {
              function: String,
              line: UInt) {
         let color: NamedColor?
-        if let metadata = metadata, let rawColorString = metadata["color"], let colorCode = UInt8(rawColorString.description), let namedColor = NamedColor(rawValue: colorCode) {
+        if let metadata = metadata,
+            let rawColorString = metadata["color"],
+            let colorCode = UInt8(rawColorString.description),
+            let namedColor = NamedColor(rawValue: colorCode) {
             color = namedColor
         } else {
             color = nil

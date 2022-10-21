@@ -10,7 +10,6 @@ Thread model: posix
 InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
 """
 
-
     func testParseClangVersion() async throws {
         let hook = { arguments in
             XCTAssertEqual(arguments, ["/usr/bin/xcrun", "clang", "--version"])

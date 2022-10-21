@@ -30,7 +30,7 @@ final class StubbableExecutor: Executor {
 
 struct StubbableExecutorResult: ExecutorResult {
     var arguments: [String]
-    var environment: [String : String]
+    var environment: [String: String]
     var exitStatus: TSCBasic.ProcessResult.ExitStatus
     var output: Result<[UInt8], Error>
     var stderrOutput: Result<[UInt8], Error>

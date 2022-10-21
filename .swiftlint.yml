@@ -1,0 +1,19 @@
+included:
+  - Sources
+  - Tests
+excluded:
+  - .build
+  - Tests/ScipioKitTests/Resources/Fixtures
+disabled_rules:
+  - function_parameter_count
+  - force_try
+  - todo
+line_length: 150
+nesting:
+  type_level: 2
+function_body_length:
+  warning: 60
+cyclomatic_complexity:
+  warning: 12
+trailing_comma:
+  mandatory_comma: true

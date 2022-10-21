@@ -26,7 +26,7 @@ extension Scipio {
 
         @OptionGroup var buildOptions: BuildOptionGroup
         @OptionGroup var globalOptions: GlobalOptionGroup
-        
+
         mutating func run() async throws {
             LoggingSystem.bootstrap()
 
@@ -39,7 +39,7 @@ extension Scipio {
             case .local:
                 runnerCacheMode = .storage(LocalCacheStorage())
             }
-            
+
             let runner = Runner(
                 mode: .prepareDependencies,
                 options: .init(
@@ -57,7 +57,7 @@ extension Scipio {
             } else {
                 outputDir = .default
             }
-            
+
             try await runner.run(packageDirectory: packageDirectory,
                                  frameworkOutputDir: outputDir)
         }

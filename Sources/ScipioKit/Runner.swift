@@ -33,7 +33,15 @@ public struct Runner {
     }
 
     public struct Options {
-        public init(buildConfiguration: BuildConfiguration, isSimulatorSupported: Bool, isDebugSymbolsEmbedded: Bool, frameworkType: FrameworkType, outputDirectory: URL? = nil, cacheMode: CacheMode, verbose: Bool) {
+        public init(
+            buildConfiguration: BuildConfiguration,
+            isSimulatorSupported: Bool,
+            isDebugSymbolsEmbedded: Bool,
+            frameworkType: FrameworkType,
+            outputDirectory: URL? = nil,
+            cacheMode: CacheMode,
+            verbose: Bool
+        ) {
             self.buildConfiguration = buildConfiguration
             self.isSimulatorSupported = isSimulatorSupported
             self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
@@ -85,8 +93,8 @@ public struct Runner {
     private func resolveURL(_ fileURL: URL) -> AbsolutePath {
         if fileURL.path.hasPrefix("/") {
             return AbsolutePath(fileURL.path)
-        } else if let cd = fileSystem.currentWorkingDirectory {
-            return cd.appending(RelativePath(fileURL.path))
+        } else if let currentDirectory = fileSystem.currentWorkingDirectory {
+            return currentDirectory.appending(RelativePath(fileURL.path))
         } else {
             return AbsolutePath(fileURL.path)
         }
@@ -136,7 +144,7 @@ public struct Runner {
                                frameworkType: buildOptions.frameworkType)
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
-        
+
         try fileSystem.createDirectory(outputDir, recursive: true)
 
         let (isCacheEnabled, cacheStorage) = options.cacheMode.extract()
