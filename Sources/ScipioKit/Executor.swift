@@ -1,5 +1,6 @@
 import Foundation
-import TSCBasic
+import class TSCBasic.Process
+import struct TSCBasic.ProcessResult
 
 protocol Executor {
     @discardableResult

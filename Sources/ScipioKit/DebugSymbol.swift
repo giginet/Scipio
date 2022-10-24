@@ -1,15 +1,17 @@
 import Foundation
-import TSCBasic
 import PackageGraph
 
 struct DebugSymbol {
-    var dSYMPath: AbsolutePath
+    var dSYMPath: URL
     var target: ResolvedTarget
     var sdk: SDK
     var buildConfiguration: BuildConfiguration
 
-    var dwarfPath: AbsolutePath {
-        dSYMPath.appending(components: "Contents", "Resources", "DWARF", target.name)
+    var dwarfPath: URL {
+        dSYMPath.appendingPathComponent("Contents")
+            .appendingPathComponent("Resources")
+            .appendingPathComponent("DWARF")
+            .appendingPathComponent(target.name)
     }
 }
 
@@ -21,8 +23,8 @@ struct DwarfExtractor<E: Executor> {
     }
 
     typealias Arch = String
-    func dump(dwarfPath: AbsolutePath) async throws -> [Arch: UUID] {
-        let result = try await executor.execute("/usr/bin/xcrun", "dwarfdump", "--uuid", dwarfPath.pathString)
+    func dump(dwarfPath: URL) async throws -> [Arch: UUID] {
+        let result = try await executor.execute("/usr/bin/xcrun", "dwarfdump", "--uuid", dwarfPath.path)
 
         let output = try result.unwrapOutput()
 

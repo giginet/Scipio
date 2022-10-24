@@ -1,9 +1,8 @@
 import Foundation
-import TSCBasic
 
 public struct Runner {
     private let options: Options
-    private let fileSystem: any ScipioKit.FileSystem
+    private let fileSystem: any FileSystem
 
     public enum Mode {
         case createPackage
@@ -16,7 +15,7 @@ public struct Runner {
     }
 
     public enum Error: Swift.Error, LocalizedError {
-        case invalidPackage(AbsolutePath)
+        case invalidPackage(URL)
         case platformNotSpecified
         case compilerError(Swift.Error)
 
@@ -25,7 +24,7 @@ public struct Runner {
             case .platformNotSpecified:
                 return "Any platforms are not spcified in Package.swift"
             case .invalidPackage(let path):
-                return "Invalid package. \(path.pathString)"
+                return "Invalid package. \(path.path)"
             case .compilerError(let error):
                 return "\(error.localizedDescription)"
             }
@@ -78,7 +77,7 @@ public struct Runner {
     }
     private var mode: Mode
 
-    public init(mode: Mode, options: Options, fileSystem: (any ScipioKit.FileSystem) = ScipioKit.localFileSystem) {
+    public init(mode: Mode, options: Options, fileSystem: (any FileSystem) = localFileSystem) {
         self.mode = mode
         if options.verbose {
             setLogLevel(.trace)
@@ -104,18 +103,18 @@ public struct Runner {
         case `default`
         case custom(URL)
 
-        fileprivate func resolve(packageDirectory: URL) -> AbsolutePath {
+        fileprivate func resolve(packageDirectory: URL) -> URL {
             switch self {
             case .default:
-                return AbsolutePath(packageDirectory.appendingPathComponent("XCFrameworks").path)
+                return packageDirectory.appendingPathComponent("XCFrameworks")
             case .custom(let url):
-                return AbsolutePath(url.path)
+                return url
             }
         }
     }
 
     public func run(packageDirectory: URL, frameworkOutputDir: OutputDirectory) async throws {
-        let packagePath = AbsolutePath(resolveURL(packageDirectory).path)
+        let packagePath = resolveURL(packageDirectory)
         let package: Package
         do {
             package = try Package(packageDirectory: packagePath)
@@ -133,7 +132,7 @@ public struct Runner {
                                         isDebugSymbolsEmbedded: options.isDebugSymbolsEmbedded,
                                         frameworkType: options.frameworkType,
                                         sdks: sdks)
-        try fileSystem.createDirectory(package.workspaceDirectory.asURL, recursive: true)
+        try fileSystem.createDirectory(package.workspaceDirectory, recursive: true)
 
         let resolver = Resolver(package: package)
         try await resolver.resolve()
@@ -145,7 +144,7 @@ public struct Runner {
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
 
-        try fileSystem.createDirectory(outputDir.asURL, recursive: true)
+        try fileSystem.createDirectory(outputDir, recursive: true)
 
         let (isCacheEnabled, cacheStorage) = options.cacheMode.extract()
         let compiler = Compiler(rootPackage: package,

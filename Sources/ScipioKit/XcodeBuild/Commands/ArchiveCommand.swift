@@ -1,4 +1,4 @@
-import TSCBasic
+import Foundation
 import PackageGraph
 
 struct ArchiveCommand: XcodeBuildCommand {
@@ -12,28 +12,28 @@ struct ArchiveCommand: XcodeBuildCommand {
 
     var options: [XcodeBuildOption] {
         [
-            ("project", projectPath.pathString),
+            ("project", projectPath.path),
             ("configuration", buildConfiguration.settingsValue),
             ("scheme", target.name),
-            ("archivePath", xcArchivePath.pathString),
+            ("archivePath", xcArchivePath.path),
             ("destination", sdk.destination),
         ].map(XcodeBuildOption.init(key:value:))
     }
 
     var environmentVariables: [XcodeBuildEnvironmentVariable] {
         [
-            ("BUILD_DIR", package.workspaceDirectory.pathString),
+            ("BUILD_DIR", package.workspaceDirectory.path),
             ("SKIP_INSTALL", "NO"),
         ].map(XcodeBuildEnvironmentVariable.init(key:value:))
     }
 }
 
 extension ArchiveCommand {
-    private var xcArchivePath: AbsolutePath {
+    private var xcArchivePath: URL {
         buildXCArchivePath(package: package, target: target, sdk: sdk)
     }
 
-    private var projectPath: AbsolutePath {
+    private var projectPath: URL {
         package.projectPath
     }
 }

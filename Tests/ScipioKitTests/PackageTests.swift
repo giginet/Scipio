@@ -1,7 +1,6 @@
 import Foundation
 @testable import ScipioKit
 import XCTest
-import TSCBasic
 
 private let fixturePath = URL(fileURLWithPath: #file)
     .deletingLastPathComponent()
@@ -11,7 +10,7 @@ private let fixturePath = URL(fileURLWithPath: #file)
 final class PackageTests: XCTestCase {
     func testPackage() throws {
         let rootPath = fixturePath.appendingPathComponent("TestingPackage")
-        let package = try XCTUnwrap(try Package(packageDirectory: AbsolutePath(rootPath.path)))
+        let package = try XCTUnwrap(try Package(packageDirectory: rootPath))
         XCTAssertEqual(package.name, "TestingPackage")
 
         let packageNames = package.graph.packages.map(\.manifest.displayName)

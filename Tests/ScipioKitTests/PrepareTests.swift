@@ -2,7 +2,6 @@ import Foundation
 import XCTest
 @testable import ScipioKit
 import Logging
-import TSCBasic
 
 private let fixturePath = URL(fileURLWithPath: #file)
     .deletingLastPathComponent()
@@ -20,8 +19,8 @@ final class PrepareTests: XCTestCase {
     }
 
     func testBuildXCFramework() async throws {
-        let frameworkOutputDir = AbsolutePath(NSTemporaryDirectory()).appending(component: "XCFrameworks")
-        try fileManager.createDirectory(at: frameworkOutputDir.asURL, withIntermediateDirectories: true)
+        let frameworkOutputDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("XCFrameworks")
+        try fileManager.createDirectory(at: frameworkOutputDir, withIntermediateDirectories: true)
 
         let runner = Runner(
             mode: .prepareDependencies,
@@ -34,34 +33,34 @@ final class PrepareTests: XCTestCase {
                 verbose: true))
         do {
             try await runner.run(packageDirectory: testPackagePath,
-                                 frameworkOutputDir: .custom(frameworkOutputDir.asURL))
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
             XCTFail("Build should be succeeded.")
         }
 
         ["ScipioTesting"].forEach { library in
-            let xcFramework = frameworkOutputDir.appending(component: "\(library).xcframework")
-            let versionFile = frameworkOutputDir.appending(component: ".\(library).version")
-            let simulatorFramework = xcFramework.appending(component: "ios-arm64_x86_64-simulator")
-            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.pathString),
+            let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
+            let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
+            let simulatorFramework = xcFramework.appendingPathComponent("ios-arm64_x86_64-simulator")
+            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
                           "Should create \(library).xcramework")
-            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.pathString),
+            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
                           "Should create .\(library).version")
-            XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.pathString),
+            XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.path),
                            "Should not create Simulator framework")
         }
 
         addTeardownBlock {
             try self.fileManager.removeItem(at: testPackagePath.appendingPathComponent(".build"))
-            try self.fileManager.removeItem(at: frameworkOutputDir.asURL)
+            try self.fileManager.removeItem(at: frameworkOutputDir)
         }
     }
 
     func testCacheIsValid() async throws {
-        let frameworkOutputDir = AbsolutePath(NSTemporaryDirectory()).appending(component: "XCFrameworks")
-        try fileManager.createDirectory(at: frameworkOutputDir.asURL, withIntermediateDirectories: true)
+        let frameworkOutputDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("XCFrameworks")
+        try fileManager.createDirectory(at: frameworkOutputDir, withIntermediateDirectories: true)
 
-        let rootPackage = try Package(packageDirectory: AbsolutePath(testPackagePath.path))
+        let rootPackage = try Package(packageDirectory: testPackagePath)
         let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                       buildOptions: .init(buildConfiguration: .release,
                                                           isSimulatorSupported: false,
@@ -78,13 +77,13 @@ final class PrepareTests: XCTestCase {
                 try await cacheSystem.generateVersionFile(subPackage: subPackage, target: target)
                 // generate dummy directory
                 try fileManager.createDirectory(
-                    at: frameworkOutputDir.appending(component: "\(target.name).xcframework").asURL,
+                    at: frameworkOutputDir.appendingPathComponent("\(target.name).xcframework"),
                     withIntermediateDirectories: true
                 )
             }
         }
-        let versionFile2 = frameworkOutputDir.appending(component: ".ScipioTesting.version")
-        XCTAssertTrue(fileManager.fileExists(atPath: versionFile2.pathString))
+        let versionFile2 = frameworkOutputDir.appendingPathComponent(".ScipioTesting.version")
+        XCTAssertTrue(fileManager.fileExists(atPath: versionFile2.path))
 
         let runner = Runner(
             mode: .prepareDependencies,
@@ -98,33 +97,35 @@ final class PrepareTests: XCTestCase {
         )
         do {
             try await runner.run(packageDirectory: testPackagePath,
-                                 frameworkOutputDir: .custom(frameworkOutputDir.asURL))
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
             XCTFail("Build should be succeeded.")
         }
 
         ["ScipioTesting"].forEach { library in
-            let xcFramework = frameworkOutputDir.appending(components: "\(library).xcframework", "Info.plist")
-            let versionFile = frameworkOutputDir.appending(component: ".\(library).version")
-            XCTAssertFalse(fileManager.fileExists(atPath: xcFramework.pathString),
+            let xcFramework = frameworkOutputDir
+                .appendingPathComponent("\(library).xcframework")
+                .appendingPathComponent("Info.plist")
+            let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
+            XCTAssertFalse(fileManager.fileExists(atPath: xcFramework.path),
                            "Should skip to build \(library).xcramework")
-            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.pathString),
+            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
                           "Should create .\(library).version")
         }
 
         addTeardownBlock {
             try self.fileManager.removeItem(at: testPackagePath.appendingPathComponent(".build"))
-            try self.fileManager.removeItem(at: frameworkOutputDir.asURL)
+            try self.fileManager.removeItem(at: frameworkOutputDir)
         }
     }
 
     func testLocalStorage() async throws {
-        let frameworkOutputDir = AbsolutePath(NSTemporaryDirectory()).appending(component: "XCFrameworks")
-        try fileManager.createDirectory(at: frameworkOutputDir.asURL, withIntermediateDirectories: true)
+        let frameworkOutputDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("XCFrameworks")
+        try fileManager.createDirectory(at: frameworkOutputDir, withIntermediateDirectories: true)
 
-        let tempDir = AbsolutePath(fileManager.temporaryDirectory.path)
+        let tempDir = fileManager.temporaryDirectory
         let storage = LocalCacheStorage(cacheDirectory: .custom(tempDir))
-        let storageDir = tempDir.appending(component: "Scipio")
+        let storageDir = tempDir.appendingPathComponent("Scipio")
 
         let runner = Runner(
             mode: .prepareDependencies,
@@ -138,30 +139,30 @@ final class PrepareTests: XCTestCase {
         )
         do {
             try await runner.run(packageDirectory: testPackagePath,
-                                 frameworkOutputDir: .custom(frameworkOutputDir.asURL))
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
             XCTFail("Build should be succeeded.")
         }
 
-        XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appending(component: "ScipioTesting").pathString))
+        XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appendingPathComponent("ScipioTesting").path))
 
-        let outputFrameworkPath = frameworkOutputDir.appending(component: "ScipioTesting.xcframework")
+        let outputFrameworkPath = frameworkOutputDir.appendingPathComponent("ScipioTesting.xcframework")
 
-        try self.fileManager.removeItem(atPath: outputFrameworkPath.pathString)
+        try self.fileManager.removeItem(atPath: outputFrameworkPath.path)
 
         // Fetch from local storage
         do {
             try await runner.run(packageDirectory: testPackagePath,
-                                 frameworkOutputDir: .custom(frameworkOutputDir.asURL))
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
             XCTFail("Build should be succeeded.")
         }
 
-        XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appending(component: "ScipioTesting").pathString))
+        XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appendingPathComponent("ScipioTesting").path))
 
         addTeardownBlock {
-            try self.fileManager.removeItem(atPath: frameworkOutputDir.pathString)
-            try self.fileManager.removeItem(atPath: storageDir.pathString)
+            try self.fileManager.removeItem(atPath: frameworkOutputDir.path)
+            try self.fileManager.removeItem(atPath: storageDir.path)
         }
     }
 }

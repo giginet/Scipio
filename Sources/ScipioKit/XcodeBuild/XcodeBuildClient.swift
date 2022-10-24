@@ -1,4 +1,4 @@
-import TSCBasic
+import Foundation
 import PackageGraph
 
 struct XcodeBuildClient<E: Executor> {
@@ -9,8 +9,8 @@ struct XcodeBuildClient<E: Executor> {
         target: ResolvedTarget,
         buildConfiguration: BuildConfiguration,
         sdks: Set<SDK>,
-        debugSymbolPaths: [AbsolutePath]?,
-        outputDir: AbsolutePath
+        debugSymbolPaths: [URL]?,
+        outputDir: URL
     ) async throws {
         try await executor.execute(CreateXCFrameworkCommand(
             package: package,

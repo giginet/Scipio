@@ -1,4 +1,4 @@
-import TSCBasic
+import Foundation
 
 struct CleanCommand: XcodeBuildCommand {
 
@@ -7,10 +7,10 @@ struct CleanCommand: XcodeBuildCommand {
     var package: Package
 
     var options: [XcodeBuildOption] {
-        [.init(key: "project", value: package.projectPath.pathString)]
+        [.init(key: "project", value: package.projectPath.path)]
     }
 
     var environmentVariables: [XcodeBuildEnvironmentVariable] {
-        [.init(key: "BUILD_DIR", value: package.workspaceDirectory.pathString)]
+        [.init(key: "BUILD_DIR", value: package.workspaceDirectory.path)]
     }
 }

@@ -1,13 +1,14 @@
 import Foundation
 import Workspace
-import TSCBasic
+import struct TSCBasic.AbsolutePath
+import func TSCBasic.tsc_await
 import PackageModel
 import PackageLoading
 import PackageGraph
 import Basics
 
 struct Package {
-    let packageDirectory: AbsolutePath
+    let packageDirectory: URL
     let toolchain: UserToolchain
     let workspace: Workspace
     let graph: PackageGraph
@@ -17,24 +18,25 @@ struct Package {
         manifest.displayName
     }
 
-    var buildDirectory: AbsolutePath {
-        packageDirectory.appending(component: ".build")
+    var buildDirectory: URL {
+        packageDirectory.appendingPathComponent(".build")
     }
 
-    var workspaceDirectory: AbsolutePath {
-        buildDirectory.appending(component: "scipio")
+    var workspaceDirectory: URL {
+        buildDirectory.appendingPathComponent("scipio")
     }
 
-    var projectPath: AbsolutePath {
-        buildDirectory.appending(component: "\(name).xcodeproj")
+    var projectPath: URL {
+        buildDirectory.appendingPathComponent("\(name).xcodeproj")
     }
 
     var supportedSDKs: [SDK] {
         manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:))
     }
 
-    init(packageDirectory: AbsolutePath) throws {
+    init(packageDirectory: URL) throws {
         self.packageDirectory = packageDirectory
+        let absolutePath = AbsolutePath(packageDirectory.path)
 
         self.toolchain = try UserToolchain(destination: try .hostDestination())
 
@@ -44,13 +46,13 @@ struct Package {
         let resources = ToolchainConfiguration(swiftCompilerPath: toolchain.swiftCompilerPath)
         let loader = ManifestLoader(toolchain: resources)
 #endif
-        let workspace = try Workspace(forRootPackage: packageDirectory, customManifestLoader: loader)
+        let workspace = try Workspace(forRootPackage: absolutePath, customManifestLoader: loader)
 
-        self.graph = try workspace.loadPackageGraph(rootPath: packageDirectory, observabilityScope: observabilitySystem.topScope)
+        self.graph = try workspace.loadPackageGraph(rootPath: absolutePath, observabilityScope: observabilitySystem.topScope)
         let scope = observabilitySystem.topScope
         self.manifest = try tsc_await {
             workspace.loadRootManifest(
-                at: packageDirectory,
+                at: absolutePath,
                 observabilityScope: scope,
                 completion: $0
             )

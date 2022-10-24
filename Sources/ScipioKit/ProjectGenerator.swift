@@ -1,6 +1,7 @@
 import Foundation
 import Xcodeproj
-import TSCBasic
+import struct TSCBasic.AbsolutePath
+import var TSCBasic.localFileSystem
 import Basics
 
 struct XCConfigValue {
@@ -32,9 +33,9 @@ struct XCConfigEncoder {
 }
 
 struct ProjectGenerator {
-    private let fileSystem: any ScipioKit.FileSystem
+    private let fileSystem: any FileSystem
 
-    init(fileSystem: any ScipioKit.FileSystem = ScipioKit.localFileSystem) {
+    init(fileSystem: any FileSystem = localFileSystem) {
         self.fileSystem = fileSystem
     }
 
@@ -49,7 +50,7 @@ struct ProjectGenerator {
         embedDebugSymbols isDebugSymbolsEmbedded: Bool,
         frameworkType: FrameworkType
     ) throws -> Result {
-        let projectPath = package.projectPath
+        let projectPath = AbsolutePath(package.projectPath.path)
 
         let project = try pbxproj(
             xcodeprojPath: projectPath,
@@ -60,19 +61,19 @@ struct ProjectGenerator {
             fileSystem: TSCBasic.localFileSystem,
             observabilityScope: observabilitySystem.topScope)
 
-        let distributionXCConfigPath = package.workspaceDirectory.appending(component: "Distribution.xcconfig")
+        let distributionXCConfigPath = package.workspaceDirectory.appendingPathComponent("Distribution.xcconfig")
 
         let isStaticFramework = frameworkType == .static
         let xcConfigData = makeXCConfigData(
             isDebugSymbolsEmbedded: isDebugSymbolsEmbedded,
             isStaticFramework: isStaticFramework
         )
-        fileSystem.write(xcConfigData, to: distributionXCConfigPath.asURL)
+        fileSystem.write(xcConfigData, to: distributionXCConfigPath)
 
         let group = createOrGetConfigsGroup(project: project)
         let reference = group.addFileReference(
-            path: distributionXCConfigPath.pathString,
-            name: distributionXCConfigPath.basename
+            path: distributionXCConfigPath.path,
+            name: distributionXCConfigPath.lastPathComponent
         )
 
         for target in project.frameworkTargets {
