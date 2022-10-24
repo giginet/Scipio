@@ -14,7 +14,7 @@ public protocol FileSystem {
     func removeFileTree(at path: URL) throws
 }
 
-public let localFileSystem: FileSystem = LocalFileSystem()
+public let localFileSystem: some FileSystem = LocalFileSystem()
 
 struct LocalFileSystem: FileSystem {
     private let fileManager: FileManager = .default
