@@ -21,7 +21,7 @@ public struct LocalCacheStorage: CacheStorage {
     }
 
     private func buildBaseDirectoryPath() throws -> URL {
-        let cacheDir: Foundation.URL
+        let cacheDir: URL
         switch cacheDirectroy {
         case .system:
             guard let systemCacheDir = fileSystem.cachesDirectory else {

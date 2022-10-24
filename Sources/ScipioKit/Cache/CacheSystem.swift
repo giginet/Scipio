@@ -109,7 +109,7 @@ struct CacheSystem {
     enum Error: LocalizedError {
         case revisionNotDetected(String)
         case compilerVersionNotDetected
-        case couldNotReadVersionFile(Foundation.URL)
+        case couldNotReadVersionFile(URL)
 
         var errorDescription: String? {
             switch self {
