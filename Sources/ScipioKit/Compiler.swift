@@ -1,6 +1,5 @@
 import Foundation
 import PackageGraph
-import TSCBasic
 
 struct Compiler<E: Executor> {
     let rootPackage: Package
@@ -14,7 +13,12 @@ struct Compiler<E: Executor> {
         case prepareDependencies
     }
 
-    init(rootPackage: Package, cacheStorage: (any CacheStorage)?, executor: E = ProcessExecutor(), fileSystem: any FileSystem = localFileSystem) {
+    init(
+        rootPackage: Package,
+        cacheStorage: (any CacheStorage)?,
+        executor: E = ProcessExecutor(),
+        fileSystem: any FileSystem = localFileSystem
+    ) {
         self.rootPackage = rootPackage
         self.cacheStorage = cacheStorage
         self.fileSystem = fileSystem
@@ -22,15 +26,15 @@ struct Compiler<E: Executor> {
         self.extractor = DwarfExtractor(executor: executor)
     }
 
-    private func buildArtifactsDirectoryPath(buildConfiguration: BuildConfiguration, sdk: SDK) -> AbsolutePath {
-        rootPackage.workspaceDirectory.appending(component: "\(buildConfiguration.settingsValue)-\(sdk.name)")
+    private func buildArtifactsDirectoryPath(buildConfiguration: BuildConfiguration, sdk: SDK) -> URL {
+        rootPackage.workspaceDirectory.appendingPathComponent("\(buildConfiguration.settingsValue)-\(sdk.name)")
     }
 
-    private func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> AbsolutePath {
-        buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appending(component: "\(target).framework.dSYM")
+    private func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> URL {
+        buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appendingPathComponent("\(target).framework.dSYM")
     }
 
-    func build(mode: BuildMode, buildOptions: BuildOptions, outputDir: AbsolutePath, isCacheEnabled: Bool) async throws {
+    func build(mode: BuildMode, buildOptions: BuildOptions, outputDir: URL, isCacheEnabled: Bool) async throws {
         let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                       buildOptions: buildOptions,
                                       outputDirectory: outputDir,
@@ -57,7 +61,7 @@ struct Compiler<E: Executor> {
         for subPackage in packages {
             for target in subPackage.targets where target.type == .library {
                 let frameworkName = frameworkName(for: target)
-                let xcframeworkPath = outputDir.appending(component: frameworkName)
+                let xcframeworkPath = outputDir.appendingPathComponent(frameworkName)
                 let exists = fileSystem.exists(xcframeworkPath)
 
                 if exists {
@@ -69,13 +73,13 @@ struct Compiler<E: Executor> {
                         } else {
                             logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
                             logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
-                            try fileSystem.removeFileTree(xcframeworkPath)
+                            try fileSystem.removeFileTree(at: xcframeworkPath)
                         }
                     }
-                    try fileSystem.removeFileTree(xcframeworkPath)
+                    try fileSystem.removeFileTree(at: xcframeworkPath)
                 }
 
-                let frameworkPath = outputDir.appending(component: frameworkName)
+                let frameworkPath = outputDir.appendingPathComponent(frameworkName)
                 if await cacheSystem.restoreCacheIfPossible(subPackage: subPackage, target: target) {
                     logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
                 } else {
@@ -107,7 +111,7 @@ struct Compiler<E: Executor> {
                                    buildConfiguration: BuildConfiguration,
                                    isDebugSymbolsEmbedded: Bool,
                                    sdks: Set<SDK>,
-                                   outputDirectory: AbsolutePath) async throws {
+                                   outputDirectory: URL) async throws {
         let sdkNames = sdks.map(\.displayName).joined(separator: ", ")
         logger.info("📦 Building \(target.name) for \(sdkNames)")
 
@@ -117,7 +121,7 @@ struct Compiler<E: Executor> {
 
         logger.info("🚀 Combining into XCFramework...")
 
-        let debugSymbolPaths: [AbsolutePath]?
+        let debugSymbolPaths: [URL]?
         if isDebugSymbolsEmbedded {
             debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
                                                                  buildConfiguration: buildConfiguration,
@@ -140,7 +144,7 @@ struct Compiler<E: Executor> {
         target: ResolvedTarget,
         buildConfiguration: BuildConfiguration,
         sdks: Set<SDK>
-    ) async throws -> [AbsolutePath] {
+    ) async throws -> [URL] {
         let debugSymbols: [DebugSymbol] = sdks.compactMap { sdk in
             let dsymPath = buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: sdk, target: target)
             guard fileSystem.exists(dsymPath) else { return nil }
@@ -150,12 +154,12 @@ struct Compiler<E: Executor> {
                                buildConfiguration: buildConfiguration)
         }
         // You can use AsyncStream
-        var symbolMapPaths: [AbsolutePath] = []
+        var symbolMapPaths: [URL] = []
         for dSYMs in debugSymbols {
             let maps = try await self.extractor.dump(dwarfPath: dSYMs.dwarfPath)
             let paths = maps.values.map { uuid in
                 buildArtifactsDirectoryPath(buildConfiguration: dSYMs.buildConfiguration, sdk: dSYMs.sdk)
-                    .appending(component: "\(uuid.uuidString).bcsymbolmap")
+                    .appendingPathComponent("\(uuid.uuidString).bcsymbolmap")
             }
             symbolMapPaths.append(contentsOf: paths)
         }
@@ -169,7 +173,7 @@ struct Compiler<E: Executor> {
 }
 
 extension Package {
-    var archivesPath: AbsolutePath {
-        workspaceDirectory.appending(component: "archives")
+    var archivesPath: URL {
+        workspaceDirectory.appendingPathComponent("archives")
     }
 }

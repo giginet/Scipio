@@ -1,5 +1,5 @@
 import PackageGraph
-import TSCBasic
+import Foundation
 
 protocol XcodeBuildCommand {
     var subCommand: String { get }
@@ -32,7 +32,7 @@ extension XcodeBuildCommand {
         package: Package,
         target: ResolvedTarget,
         sdk: SDK
-    ) -> AbsolutePath {
-        package.archivesPath.appending(component: "\(target.name)_\(sdk.name).xcarchive")
+    ) -> URL {
+        package.archivesPath.appendingPathComponent("\(target.name)_\(sdk.name).xcarchive")
     }
 }

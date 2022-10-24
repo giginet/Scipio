@@ -1,6 +1,6 @@
 import Foundation
 @testable import ScipioKit
-import TSCBasic
+import struct TSCBasic.ProcessResult
 
 final class StubbableExecutor: Executor {
     init(executeHook: @escaping (([String]) throws -> ExecutorResult)) {
@@ -14,7 +14,7 @@ final class StubbableExecutor: Executor {
         calledArguments.count
     }
 
-    func execute(_ arguments: [String]) async throws -> ScipioKit.ExecutorResult {
+    func execute(_ arguments: [String]) async throws -> ExecutorResult {
         calledArguments.append(arguments)
         return try executeHook(arguments)
     }

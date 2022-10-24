@@ -1,6 +1,7 @@
 import Foundation
 import Xcodeproj
-import TSCBasic
+import struct TSCBasic.AbsolutePath
+import var TSCBasic.localFileSystem
 import Basics
 
 struct XCConfigValue {
@@ -49,7 +50,7 @@ struct ProjectGenerator {
         embedDebugSymbols isDebugSymbolsEmbedded: Bool,
         frameworkType: FrameworkType
     ) throws -> Result {
-        let projectPath = package.projectPath
+        let projectPath = AbsolutePath(package.projectPath.path)
 
         let project = try pbxproj(
             xcodeprojPath: projectPath,
@@ -57,44 +58,42 @@ struct ProjectGenerator {
             extraDirs: [],
             extraFiles: [],
             options: .init(useLegacySchemeGenerator: false),
-            fileSystem: fileSystem,
+            fileSystem: TSCBasic.localFileSystem,
             observabilityScope: observabilitySystem.topScope)
 
-        let distributionXCConfigPath = package.workspaceDirectory.appending(component: "Distribution.xcconfig")
+        let distributionXCConfigPath = package.workspaceDirectory.appendingPathComponent("Distribution.xcconfig")
 
         let isStaticFramework = frameworkType == .static
         let xcConfigData = makeXCConfigData(
             isDebugSymbolsEmbedded: isDebugSymbolsEmbedded,
             isStaticFramework: isStaticFramework
         )
-        try fileSystem.writeFileContents(distributionXCConfigPath,
-                                         data: xcConfigData)
+        fileSystem.write(xcConfigData, to: distributionXCConfigPath)
 
         let group = createOrGetConfigsGroup(project: project)
         let reference = group.addFileReference(
-            path: distributionXCConfigPath.pathString,
-            name: distributionXCConfigPath.basename
+            path: distributionXCConfigPath.path,
+            name: distributionXCConfigPath.lastPathComponent
         )
 
         for target in project.frameworkTargets {
             target.buildSettings.xcconfigFileRef = reference
         }
 
+        try fileSystem.createDirectory(projectPath.asURL, recursive: true)
+
         for target in project.frameworkTargets {
             let name = "\(target.name.spm_mangledToC99ExtendedIdentifier())_Info.plist"
-            let path = projectPath.appending(RelativePath(name))
-            try fileSystem.writeFileContents(path) { stream in
-                stream.write(infoPlist)
-            }
+            let path = projectPath.asURL.appendingPathComponent(name)
+            fileSystem.write(infoPlist.data(using: .utf8)!, to: path)
         }
 
-        try fileSystem.writeFileContents(projectPath.appending(component: "project.pbxproj")) { stream in
-            // Serialize the project model we created to a plist, and return
-            // its string description.
-            if let plist = try? project.generatePlist() {
-                let str = "// !$*UTF8*$!\n" + plist.description
-                stream.write(str)
-            }
+        let pbxprojPath = projectPath.appending(component: "project.pbxproj")
+        // Serialize the project model we created to a plist, and return
+        // its string description.
+        if let plist = try? project.generatePlist() {
+            let str = "// !$*UTF8*$!\n" + plist.description
+            fileSystem.write(str.data(using: .utf8)!, to: pbxprojPath.asURL)
         }
 
         return .init(project: project, projectPath: projectPath)

@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 
 public struct Runner {
     private let options: Options
@@ -16,7 +15,7 @@ public struct Runner {
     }
 
     public enum Error: Swift.Error, LocalizedError {
-        case invalidPackage(AbsolutePath)
+        case invalidPackage(URL)
         case platformNotSpecified
         case compilerError(Swift.Error)
 
@@ -25,7 +24,7 @@ public struct Runner {
             case .platformNotSpecified:
                 return "Any platforms are not spcified in Package.swift"
             case .invalidPackage(let path):
-                return "Invalid package. \(path.pathString)"
+                return "Invalid package. \(path.path)"
             case .compilerError(let error):
                 return "\(error.localizedDescription)"
             }
@@ -78,7 +77,7 @@ public struct Runner {
     }
     private var mode: Mode
 
-    public init(mode: Mode, options: Options, fileSystem: FileSystem = localFileSystem) {
+    public init(mode: Mode, options: Options, fileSystem: (any FileSystem) = localFileSystem) {
         self.mode = mode
         if options.verbose {
             setLogLevel(.trace)
@@ -90,13 +89,13 @@ public struct Runner {
         self.fileSystem = fileSystem
     }
 
-    private func resolveURL(_ fileURL: URL) -> AbsolutePath {
+    private func resolveURL(_ fileURL: URL) -> URL {
         if fileURL.path.hasPrefix("/") {
-            return AbsolutePath(fileURL.path)
+            return fileURL
         } else if let currentDirectory = fileSystem.currentWorkingDirectory {
-            return currentDirectory.appending(RelativePath(fileURL.path))
+            return URL(fileURLWithPath: fileURL.path, relativeTo: currentDirectory)
         } else {
-            return AbsolutePath(fileURL.path)
+            return fileURL
         }
     }
 
@@ -104,12 +103,12 @@ public struct Runner {
         case `default`
         case custom(URL)
 
-        fileprivate func resolve(packageDirectory: URL) -> AbsolutePath {
+        fileprivate func resolve(packageDirectory: URL) -> URL {
             switch self {
             case .default:
-                return AbsolutePath(packageDirectory.appendingPathComponent("XCFrameworks").path)
+                return packageDirectory.appendingPathComponent("XCFrameworks")
             case .custom(let url):
-                return AbsolutePath(url.path)
+                return url
             }
         }
     }

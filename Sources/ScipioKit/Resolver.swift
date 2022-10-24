@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 
 struct Resolver<E: Executor> {
     private let package: Package
@@ -15,7 +14,7 @@ struct Resolver<E: Executor> {
     func resolve() async throws {
         logger.info("🔁 Resolving Dependencies...")
 
-        try fileSystem.changeCurrentWorkingDirectory(to: package.packageDirectory)
+        fileSystem.changeCurrentWorkingDirectory(to: package.packageDirectory)
         try await executor.execute("/usr/bin/xcrun", "swift", "package", "resolve")
     }
 }

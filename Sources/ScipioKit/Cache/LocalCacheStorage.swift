@@ -1,7 +1,5 @@
 import Foundation
-import TSCUtility
 import PackageGraph
-import TSCBasic
 
 public struct LocalCacheStorage: CacheStorage {
     private let fileSystem: any FileSystem
@@ -12,7 +10,7 @@ public struct LocalCacheStorage: CacheStorage {
 
     public enum CacheDirectory {
         case system
-        case custom(AbsolutePath)
+        case custom(URL)
     }
 
     private let cacheDirectroy: CacheDirectory
@@ -22,8 +20,8 @@ public struct LocalCacheStorage: CacheStorage {
         self.fileSystem = fileSystem
     }
 
-    private func buildBaseDirectoryPath() throws -> AbsolutePath {
-        let cacheDir: AbsolutePath
+    private func buildBaseDirectoryPath() throws -> URL {
+        let cacheDir: URL
         switch cacheDirectroy {
         case .system:
             guard let systemCacheDir = fileSystem.cachesDirectory else {
@@ -33,17 +31,20 @@ public struct LocalCacheStorage: CacheStorage {
         case .custom(let customPath):
             cacheDir = customPath
         }
-        return cacheDir.appending(component: "Scipio")
+        return cacheDir.appendingPathComponent("Scipio")
     }
 
     private func xcFrameworkFileName(for cacheKey: CacheKey) -> String {
         "\(cacheKey.targetName.packageNamed()).xcframework"
     }
 
-    private func cacheFrameworkPath(for cacheKey: CacheKey) throws -> AbsolutePath {
+    private func cacheFrameworkPath(for cacheKey: CacheKey) throws -> URL {
         let baseDirectory = try buildBaseDirectoryPath()
         let checksum = try cacheKey.calculateChecksum()
-        return baseDirectory.appending(components: cacheKey.targetName.packageNamed(), checksum, xcFrameworkFileName(for: cacheKey))
+        return baseDirectory
+            .appendingPathComponent(cacheKey.targetName.packageNamed())
+            .appendingPathComponent(checksum)
+            .appendingPathComponent(xcFrameworkFileName(for: cacheKey))
     }
 
     public func existsValidCache(for cacheKey: CacheKey) async -> Bool {
@@ -55,10 +56,10 @@ public struct LocalCacheStorage: CacheStorage {
         }
     }
 
-    public func cacheFramework(_ frameworkPath: TSCBasic.AbsolutePath, for cacheKey: CacheKey) async {
+    public func cacheFramework(_ frameworkPath: URL, for cacheKey: CacheKey) async {
         do {
             let destination = try cacheFrameworkPath(for: cacheKey)
-            let directoryPath = AbsolutePath(destination.dirname)
+            let directoryPath = destination.deletingLastPathComponent()
 
             try fileSystem.createDirectory(directoryPath, recursive: true)
             try fileSystem.copy(from: frameworkPath, to: destination)
@@ -67,9 +68,9 @@ public struct LocalCacheStorage: CacheStorage {
         }
     }
 
-    public func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: TSCBasic.AbsolutePath) async throws {
+    public func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: URL) async throws {
         let source = try cacheFrameworkPath(for: cacheKey)
-        let destination = destinationDir.appending(component: xcFrameworkFileName(for: cacheKey))
+        let destination = destinationDir.appendingPathComponent(xcFrameworkFileName(for: cacheKey))
         try fileSystem.copy(from: source, to: destination)
     }
 }

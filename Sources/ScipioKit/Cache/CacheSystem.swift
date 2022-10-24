@@ -1,7 +1,8 @@
 import Foundation
-import TSCUtility
+import struct TSCBasic.ByteString
+import struct TSCBasic.SHA256
+import struct TSCUtility.Version
 import PackageGraph
-import TSCBasic
 
 private let jsonEncoder = {
     let encoder = JSONEncoder()
@@ -94,20 +95,21 @@ public struct CacheKey: Hashable, Codable, Equatable {
 
 public protocol CacheStorage {
     func existsValidCache(for cacheKey: CacheKey) async -> Bool
-    func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: AbsolutePath) async throws
-    func cacheFramework(_ frameworkPath: AbsolutePath, for cacheKey: CacheKey) async
+    func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: URL) async throws
+    func cacheFramework(_ frameworkPath: URL, for cacheKey: CacheKey) async
 }
 
 struct CacheSystem {
     private let rootPackage: Package
     private let buildOptions: BuildOptions
-    private let outputDirectory: AbsolutePath
+    private let outputDirectory: URL
     private let storage: (any CacheStorage)?
     private let fileSystem: any FileSystem
 
     enum Error: LocalizedError {
         case revisionNotDetected(String)
         case compilerVersionNotDetected
+        case couldNotReadVersionFile(URL)
 
         var errorDescription: String? {
             switch self {
@@ -115,6 +117,8 @@ struct CacheSystem {
                 return "Repository version is not detected for \(packageName)."
             case .compilerVersionNotDetected:
                 return "Compiler version not detected. Please check your environment"
+            case .couldNotReadVersionFile(let path):
+                return "Could not read VersionFile \(path.path)"
             }
         }
     }
@@ -122,7 +126,7 @@ struct CacheSystem {
     init(
         rootPackage: Package,
         buildOptions: BuildOptions,
-        outputDirectory: AbsolutePath,
+        outputDirectory: URL,
         storage: (any CacheStorage)?,
         fileSystem: FileSystem = localFileSystem
     ) {
@@ -133,7 +137,7 @@ struct CacheSystem {
         self.fileSystem = fileSystem
     }
 
-    func cacheFramework(_ frameworkPath: AbsolutePath, subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
+    func cacheFramework(_ frameworkPath: URL, subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
         let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
 
         await storage?.cacheFramework(frameworkPath, for: cacheKey)
@@ -143,8 +147,8 @@ struct CacheSystem {
         let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
 
         let data = try jsonEncoder.encode(cacheKey)
-        let versionFilePath = outputDirectory.appending(component: versionFileName(for: target.name))
-        try fileSystem.writeFileContents(versionFilePath, data: data)
+        let versionFilePath = outputDirectory.appendingPathComponent(versionFileName(for: target.name))
+        fileSystem.write(data, to: versionFilePath)
     }
 
     func existsValidCache(subPackage: ResolvedPackage, target: ResolvedTarget) async -> Bool {
@@ -153,7 +157,10 @@ struct CacheSystem {
             let versionFilePath = versionFilePath(for: cacheKey.targetName)
             guard fileSystem.exists(versionFilePath) else { return false }
             let decoder = JSONDecoder()
-            let versionFileKey = try decoder.decode(path: versionFilePath, fileSystem: fileSystem, as: CacheKey.self)
+            guard let contents = fileSystem.contents(of: versionFilePath) else {
+                throw Error.couldNotReadVersionFile(versionFilePath)
+            }
+            let versionFileKey = try decoder.decode(CacheKey.self, from: contents)
             return versionFileKey == cacheKey
         } catch {
             return false
@@ -175,7 +182,7 @@ struct CacheSystem {
         }
     }
 
-    private func fetchArtifacts(subPackage: ResolvedPackage, target: ResolvedTarget, to destination: AbsolutePath) async throws {
+    private func fetchArtifacts(subPackage: ResolvedPackage, target: ResolvedTarget, to destination: URL) async throws {
         guard let storage = storage else { return }
         let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
         try await storage.fetchArtifacts(for: cacheKey, to: destination)
@@ -202,8 +209,8 @@ struct CacheSystem {
         return pin
     }
 
-    private func versionFilePath(for targetName: String) -> AbsolutePath {
-        outputDirectory.appending(component: versionFileName(for: targetName))
+    private func versionFilePath(for targetName: String) -> URL {
+        outputDirectory.appendingPathComponent(versionFileName(for: targetName))
     }
 
     private func versionFileName(for targetName: String) -> String {
@@ -214,6 +221,6 @@ struct CacheSystem {
 extension CacheKey {
     func calculateChecksum() throws -> String {
         let data = try jsonEncoder.encode(self)
-        return ByteString(data).sha256Checksum
+        return SHA256().hash(ByteString(data)).hexadecimalRepresentation
     }
 }
