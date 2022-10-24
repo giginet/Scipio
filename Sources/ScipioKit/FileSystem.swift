@@ -1,16 +1,16 @@
 import Foundation
 
 public protocol FileSystem {
-    @discardableResult
-    func write(_ data: Data, to path: URL) -> Bool
+    var currentWorkingDirectory: URL? { get }
+    var cachesDirectory: URL? { get }
+
     func exists(_ path: URL) -> Bool
     func contents(of path: URL) -> Data?
-    @discardableResult
-    func changeCurrentWorkingDirectory(to destination: URL) -> Bool
-    var currentWorkingDirectory: URL? { get }
+
+    @discardableResult func write(_ data: Data, to path: URL) -> Bool
+    @discardableResult func changeCurrentWorkingDirectory(to destination: URL) -> Bool
     func createDirectory(_ path: URL, recursive: Bool) throws
     func copy(from source: URL, to destination: URL) throws
-    var cachesDirectory: URL? { get }
     func removeFileTree(at path: URL) throws
 }
 
