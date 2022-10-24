@@ -62,7 +62,7 @@ public struct LocalCacheStorage: CacheStorage {
             let directoryPath = destination.deletingLastPathComponent()
 
             try fileSystem.createDirectory(directoryPath, recursive: true)
-            try fileSystem.copy(at: frameworkPath, to: destination)
+            try fileSystem.copy(from: frameworkPath, to: destination)
         } catch {
             // ignore error
         }
@@ -71,6 +71,6 @@ public struct LocalCacheStorage: CacheStorage {
     public func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: URL) async throws {
         let source = try cacheFrameworkPath(for: cacheKey)
         let destination = destinationDir.appendingPathComponent(xcFrameworkFileName(for: cacheKey))
-        try fileSystem.copy(at: source, to: destination)
+        try fileSystem.copy(from: source, to: destination)
     }
 }

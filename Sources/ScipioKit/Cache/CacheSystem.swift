@@ -157,7 +157,7 @@ struct CacheSystem {
             let versionFilePath = versionFilePath(for: cacheKey.targetName)
             guard fileSystem.exists(versionFilePath) else { return false }
             let decoder = JSONDecoder()
-            guard let contents = fileSystem.contents(at: versionFilePath) else {
+            guard let contents = fileSystem.contents(of: versionFilePath) else {
                 throw Error.couldNotReadVersionFile(versionFilePath)
             }
             let versionFileKey = try decoder.decode(CacheKey.self, from: contents)
