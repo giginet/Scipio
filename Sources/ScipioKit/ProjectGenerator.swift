@@ -1,5 +1,5 @@
 import Foundation
-import Xcodeproj
+import XcodeProj
 import struct TSCBasic.AbsolutePath
 import var TSCBasic.localFileSystem
 import Basics
@@ -40,8 +40,10 @@ struct ProjectGenerator {
     }
 
     struct Result {
-        var project: Xcode.Project
-        var projectPath: AbsolutePath
+    }
+
+    enum Error: LocalizedError {
+        case invalidPackage
     }
 
     @discardableResult
@@ -50,53 +52,21 @@ struct ProjectGenerator {
         embedDebugSymbols isDebugSymbolsEmbedded: Bool,
         frameworkType: FrameworkType
     ) throws -> Result {
-        let projectPath = AbsolutePath(package.projectPath.path)
+        let projectPath = package.projectPath
+        let parentDirectoryPath = package.projectPath.deletingLastPathComponent()
 
-        let project = try pbxproj(
-            xcodeprojPath: projectPath,
-            graph: package.graph,
-            extraDirs: [],
-            extraFiles: [],
-            options: .init(useLegacySchemeGenerator: false),
-            fileSystem: TSCBasic.localFileSystem,
-            observabilityScope: observabilitySystem.topScope)
+        let project = try XcodeProj(pathString: projectPath.path)
 
-        let distributionXCConfigPath = package.workspaceDirectory.appendingPathComponent("Distribution.xcconfig")
-
-        let isStaticFramework = frameworkType == .static
-        let xcConfigData = makeXCConfigData(
-            isDebugSymbolsEmbedded: isDebugSymbolsEmbedded,
-            isStaticFramework: isStaticFramework
-        )
-        fileSystem.write(xcConfigData, to: distributionXCConfigPath)
-
-        let group = createOrGetConfigsGroup(project: project)
-        let reference = group.addFileReference(
-            path: distributionXCConfigPath.path,
-            name: distributionXCConfigPath.lastPathComponent
-        )
-
-        for target in project.frameworkTargets {
-            target.buildSettings.xcconfigFileRef = reference
+        guard let sourceRootDir = package.graph.rootPackages.first?.path else {
+            throw Error.invalidPackage
         }
+        project.pbxproj.rootObject?.projectDirPath = URL(fileURLWithPath: sourceRootDir.pathString, relativeTo: parentDirectoryPath).path
 
-        try fileSystem.createDirectory(projectPath.asURL, recursive: true)
+        // TODO setting
 
-        for target in project.frameworkTargets {
-            let name = "\(target.name.spm_mangledToC99ExtendedIdentifier())_Info.plist"
-            let path = projectPath.asURL.appendingPathComponent(name)
-            fileSystem.write(infoPlist.data(using: .utf8)!, to: path)
-        }
+        try project.write(pathString: projectPath.path, override: true)
 
-        let pbxprojPath = projectPath.appending(component: "project.pbxproj")
-        // Serialize the project model we created to a plist, and return
-        // its string description.
-        if let plist = try? project.generatePlist() {
-            let str = "// !$*UTF8*$!\n" + plist.description
-            fileSystem.write(str.data(using: .utf8)!, to: pbxprojPath.asURL)
-        }
-
-        return .init(project: project, projectPath: projectPath)
+        return .init()
     }
 
     private func makeXCConfigData(isDebugSymbolsEmbedded: Bool, isStaticFramework: Bool) -> Data {
@@ -144,21 +114,5 @@ struct ProjectGenerator {
         </dict>
         </plist>
         """
-    }
-
-    private func createOrGetConfigsGroup(project: Xcode.Project) -> Xcode.Group {
-        let name = "Configs"
-
-        if let group = project.mainGroup.subitems.lazy.compactMap({ $0 as? Xcode.Group }).first(where: { $0.name == name }) {
-            return group
-        }
-
-        return project.mainGroup.addGroup(path: "", name: name)
-    }
-}
-
-extension Xcode.Project {
-    fileprivate var frameworkTargets: [Xcode.Target] {
-        targets.filter { $0.productType == .framework }
     }
 }
