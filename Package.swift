@@ -24,6 +24,8 @@ let package = Package(
                  .upToNextMinor(from: "1.0.0")),
         .package(url: "https://github.com/onevcat/Rainbow",
                  .upToNextMinor(from: "4.0.1")),
+        .package(url: "https://github.com/tuist/XcodeProj.git",
+                 .upToNextMinor(from: "8.8.0")),
     ],
     targets: [
         .executableTarget(name: "scipio",
@@ -37,6 +39,7 @@ let package = Package(
                 .productItem(name: "SwiftPM", package: "swift-package-manager"),
                 .productItem(name: "Logging", package: "swift-log"),
                 .productItem(name: "Rainbow", package: "Rainbow"),
+                .productItem(name: "XcodeProj", package: "XcodeProj"),
             ]),
         .testTarget(
             name: "ScipioKitTests",
