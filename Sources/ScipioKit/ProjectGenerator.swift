@@ -1,8 +1,13 @@
 import Foundation
-import XcodeProj
+import PackageGraph
+import class XcodeProj.PBXProject
+import class XcodeProj.XcodeProj
+import class XcodeProj.PBXGroup
+import AEXML
 import struct TSCBasic.AbsolutePath
 import var TSCBasic.localFileSystem
 import Basics
+import PathKit
 
 struct XCConfigValue {
     let rawString: String
@@ -44,6 +49,7 @@ struct ProjectGenerator {
 
     enum Error: LocalizedError {
         case invalidPackage
+        case unknownError
     }
 
     @discardableResult
@@ -55,18 +61,58 @@ struct ProjectGenerator {
         let projectPath = package.projectPath
         let parentDirectoryPath = package.projectPath.deletingLastPathComponent()
 
-        let project = try XcodeProj(pathString: projectPath.path)
+        let projectFile = try XcodeProj(pathString: projectPath.path)
+
+        guard let project = projectFile.pbxproj.projects.first else {
+            throw Error.unknownError
+        }
 
         guard let sourceRootDir = package.graph.rootPackages.first?.path else {
             throw Error.invalidPackage
         }
-        project.pbxproj.rootObject?.projectDirPath = URL(fileURLWithPath: sourceRootDir.pathString, relativeTo: parentDirectoryPath).path
+        projectFile.pbxproj.rootObject?.projectDirPath = URL(fileURLWithPath: sourceRootDir.pathString, relativeTo: parentDirectoryPath).path
 
-        // TODO setting
+        applyBuildSettings(for: project)
 
-        try project.write(pathString: projectPath.path, override: true)
+        let packagesByTarget = package.graph.packages.reduce(into: [:]) { dict, package in
+            for target in package.targets {
+                dict[target] = package
+            }
+        }
+
+        let packagesByProduct = package.graph.packages.reduce(into: [:]) { dict, package in
+            for product in package.products {
+                dict[product] = package
+            }
+        }
+
+        try projectFile.write(pathString: projectPath.path, override: true)
 
         return .init()
+    }
+
+    private func applyBuildSettings(for project: PBXProject) {
+        guard let defaultConfigurationName = project.buildConfigurationList.defaultConfigurationName,
+              let baseConfiguration = project.buildConfigurationList.configuration(name: defaultConfigurationName)?.buildSettings else {
+            return
+        }
+        baseConfiguration // TODO
+    }
+
+    private func createGroup(named groupName: String, for targets: [ResolvedTarget], in parentGroup: PBXGroup) throws {
+        guard let sourceGroup = try parentGroup.addGroup(named: groupName).first else {
+            return
+        }
+        for target in targets {
+            guard let targetGroup = try sourceGroup.addGroup(named: target.name).first else {
+                continue
+            }
+            let sourceRoot = target.sources.root
+            for source in target.sources.paths {
+                try targetGroup.addFile(at: .init(source.pathString),
+                                        sourceRoot: sourceRoot.toPath())
+            }
+        }
     }
 
     private func makeXCConfigData(isDebugSymbolsEmbedded: Bool, isStaticFramework: Bool) -> Data {
@@ -114,5 +160,11 @@ struct ProjectGenerator {
         </dict>
         </plist>
         """
+    }
+}
+
+extension AbsolutePath {
+    fileprivate func toPath() -> PathKit.Path {
+        .init(self.pathString)
     }
 }
