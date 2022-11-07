@@ -1,10 +1,9 @@
 import Foundation
 import PackageGraph
-import class XcodeProj.PBXProject
-import class XcodeProj.XcodeProj
-import class XcodeProj.PBXGroup
+import XcodeProj
 import AEXML
 import struct TSCBasic.AbsolutePath
+import struct TSCBasic.RelativePath
 import var TSCBasic.localFileSystem
 import Basics
 import PathKit
@@ -52,6 +51,37 @@ struct ProjectGenerator {
         case unknownError
     }
 
+    private func generatePBXProj() -> PBXProj {
+        let mainGroup = PBXGroup(
+            children: [],
+            sourceTree: .group
+        )
+
+        let debugConfiguration = XCBuildConfiguration(name: "Debug")
+
+        let buildConfigurationList = XCConfigurationList(
+            buildConfigurations: [
+                debugConfiguration
+            ],
+            defaultConfigurationName: "Debug", // TODO
+            defaultConfigurationIsVisible: true
+        )
+        let rootObject = PBXProject(
+            name: "GeneratedProject",
+            buildConfigurationList: buildConfigurationList,
+            compatibilityVersion: "Xcode 11.0",
+            mainGroup: mainGroup
+        )
+        let pbxProj = PBXProj()
+        pbxProj.add(object: debugConfiguration)
+        pbxProj.add(object: buildConfigurationList)
+
+        pbxProj.add(object: mainGroup)
+        pbxProj.add(object: rootObject)
+        pbxProj.rootObject = rootObject
+        return pbxProj
+    }
+
     @discardableResult
     func generate(
         for package: Package,
@@ -61,16 +91,12 @@ struct ProjectGenerator {
         let projectPath = package.projectPath
         let parentDirectoryPath = package.projectPath.deletingLastPathComponent()
 
-        let projectFile = try XcodeProj(pathString: projectPath.path)
-
-        guard let project = projectFile.pbxproj.projects.first else {
-            throw Error.unknownError
-        }
+        let project: PBXProj = generatePBXProj()
 
         guard let sourceRootDir = package.graph.rootPackages.first?.path else {
             throw Error.invalidPackage
         }
-        projectFile.pbxproj.rootObject?.projectDirPath = URL(fileURLWithPath: sourceRootDir.pathString, relativeTo: parentDirectoryPath).path
+        project.rootObject?.projectDirPath = URL(fileURLWithPath: sourceRootDir.pathString, relativeTo: parentDirectoryPath).path
 
         applyBuildSettings(for: project)
 
@@ -86,17 +112,23 @@ struct ProjectGenerator {
             }
         }
 
+        if let targets = package.graph.rootPackages.first?.targets {
+            let targetsForSources = targets.filter { $0.type != .test }
+            try createGroup(named: "Sources", for: targetsForSources, in: project.rootObject!.mainGroup)
+        }
+
+        let projectFile = try XcodeProj(workspace: .init(),
+                                        pbxproj: project)
         try projectFile.write(pathString: projectPath.path, override: true)
 
         return .init()
     }
 
-    private func applyBuildSettings(for project: PBXProject) {
-        guard let defaultConfigurationName = project.buildConfigurationList.defaultConfigurationName,
-              let baseConfiguration = project.buildConfigurationList.configuration(name: defaultConfigurationName)?.buildSettings else {
+    private func applyBuildSettings(for project: PBXProj) {
+        guard let defaultConfiguration = project.buildConfigurations.first else {
             return
         }
-        baseConfiguration // TODO
+        defaultConfiguration.baseConfiguration // TODO
     }
 
     private func createGroup(named groupName: String, for targets: [ResolvedTarget], in parentGroup: PBXGroup) throws {
@@ -108,10 +140,34 @@ struct ProjectGenerator {
                 continue
             }
             let sourceRoot = target.sources.root
-            for source in target.sources.paths {
-                try targetGroup.addFile(at: .init(source.pathString),
-                                        sourceRoot: sourceRoot.toPath())
+            for sourcePath in target.sources.paths {
+                let relativePath = sourcePath.relative(to: sourceRoot)
+                let group = try createIntermediateGroupsIfNeeded(of: relativePath, from: targetGroup)
+                try group.addFile(at: sourcePath.toPath(),
+                                  sourceRoot: sourcePath.relative(to: sourceRoot).toPath())
             }
+        }
+    }
+
+    private func createIntermediateGroupsIfNeeded(of relativePath: RelativePath, from rootGroup: PBXGroup) throws -> PBXGroup {
+        var dirs = relativePath.components
+        var currentGroup: PBXGroup = rootGroup
+        while !dirs.isEmpty {
+            guard let nextDir = dirs.first else {
+                break
+            }
+            let nextGroup = try createGroupIfNeeded(named: nextDir, at: currentGroup)
+            currentGroup = nextGroup
+            dirs.removeFirst()
+        }
+        return currentGroup
+    }
+
+    private func createGroupIfNeeded(named groupName: String, at group: PBXGroup) throws -> PBXGroup {
+        if let existingGroup = group.group(named: groupName) {
+            return existingGroup
+        } else {
+            return try group.addGroup(named: groupName).first!
         }
     }
 
@@ -164,6 +220,12 @@ struct ProjectGenerator {
 }
 
 extension AbsolutePath {
+    fileprivate func toPath() -> PathKit.Path {
+        .init(self.pathString)
+    }
+}
+
+extension RelativePath {
     fileprivate func toPath() -> PathKit.Path {
         .init(self.pathString)
     }
