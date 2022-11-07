@@ -45,21 +45,6 @@ struct ProjectGenerator {
         self.fileSystem = fileSystem
     }
 
-    struct Result {
-    }
-
-    enum Error: LocalizedError {
-        case invalidPackage
-        case unknownError
-    }
-
-    @discardableResult
-    private func addObject<T: PBXObject>(_ object: T, context: String? = nil) -> T {
-        pbxProj.add(object: object)
-        object.context = context
-        return object
-    }
-
     private func preparePBXProj() {
         let mainGroup = addObject(
             PBXGroup(
@@ -92,6 +77,21 @@ struct ProjectGenerator {
         pbxProj.rootObject = rootObject
     }
 
+    struct Result {
+    }
+
+    enum Error: LocalizedError {
+        case invalidPackage
+        case unknownError
+    }
+
+    @discardableResult
+    private func addObject<T: PBXObject>(_ object: T, context: String? = nil) -> T {
+        pbxProj.add(object: object)
+        object.context = context
+        return object
+    }
+
     @discardableResult
     func generate(
         for package: Package,
@@ -110,6 +110,10 @@ struct ProjectGenerator {
 
         applyBuildSettings()
 
+        guard let mainGroup = pbxProj.rootObject?.mainGroup else {
+            throw Error.unknownError
+        }
+
         let packagesByTarget = package.graph.packages.reduce(into: [:]) { dict, package in
             for target in package.targets {
                 dict[target] = package
@@ -122,13 +126,51 @@ struct ProjectGenerator {
             }
         }
 
+        // Source Tree
         if let targets = package.graph.rootPackages.first?.targets {
             let targetsForSources = targets.filter { $0.type != .test }
+            let sourceGroup = addObject(
+                PBXGroup(
+                    sourceTree: .sourceRoot,
+                    name: "Sources",
+                    path: nil
+                )
+            )
+            mainGroup.addChild(sourceGroup)
+
             try createSources(
                 for: targetsForSources,
-                in: pbxProj.rootObject!.mainGroup
+                in: sourceGroup
             )
         }
+
+        // Dependencies
+        let externalPackages = package.graph.packages.filter({ !package.graph.rootPackages.contains($0) })
+        if !externalPackages.isEmpty {
+            let dependenciesGroup = addObject(
+                PBXGroup(sourceTree: .group,
+                         name: "Dependencies",
+                         path: nil)
+            )
+            mainGroup.addChild(dependenciesGroup)
+
+            for package in externalPackages {
+                let targets = package.targets.filter { $0.type != .test }
+                let group = try createSources(for: targets, in: dependenciesGroup)
+            }
+        }
+
+        // Products
+        let productGroup = addObject(
+            PBXGroup(
+                sourceTree: .buildProductsDir,
+                name: "Products",
+                path: nil
+            )
+        )
+        pbxProj.rootObject?.productsGroup = productGroup
+
+        // Target
 
         let projectFile = XcodeProj(workspace: .init(),
                                     pbxproj: pbxProj)
@@ -145,15 +187,6 @@ struct ProjectGenerator {
     }
 
     private func createSources(for targets: [ResolvedTarget], in parentGroup: PBXGroup) throws {
-        let sourceGroup = addObject(
-            PBXGroup(
-                sourceTree: .sourceRoot,
-                name: "Sources",
-                path: nil
-            )
-        )
-        parentGroup.addChild(sourceGroup)
-
         for target in targets {
             let sourceRoot = target.sources.root
             let targetGroup = addObject(
@@ -164,7 +197,7 @@ struct ProjectGenerator {
                     path: sourceRoot.pathString
                 )
             )
-            sourceGroup.addChild(targetGroup)
+            parentGroup.addChild(targetGroup)
 
             for sourcePath in target.sources.paths {
                 let relativePath = sourcePath.relative(to: sourceRoot)
