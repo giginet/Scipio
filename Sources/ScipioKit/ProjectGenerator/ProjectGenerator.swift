@@ -8,22 +8,6 @@ import var TSCBasic.localFileSystem
 import Basics
 import PathKit
 
-struct XCConfigValue {
-    let rawString: String
-}
-
-extension XCConfigValue: ExpressibleByBooleanLiteral {
-    init(booleanLiteral value: BooleanLiteralType) {
-        self.rawString = value ? "YES" : "NO"
-    }
-}
-
-extension XCConfigValue: ExpressibleByStringLiteral {
-    init(stringLiteral value: StringLiteralType) {
-        self.rawString = value
-    }
-}
-
 struct XCConfigEncoder {
     func generate(configs: [String: XCConfigValue]) -> Data {
         configs
@@ -53,14 +37,20 @@ struct ProjectGenerator {
             )
         )
 
+        let buildSettingsGenerator = BuildSettingsGenerator()
+
         let debugConfiguration = addObject(
-            XCBuildConfiguration(name: "Debug")
+            buildSettingsGenerator.generate(for: .debug)
+        )
+        let releaseConfiguration = addObject(
+            buildSettingsGenerator.generate(for: .release)
         )
 
         let buildConfigurationList = addObject(
             XCConfigurationList(
                 buildConfigurations: [
-                    debugConfiguration
+                    debugConfiguration,
+                    releaseConfiguration,
                 ],
                 defaultConfigurationName: "Debug", // TODO
                 defaultConfigurationIsVisible: true
@@ -212,7 +202,7 @@ struct ProjectGenerator {
     private func createIntermediateGroupsIfNeeded(of relativePath: RelativePath, from rootGroup: PBXGroup) throws -> PBXGroup {
         var dirs = relativePath.components
         var currentGroup: PBXGroup = rootGroup
-        if dirs.count <= 1 {
+        if let firstComponent = dirs.first, firstComponent == "." {
             return currentGroup
         }
         while !dirs.isEmpty {
