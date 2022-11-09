@@ -40,13 +40,13 @@ struct ProjectGenerator {
             )
         )
 
-        let buildSettingsGenerator = BuildSettingsGenerator(package: package)
+        let buildSettingsGenerator = ProjectBuildSettingsGenerator()
 
         let debugConfiguration = addObject(
-            buildSettingsGenerator.generateForProject(configuration: .debug)
+            buildSettingsGenerator.generate(configuration: .debug)
         )
         let releaseConfiguration = addObject(
-            buildSettingsGenerator.generateForProject(configuration: .release)
+            buildSettingsGenerator.generate(configuration: .release)
         )
 
         let buildConfigurationList = addObject(
@@ -100,8 +100,6 @@ struct ProjectGenerator {
             throw Error.invalidPackage
         }
         pbxProj.rootObject?.projectDirPath = URL(fileURLWithPath: sourceRootDir.pathString, relativeTo: parentDirectoryPath).path
-
-        applyBuildSettings()
 
         guard let mainGroup = pbxProj.rootObject?.mainGroup else {
             throw Error.unknownError
@@ -160,8 +158,11 @@ struct ProjectGenerator {
         pbxProj.rootObject?.productsGroup = productGroup
 
         // Target
-        let targets = package.graph.reachableTargets.filter({ $0.type != .systemModule }).sorted { $0.name < $1.name }
-        for target in targets {
+        let targetsToGenerate = package.graph.reachableTargets
+            .filter { $0.type != .systemModule }
+            .filter { $0.type != .test } // Scipio doesn't care test targets
+            .sorted { $0.name < $1.name }
+        for target in targetsToGenerate {
             let pbxTarget = addObject(
                 try makeTarget(for: target)
             )
@@ -176,6 +177,8 @@ struct ProjectGenerator {
     }
 
     private func makeTarget(for target: ResolvedTarget) throws -> PBXNativeTarget {
+        let targetSettingsGenerator = TargetBuildSettingsGenerator(package: package)
+
         guard let package = package.graph.packages.first(where: { package in
             package.targets.contains(target)
         }) else {
@@ -194,14 +197,12 @@ struct ProjectGenerator {
             throw Error.notSupported(target.type)
         }
 
-        return PBXNativeTarget(name: target.c99name, productType: productType)
-    }
-
-    private func applyBuildSettings() {
-        guard let defaultConfiguration = pbxProj.buildConfigurations.first else {
-            return
-        }
-        defaultConfiguration.baseConfiguration // TODO
+        return PBXNativeTarget(name: target.c99name,
+                               buildConfigurationList: .init(buildConfigurations: [
+                                targetSettingsGenerator.generate(for: target, configuration: .debug),
+                                targetSettingsGenerator.generate(for: target, configuration: .release),
+                               ]),
+                               productType: productType)
     }
 
     private func createSources(for targets: [ResolvedTarget], in parentGroup: PBXGroup) throws {

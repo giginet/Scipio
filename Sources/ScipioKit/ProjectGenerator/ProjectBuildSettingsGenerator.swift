@@ -1,8 +1,10 @@
 import Foundation
-import PackagePlugin
 import PackageGraph
 import class PackageModel.SwiftTarget
 import struct PackageModel.SwiftLanguageVersion
+import class PackageModel.SystemLibraryTarget
+import class PackageModel.ClangTarget
+import TSCBasic
 import XcodeProj
 
 struct XCConfigValue {
@@ -16,6 +18,10 @@ struct XCConfigValue {
 
     init(_ rawString: String) {
         self.rawString = rawString
+    }
+
+    init(_ values: [String]) {
+        self.rawString = values.joined(separator: " ")
     }
 }
 
@@ -39,14 +45,8 @@ extension XCConfigValue: ExpressibleByArrayLiteral {
     }
 }
 
-struct BuildSettingsGenerator {
-    private let package: Package
-
-    init(package: Package) {
-        self.package = package
-    }
-
-    func generateForProject(configuration: BuildConfiguration) -> XCBuildConfiguration {
+struct ProjectBuildSettingsGenerator {
+    func generate(configuration: BuildConfiguration) -> XCBuildConfiguration {
         let baseSettings: BuildSettings = commonBuildSettings
 
         // TODO C Flags
@@ -66,6 +66,60 @@ struct BuildSettingsGenerator {
             buildSettings:
                 baseSettings.merging(specificSettings) { $1 }
         )
+    }
+
+    private var commonBuildSettings: BuildSettings {
+        let values: [String: XCConfigValue] = [
+            "PRODUCT_NAME": "$(TARGET_NAME)",
+            "SUPPORTED_PLATFORMS": "$(AVAILABLE_PLATFORMS)",
+            "SUPPORTS_MACCATALYST": true,
+            "SDKROOT": "macosx",
+            "DYLIB_INSTALL_NAME_BASE": "@rpath",
+            "OTHER_SWIFT_FLAGS": [.inherited, "-DXcode"],
+            "MACOSX_DEPLOYMENT_TARGET": "10.10",
+            "COMBINE_HIDPI_IMAGES": true,
+            "SWIFT_ACTIVE_COMPILATION_CONDITIONS": [.inherited, "SWIFT_PACKAGE"],
+            "GCC_PREPROCESSOR_DEFINITIONS": [.inherited, "SWIFT_PACKAGE=1"],
+            "USE_HEADERMAP": false,
+            "CLANG_ENABLE_OBJC_ARC": true,
+        ]
+        return values.mapValues(\.rawString)
+    }
+
+    private var debugSpecificSettings: BuildSettings {
+        let specificSettings: [String: XCConfigValue] = [
+            "COPY_PHASE_STRIP": false,
+            "DEBUG_INFORMATION_FORMAT": "dwarf",
+            "ENABLE_NS_ASSERTIONS": true,
+            "GCC_OPTIMIZATION_LEVEL": "0",
+            "GCC_PREPROCESSOR_DEFINITIONS": [.inherited, "DEBUG=1"],
+            "ONLY_ACTIVE_ARCH": true,
+            "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
+            "SWIFT_ACTIVE_COMPILATION_CONDITIONS": [.inherited, "DEBUG"],
+        ]
+        return specificSettings.mapValues(\.rawString)
+    }
+
+    private var releaseSpecificSettings: BuildSettings {
+        let specificSettings: [String: XCConfigValue] = [
+            "COPY_PHASE_STRIP": true,
+            "DEBUG_INFORMATION_FORMAT": "dwarf-with-dsym",
+            "GCC_OPTIMIZATION_LEVEL": "s",
+            "SWIFT_OPTIMIZATION_LEVEL": "-Owholemodule",
+        ]
+        return specificSettings.mapValues(\.rawString)
+    }
+}
+
+struct TargetBuildSettingsGenerator {
+    private let package: Package
+
+    init(package: Package) {
+        self.package = package
+    }
+
+    private var sourceRootDir: AbsolutePath {
+        package.graph.rootPackages[0].path
     }
 
     func generate(for target: ResolvedTarget, configuration: BuildConfiguration) -> XCBuildConfiguration {
@@ -126,8 +180,8 @@ struct BuildSettingsGenerator {
         if let swiftTarget = target.underlyingTarget as? SwiftTarget {
             settings["SWIFT_VERSION"] = .init(swiftTarget.swiftVersion.xcodeBuildSettingValue)
         }
-        
-        settings["HEADER_SEARCH_PATHS"] = buildHeaderSearchPaths(for: target)
+
+        settings["HEADER_SEARCH_PATHS"] = .init(buildHeaderSearchPaths(for: target))
 
         return .init(
             name: configuration.settingsValue,
@@ -135,8 +189,8 @@ struct BuildSettingsGenerator {
         )
     }
 
-    private func buildHeaderSearchPaths(for target: ResolvedTarget) -> [XCConfigValue] {
-        var headerSearchPaths: [XCConfigValue] = [.inherited]
+    private func buildHeaderSearchPaths(for target: ResolvedTarget) -> [String] {
+        var headerSearchPaths: [String] = ["$(inherited)"]
         guard let targetDependencies = try? target.recursiveTargetDependencies() else {
             return headerSearchPaths
         }
@@ -144,11 +198,11 @@ struct BuildSettingsGenerator {
             switch dependencyModule.underlyingTarget {
               case let systemTarget as SystemLibraryTarget:
                 headerSearchPaths.append("$(SRCROOT)/\(systemTarget.path.relative(to: sourceRootDir).pathString)")
-                for pkgArgs in pkgConfigArgs(for: systemTarget, fileSystem: fileSystem, observabilityScope: observabilityScope) {
+//                for pkgArgs in pkgConfigArgs(for: systemTarget, fileSystem: fileSystem, observabilityScope: observabilityScope) {
 //                    targetSettings.common.OTHER_LDFLAGS += pkgArgs.libs
 //                    targetSettings.common.OTHER_SWIFT_FLAGS += pkgArgs.cFlags
 //                    targetSettings.common.OTHER_CFLAGS += pkgArgs.cFlags
-                }
+//                }
             case let clangTarget as ClangTarget:
                 headerSearchPaths.append("$(SRCROOT)/\(clangTarget.includeDir.relative(to: sourceRootDir).pathString)")
               default:
@@ -156,48 +210,6 @@ struct BuildSettingsGenerator {
             }
         }
         return headerSearchPaths
-    }
-
-    private var commonBuildSettings: BuildSettings {
-        let values: [String: XCConfigValue] = [
-            "PRODUCT_NAME": "$(TARGET_NAME)",
-            "SUPPORTED_PLATFORMS": "$(AVAILABLE_PLATFORMS)",
-            "SUPPORTS_MACCATALYST": true,
-            "SDKROOT": "macosx",
-            "DYLIB_INSTALL_NAME_BASE": "@rpath",
-            "OTHER_SWIFT_FLAGS": [.inherited, "-DXcode"],
-            "MACOSX_DEPLOYMENT_TARGET": "10.10",
-            "COMBINE_HIDPI_IMAGES": true,
-            "SWIFT_ACTIVE_COMPILATION_CONDITIONS": [.inherited, "SWIFT_PACKAGE"],
-            "GCC_PREPROCESSOR_DEFINITIONS": [.inherited, "SWIFT_PACKAGE=1"],
-            "USE_HEADERMAP": false,
-            "CLANG_ENABLE_OBJC_ARC": true,
-        ]
-        return values.mapValues(\.rawString)
-    }
-
-    private var debugSpecificSettings: BuildSettings {
-        let specificSettings: [String: XCConfigValue] = [
-            "COPY_PHASE_STRIP": false,
-            "DEBUG_INFORMATION_FORMAT": "dwarf",
-            "ENABLE_NS_ASSERTIONS": true,
-            "GCC_OPTIMIZATION_LEVEL": "0",
-            "GCC_PREPROCESSOR_DEFINITIONS": [.inherited, "DEBUG=1"],
-            "ONLY_ACTIVE_ARCH": true,
-            "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
-            "SWIFT_ACTIVE_COMPILATION_CONDITIONS": [.inherited, "DEBUG"],
-        ]
-        return specificSettings.mapValues(\.rawString)
-    }
-
-    private var releaseSpecificSettings: BuildSettings {
-        let specificSettings: [String: XCConfigValue] = [
-            "COPY_PHASE_STRIP": true,
-            "DEBUG_INFORMATION_FORMAT": "dwarf-with-dsym",
-            "GCC_OPTIMIZATION_LEVEL": "s",
-            "SWIFT_OPTIMIZATION_LEVEL": "-Owholemodule",
-        ]
-        return specificSettings.mapValues(\.rawString)
     }
 }
 
