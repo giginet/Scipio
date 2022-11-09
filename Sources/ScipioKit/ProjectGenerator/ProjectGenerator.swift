@@ -197,11 +197,58 @@ struct ProjectGenerator {
             throw Error.notSupported(target.type)
         }
 
+        let buildConfigurationList = addObject(
+            XCConfigurationList(buildConfigurations: [
+                addObject(targetSettingsGenerator.generate(for: target, configuration: .debug)),
+                addObject(targetSettingsGenerator.generate(for: target, configuration: .release)),
+            ])
+        )
+
+        let productRef: PBXFileReference?
+        if let productGroup = pbxProj.rootObject?.productsGroup {
+            productRef = try productGroup.addFile(
+                at: target.productPath.toPath(),
+                sourceTree: .buildProductsDir,
+                sourceRoot: .init(""),
+                validatePresence: false
+            )
+        } else {
+            productRef = nil
+        }
+
+        let files: [PBXBuildFile] = target.sources.paths.map { path in
+            let fileElement = addObject(
+                PBXFileReference(
+                    sourceTree: .sourceRoot,
+                    name: path.basename,
+                    path: path.relative(to: package.path).pathString
+                )
+            )
+            return PBXBuildFile(file: fileElement)
+        }
+
+        let compilePhase = addObject(
+            PBXSourcesBuildPhase(
+                files: files
+            )
+        )
+
+        // TODO
+        for case .target(let dependency, _) in try target.recursiveDependencies() {
+        }
+
+        let linkPhase = addObject(
+            PBXFrameworksBuildPhase()
+        )
+
+        // TODO : Add the `include` group for a library C language target.
+        // TODO : modulemaps related settings
+
         return PBXNativeTarget(name: target.c99name,
-                               buildConfigurationList: .init(buildConfigurations: [
-                                targetSettingsGenerator.generate(for: target, configuration: .debug),
-                                targetSettingsGenerator.generate(for: target, configuration: .release),
-                               ]),
+                               buildConfigurationList: buildConfigurationList,
+                               buildPhases: [compilePhase, linkPhase],
+                               dependencies: [],
+                               product: productRef,
                                productType: productType)
     }
 
@@ -317,5 +364,20 @@ extension PBXGroup {
     fileprivate func addChild(_ childGroup: PBXGroup) {
         childGroup.parent = self
         self.children.append(childGroup)
+    }
+}
+
+extension ResolvedTarget {
+    fileprivate var productPath: RelativePath {
+        switch type {
+        case .test:
+            return RelativePath("\(c99name).xctest")
+        case .library:
+            return RelativePath("\(c99name).framework")
+        case .executable, .snippet:
+            return RelativePath(name)
+        case .systemModule, .binary, .plugin:
+            fatalError()
+        }
     }
 }
