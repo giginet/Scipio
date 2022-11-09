@@ -137,9 +137,8 @@ public struct Runner {
         let resolver = Resolver(package: package)
         try await resolver.resolve()
 
-        let generator = ProjectGenerator()
-        try generator.generate(for: package,
-                               embedDebugSymbols: buildOptions.isDebugSymbolsEmbedded,
+        let generator = ProjectGenerator(package: package)
+        try generator.generate(embedDebugSymbols: buildOptions.isDebugSymbolsEmbedded,
                                frameworkType: buildOptions.frameworkType)
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)

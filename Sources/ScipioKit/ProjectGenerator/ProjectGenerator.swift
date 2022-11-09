@@ -5,6 +5,7 @@ import AEXML
 import struct TSCBasic.AbsolutePath
 import struct TSCBasic.RelativePath
 import var TSCBasic.localFileSystem
+import PackageModel
 import Basics
 import PathKit
 
@@ -21,10 +22,12 @@ struct XCConfigEncoder {
 }
 
 struct ProjectGenerator {
+    private let package: Package
     private let pbxProj: PBXProj
     private let fileSystem: any FileSystem
 
-    init(fileSystem: any FileSystem = localFileSystem) {
+    init(package: Package, fileSystem: any FileSystem = localFileSystem) {
+        self.package = package
         self.pbxProj = .init()
         self.fileSystem = fileSystem
     }
@@ -37,13 +40,13 @@ struct ProjectGenerator {
             )
         )
 
-        let buildSettingsGenerator = BuildSettingsGenerator()
+        let buildSettingsGenerator = BuildSettingsGenerator(package: package)
 
         let debugConfiguration = addObject(
-            buildSettingsGenerator.generate(for: .debug)
+            buildSettingsGenerator.generateForProject(configuration: .debug)
         )
         let releaseConfiguration = addObject(
-            buildSettingsGenerator.generate(for: .release)
+            buildSettingsGenerator.generateForProject(configuration: .release)
         )
 
         let buildConfigurationList = addObject(
@@ -72,6 +75,7 @@ struct ProjectGenerator {
 
     enum Error: LocalizedError {
         case invalidPackage
+        case notSupported(PackageModel.Target.Kind)
         case unknownError
     }
 
@@ -84,7 +88,6 @@ struct ProjectGenerator {
 
     @discardableResult
     func generate(
-        for package: Package,
         embedDebugSymbols isDebugSymbolsEmbedded: Bool,
         frameworkType: FrameworkType
     ) throws -> Result {
@@ -102,12 +105,6 @@ struct ProjectGenerator {
 
         guard let mainGroup = pbxProj.rootObject?.mainGroup else {
             throw Error.unknownError
-        }
-
-        let packagesByTarget = package.graph.packages.reduce(into: [:]) { dict, package in
-            for target in package.targets {
-                dict[target] = package
-            }
         }
 
         let packagesByProduct = package.graph.packages.reduce(into: [:]) { dict, package in
@@ -150,6 +147,8 @@ struct ProjectGenerator {
             }
         }
 
+        // TODO Resources
+
         // Products
         let productGroup = addObject(
             PBXGroup(
@@ -161,12 +160,41 @@ struct ProjectGenerator {
         pbxProj.rootObject?.productsGroup = productGroup
 
         // Target
+        let targets = package.graph.reachableTargets.filter({ $0.type != .systemModule }).sorted { $0.name < $1.name }
+        for target in targets {
+            let pbxTarget = addObject(
+                try makeTarget(for: target)
+            )
+            pbxProj.rootObject?.targets.append(pbxTarget)
+        }
 
         let projectFile = XcodeProj(workspace: .init(),
                                     pbxproj: pbxProj)
         try projectFile.write(pathString: projectPath.path, override: true)
 
         return .init()
+    }
+
+    private func makeTarget(for target: ResolvedTarget) throws -> PBXNativeTarget {
+        guard let package = package.graph.packages.first(where: { package in
+            package.targets.contains(target)
+        }) else {
+            throw Error.invalidPackage
+        }
+
+        let productType: PBXProductType
+        switch target.type {
+        case .executable, .snippet:
+            productType = .commandLineTool
+        case .library:
+            productType = .framework
+        case .test:
+            productType = .unitTestBundle
+        case .binary, .systemModule, .plugin:
+            throw Error.notSupported(target.type)
+        }
+
+        return PBXNativeTarget(name: target.c99name, productType: productType)
     }
 
     private func applyBuildSettings() {
