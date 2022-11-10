@@ -21,9 +21,10 @@ struct XCConfigEncoder {
     }
 }
 
-struct ProjectGenerator {
+class ProjectGenerator {
     private let package: Package
     private let pbxProj: PBXProj
+    private var sourceGroup: PBXGroup?
     private let fileSystem: any FileSystem
 
     init(package: Package, fileSystem: any FileSystem = localFileSystem) {
@@ -111,23 +112,16 @@ struct ProjectGenerator {
             }
         }
 
-        // Source Tree
-        if let targets = package.graph.rootPackages.first?.targets {
-            let targetsForSources = targets.filter { $0.type != .test }
-            let sourceGroup = addObject(
-                PBXGroup(
-                    sourceTree: .sourceRoot,
-                    name: "Sources",
-                    path: nil
-                )
+        // Generate Sources dir
+        let sourceGroup = addObject(
+            PBXGroup(
+                sourceTree: .sourceRoot,
+                name: "Sources",
+                path: nil
             )
-            mainGroup.addChild(sourceGroup)
-
-            try createSources(
-                for: targetsForSources,
-                in: sourceGroup
-            )
-        }
+        )
+        mainGroup.addChild(sourceGroup)
+        self.sourceGroup = sourceGroup
 
         // Dependencies
         let externalPackages = package.graph.packages.filter({ !package.graph.rootPackages.contains($0) })
@@ -141,7 +135,7 @@ struct ProjectGenerator {
 
             for package in externalPackages {
                 let targets = package.targets.filter { $0.type != .test }
-                let group = try createSources(for: targets, in: dependenciesGroup)
+                try createSources(for: targets, in: dependenciesGroup)
             }
         }
 
@@ -157,23 +151,55 @@ struct ProjectGenerator {
         )
         pbxProj.rootObject?.productsGroup = productGroup
 
-        // Target
-        let targetsToGenerate = package.graph.reachableTargets
-            .filter { $0.type != .systemModule }
-            .filter { $0.type != .test } // Scipio doesn't care test targets
-            .sorted { $0.name < $1.name }
-        for target in targetsToGenerate {
-            let pbxTarget = addObject(
-                try makeTarget(for: target)
-            )
-            pbxProj.rootObject?.targets.append(pbxTarget)
-        }
+        try generateTargets()
 
         let projectFile = XcodeProj(workspace: .init(),
                                     pbxproj: pbxProj)
         try projectFile.write(pathString: projectPath.path, override: true)
 
         return .init()
+    }
+
+    private func generateTargets() throws {
+        // First, generate all targets
+        let targetsToGenerate = package.graph.reachableTargets
+            .filter { $0.type != .systemModule }
+            .filter { $0.type != .test } // Scipio doesn't care test targets
+            .sorted { $0.name < $1.name }
+        let xcodeTargets: [ResolvedTarget: PBXTarget] = try targetsToGenerate.reduce(into: [:]) { targets, target in
+            let xcodeTarget = addObject(
+                try makeTarget(for: target)
+            )
+            targets[target] = xcodeTarget
+        }
+        xcodeTargets.values.forEach { self.pbxProj.rootObject?.targets.append($0) }
+
+        // Make LinkPhase for each Xcode targets
+        for (target, xcodeTarget) in xcodeTargets {
+            let dependsTargets = try target.recursiveDependencies().compactMap { value in
+                if case .target(let dependency, _) = value {
+                    return (xcodeTargets[dependency])
+                }
+                return nil
+            }
+            xcodeTarget.dependencies = dependsTargets.map { target in
+                addObject(PBXTargetDependency(target: target))
+            }
+
+            let linkReferences: [PBXBuildFile]
+            if target.type == .library {
+                linkReferences = dependsTargets.map { dependency in
+                    addObject(PBXBuildFile(file: dependency.product))
+                }
+            } else {
+                linkReferences = []
+            }
+
+            let linkPhase = addObject(
+                PBXFrameworksBuildPhase(files: linkReferences)
+            )
+            xcodeTarget.buildPhases.append(linkPhase)
+        }
     }
 
     private func makeTarget(for target: ResolvedTarget) throws -> PBXNativeTarget {
@@ -216,29 +242,33 @@ struct ProjectGenerator {
             productRef = nil
         }
 
-        let files: [PBXBuildFile] = target.sources.paths.map { path in
-            let fileElement = addObject(
-                PBXFileReference(
-                    sourceTree: .sourceRoot,
-                    name: path.basename,
-                    path: path.relative(to: package.path).pathString
-                )
+        guard let sourceGroup = sourceGroup else {
+            throw Error.unknownError
+        }
+
+        let fileReferences = try target.sources.paths.map { sourcePath in
+            let sourceRoot = target.sources.root
+            let relativePath = sourcePath.relative(to: sourceRoot)
+
+            let targetGroup = try createGroupIfNeeded(named: target.name, at: sourceGroup)
+
+            let dirPath = RelativePath(relativePath.dirname)
+            let group = try createIntermediateGroupsIfNeeded(of: dirPath, from: targetGroup)
+            return try group.addFile(
+                at: sourcePath.toPath(),
+                sourceTree: .sourceRoot,
+                sourceRoot: .init(".")
             )
-            return PBXBuildFile(file: fileElement)
+        }
+
+        let buildFiles: [PBXBuildFile] = fileReferences.map { reference in
+            return addObject(PBXBuildFile(file: reference))
         }
 
         let compilePhase = addObject(
             PBXSourcesBuildPhase(
-                files: files
+                files: buildFiles
             )
-        )
-
-        // TODO
-        for case .target(let dependency, _) in try target.recursiveDependencies() {
-        }
-
-        let linkPhase = addObject(
-            PBXFrameworksBuildPhase()
         )
 
         // TODO : Add the `include` group for a library C language target.
@@ -246,8 +276,7 @@ struct ProjectGenerator {
 
         return PBXNativeTarget(name: target.c99name,
                                buildConfigurationList: buildConfigurationList,
-                               buildPhases: [compilePhase, linkPhase],
-                               dependencies: [],
+                               buildPhases: [compilePhase],
                                product: productRef,
                                productType: productType)
     }
@@ -264,14 +293,6 @@ struct ProjectGenerator {
                 )
             )
             parentGroup.addChild(targetGroup)
-
-            for sourcePath in target.sources.paths {
-                let relativePath = sourcePath.relative(to: sourceRoot)
-                let dirPath = RelativePath(relativePath.dirname)
-                let group = try createIntermediateGroupsIfNeeded(of: dirPath, from: targetGroup)
-                try group.addFile(at: sourcePath.toPath(),
-                                  sourceRoot: sourcePath.relative(to: sourceRoot).toPath())
-            }
         }
     }
 
@@ -296,7 +317,7 @@ struct ProjectGenerator {
         if let existingGroup = group.group(named: groupName) {
             return existingGroup
         } else {
-            return try group.addGroup(named: groupName).first!
+            return try group.addGroup(named: groupName, options: .withoutFolder).first!
         }
     }
 
