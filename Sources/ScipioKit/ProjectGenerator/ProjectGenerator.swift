@@ -9,16 +9,34 @@ import PackageModel
 import Basics
 import PathKit
 
-struct XCConfigEncoder {
-    func generate(configs: [String: XCConfigValue]) -> Data {
-        configs
-            .sorted { $0.key < $1.key }
-            .map { pair -> String in
-                "\(pair.key) = \(pair.value.rawString)"
-             }
-             .joined(separator: "\n")
-             .data(using: .utf8)!
-    }
+private var infoPlist: String {
+    """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <plist version="1.0">
+    <dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>FMWK</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>NSPrincipalClass</key>
+    <string></string>
+    </dict>
+    </plist>
+    """
 }
 
 class ProjectGenerator {
@@ -27,8 +45,18 @@ class ProjectGenerator {
     private var sourceGroup: PBXGroup?
     private let fileSystem: any FileSystem
 
-    init(package: Package, fileSystem: any FileSystem = localFileSystem) {
+    private let isDebugSymbolsEmbedded: Bool
+    private let frameworkType: FrameworkType
+
+    init(
+        package: Package,
+        isDebugSymbolsEmbedded: Bool,
+        frameworkType: FrameworkType,
+        fileSystem: any FileSystem = localFileSystem
+    ) {
         self.package = package
+        self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
+        self.frameworkType = frameworkType
         self.pbxProj = .init()
         self.fileSystem = fileSystem
     }
@@ -88,10 +116,7 @@ class ProjectGenerator {
     }
 
     @discardableResult
-    func generate(
-        embedDebugSymbols isDebugSymbolsEmbedded: Bool,
-        frameworkType: FrameworkType
-    ) throws -> Result {
+    func generate() throws -> Result {
         let projectPath = package.projectPath
         let parentDirectoryPath = package.projectPath.deletingLastPathComponent()
 
@@ -104,12 +129,6 @@ class ProjectGenerator {
 
         guard let mainGroup = pbxProj.rootObject?.mainGroup else {
             throw Error.unknownError
-        }
-
-        let packagesByProduct = package.graph.packages.reduce(into: [:]) { dict, package in
-            for product in package.products {
-                dict[product] = package
-            }
         }
 
         // Generate Sources dir
@@ -203,13 +222,11 @@ class ProjectGenerator {
     }
 
     private func makeTarget(for target: ResolvedTarget) throws -> PBXNativeTarget {
-        let targetSettingsGenerator = TargetBuildSettingsGenerator(package: package)
-
-        guard let package = package.graph.packages.first(where: { package in
-            package.targets.contains(target)
-        }) else {
-            throw Error.invalidPackage
-        }
+        let targetSettingsGenerator = TargetBuildSettingsGenerator(
+            package: package,
+            isDebugSymbolsEmbedded: isDebugSymbolsEmbedded,
+            isStaticFramework: frameworkType == .static
+        )
 
         let productType: PBXProductType
         switch target.type {
@@ -223,10 +240,14 @@ class ProjectGenerator {
             throw Error.notSupported(target.type)
         }
 
+        // Generate Info.plist
+        let plistPath = package.projectPath.appendingPathComponent(target.infoPlistFileName)
+        fileSystem.write(infoPlist.data(using: .utf8)!, to: plistPath)
+
         let buildConfigurationList = addObject(
             XCConfigurationList(buildConfigurations: [
-                addObject(targetSettingsGenerator.generate(for: target, configuration: .debug)),
-                addObject(targetSettingsGenerator.generate(for: target, configuration: .release)),
+                addObject(targetSettingsGenerator.generate(for: target, configuration: .debug, infoPlistPath: plistPath)),
+                addObject(targetSettingsGenerator.generate(for: target, configuration: .release, infoPlistPath: plistPath)),
             ])
         )
 
@@ -320,53 +341,6 @@ class ProjectGenerator {
             return try group.addGroup(named: groupName, options: .withoutFolder).first!
         }
     }
-
-    private func makeXCConfigData(isDebugSymbolsEmbedded: Bool, isStaticFramework: Bool) -> Data {
-        var configs: [String: XCConfigValue] = [
-            "BUILD_LIBRARY_FOR_DISTRIBUTION": true,
-        ]
-
-        if isDebugSymbolsEmbedded {
-            configs["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
-        }
-
-        if isStaticFramework {
-            configs["MACH_O_TYPE"] = "staticlib"
-        }
-
-        let encoder = XCConfigEncoder()
-        return encoder.generate(configs: configs)
-    }
-
-    private var infoPlist: String {
-        """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <plist version="1.0">
-        <dict>
-        <key>CFBundleDevelopmentRegion</key>
-        <string>en</string>
-        <key>CFBundleExecutable</key>
-        <string>$(EXECUTABLE_NAME)</string>
-        <key>CFBundleIdentifier</key>
-        <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-        <key>CFBundleInfoDictionaryVersion</key>
-        <string>6.0</string>
-        <key>CFBundleName</key>
-        <string>$(PRODUCT_NAME)</string>
-        <key>CFBundlePackageType</key>
-        <string>FMWK</string>
-        <key>CFBundleShortVersionString</key>
-        <string>1.0</string>
-        <key>CFBundleSignature</key>
-        <string>????</string>
-        <key>CFBundleVersion</key>
-        <string>$(CURRENT_PROJECT_VERSION)</string>
-        <key>NSPrincipalClass</key>
-        <string></string>
-        </dict>
-        </plist>
-        """
-    }
 }
 
 extension AbsolutePath {
@@ -400,5 +374,9 @@ extension ResolvedTarget {
         case .systemModule, .binary, .plugin:
             fatalError()
         }
+    }
+
+    fileprivate var infoPlistFileName: String {
+        return "\(c99name)_Info.plist"
     }
 }

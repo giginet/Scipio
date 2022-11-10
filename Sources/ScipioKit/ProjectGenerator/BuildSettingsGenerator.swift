@@ -113,19 +113,23 @@ struct ProjectBuildSettingsGenerator {
 
 struct TargetBuildSettingsGenerator {
     private let package: Package
+    private let isDebugSymbolsEmbedded: Bool
+    private let isStaticFramework: Bool
 
-    init(package: Package) {
+    init(package: Package, isDebugSymbolsEmbedded: Bool, isStaticFramework: Bool) {
         self.package = package
+        self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
+        self.isStaticFramework = isStaticFramework
     }
 
     private var sourceRootDir: AbsolutePath {
         package.graph.rootPackages[0].path
     }
 
-    func generate(for target: ResolvedTarget, configuration: BuildConfiguration) -> XCBuildConfiguration {
+    func generate(for target: ResolvedTarget, configuration: BuildConfiguration, infoPlistPath: URL) -> XCBuildConfiguration {
         var settings: [String: XCConfigValue] = [
             "TARGET_NAME": .init(target.name),
-            // "INFOPLIST_FILE": "",
+            "INFOPLIST_FILE": .init(infoPlistPath.relativePath),
             "CURRENT_PROJECT_VERSION": "1",
             "LD_RUNPATH_SEARCH_PATHS": [.inherited, "$(TOOLCHAIN_DIR)/usr/lib/swift/macosx"],
             "OTHER_CFLAGS": [.inherited],
@@ -133,6 +137,7 @@ struct TargetBuildSettingsGenerator {
             "OTHER_SWIFT_FLAGS": [.inherited],
             "SWIFT_ACTIVE_COMPILATION_CONDITIONS": [.inherited],
             "FRAMEWORK_SEARCH_PATHS": [.inherited, "$(PLATFORM_DIR)/Developer/Library/Frameworks"],
+            "BUILD_LIBRARY_FOR_DISTRIBUTION": true,
         ]
 
         for supportedPlatform in target.platforms.derived {
@@ -182,6 +187,14 @@ struct TargetBuildSettingsGenerator {
         }
 
         settings["HEADER_SEARCH_PATHS"] = .init(buildHeaderSearchPaths(for: target))
+
+        if isDebugSymbolsEmbedded {
+            settings["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
+        }
+
+        if isStaticFramework {
+            settings["MACH_O_TYPE"] = "staticlib"
+        }
 
         return .init(
             name: configuration.settingsValue,
