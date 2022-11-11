@@ -256,7 +256,7 @@ class ProjectGenerator {
             productRef = try productGroup.addFile(
                 at: target.productPath.toPath(),
                 sourceTree: .buildProductsDir,
-                sourceRoot: .init(""),
+                sourceRoot: .init("."),
                 validatePresence: false
             )
         } else {

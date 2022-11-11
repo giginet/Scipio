@@ -7,33 +7,42 @@ import class PackageModel.ClangTarget
 import TSCBasic
 import XcodeProj
 
-struct XCConfigValue {
-    static let inherited: Self = .init(rawString: "$(inherited)")
+enum XCConfigValue {
+    case string(String)
+    case list([XCConfigValue])
+    case bool(Bool)
 
-    let rawString: String
+    static let inherited: Self = .string("$(inherited)")
 
-    private init(rawString: String) {
-        self.rawString = rawString
+    var rawString: String {
+        switch self {
+        case .string(let rawString): return rawString
+        case .bool(let bool): return bool ? "YES" : "NO"
+        case .list(let list): return list.map(\.rawString).joined(separator: " ")
+        }
     }
+}
 
-    init(_ rawString: String) {
-        self.rawString = rawString
-    }
-
-    init(_ values: [String]) {
-        self.rawString = values.joined(separator: " ")
+extension XCConfigValue {
+    func appending(_ value: XCConfigValue) -> Self {
+        switch self {
+        case .string, .bool:
+            return .list([self, value])
+        case .list(let currentList):
+            return .list(currentList + [value])
+        }
     }
 }
 
 extension XCConfigValue: ExpressibleByBooleanLiteral {
     init(booleanLiteral value: BooleanLiteralType) {
-        self.rawString = value ? "YES" : "NO"
+        self = .bool(value)
     }
 }
 
 extension XCConfigValue: ExpressibleByStringLiteral {
     init(stringLiteral value: StringLiteralType) {
-        self.rawString = value
+        self = .string(value)
     }
 }
 
@@ -41,7 +50,7 @@ extension XCConfigValue: ExpressibleByArrayLiteral {
     typealias ArrayLiteralElement = XCConfigValue
 
     init(arrayLiteral elements: ArrayLiteralElement...) {
-        self.rawString = elements.map(\.rawString).joined(separator: " ")
+        self = .list(elements)
     }
 }
 
@@ -128,8 +137,8 @@ struct TargetBuildSettingsGenerator {
 
     func generate(for target: ResolvedTarget, configuration: BuildConfiguration, infoPlistPath: URL) -> XCBuildConfiguration {
         var settings: [String: XCConfigValue] = [
-            "TARGET_NAME": .init(target.name),
-            "INFOPLIST_FILE": .init(infoPlistPath.relativePath),
+            "TARGET_NAME": .string(target.name),
+            "INFOPLIST_FILE": .string(infoPlistPath.relativePath),
             "CURRENT_PROJECT_VERSION": "1",
             "LD_RUNPATH_SEARCH_PATHS": [.inherited, "$(TOOLCHAIN_DIR)/usr/lib/swift/macosx"],
             "OTHER_CFLAGS": [.inherited],
@@ -141,7 +150,7 @@ struct TargetBuildSettingsGenerator {
         ]
 
         for supportedPlatform in target.platforms.derived {
-            let version = XCConfigValue(supportedPlatform.version.versionString)
+            let version = XCConfigValue.string(supportedPlatform.version.versionString)
             switch supportedPlatform.platform {
             case .macOS:
                 settings["MACOSX_DEPLOYMENT_TARGET"] = version
@@ -164,7 +173,7 @@ struct TargetBuildSettingsGenerator {
                 "ENABLE_TESTABILITY": true,
                 "PRODUCT_NAME": "$(TARGET_NAME:c99extidentifier)",
                 "PRODUCT_MODULE_NAME": "$(TARGET_NAME:c99extidentifier)",
-                "PRODUCT_BUNDLE_IDENTIFIER": .init(target.c99name.spm_mangledToBundleIdentifier()),
+                "PRODUCT_BUNDLE_IDENTIFIER": .string(target.c99name.spm_mangledToBundleIdentifier()),
                 "SKIP_INSTALL": true,
                 "LD_RUNTIME_SEARCH_PATH": [.inherited, "$(TOOLCHAIN_DIR)/usr/lib/swift/macosx"],
             ])
@@ -183,10 +192,10 @@ struct TargetBuildSettingsGenerator {
         }
 
         if let swiftTarget = target.underlyingTarget as? SwiftTarget {
-            settings["SWIFT_VERSION"] = .init(swiftTarget.swiftVersion.xcodeBuildSettingValue)
+            settings["SWIFT_VERSION"] = .string(swiftTarget.swiftVersion.xcodeBuildSettingValue)
         }
 
-        settings["HEADER_SEARCH_PATHS"] = .init(buildHeaderSearchPaths(for: target))
+        settings["HEADER_SEARCH_PATHS"] = .list(buildHeaderSearchPaths(for: target).map(XCConfigValue.string))
 
         if isDebugSymbolsEmbedded {
             settings["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
