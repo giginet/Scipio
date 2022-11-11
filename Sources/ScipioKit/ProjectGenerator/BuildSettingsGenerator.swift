@@ -58,10 +58,6 @@ struct ProjectBuildSettingsGenerator {
     func generate(configuration: BuildConfiguration) -> XCBuildConfiguration {
         let baseSettings: BuildSettings = commonBuildSettings
 
-        // TODO C Flags
-
-        // TODO Distribution settings
-
         let specificSettings: BuildSettings
         switch configuration {
         case .debug:
@@ -191,8 +187,15 @@ struct TargetBuildSettingsGenerator {
             ])
         }
 
-        if let swiftTarget = target.underlyingTarget as? SwiftTarget {
+        switch target.underlyingTarget {
+        case let swiftTarget as SwiftTarget:
             settings["SWIFT_VERSION"] = .string(swiftTarget.swiftVersion.xcodeBuildSettingValue)
+        case let clangTarget as ClangTarget:
+            settings["GCC_C_LANGUAGE_STANDARD"] = clangTarget.cLanguageStandard.map(XCConfigValue.string)
+            settings["CLANG_CXX_LANGUAGE_STANDARD"] = clangTarget.cxxLanguageStandard.map(XCConfigValue.string)
+            settings["DEFINES_MODULE"] = false
+        default:
+            break
         }
 
         settings["HEADER_SEARCH_PATHS"] = .list(buildHeaderSearchPaths(for: target).map(XCConfigValue.string))
