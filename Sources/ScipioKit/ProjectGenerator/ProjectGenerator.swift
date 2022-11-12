@@ -5,6 +5,7 @@ import AEXML
 import struct TSCBasic.AbsolutePath
 import struct TSCBasic.RelativePath
 import var TSCBasic.localFileSystem
+import func TSCBasic.walk
 import PackageModel
 import Basics
 import PathKit
@@ -92,7 +93,7 @@ class ProjectGenerator {
     private var sourceRoot: AbsolutePath? {
         return package.graph.rootPackages.first?.path
     }
-    
+
     func generate() throws {
         let projectPath = package.projectPath
         let parentDirectoryPath = package.projectPath.deletingLastPathComponent()
@@ -104,8 +105,6 @@ class ProjectGenerator {
         }
         pbxProj.rootObject?.projectDirPath = URL(fileURLWithPath: sourceRootDir.pathString, relativeTo: parentDirectoryPath).path
 
-        // TODO Resources
-
         try generateTargets()
 
         let projectFile = XcodeProj(workspace: .init(),
@@ -114,10 +113,9 @@ class ProjectGenerator {
     }
 
     private func generateTargets() throws {
-        // First, generate all targets
+        // First, generate all library targets
         let targetsToGenerate = package.graph.reachableTargets
-            .filter { $0.type != .systemModule }
-            .filter { $0.type != .test } // Scipio doesn't care test targets
+            .filter { $0.type == .library }
             .sorted { $0.name < $1.name }
         let xcodeTargets: [ResolvedTarget: PBXTarget] = try targetsToGenerate.reduce(into: [:]) { targets, target in
             let xcodeTarget = addObject(
@@ -152,6 +150,8 @@ class ProjectGenerator {
                 PBXFrameworksBuildPhase(files: linkReferences)
             )
             xcodeTarget.buildPhases.append(linkPhase)
+
+            // TODO Add -fmodule-map-file for Swift targets
         }
     }
 
@@ -230,8 +230,11 @@ class ProjectGenerator {
             )
         )
 
-        // TODO : Add the `include` group for a library C language target.
-        // TODO : modulemaps related settings
+        if let clangTarget = target.underlyingTarget as? ClangTarget {
+            try applyClangTargetSpecificSettings(for: clangTarget, targetGroup: targetRootGroup)
+        }
+
+        // TODO Add Resources
 
         return PBXNativeTarget(name: target.c99name,
                                buildConfigurationList: buildConfigurationList,
@@ -240,8 +243,31 @@ class ProjectGenerator {
                                productType: productType)
     }
 
-    private func applyClangTargetSpecificSettings(for target: ClangTarget) {
+    private func applyClangTargetSpecificSettings(for target: ClangTarget, targetGroup: PBXGroup) throws {
         let includeDir = target.includeDir
+        let includeGroup = try group(for: includeDir,
+                                     parentGroup: targetGroup,
+                                     sourceRoot: target.sources.root)
+        for header in try walk(includeDir) where header.extension == "h" {
+            let subGroup = try self.group(
+                for: header.parentDirectory,
+                parentGroup: includeGroup,
+                sourceRoot: includeDir
+            )
+            try subGroup.addFile(at: header.toPath(),
+                                 sourceRoot: includeDir.toPath())
+
+            switch target.moduleMapType {
+            case .custom(let path):
+                break
+            case .umbrellaHeader(let path):
+                break
+            case .umbrellaDirectory(let path):
+                break
+            case .none:
+                break
+            }
+        }
     }
 
     /// Helper function to create or get group recursively

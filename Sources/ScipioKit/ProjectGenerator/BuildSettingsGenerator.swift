@@ -200,6 +200,13 @@ struct TargetBuildSettingsGenerator {
 
         settings["HEADER_SEARCH_PATHS"] = .list(buildHeaderSearchPaths(for: target).map(XCConfigValue.string))
 
+        // TODO Set pkgConfigs for SystemLibraryTarget
+        //                for pkgArgs in pkgConfigArgs(for: systemTarget, fileSystem: fileSystem, observabilityScope: observabilityScope) {
+        //                    targetSettings.common.OTHER_LDFLAGS += pkgArgs.libs
+        //                    targetSettings.common.OTHER_SWIFT_FLAGS += pkgArgs.cFlags
+        //                    targetSettings.common.OTHER_CFLAGS += pkgArgs.cFlags
+        //                }
+
         if isDebugSymbolsEmbedded {
             settings["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
         }
@@ -223,12 +230,7 @@ struct TargetBuildSettingsGenerator {
             switch dependencyModule.underlyingTarget {
               case let systemTarget as SystemLibraryTarget:
                 headerSearchPaths.append("$(SRCROOT)/\(systemTarget.path.relative(to: sourceRootDir).pathString)")
-//                for pkgArgs in pkgConfigArgs(for: systemTarget, fileSystem: fileSystem, observabilityScope: observabilityScope) {
-//                    targetSettings.common.OTHER_LDFLAGS += pkgArgs.libs
-//                    targetSettings.common.OTHER_SWIFT_FLAGS += pkgArgs.cFlags
-//                    targetSettings.common.OTHER_CFLAGS += pkgArgs.cFlags
-//                }
-            case let clangTarget as ClangTarget:
+              case let clangTarget as ClangTarget:
                 headerSearchPaths.append("$(SRCROOT)/\(clangTarget.includeDir.relative(to: sourceRootDir).pathString)")
               default:
                 continue
