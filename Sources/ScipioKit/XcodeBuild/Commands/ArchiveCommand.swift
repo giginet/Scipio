@@ -14,7 +14,7 @@ struct ArchiveCommand: XcodeBuildCommand {
         [
             ("project", projectPath.path),
             ("configuration", buildConfiguration.settingsValue),
-            ("scheme", target.name),
+            ("scheme", target.c99name),
             ("archivePath", xcArchivePath.path),
             ("destination", sdk.destination),
         ].map(XcodeBuildOption.init(key:value:))

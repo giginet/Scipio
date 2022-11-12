@@ -114,11 +114,8 @@ class ProjectGenerator {
         return object
     }
 
-    private var sourceRootPath: URL? {
-        guard let sourceRoot = package.graph.rootPackages.first?.path else {
-            return nil
-        }
-        return URL(fileURLWithPath: sourceRoot.pathString)
+    private var sourceRoot: AbsolutePath? {
+        return package.graph.rootPackages.first?.path
     }
 
     @discardableResult
@@ -132,26 +129,6 @@ class ProjectGenerator {
             throw Error.invalidPackage
         }
         pbxProj.rootObject?.projectDirPath = URL(fileURLWithPath: sourceRootDir.pathString, relativeTo: parentDirectoryPath).path
-
-        guard let mainGroup = pbxProj.rootObject?.mainGroup else {
-            throw Error.unknownError
-        }
-
-        // Dependencies
-        let externalPackages = package.graph.packages.filter({ !package.graph.rootPackages.contains($0) })
-        if !externalPackages.isEmpty {
-            let dependenciesGroup = addObject(
-                PBXGroup(sourceTree: .group,
-                         name: "Dependencies",
-                         path: nil)
-            )
-            mainGroup.addChild(dependenciesGroup)
-
-            for package in externalPackages {
-                let targets = package.targets.filter { $0.type != .test }
-                try createSources(for: targets, in: dependenciesGroup)
-            }
-        }
 
         // TODO Resources
 
@@ -258,19 +235,26 @@ class ProjectGenerator {
             productRef = nil
         }
 
-        guard let sourceRootPath = sourceRootPath else {
+        guard let sourceRoot = sourceRoot else {
             throw Error.unknownError
         }
 
-        let fileReferences = try target.sources.paths.map { sourcePath in
-            let directoryPath = URL(fileURLWithPath: sourcePath.pathString).deletingLastPathComponent()
+        guard let mainGroup = pbxProj.rootObject?.mainGroup else {
+            throw Error.unknownError
+        }
 
-            let group = try group(for: directoryPath)
-            let relativePath = URL(fileURLWithPath: sourcePath.pathString, relativeTo: sourceRootPath)
+        let targetRootGroup = try mainGroup.addGroup(named: target.name, options: .withoutFolder).first!
+
+        let fileReferences = try target.sources.paths.map { sourcePath in
+           let group = try self.group(
+                for: sourcePath.parentDirectory,
+                parentGroup: targetRootGroup,
+                sourceRoot: target.sources.root
+            )
             return try group.addFile(
-                at: Path(relativePath.path),
+                at: sourcePath.toPath(),
                 sourceTree: .sourceRoot,
-                sourceRoot: Path(sourceRootPath.path)
+                sourceRoot: sourceRoot.toPath()
             )
         }
 
@@ -298,41 +282,23 @@ class ProjectGenerator {
         let includeDir = target.includeDir
     }
 
-    private func createSources(for targets: [ResolvedTarget], in parentGroup: PBXGroup) throws {
-        for target in targets {
-            let sourceRoot = target.sources.root
-            let targetGroup = addObject(
-                PBXGroup(
-                    children: [],
-                    sourceTree: .group,
-                    name: target.name,
-                    path: sourceRoot.pathString
-                )
-            )
-            parentGroup.addChild(targetGroup)
+    private func group(
+        for path: AbsolutePath,
+        parentGroup: PBXGroup,
+        sourceRoot: AbsolutePath
+    ) throws -> PBXGroup {
+        let groupName = path.components.last!
+        let relativePath = path.relative(to: sourceRoot)
+        let pathComponents = relativePath.components.filter { !["."].contains($0) }
 
-            for sourcePath in target.sources.paths {
-                let url = URL(fileURLWithPath: sourcePath.pathString)
-                let group = try group(for: url)
-            }
-        }
-    }
-
-    private func group(for path: URL) throws -> PBXGroup {
-        guard let sourceRoot = sourceRootPath else {
-            throw Error.invalidPackage
-        }
-
-        if path == sourceRoot {
-            return pbxProj.rootObject!.mainGroup
+        if let nextPathComponent = pathComponents.first {
+            let nextSourceRoot = sourceRoot.appending(component: nextPathComponent)
+            return try group(for: path, parentGroup: parentGroup, sourceRoot: nextSourceRoot)
         } else {
-            let groupName = path.lastPathComponent
-            let parentDir = path.deletingLastPathComponent()
-            let parentGroup = try group(for: parentDir)
             if let existingGroup = parentGroup.group(named: groupName) {
                 return existingGroup
             } else {
-                return try parentGroup.addGroup(named: groupName).first!
+                return parentGroup
             }
         }
     }
