@@ -9,53 +9,20 @@ import PackageModel
 import Basics
 import PathKit
 
-private var infoPlist: String {
-    """
-    <?xml version="1.0" encoding="UTF-8"?>
-    <plist version="1.0">
-    <dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
-    <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
-    <key>CFBundleIdentifier</key>
-    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
-    <key>CFBundlePackageType</key>
-    <string>FMWK</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>CFBundleSignature</key>
-    <string>????</string>
-    <key>CFBundleVersion</key>
-    <string>$(CURRENT_PROJECT_VERSION)</string>
-    <key>NSPrincipalClass</key>
-    <string></string>
-    </dict>
-    </plist>
-    """
-}
-
 class ProjectGenerator {
     private let package: Package
     private let pbxProj: PBXProj
     private let fileSystem: any FileSystem
 
-    private let isDebugSymbolsEmbedded: Bool
-    private let frameworkType: FrameworkType
+    private let buildOptions: BuildOptions
 
     init(
         package: Package,
-        isDebugSymbolsEmbedded: Bool,
-        frameworkType: FrameworkType,
+        buildOptions: BuildOptions,
         fileSystem: any FileSystem = localFileSystem
     ) {
         self.package = package
-        self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
-        self.frameworkType = frameworkType
+        self.buildOptions = buildOptions
         self.pbxProj = .init()
         self.fileSystem = fileSystem
     }
@@ -83,22 +50,30 @@ class ProjectGenerator {
                     debugConfiguration,
                     releaseConfiguration,
                 ],
-                defaultConfigurationName: "Debug", // TODO
+                defaultConfigurationName: buildOptions.buildConfiguration.settingsValue,
                 defaultConfigurationIsVisible: true
             )
         )
+
+        let productGroup = addObject(
+            PBXGroup(
+                sourceTree: .buildProductsDir,
+                name: "Products",
+                path: nil
+            )
+        )
+
         let rootObject = addObject(
             PBXProject(
-                name: "GeneratedProject",
+                name: package.manifest.displayName,
                 buildConfigurationList: buildConfigurationList,
                 compatibilityVersion: "Xcode 11.0",
-                mainGroup: mainGroup
+                mainGroup: mainGroup,
+                productsGroup: productGroup
             )
         )
         pbxProj.rootObject = rootObject
-    }
-
-    struct Result {
+        
     }
 
     enum Error: LocalizedError {
@@ -117,9 +92,8 @@ class ProjectGenerator {
     private var sourceRoot: AbsolutePath? {
         return package.graph.rootPackages.first?.path
     }
-
-    @discardableResult
-    func generate() throws -> Result {
+    
+    func generate() throws {
         let projectPath = package.projectPath
         let parentDirectoryPath = package.projectPath.deletingLastPathComponent()
 
@@ -132,23 +106,11 @@ class ProjectGenerator {
 
         // TODO Resources
 
-        // Products
-        let productGroup = addObject(
-            PBXGroup(
-                sourceTree: .buildProductsDir,
-                name: "Products",
-                path: nil
-            )
-        )
-        pbxProj.rootObject?.productsGroup = productGroup
-
         try generateTargets()
 
         let projectFile = XcodeProj(workspace: .init(),
                                     pbxproj: pbxProj)
         try projectFile.write(pathString: projectPath.path, override: true)
-
-        return .init()
     }
 
     private func generateTargets() throws {
@@ -196,8 +158,8 @@ class ProjectGenerator {
     private func makeTarget(for target: ResolvedTarget) throws -> PBXNativeTarget {
         let targetSettingsGenerator = TargetBuildSettingsGenerator(
             package: package,
-            isDebugSymbolsEmbedded: isDebugSymbolsEmbedded,
-            isStaticFramework: frameworkType == .static
+            isDebugSymbolsEmbedded: buildOptions.isDebugSymbolsEmbedded,
+            isStaticFramework: buildOptions.frameworkType == .static
         )
 
         let productType: PBXProductType
@@ -282,6 +244,7 @@ class ProjectGenerator {
         let includeDir = target.includeDir
     }
 
+    /// Helper function to create or get group recursively
     private func group(
         for path: AbsolutePath,
         parentGroup: PBXGroup,
@@ -340,4 +303,34 @@ extension ResolvedTarget {
     fileprivate var infoPlistFileName: String {
         return "\(c99name)_Info.plist"
     }
+}
+
+private var infoPlist: String {
+    """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <plist version="1.0">
+    <dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>FMWK</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>NSPrincipalClass</key>
+    <string></string>
+    </dict>
+    </plist>
+    """
 }
