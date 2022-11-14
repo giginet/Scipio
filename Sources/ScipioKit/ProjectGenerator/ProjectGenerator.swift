@@ -6,6 +6,8 @@ import struct TSCBasic.AbsolutePath
 import struct TSCBasic.RelativePath
 import var TSCBasic.localFileSystem
 import func TSCBasic.walk
+import struct PackageLoading.ModuleMapGenerator
+import enum PackageLoading.GeneratedModuleMapType
 import PackageModel
 import Basics
 import PathKit
@@ -117,13 +119,21 @@ class ProjectGenerator {
         let targetsToGenerate = package.graph.reachableTargets
             .filter { $0.type == .library }
             .sorted { $0.name < $1.name }
-        let xcodeTargets: [ResolvedTarget: PBXTarget] = try targetsToGenerate.reduce(into: [:]) { targets, target in
+        let xcodeTargets: [ResolvedTarget: PBXNativeTarget] = try targetsToGenerate.reduce(into: [:]) { targets, target in
             let xcodeTarget = addObject(
                 try makeTarget(for: target)
             )
             targets[target] = xcodeTarget
         }
         xcodeTargets.values.forEach { self.pbxProj.rootObject?.targets.append($0) }
+
+        let clangTargets = xcodeTargets.map({ ($0.key.underlyingTarget as? ClangTarget, $0.value) })
+        let moduleMaps = try clangTargets.compactMap { clangTarget, xcodeTarget in
+            if let clangTarget {
+                return try applyClangTargetSpecificSettings(for: clangTarget, xcodeTarget: xcodeTarget, targetGroup: pbxProj.rootGroup()!)
+            }
+            return nil
+        }
 
         // Make LinkPhase for each Xcode targets
         for (target, xcodeTarget) in xcodeTargets {
@@ -230,10 +240,6 @@ class ProjectGenerator {
             )
         )
 
-        if let clangTarget = target.underlyingTarget as? ClangTarget {
-            try applyClangTargetSpecificSettings(for: clangTarget, targetGroup: targetRootGroup)
-        }
-
         // TODO Add Resources
 
         return PBXNativeTarget(name: target.c99name,
@@ -243,31 +249,71 @@ class ProjectGenerator {
                                productType: productType)
     }
 
-    private func applyClangTargetSpecificSettings(for target: ClangTarget, targetGroup: PBXGroup) throws {
-        let includeDir = target.includeDir
+    private func applyClangTargetSpecificSettings(for clangTarget: ClangTarget, xcodeTarget: PBXNativeTarget, targetGroup: PBXGroup) throws -> AbsolutePath? {
+        let includeDir = clangTarget.includeDir
         let includeGroup = try group(for: includeDir,
                                      parentGroup: targetGroup,
-                                     sourceRoot: target.sources.root)
-        for header in try walk(includeDir) where header.extension == "h" {
-            let subGroup = try self.group(
+                                     sourceRoot: clangTarget.sources.root)
+        let headerFiles = try walk(includeDir).filter { $0.extension == "h" }
+        var headerFileRefs: [PBXFileReference] = []
+        for header in headerFiles {
+            let includeGroup = try self.group(
                 for: header.parentDirectory,
                 parentGroup: includeGroup,
                 sourceRoot: includeDir
             )
-            try subGroup.addFile(at: header.toPath(),
-                                 sourceRoot: includeDir.toPath())
-
-            switch target.moduleMapType {
-            case .custom(let path):
-                break
-            case .umbrellaHeader(let path):
-                break
-            case .umbrellaDirectory(let path):
-                break
-            case .none:
-                break
-            }
+            let fileRef = try includeGroup.addFile(at: header.toPath(),
+                                                   sourceRoot: includeDir.toPath())
+            headerFileRefs.append(fileRef)
         }
+        return try prepareModuleMap(for: clangTarget, xcodeTarget: xcodeTarget, includeFileRefs: headerFileRefs)
+    }
+
+    private func prepareModuleMap(for clangTarget: ClangTarget, xcodeTarget: PBXNativeTarget, includeFileRefs: [PBXFileReference]) throws -> AbsolutePath? {
+        let headerFiles = try walk(clangTarget.includeDir).filter { $0.extension == "h" }
+
+        let hasUmbrellaHeader = headerFiles
+            .map { $0.basenameWithoutExt }
+            .contains(clangTarget.c99name)
+
+        if case .custom(let path) = clangTarget.moduleMapType {
+            return path
+        } else if hasUmbrellaHeader {
+            let files = includeFileRefs.map { fileRef in
+                PBXBuildFile(file: fileRef, settings: ["ATTRIBUTES": "Public"])
+            }
+            let headerPhase = addObject(
+                PBXHeadersBuildPhase(files: files)
+            )
+
+            xcodeTarget.buildPhases.append(headerPhase)
+            return nil
+        } else if let generatedModuleMapType = clangTarget.moduleMapType.generatedModuleMapType {
+            let generatedModuleMapPath = try generateModuleMap(for: clangTarget, moduleMapType: generatedModuleMapType)
+            return generatedModuleMapPath
+        }
+        return nil
+    }
+
+    private func generateModuleMap(for clangTarget: ClangTarget, moduleMapType: GeneratedModuleMapType) throws -> AbsolutePath {
+        let fileSystem = TSCBasic.localFileSystem
+        let moduleMapPath = try AbsolutePath(validating: package.projectPath.path)
+            .appending(components: "GeneratedModuleMap", clangTarget.c99name, "module.modulemap")
+        try fileSystem.createDirectory(moduleMapPath, recursive: true)
+
+        let moduleMapGenerator = ModuleMapGenerator(
+            targetName: clangTarget.name,
+            moduleName: clangTarget.c99name,
+            publicHeadersDir: clangTarget.includeDir,
+            fileSystem: fileSystem
+        )
+        try moduleMapGenerator.generateModuleMap(type: moduleMapType,
+                                                 at: moduleMapPath)
+        return moduleMapPath
+    }
+
+    private func link(to moduleMap: AbsolutePath) throws {
+
     }
 
     /// Helper function to create or get group recursively
