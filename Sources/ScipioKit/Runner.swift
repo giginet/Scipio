@@ -139,7 +139,15 @@ public struct Runner {
 
         let generator = ProjectGenerator(package: package,
                                          buildOptions: buildOptions)
-        try generator.generate()
+        do {
+            try generator.generate()
+        } catch let error as LocalizedError {
+            logger.error("""
+                Project generation is failed:
+                \(error.errorDescription ?? "Unknown reason")
+            """)
+            throw error
+        }
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
 

@@ -80,9 +80,23 @@ class ProjectGenerator {
     }
 
     enum Error: LocalizedError {
-        case invalidPackage
-        case notSupported(PackageModel.Target.Kind)
+        case invalidPackage(packageName: String)
+        case notSupportedTarget(targetName: String, kind: PackageModel.Target.Kind)
+        case localizationNotSupported(targetName: String)
         case unknownError
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidPackage(let packageName):
+                return "\(packageName) is invalid package"
+            case .notSupportedTarget(let targetName, let kind):
+                return "\(kind) is not supported.(\(targetName)"
+            case .localizationNotSupported(let targetName):
+                return "\(targetName) has localized resources but localized resources are not supported yet"
+            case .unknownError:
+                return "Unknown errors are occurred"
+            }
+        }
     }
 
     @discardableResult
@@ -103,7 +117,7 @@ class ProjectGenerator {
         preparePBXProj()
 
         guard let sourceRootDir = package.graph.rootPackages.first?.path else {
-            throw Error.invalidPackage
+            throw Error.invalidPackage(packageName: package.name)
         }
         pbxProj.rootObject?.projectDirPath = URL(fileURLWithPath: sourceRootDir.pathString, relativeTo: parentDirectoryPath).path
 
@@ -197,7 +211,7 @@ class ProjectGenerator {
         case .test:
             productType = .unitTestBundle
         case .binary, .systemModule, .plugin:
-            throw Error.notSupported(target.type)
+            throw Error.notSupportedTarget(targetName: target.name, kind: target.type)
         }
 
         // Generate Info.plist
@@ -256,13 +270,46 @@ class ProjectGenerator {
             )
         )
 
-        // TODO Add Resources
+        let resourcePhase = addObject(
+            try makeResourcePhase(for: target, targetGroup: targetGroup)
+        )
+
+        // TODO generate resource accessor
+        // https://github.com/apple/swift-package-manager/blob/29a16bc2dc0ef72b7044c1dc6236236e3d0120e0/Sources/Build/BuildPlan.swift#L806-L852
 
         return PBXNativeTarget(name: target.c99name,
                                buildConfigurationList: buildConfigurationList,
-                               buildPhases: [compilePhase],
+                               buildPhases: [compilePhase, resourcePhase],
                                product: productRef,
                                productType: productType)
+    }
+
+    private func makeResourcePhase(for target: ResolvedTarget, targetGroup: PBXGroup) throws -> PBXResourcesBuildPhase {
+        guard let sourceRoot else {
+            throw Error.invalidPackage(packageName: package.name)
+        }
+
+        let resourcesReferences: [PBXFileReference] = try target.underlyingTarget.resources.reduce([]) { lists, resource in
+            let resourcesGroup = try targetGroup.addGroup(named: "Resources").first!
+
+            switch resource.rule {
+            case .process(let localization):
+                guard localization == nil else {
+                    throw Error.localizationNotSupported(targetName: target.name)
+                }
+            case .copy:
+                break
+            }
+
+            let files = try walk(resource.path)
+            return try files.map { file in
+                return try resourcesGroup.addFile(at: resource.path.toPath(), sourceRoot: sourceRoot.toPath())
+            } + lists
+        }
+
+        let buildFiles = resourcesReferences.map { PBXBuildFile(file: $0) }
+
+        return PBXResourcesBuildPhase(files: buildFiles)
     }
 
     private func applyClangTargetSpecificSettings(for clangTarget: ClangTarget, xcodeTarget: PBXNativeTarget) throws -> AbsolutePath? {
