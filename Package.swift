@@ -16,8 +16,10 @@ let package = Package(
             targets: ["ScipioKit"]),
     ],
     dependencies: [
+        // A revision after Xcodeproj module is removed
+        // https://github.com/apple/swift-package-manager/pull/5748
         .package(url: "https://github.com/apple/swift-package-manager.git",
-                 revision: "f28c338b83aad6e86bdf6ef50722e24f84eaf286"),
+                 revision: "swift-DEVELOPMENT-SNAPSHOT-2022-11-12-a"),
         .package(url: "https://github.com/apple/swift-log.git",
                  .upToNextMinor(from: "1.4.2")),
         .package(url: "https://github.com/apple/swift-argument-parser.git", 
