@@ -76,7 +76,7 @@ class ProjectGenerator {
             )
         )
         pbxProj.rootObject = rootObject
-        
+
     }
 
     enum Error: LocalizedError {
@@ -189,7 +189,10 @@ class ProjectGenerator {
                     guard let moduleMapPath = moduleMaps[dependency] else { continue }
                     let relativePath = moduleMapPath.relative(to: sourceRoot!)
                     xcodeTarget.buildConfigurationList?.buildConfigurations.forEach { configuration in
-                        configuration.buildSettings = configuration.buildSettings.appending("OTHER_SWIFT_FLAGS", "-Xcc", "-fmodule-map-file=$(SRCROOT)/\(relativePath.pathString)")
+                        configuration.buildSettings = configuration.buildSettings.appending(
+                            "OTHER_SWIFT_FLAGS",
+                            values: "-Xcc", "-fmodule-map-file=$(SRCROOT)/\(relativePath.pathString)"
+                        )
                     }
                 }
             }
@@ -203,15 +206,7 @@ class ProjectGenerator {
             isStaticFramework: buildOptions.frameworkType == .static
         )
 
-        let productType: PBXProductType
-        switch target.type {
-        case .executable, .snippet:
-            productType = .commandLineTool
-        case .library:
-            productType = .framework
-        case .test:
-            productType = .unitTestBundle
-        case .binary, .systemModule, .plugin:
+        guard let productType = target.xcodeProductType else {
             throw Error.unsupportedTarget(targetName: target.name, kind: target.type)
         }
 
@@ -272,7 +267,11 @@ class ProjectGenerator {
         )
 
         if !target.underlyingTarget.resources.isEmpty {
-            logger.warning("🚧 \(target.name) has resources. However, resource support is currently partial yet. You can't use `Bundle.module` using Scipio")
+            logger.warning(
+            """
+            🚧 \(target.name) has resources. However, resource support is currently partial yet.
+            You can't use `Bundle.module` using Scipio
+            """)
         }
 
         let resourcePhase = addObject(
@@ -308,7 +307,7 @@ class ProjectGenerator {
 
             let files = try walk(resource.path)
             return try files.map { file in
-                return try resourcesGroup.addFile(at: resource.path.toPath(), sourceRoot: sourceRoot.toPath())
+                return try resourcesGroup.addFile(at: file.toPath(), sourceRoot: sourceRoot.toPath())
             } + lists
         }
 
@@ -344,7 +343,11 @@ class ProjectGenerator {
         return moduleMapPath
     }
 
-    private func prepareModuleMap(for clangTarget: ClangTarget, xcodeTarget: PBXNativeTarget, includeFileRefs: [PBXFileReference]) throws -> AbsolutePath? {
+    private func prepareModuleMap(
+        for clangTarget: ClangTarget,
+        xcodeTarget: PBXNativeTarget,
+        includeFileRefs: [PBXFileReference]
+    ) throws -> AbsolutePath? {
         let headerFiles = try walk(clangTarget.includeDir).filter { $0.extension == "h" }
 
         let hasUmbrellaHeader = headerFiles
@@ -390,9 +393,11 @@ class ProjectGenerator {
     private func link(to moduleMap: AbsolutePath) throws {
 
     }
+}
 
+extension ProjectGenerator {
     /// Helper function to create or get group recursively
-    private func group(
+    fileprivate func group(
         for path: AbsolutePath,
         parentGroup: PBXGroup,
         sourceRoot: AbsolutePath
@@ -405,7 +410,7 @@ class ProjectGenerator {
         }
     }
 
-    private func createOrGetGroup(named groupName: String, in parentGroup: PBXGroup, path: AbsolutePath) -> PBXGroup {
+    fileprivate func createOrGetGroup(named groupName: String, in parentGroup: PBXGroup, path: AbsolutePath) -> PBXGroup {
         if let existingGroup = parentGroup.group(named: groupName) {
             return existingGroup
         } else {
@@ -453,6 +458,19 @@ extension ResolvedTarget {
 
     fileprivate var infoPlistFileName: String {
         return "\(c99name)_Info.plist"
+    }
+
+    fileprivate var xcodeProductType: PBXProductType? {
+        switch type {
+        case .executable, .snippet:
+            return .commandLineTool
+        case .library:
+            return .framework
+        case .test:
+            return .unitTestBundle
+        case .binary, .systemModule, .plugin:
+            return nil
+        }
     }
 }
 

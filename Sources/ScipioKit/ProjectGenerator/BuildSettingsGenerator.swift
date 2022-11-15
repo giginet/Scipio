@@ -120,10 +120,9 @@ struct TargetBuildSettingsGenerator {
         package.graph.rootPackages[0].path
     }
 
-    func generate(for target: ResolvedTarget, configuration: BuildConfiguration, infoPlistPath: URL) -> XCBuildConfiguration {
-        var settings: [String: XCConfigValue] = [
+    private func baseSettings(for target: ResolvedTarget) -> [String: XCConfigValue] {
+        return [
             "TARGET_NAME": .string(target.name),
-            "INFOPLIST_FILE": .string(infoPlistPath.relativePath),
             "CURRENT_PROJECT_VERSION": "1",
             "LD_RUNPATH_SEARCH_PATHS": [.inherited, "$(TOOLCHAIN_DIR)/usr/lib/swift/macosx"],
             "OTHER_CFLAGS": [.inherited],
@@ -133,6 +132,11 @@ struct TargetBuildSettingsGenerator {
             "FRAMEWORK_SEARCH_PATHS": [.inherited, "$(PLATFORM_DIR)/Developer/Library/Frameworks"],
             "BUILD_LIBRARY_FOR_DISTRIBUTION": true,
         ]
+    }
+
+    func generate(for target: ResolvedTarget, configuration: BuildConfiguration, infoPlistPath: URL) -> XCBuildConfiguration {
+        var settings: [String: XCConfigValue] = baseSettings(for: target)
+        settings["INFOPLIST_FILE"] = .string(infoPlistPath.relativePath)
 
         for supportedPlatform in target.platforms.derived {
             let version = XCConfigValue.string(supportedPlatform.version.versionString)
@@ -166,13 +170,13 @@ struct TargetBuildSettingsGenerator {
             settings.merge([
                 "CLANG_ENABLE_MODULES": true,
                 "EMBEDDED_CONTENT_CONTAINS_SWIFT": true,
-                "LD_RUNPATH_SEARCH_PATHS": [.inherited, "@loader_path/../Frameworks", "@loader_path/Frameworks"]
+                "LD_RUNPATH_SEARCH_PATHS": [.inherited, "@loader_path/../Frameworks", "@loader_path/Frameworks"],
             ])
         default:
             settings.merge([
                 "SWIFT_FORCE_STATIC_LINK_STDLIB": false,
                 "SWIFT_FORCE_DYNAMIC_LINK_STDLIB": true,
-                "LD_RUNTIME_SEARCH_PATH": [.inherited, "$(TOOLCHAIN_DIR)/usr/lib/swift/macosx", "@executable_path"]
+                "LD_RUNTIME_SEARCH_PATH": [.inherited, "$(TOOLCHAIN_DIR)/usr/lib/swift/macosx", "@executable_path"],
             ])
         }
 
@@ -188,13 +192,6 @@ struct TargetBuildSettingsGenerator {
         }
 
         settings["HEADER_SEARCH_PATHS"] = .list(buildHeaderSearchPaths(for: target).map(XCConfigValue.string))
-
-        // TODO Set pkgConfigs for SystemLibraryTarget
-        //                for pkgArgs in pkgConfigArgs(for: systemTarget, fileSystem: fileSystem, observabilityScope: observabilityScope) {
-        //                    targetSettings.common.OTHER_LDFLAGS += pkgArgs.libs
-        //                    targetSettings.common.OTHER_SWIFT_FLAGS += pkgArgs.cFlags
-        //                    targetSettings.common.OTHER_CFLAGS += pkgArgs.cFlags
-        //                }
 
         if isDebugSymbolsEmbedded {
             settings["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
@@ -217,11 +214,11 @@ struct TargetBuildSettingsGenerator {
         }
         for dependencyModule in [target] + targetDependencies {
             switch dependencyModule.underlyingTarget {
-              case let systemTarget as SystemLibraryTarget:
+            case let systemTarget as SystemLibraryTarget:
                 headerSearchPaths.append("$(SRCROOT)/\(systemTarget.path.relative(to: sourceRootDir).pathString)")
-              case let clangTarget as ClangTarget:
+            case let clangTarget as ClangTarget:
                 headerSearchPaths.append("$(SRCROOT)/\(clangTarget.includeDir.relative(to: sourceRootDir).pathString)")
-              default:
+            default:
                 continue
             }
         }
@@ -253,9 +250,9 @@ extension SwiftLanguageVersion {
 }
 
 extension BuildSettings {
-    func appending(_ key: String, _ values: String...) -> Self {
+    func appending(_ key: String, values: String...) -> Self {
         var newDictionary = self
-        switch newDictionary[key, default: Array<String>()] {
+        switch newDictionary[key, default: [String]()] {
         case var list as [String]:
             list.append(contentsOf: values)
             newDictionary[key] = list

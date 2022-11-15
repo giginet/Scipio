@@ -57,9 +57,18 @@ final class ProjectGeneratorTests: XCTestCase {
         for target in targets {
             XCTAssertEqual(target.buildConfigurationList?.buildConfigurations.map(\.name), ["Debug", "Release"])
             for configuration in target.buildConfigurationList!.buildConfigurations {
-                XCTAssertEqual(configuration.buildSettings["MACH_O_TYPE"] as! String, "staticlib", "If frameworkType is static, MACH_O_TYPE should be set")
-                XCTAssertEqual(configuration.buildSettings["BUILD_LIBRARY_FOR_DISTRIBUTION"] as! String, "YES")
-                XCTAssertEqual(configuration.buildSettings["FRAMEWORK_SEARCH_PATHS"] as! [String], ["$(inherited)", "$(PLATFORM_DIR)/Developer/Library/Frameworks"])
+                XCTAssertEqual(
+                    configuration.buildSettings["MACH_O_TYPE"] as? String,
+                    "staticlib", "If frameworkType is static, MACH_O_TYPE should be set"
+                )
+                XCTAssertEqual(
+                    configuration.buildSettings["BUILD_LIBRARY_FOR_DISTRIBUTION"] as? String,
+                    "YES"
+                )
+                XCTAssertEqual(
+                    configuration.buildSettings["FRAMEWORK_SEARCH_PATHS"] as? [String],
+                    ["$(inherited)", "$(PLATFORM_DIR)/Developer/Library/Frameworks"]
+                )
             }
         }
     }
