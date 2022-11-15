@@ -216,7 +216,7 @@ class ProjectGenerator {
         }
 
         // Generate Info.plist
-        let plistPath = package.projectPath.appendingPathComponent(target.infoPlistFileName)
+        let plistPath = package.buildDirectory.appendingPathComponent(target.infoPlistFileName)
         fileSystem.write(infoPlist.data(using: .utf8)!, to: plistPath)
 
         let buildConfigurationList = addObject(

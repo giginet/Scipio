@@ -76,7 +76,6 @@ struct Compiler<E: Executor> {
                             try fileSystem.removeFileTree(at: xcframeworkPath)
                         }
                     }
-                    try fileSystem.removeFileTree(at: xcframeworkPath)
                 }
 
                 let frameworkPath = outputDir.appendingPathComponent(frameworkName)
