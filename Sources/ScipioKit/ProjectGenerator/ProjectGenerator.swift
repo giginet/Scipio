@@ -389,10 +389,6 @@ class ProjectGenerator {
                                                  at: moduleMapPath)
         return moduleMapPath
     }
-
-    private func link(to moduleMap: AbsolutePath) throws {
-
-    }
 }
 
 extension ProjectGenerator {
