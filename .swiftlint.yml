@@ -19,4 +19,4 @@ cyclomatic_complexity:
 trailing_comma:
   mandatory_comma: true
 type_body_length:
-  warning: 500
+  warning: 300
