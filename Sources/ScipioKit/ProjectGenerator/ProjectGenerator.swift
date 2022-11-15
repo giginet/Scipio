@@ -146,7 +146,7 @@ class ProjectGenerator {
         let moduleMaps: [ResolvedTarget: AbsolutePath] = try xcodeTargets.reduce(into: [:]) { (collection, tuple) in
             let (target, xcodeTarget) = tuple
             if let clangTarget = target.underlyingTarget as? ClangTarget {
-                if let moduleMapPath = try applyClangTargetSpecificSettings(for: clangTarget, xcodeTarget: xcodeTarget) {
+                if let moduleMapPath = try applyClangTargetSpecificSettings(for: clangTarget, xcodeTarget: xcodeTarget).moduleMapPath {
                     collection[target] = moduleMapPath
                 }
             }
@@ -316,7 +316,11 @@ class ProjectGenerator {
         return PBXResourcesBuildPhase(files: buildFiles)
     }
 
-    private func applyClangTargetSpecificSettings(for clangTarget: ClangTarget, xcodeTarget: PBXNativeTarget) throws -> AbsolutePath? {
+    private struct ClangTargetSettingResult {
+        var moduleMapPath: AbsolutePath?
+    }
+
+    private func applyClangTargetSpecificSettings(for clangTarget: ClangTarget, xcodeTarget: PBXNativeTarget) throws -> ClangTargetSettingResult {
         guard let mainGroup = pbxProj.rootObject?.mainGroup else {
             throw Error.unknownError
         }
@@ -340,7 +344,7 @@ class ProjectGenerator {
             try targetGroup.addFile(at: moduleMapPath.toPath(),
                                     sourceRoot: includeDir.toPath())
         }
-        return moduleMapPath
+        return .init(moduleMapPath: moduleMapPath)
     }
 
     private func prepareModuleMap(
