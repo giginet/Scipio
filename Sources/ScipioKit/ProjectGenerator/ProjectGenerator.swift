@@ -174,7 +174,7 @@ class ProjectGenerator {
                     guard let moduleMapPath = moduleMaps[dependency] else { continue }
                     let relativePath = moduleMapPath.relative(to: sourceRoot!)
                     xcodeTarget.buildConfigurationList?.buildConfigurations.forEach { configuration in
-//                        configuration.buildSettings["OTHER_SWIFT_FLAGS"] += ["-Xcc", "-fmodule-map-file=$(SRCROOT)/\()"].joined(separator: " ")
+                        configuration.buildSettings = configuration.buildSettings.appending("OTHER_SWIFT_FLAGS", "-Xcc", "-fmodule-map-file=$(SRCROOT)/\(relativePath.pathString)")
                     }
                 }
             }

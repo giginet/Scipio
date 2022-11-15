@@ -14,22 +14,11 @@ enum XCConfigValue {
 
     static let inherited: Self = .string("$(inherited)")
 
-    var rawString: String {
+    var rawValue: Any {
         switch self {
         case .string(let rawString): return rawString
-        case .bool(let bool): return bool ? "YES" : "NO"
-        case .list(let list): return list.map(\.rawString).joined(separator: " ")
-        }
-    }
-}
-
-extension XCConfigValue {
-    func appending(_ value: XCConfigValue) -> Self {
-        switch self {
-        case .string, .bool:
-            return .list([self, value])
-        case .list(let currentList):
-            return .list(currentList + [value])
+        case .bool(let bool): return bool
+        case .list(let list): return list.map(\.rawValue)
         }
     }
 }
@@ -88,7 +77,7 @@ struct ProjectBuildSettingsGenerator {
             "USE_HEADERMAP": false,
             "CLANG_ENABLE_OBJC_ARC": true,
         ]
-        return values.mapValues(\.rawString)
+        return values.mapValues(\.rawValue)
     }
 
     private var debugSpecificSettings: BuildSettings {
@@ -102,7 +91,7 @@ struct ProjectBuildSettingsGenerator {
             "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
             "SWIFT_ACTIVE_COMPILATION_CONDITIONS": [.inherited, "DEBUG"],
         ]
-        return specificSettings.mapValues(\.rawString)
+        return specificSettings.mapValues(\.rawValue)
     }
 
     private var releaseSpecificSettings: BuildSettings {
@@ -112,7 +101,7 @@ struct ProjectBuildSettingsGenerator {
             "GCC_OPTIMIZATION_LEVEL": "s",
             "SWIFT_OPTIMIZATION_LEVEL": "-Owholemodule",
         ]
-        return specificSettings.mapValues(\.rawString)
+        return specificSettings.mapValues(\.rawValue)
     }
 }
 
@@ -217,7 +206,7 @@ struct TargetBuildSettingsGenerator {
 
         return .init(
             name: configuration.settingsValue,
-            buildSettings: settings.mapValues(\.rawString)
+            buildSettings: settings.mapValues(\.rawValue)
         )
     }
 
@@ -260,5 +249,19 @@ extension SwiftLanguageVersion {
             swiftVersion += ".0"
         }
         return swiftVersion
+    }
+}
+
+extension BuildSettings {
+    func appending(_ key: String, _ values: String...) -> Self {
+        var newDictionary = self
+        switch newDictionary[key, default: Array<String>()] {
+        case var list as [String]:
+            list.append(contentsOf: values)
+            newDictionary[key] = list
+        default:
+            fatalError("Could not add values for \(key)")
+        }
+        return newDictionary
     }
 }
