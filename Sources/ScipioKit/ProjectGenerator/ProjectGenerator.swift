@@ -81,7 +81,7 @@ class ProjectGenerator {
 
     enum Error: LocalizedError {
         case invalidPackage(packageName: String)
-        case notSupportedTarget(targetName: String, kind: PackageModel.Target.Kind)
+        case unsupportedTarget(targetName: String, kind: PackageModel.Target.Kind)
         case localizationNotSupported(targetName: String)
         case unknownError
 
@@ -89,8 +89,8 @@ class ProjectGenerator {
             switch self {
             case .invalidPackage(let packageName):
                 return "\(packageName) is invalid package"
-            case .notSupportedTarget(let targetName, let kind):
-                return "\(kind) is not supported.(\(targetName)"
+            case .unsupportedTarget(let targetName, let kind):
+                return "\(targetName) is \(kind) but \(kind) is not supported yet"
             case .localizationNotSupported(let targetName):
                 return "\(targetName) has localized resources but localized resources are not supported yet"
             case .unknownError:
@@ -133,6 +133,7 @@ class ProjectGenerator {
         let targetsToGenerate = package.graph.reachableTargets
             .filter { $0.type == .library }
             .sorted { $0.name < $1.name }
+
         let xcodeTargets: [ResolvedTarget: PBXNativeTarget] = try targetsToGenerate.reduce(into: [:]) { targets, target in
             let xcodeTarget = addObject(
                 try makeTarget(for: target)
@@ -211,7 +212,7 @@ class ProjectGenerator {
         case .test:
             productType = .unitTestBundle
         case .binary, .systemModule, .plugin:
-            throw Error.notSupportedTarget(targetName: target.name, kind: target.type)
+            throw Error.unsupportedTarget(targetName: target.name, kind: target.type)
         }
 
         // Generate Info.plist
