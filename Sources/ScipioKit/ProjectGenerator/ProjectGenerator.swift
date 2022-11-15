@@ -271,11 +271,15 @@ class ProjectGenerator {
             )
         )
 
+        if !target.underlyingTarget.resources.isEmpty {
+            logger.warning("🚧 \(target.name) has resources. However, resource support is currently partial yet. You can't use `Bundle.module` using Scipio")
+        }
+
         let resourcePhase = addObject(
             try makeResourcePhase(for: target, targetGroup: targetGroup)
         )
 
-        // TODO generate resource accessor
+        // TODO generate resource accessor to support Bundle.module
         // https://github.com/apple/swift-package-manager/blob/29a16bc2dc0ef72b7044c1dc6236236e3d0120e0/Sources/Build/BuildPlan.swift#L806-L852
 
         return PBXNativeTarget(name: target.c99name,
