@@ -131,7 +131,7 @@ class ProjectGenerator {
         let moduleMaps: [ResolvedTarget: AbsolutePath] = try xcodeTargets.reduce(into: [:]) { (collection, tuple) in
             let (target, xcodeTarget) = tuple
             if let clangTarget = target.underlyingTarget as? ClangTarget {
-                if let moduleMapPath = try applyClangTargetSpecificSettings(for: clangTarget, xcodeTarget: xcodeTarget, targetGroup: pbxProj.rootGroup()!) {
+                if let moduleMapPath = try applyClangTargetSpecificSettings(for: clangTarget, xcodeTarget: xcodeTarget) {
                     collection[target] = moduleMapPath
                 }
             }
@@ -216,7 +216,7 @@ class ProjectGenerator {
             productRef = try productGroup.addFile(
                 at: target.productPath.toPath(),
                 sourceTree: .buildProductsDir,
-                sourceRoot: .init("."),
+                sourceRoot: target.sources.root.toPath(),
                 validatePresence: false
             )
         } else {
@@ -231,12 +231,12 @@ class ProjectGenerator {
             throw Error.unknownError
         }
 
-        let targetRootGroup = try mainGroup.addGroup(named: target.name, options: .withoutFolder).first!
+        let targetGroup = createOrGetGroup(named: target.name, in: mainGroup, path: target.sources.root)
 
         let fileReferences = try target.sources.paths.map { sourcePath in
             let group = try self.group(
                 for: sourcePath.parentDirectory,
-                parentGroup: targetRootGroup,
+                parentGroup: targetGroup,
                 sourceRoot: target.sources.root
             )
             return try group.addFile(
@@ -265,27 +265,29 @@ class ProjectGenerator {
                                productType: productType)
     }
 
-    private func applyClangTargetSpecificSettings(for clangTarget: ClangTarget, xcodeTarget: PBXNativeTarget, targetGroup: PBXGroup) throws -> AbsolutePath? {
+    private func applyClangTargetSpecificSettings(for clangTarget: ClangTarget, xcodeTarget: PBXNativeTarget) throws -> AbsolutePath? {
+        guard let mainGroup = pbxProj.rootObject?.mainGroup else {
+            throw Error.unknownError
+        }
+        let targetGroup = createOrGetGroup(named: clangTarget.name, in: mainGroup, path: clangTarget.sources.root)
+
         let includeDir = clangTarget.includeDir
-        let includeGroup = try group(for: includeDir,
-                                     parentGroup: targetGroup,
-                                     sourceRoot: clangTarget.sources.root)
         let headerFiles = try walk(includeDir).filter { $0.extension == "h" }
         var headerFileRefs: [PBXFileReference] = []
         for header in headerFiles {
-            let includeGroup = try self.group(
+            let headerFileGroup = try self.group(
                 for: header.parentDirectory,
-                parentGroup: includeGroup,
-                sourceRoot: includeDir
+                parentGroup: targetGroup,
+                sourceRoot: clangTarget.sources.root
             )
-            let fileRef = try includeGroup.addFile(at: header.toPath(),
-                                                   sourceRoot: includeDir.toPath())
+            let fileRef = try headerFileGroup.addFile(at: header.toPath(),
+                                                      sourceRoot: clangTarget.path.toPath())
             headerFileRefs.append(fileRef)
         }
         let moduleMapPath = try prepareModuleMap(for: clangTarget, xcodeTarget: xcodeTarget, includeFileRefs: headerFileRefs)
         if let moduleMapPath {
-            try includeGroup.addFile(at: moduleMapPath.toPath(),
-                                     sourceRoot: includeDir.toPath())
+            try targetGroup.addFile(at: moduleMapPath.toPath(),
+                                    sourceRoot: includeDir.toPath())
         }
         return moduleMapPath
     }
@@ -320,7 +322,7 @@ class ProjectGenerator {
         let fileSystem = TSCBasic.localFileSystem
         let moduleMapPath = try AbsolutePath(validating: package.projectPath.path)
             .appending(components: "GeneratedModuleMap", clangTarget.c99name, "module.modulemap")
-        try fileSystem.createDirectory(moduleMapPath, recursive: true)
+        try fileSystem.createDirectory(moduleMapPath.parentDirectory, recursive: true)
 
         let moduleMapGenerator = ModuleMapGenerator(
             targetName: clangTarget.name,
@@ -343,19 +345,23 @@ class ProjectGenerator {
         parentGroup: PBXGroup,
         sourceRoot: AbsolutePath
     ) throws -> PBXGroup {
-        let groupName = path.components.last!
         let relativePath = path.relative(to: sourceRoot)
-        let pathComponents = relativePath.components.filter { !["."].contains($0) }
+        let pathComponents = relativePath.components.filter { $0 != "." }
 
-        if let nextPathComponent = pathComponents.first {
-            let nextSourceRoot = sourceRoot.appending(component: nextPathComponent)
-            return try group(for: path, parentGroup: parentGroup, sourceRoot: nextSourceRoot)
+        return pathComponents.reduce(parentGroup) { currentParentGroup, component in
+            return createOrGetGroup(named: component, in: currentParentGroup, path: path)
+        }
+    }
+
+    private func createOrGetGroup(named groupName: String, in parentGroup: PBXGroup, path: AbsolutePath) -> PBXGroup {
+        if let existingGroup = parentGroup.group(named: groupName) {
+            return existingGroup
         } else {
-            if let existingGroup = parentGroup.group(named: groupName) {
-                return existingGroup
-            } else {
-                return parentGroup
-            }
+            let newGroup = addObject(
+                PBXGroup(sourceTree: .group, name: groupName, path: path.pathString)
+            )
+            parentGroup.addChild(newGroup)
+            return newGroup
         }
     }
 }
