@@ -121,7 +121,7 @@ struct TargetBuildSettingsGenerator {
     }
 
     private func baseSettings(for target: ResolvedTarget) -> [String: XCConfigValue] {
-        return [
+        [
             "TARGET_NAME": .string(target.name),
             "CURRENT_PROJECT_VERSION": "1",
             "LD_RUNPATH_SEARCH_PATHS": [.inherited, "$(TOOLCHAIN_DIR)/usr/lib/swift/macosx"],
