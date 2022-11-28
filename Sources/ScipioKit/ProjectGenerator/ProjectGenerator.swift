@@ -144,10 +144,9 @@ class ProjectGenerator {
         // Generate ModuleMaps for Clang targets
         let moduleMaps: [ResolvedTarget: AbsolutePath] = try xcodeTargets.reduce(into: [:]) { (collection, tuple) in
             let (target, xcodeTarget) = tuple
-            if let clangTarget = target.underlyingTarget as? ClangTarget {
-                if let moduleMapPath = try applyClangTargetSpecificSettings(for: clangTarget, xcodeTarget: xcodeTarget).moduleMapPath {
-                    collection[target] = moduleMapPath
-                }
+            if let clangTarget = target.underlyingTarget as? ClangTarget,
+               let moduleMapPath = try applyClangTargetSpecificSettings(for: clangTarget, xcodeTarget: xcodeTarget).moduleMapPath {
+                collection[target] = moduleMapPath
             }
         }
 
@@ -220,23 +219,17 @@ class ProjectGenerator {
             ])
         )
 
-        let productRef: PBXFileReference?
-        if let productGroup = pbxProj.rootObject?.productsGroup {
-            productRef = try productGroup.addFile(
+        let productRef: PBXFileReference? = try? pbxProj.rootObject?
+            .productsGroup?
+            .addFile(
                 at: target.productPath.toPath(),
                 sourceTree: .buildProductsDir,
                 sourceRoot: target.sources.root.toPath(),
                 validatePresence: false
             )
-        } else {
-            productRef = nil
-        }
 
-        guard let sourceRoot = sourceRoot else {
-            throw Error.unknownError
-        }
-
-        guard let mainGroup = pbxProj.rootObject?.mainGroup else {
+        guard let sourceRoot = sourceRoot,
+              let mainGroup = pbxProj.rootObject?.mainGroup else {
             throw Error.unknownError
         }
 
@@ -256,13 +249,11 @@ class ProjectGenerator {
         }
 
         let buildFiles: [PBXBuildFile] = fileReferences.map { reference in
-            return addObject(PBXBuildFile(file: reference))
+            addObject(PBXBuildFile(file: reference))
         }
 
         let compilePhase = addObject(
-            PBXSourcesBuildPhase(
-                files: buildFiles
-            )
+            PBXSourcesBuildPhase(files: buildFiles)
         )
 
         if !target.underlyingTarget.resources.isEmpty {
@@ -295,18 +286,14 @@ class ProjectGenerator {
         let resourcesReferences: [PBXFileReference] = try target.underlyingTarget.resources.reduce([]) { lists, resource in
             let resourcesGroup = try targetGroup.addGroup(named: "Resources").first!
 
-            switch resource.rule {
-            case .process(let localization):
-                guard localization == nil else {
-                    throw Error.localizationNotSupported(targetName: target.name)
-                }
-            case .copy:
-                break
+            if case let .process(localization) = resource.rule,
+               localization != nil {
+                throw Error.localizationNotSupported(targetName: target.name)
             }
 
             let files = try walk(resource.path)
             return try files.map { file in
-                return try resourcesGroup.addFile(at: file.toPath(), sourceRoot: sourceRoot.toPath())
+                try resourcesGroup.addFile(at: file.toPath(), sourceRoot: sourceRoot.toPath())
             } + lists
         }
 
@@ -327,16 +314,13 @@ class ProjectGenerator {
 
         let includeDir = clangTarget.includeDir
         let headerFiles = try walk(includeDir).filter { $0.extension == "h" }
-        var headerFileRefs: [PBXFileReference] = []
-        for header in headerFiles {
+        let headerFileRefs: [PBXFileReference] = try headerFiles.map { header in
             let headerFileGroup = try self.group(
                 for: header.parentDirectory,
                 parentGroup: targetGroup,
                 sourceRoot: clangTarget.sources.root
             )
-            let fileRef = try headerFileGroup.addFile(at: header.toPath(),
-                                                      sourceRoot: clangTarget.path.toPath())
-            headerFileRefs.append(fileRef)
+            return try headerFileGroup.addFile(at: header.toPath(), sourceRoot: clangTarget.path.toPath())
         }
         let moduleMapPath = try prepareModuleMap(for: clangTarget, xcodeTarget: xcodeTarget, includeFileRefs: headerFileRefs)
         if let moduleMapPath {
