@@ -7,18 +7,18 @@ import class PackageModel.ClangTarget
 import TSCBasic
 import XcodeProj
 
-enum XCConfigValue {
+private enum XCConfigValue {
     case string(String)
     case list([XCConfigValue])
     case bool(Bool)
 
     static let inherited: Self = .string("$(inherited)")
 
-    var rawValue: Any {
+    var rawConfigValue: Any {
         switch self {
         case .string(let rawString): return rawString
         case .bool(let bool): return bool
-        case .list(let list): return list.map(\.rawValue)
+        case .list(let list): return list.map(\.rawConfigValue)
         }
     }
 }
@@ -77,7 +77,7 @@ struct ProjectBuildSettingsGenerator {
             "USE_HEADERMAP": false,
             "CLANG_ENABLE_OBJC_ARC": true,
         ]
-        return values.mapValues(\.rawValue)
+        return values.mapValues(\.rawConfigValue)
     }
 
     private var debugSpecificSettings: BuildSettings {
@@ -91,7 +91,7 @@ struct ProjectBuildSettingsGenerator {
             "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
             "SWIFT_ACTIVE_COMPILATION_CONDITIONS": [.inherited, "DEBUG"],
         ]
-        return specificSettings.mapValues(\.rawValue)
+        return specificSettings.mapValues(\.rawConfigValue)
     }
 
     private var releaseSpecificSettings: BuildSettings {
@@ -101,7 +101,7 @@ struct ProjectBuildSettingsGenerator {
             "GCC_OPTIMIZATION_LEVEL": "s",
             "SWIFT_OPTIMIZATION_LEVEL": "-Owholemodule",
         ]
-        return specificSettings.mapValues(\.rawValue)
+        return specificSettings.mapValues(\.rawConfigValue)
     }
 }
 
@@ -203,7 +203,7 @@ struct TargetBuildSettingsGenerator {
 
         return .init(
             name: configuration.settingsValue,
-            buildSettings: settings.mapValues(\.rawValue)
+            buildSettings: settings.mapValues(\.rawConfigValue)
         )
     }
 

@@ -15,7 +15,7 @@ struct BuildOptions: Hashable, Codable {
         self.sdks = sdks
     }
 
-   var buildConfiguration: BuildConfiguration
+    var buildConfiguration: BuildConfiguration
     var isSimulatorSupported: Bool
     var isDebugSymbolsEmbedded: Bool
     var frameworkType: FrameworkType
