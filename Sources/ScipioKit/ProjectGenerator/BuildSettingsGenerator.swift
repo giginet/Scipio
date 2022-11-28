@@ -196,7 +196,11 @@ struct TargetBuildSettingsGenerator {
     private func platformSettings(for target: ResolvedTarget, isSimulatorSupported: Bool) -> [String: XCConfigValue] {
         var settings: [String: XCConfigValue] = baseSettings(for: target)
 
-        for supportedPlatform in target.platforms.declared {
+        // If platforms are not specified on target's manifests
+        // Treat it supports all platforms
+        let supportedPlatforms = target.platforms.declared.isEmpty ? target.platforms.derived : target.platforms.declared
+
+        for supportedPlatform in supportedPlatforms {
             let version = XCConfigValue.string(supportedPlatform.version.versionString)
             switch supportedPlatform.platform {
             case .macOS:
@@ -214,7 +218,7 @@ struct TargetBuildSettingsGenerator {
             }
         }
 
-        let targetedDeviceFamily = target.platforms.declared.map { platform in
+        let targetedDeviceFamily = supportedPlatforms.map { platform in
             switch platform.platform {
             case .iOS:
                 return [1, 2] // iPhone, iPad
@@ -230,11 +234,11 @@ struct TargetBuildSettingsGenerator {
             .sorted()
         settings["TARGETED_DEVICE_FAMILY"] = .string(targetedDeviceFamily.map(String.init).joined(separator: ","))
 
-        let shouldSupportMacCatalyst = target.platforms.declared.map(\.platform).contains(.macCatalyst)
+        let shouldSupportMacCatalyst = supportedPlatforms.map(\.platform).contains(.macCatalyst)
         settings["SUPPORTS_MACCATALYST"] = .bool(shouldSupportMacCatalyst)
 
-        let supportedPlatforms = buildSupportedPlatformsValue(supportedPlatforms: target.platforms.declared)
-        settings["SUPPORTED_PLATFORMS"] = .string(supportedPlatforms.joined(separator: " "))
+        let supportedPlatformValues = buildSupportedPlatformsValue(supportedPlatforms: supportedPlatforms)
+        settings["SUPPORTED_PLATFORMS"] = .string(supportedPlatformValues.joined(separator: " "))
 
         return settings
     }
