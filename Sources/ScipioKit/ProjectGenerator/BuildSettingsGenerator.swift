@@ -4,6 +4,8 @@ import class PackageModel.SwiftTarget
 import struct PackageModel.SwiftLanguageVersion
 import class PackageModel.SystemLibraryTarget
 import class PackageModel.ClangTarget
+import struct PackageModel.Platform
+import struct PackageModel.SupportedPlatform
 import TSCBasic
 import XcodeProj
 
@@ -65,8 +67,6 @@ struct ProjectBuildSettingsGenerator {
     private var commonBuildSettings: BuildSettings {
         let values: [String: XCConfigValue] = [
             "PRODUCT_NAME": "$(TARGET_NAME)",
-            "SUPPORTED_PLATFORMS": "$(AVAILABLE_PLATFORMS)",
-            "SUPPORTS_MACCATALYST": true,
             "SDKROOT": "macosx",
             "DYLIB_INSTALL_NAME_BASE": "@rpath",
             "OTHER_SWIFT_FLAGS": [.inherited, "-DXcode"],
@@ -109,11 +109,13 @@ struct TargetBuildSettingsGenerator {
     private let package: Package
     private let isDebugSymbolsEmbedded: Bool
     private let isStaticFramework: Bool
+    private let isSimulatorSupported: Bool
 
-    init(package: Package, isDebugSymbolsEmbedded: Bool, isStaticFramework: Bool) {
+    init(package: Package, isDebugSymbolsEmbedded: Bool, isStaticFramework: Bool, isSimulatorSupported: Bool) {
         self.package = package
         self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
         self.isStaticFramework = isStaticFramework
+        self.isSimulatorSupported = isSimulatorSupported
     }
 
     private var sourceRootDir: AbsolutePath {
@@ -138,23 +140,7 @@ struct TargetBuildSettingsGenerator {
         var settings: [String: XCConfigValue] = baseSettings(for: target)
         settings["INFOPLIST_FILE"] = .string(infoPlistPath.relativePath)
 
-        for supportedPlatform in target.platforms.derived {
-            let version = XCConfigValue.string(supportedPlatform.version.versionString)
-            switch supportedPlatform.platform {
-            case .macOS:
-                settings["MACOSX_DEPLOYMENT_TARGET"] = version
-            case .iOS:
-                settings["IPHONEOS_DEPLOYMENT_TARGET"] = version
-            case .tvOS:
-                settings["TVOS_DEPLOYMENT_TARGET"] = version
-            case .watchOS:
-                settings["WATCHOS_DEPLOYMENT_TARGET"] = version
-            case .driverKit:
-                settings["DRIVERKIT_DEPLOYMENT_TARGET"] = version
-            default:
-                break
-            }
-        }
+        settings.merge(platformSettings(for: target, isSimulatorSupported: isSimulatorSupported))
 
         switch target.type {
         case .library:
@@ -205,6 +191,82 @@ struct TargetBuildSettingsGenerator {
             name: configuration.settingsValue,
             buildSettings: settings.mapValues(\.rawConfigValue)
         )
+    }
+
+    private func platformSettings(for target: ResolvedTarget, isSimulatorSupported: Bool) -> [String: XCConfigValue] {
+        var settings: [String: XCConfigValue] = baseSettings(for: target)
+
+        for supportedPlatform in target.platforms.declared {
+            let version = XCConfigValue.string(supportedPlatform.version.versionString)
+            switch supportedPlatform.platform {
+            case .macOS:
+                settings["MACOSX_DEPLOYMENT_TARGET"] = version
+            case .iOS:
+                settings["IPHONEOS_DEPLOYMENT_TARGET"] = version
+            case .tvOS:
+                settings["TVOS_DEPLOYMENT_TARGET"] = version
+            case .watchOS:
+                settings["WATCHOS_DEPLOYMENT_TARGET"] = version
+            case .driverKit:
+                settings["DRIVERKIT_DEPLOYMENT_TARGET"] = version
+            default:
+                break
+            }
+        }
+
+        let targetedDeviceFamily = target.platforms.declared.map { platform in
+            switch platform.platform {
+            case .iOS:
+                return [1, 2] // iPhone, iPad
+            case .tvOS:
+                return [3] // tvOS
+            case .watchOS:
+                return [4] // watchOS
+            default:
+                return []
+            }
+        }
+            .joined()
+            .sorted()
+        settings["TARGETED_DEVICE_FAMILY"] = .string(targetedDeviceFamily.map(String.init).joined(separator: ","))
+
+        if target.platforms.declared.map(\.platform).contains(.macCatalyst) {
+            settings["SUPPORTS_MACCATALYST"] = true
+        }
+
+        let supportedPlatforms = buildSupportedPlatformsValue(supportedPlatforms: target.platforms.declared)
+        settings["SUPPORTED_PLATFORMS"] = .string(supportedPlatforms.joined(separator: " "))
+
+        return settings
+    }
+
+    // Build values for SUPPORTED_PLATFORMS
+    private func buildSupportedPlatformsValue(supportedPlatforms: [SupportedPlatform]) -> [String] {
+        let supportedPlatformValues = supportedPlatforms.compactMap { platform in
+            switch platform.platform {
+            case .iOS: return "iphoneos"
+            case .macOS: return "macosx"
+            case .watchOS: return "watchos"
+            case .tvOS: return "tvos"
+            case .driverKit: return "driverkit"
+            default: return nil
+            }
+        }
+
+        if isSimulatorSupported {
+            let supportedPlatformValuesForSimulators = supportedPlatforms.compactMap { platform in
+                switch platform.platform {
+                case .iOS: return "iphonesimulator"
+                case .watchOS: return "watchsimulator"
+                case .tvOS: return "tvsimulator"
+                default: return nil
+                }
+            }
+
+            return supportedPlatformValues + supportedPlatformValuesForSimulators
+        }
+        return supportedPlatformValues
+
     }
 
     private func buildHeaderSearchPaths(for target: ResolvedTarget) -> [String] {

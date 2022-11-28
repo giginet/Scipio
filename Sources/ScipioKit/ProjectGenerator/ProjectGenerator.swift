@@ -201,7 +201,8 @@ class ProjectGenerator {
         let targetSettingsGenerator = TargetBuildSettingsGenerator(
             package: package,
             isDebugSymbolsEmbedded: buildOptions.isDebugSymbolsEmbedded,
-            isStaticFramework: buildOptions.frameworkType == .static
+            isStaticFramework: buildOptions.frameworkType == .static,
+            isSimulatorSupported: buildOptions.isSimulatorSupported
         )
 
         guard let productType = target.xcodeProductType else {
