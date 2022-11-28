@@ -123,8 +123,7 @@ class ProjectGenerator {
 
         try generateTargets()
 
-        let projectFile = XcodeProj(workspace: .init(),
-                                    pbxproj: pbxProj)
+        let projectFile = XcodeProj(workspace: .init(), pbxproj: pbxProj)
         try projectFile.write(pathString: projectPath.path, override: true)
     }
 
