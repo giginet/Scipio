@@ -230,9 +230,8 @@ struct TargetBuildSettingsGenerator {
             .sorted()
         settings["TARGETED_DEVICE_FAMILY"] = .string(targetedDeviceFamily.map(String.init).joined(separator: ","))
 
-        if target.platforms.declared.map(\.platform).contains(.macCatalyst) {
-            settings["SUPPORTS_MACCATALYST"] = true
-        }
+        let shouldSupportMacCatalyst = target.platforms.declared.map(\.platform).contains(.macCatalyst)
+        settings["SUPPORTS_MACCATALYST"] = .bool(shouldSupportMacCatalyst)
 
         let supportedPlatforms = buildSupportedPlatformsValue(supportedPlatforms: target.platforms.declared)
         settings["SUPPORTED_PLATFORMS"] = .string(supportedPlatforms.joined(separator: " "))

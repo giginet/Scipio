@@ -18,7 +18,7 @@ final class ProjectGeneratorTests: XCTestCase {
         package = try Package(packageDirectory: testPackagePath)
         projectGenerator = ProjectGenerator(package: package,
                                             buildOptions: .init(buildConfiguration: .debug,
-                                                                isSimulatorSupported: false,
+                                                                isSimulatorSupported: true,
                                                                 isDebugSymbolsEmbedded: false,
                                                                 frameworkType: .static,
                                                                 sdks: [.iOS]),
@@ -70,6 +70,22 @@ final class ProjectGeneratorTests: XCTestCase {
                     ["$(inherited)", "$(PLATFORM_DIR)/Developer/Library/Frameworks"]
                 )
             }
+        }
+
+        // Check platform settings
+        for configuration in testingPackageTarget.buildConfigurationList!.buildConfigurations {
+            XCTAssertEqual(
+                configuration.buildSettings["TARGETED_DEVICE_FAMILY"] as? String,
+                "1,2" // iPhone & iPad
+            )
+            XCTAssertEqual(
+                configuration.buildSettings["SUPPORTED_PLATFORMS"] as? String,
+                "iphoneos iphonesimulator"
+            )
+            XCTAssertEqual(
+                configuration.buildSettings["SUPPORTS_MACCATALYST"] as? String,
+                "NO"
+            )
         }
     }
 }
