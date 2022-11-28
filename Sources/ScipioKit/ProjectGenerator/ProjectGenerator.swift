@@ -153,9 +153,9 @@ class ProjectGenerator {
 
         // Make LinkPhase for each Xcode targets
         for (target, xcodeTarget) in xcodeTargets {
-            let dependsTargets = try target.recursiveDependencies().compactMap { value in
-                if case .target(let dependency, _) = value {
-                    return dependency
+            let dependsTargets = try target.recursiveDependencies().compactMap { dependency in
+                if case .target(let resolvedTarget, _) = dependency {
+                    return resolvedTarget
                 }
                 return nil
             }
