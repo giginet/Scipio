@@ -45,6 +45,13 @@ extension XCConfigValue: ExpressibleByArrayLiteral {
     }
 }
 
+private enum TargetDeviceFamily: Int {
+    case iPhone = 1
+    case iPad = 2
+    case appleTV = 3
+    case appleWatch = 4
+}
+
 struct ProjectBuildSettingsGenerator {
     func generate(configuration: BuildConfiguration) -> XCBuildConfiguration {
         var settings = commonBuildSettings
@@ -213,19 +220,16 @@ struct TargetBuildSettingsGenerator {
             }
         }
 
-        let targetedDeviceFamily = supportedPlatforms.map { platform in
+        let targetedDeviceFamily = supportedPlatforms.map { platform -> [TargetDeviceFamily] in
             switch platform.platform {
-            case .iOS:
-                return [1, 2] // iPhone, iPad
-            case .tvOS:
-                return [3] // tvOS
-            case .watchOS:
-                return [4] // watchOS
-            default:
-                return []
+            case .iOS: return [.iPhone, .iPad]
+            case .tvOS: return [.appleTV]
+            case .watchOS: return [.appleWatch]
+            default: return []
             }
         }
-            .joined()
+            .flatMap { $0 }
+            .map(\.rawValue)
             .sorted()
         settings["TARGETED_DEVICE_FAMILY"] = .string(targetedDeviceFamily.map(String.init).joined(separator: ","))
 
