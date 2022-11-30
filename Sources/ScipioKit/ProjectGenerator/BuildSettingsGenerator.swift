@@ -47,25 +47,23 @@ extension XCConfigValue: ExpressibleByArrayLiteral {
 
 struct ProjectBuildSettingsGenerator {
     func generate(configuration: BuildConfiguration) -> XCBuildConfiguration {
-        let baseSettings: BuildSettings = commonBuildSettings
+        var settings = commonBuildSettings
 
-        let specificSettings: BuildSettings
         switch configuration {
         case .debug:
-            specificSettings = debugSpecificSettings
+            settings.merge(debugSpecificSettings)
         case .release:
-            specificSettings = releaseSpecificSettings
+            settings.merge(releaseSpecificSettings)
         }
 
         return .init(
             name: configuration.settingsValue,
-            buildSettings:
-                baseSettings.merging(specificSettings) { $1 }
+            buildSettings: settings.mapValues(\.rawConfigValue)
         )
     }
 
-    private var commonBuildSettings: BuildSettings {
-        let values: [String: XCConfigValue] = [
+    private var commonBuildSettings: [String: XCConfigValue] {
+        [
             "PRODUCT_NAME": "$(TARGET_NAME)",
             "SDKROOT": "macosx",
             "DYLIB_INSTALL_NAME_BASE": "@rpath",
@@ -77,31 +75,28 @@ struct ProjectBuildSettingsGenerator {
             "USE_HEADERMAP": false,
             "CLANG_ENABLE_OBJC_ARC": true,
         ]
-        return values.mapValues(\.rawConfigValue)
     }
 
-    private var debugSpecificSettings: BuildSettings {
-        let specificSettings: [String: XCConfigValue] = [
+    private var debugSpecificSettings: [String: XCConfigValue] {
+        [
             "COPY_PHASE_STRIP": false,
             "DEBUG_INFORMATION_FORMAT": "dwarf",
             "ENABLE_NS_ASSERTIONS": true,
             "GCC_OPTIMIZATION_LEVEL": "0",
-            "GCC_PREPROCESSOR_DEFINITIONS": [.inherited, "DEBUG=1"],
+            "GCC_PREPROCESSOR_DEFINITIONS": ["DEBUG=1"],
             "ONLY_ACTIVE_ARCH": true,
             "SWIFT_OPTIMIZATION_LEVEL": "-Onone",
-            "SWIFT_ACTIVE_COMPILATION_CONDITIONS": [.inherited, "DEBUG"],
+            "SWIFT_ACTIVE_COMPILATION_CONDITIONS": ["DEBUG"],
         ]
-        return specificSettings.mapValues(\.rawConfigValue)
     }
 
-    private var releaseSpecificSettings: BuildSettings {
-        let specificSettings: [String: XCConfigValue] = [
+    private var releaseSpecificSettings: [String: XCConfigValue] {
+        [
             "COPY_PHASE_STRIP": true,
             "DEBUG_INFORMATION_FORMAT": "dwarf-with-dsym",
             "GCC_OPTIMIZATION_LEVEL": "s",
             "SWIFT_OPTIMIZATION_LEVEL": "-Owholemodule",
         ]
-        return specificSettings.mapValues(\.rawConfigValue)
     }
 }
 
@@ -194,7 +189,7 @@ struct TargetBuildSettingsGenerator {
     }
 
     private func platformSettings(for target: ResolvedTarget, isSimulatorSupported: Bool) -> [String: XCConfigValue] {
-        var settings: [String: XCConfigValue] = baseSettings(for: target)
+        var settings: [String: XCConfigValue] = [:]
 
         // If platforms are not specified on target's manifests
         // Treat it supports all platforms
@@ -291,13 +286,21 @@ struct TargetBuildSettingsGenerator {
     }
 }
 
-extension Dictionary {
-    fileprivate func merging(_ other: Self) -> Self {
-        self.merging(other, uniquingKeysWith: { $1 })
-    }
-
+extension [String: XCConfigValue] {
     fileprivate mutating func merge(_ other: Self) {
-        self.merge(other, uniquingKeysWith: { $1 })
+        let allKeys = Set(self.keys).union(other.keys)
+        for key in allKeys {
+            switch (self[key], other[key]) {
+            case (.some, .none):
+                continue
+            case (.none, .some(let rhs)):
+                self[key] = rhs
+            case (.some(.list(let lhs)), .some(.list(let rhs))):
+                self[key] = .list(lhs + rhs)
+            default:
+                continue
+            }
+        }
     }
 }
 
@@ -316,14 +319,14 @@ extension SwiftLanguageVersion {
 
 extension BuildSettings {
     func appending(_ key: String, values: String...) -> Self {
-        var newDictionary = self
-        switch newDictionary[key, default: [String]()] {
-        case var list as [String]:
-            list.append(contentsOf: values)
-            newDictionary[key] = list
-        default:
-            fatalError("Could not add values for \(key)")
-        }
-        return newDictionary
-    }
+         var newDictionary = self
+         switch newDictionary[key, default: [String]()] {
+         case var list as [String]:
+             list.append(contentsOf: values)
+             newDictionary[key] = list
+         default:
+             fatalError("Could not add values for \(key)")
+         }
+         return newDictionary
+     }
 }
