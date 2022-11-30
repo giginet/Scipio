@@ -140,7 +140,7 @@ struct TargetBuildSettingsGenerator {
 
     func generate(for target: ResolvedTarget, configuration: BuildConfiguration, infoPlistPath: URL) -> XCBuildConfiguration {
         var settings: [String: XCConfigValue] = baseSettings(for: target)
-        settings["INFOPLIST_FILE"] = .string(infoPlistPath.relativePath)
+        settings["INFOPLIST_FILE"] = .string(infoPlistPath.path)
 
         settings.merge(platformSettings(for: target, isSimulatorSupported: isSimulatorSupported))
 
