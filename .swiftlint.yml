@@ -9,11 +9,14 @@ disabled_rules:
   - force_try
   - todo
 line_length: 150
+file_length: 550
 nesting:
   type_level: 2
 function_body_length:
-  warning: 60
+  warning: 65
 cyclomatic_complexity:
-  warning: 12
+  warning: 15
 trailing_comma:
   mandatory_comma: true
+type_body_length:
+  warning: 320

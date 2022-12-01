@@ -11,6 +11,8 @@ private let testPackagePath = fixturePath.appendingPathComponent("E2ETestPackage
 
 final class PrepareTests: XCTestCase {
     private let fileManager: FileManager = .default
+    lazy var tempDir = fileManager.temporaryDirectory
+    lazy var frameworkOutputDir = tempDir.appendingPathComponent("XCFrameworks")
 
     override class func setUp() {
         LoggingSystem.bootstrap { _ in SwiftLogNoOpLogHandler() }
@@ -19,7 +21,6 @@ final class PrepareTests: XCTestCase {
     }
 
     func testBuildXCFramework() async throws {
-        let frameworkOutputDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("XCFrameworks")
         try fileManager.createDirectory(at: frameworkOutputDir, withIntermediateDirectories: true)
 
         let runner = Runner(
@@ -35,7 +36,7 @@ final class PrepareTests: XCTestCase {
             try await runner.run(packageDirectory: testPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded.")
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
         }
 
         ["ScipioTesting"].forEach { library in
@@ -49,15 +50,9 @@ final class PrepareTests: XCTestCase {
             XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.path),
                            "Should not create Simulator framework")
         }
-
-        addTeardownBlock {
-            try self.fileManager.removeItem(at: testPackagePath.appendingPathComponent(".build"))
-            try self.fileManager.removeItem(at: frameworkOutputDir)
-        }
     }
 
     func testCacheIsValid() async throws {
-        let frameworkOutputDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("XCFrameworks")
         try fileManager.createDirectory(at: frameworkOutputDir, withIntermediateDirectories: true)
 
         let rootPackage = try Package(packageDirectory: testPackagePath)
@@ -99,7 +94,7 @@ final class PrepareTests: XCTestCase {
             try await runner.run(packageDirectory: testPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded.")
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
         }
 
         ["ScipioTesting"].forEach { library in
@@ -112,18 +107,11 @@ final class PrepareTests: XCTestCase {
             XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
                           "Should create .\(library).version")
         }
-
-        addTeardownBlock {
-            try self.fileManager.removeItem(at: testPackagePath.appendingPathComponent(".build"))
-            try self.fileManager.removeItem(at: frameworkOutputDir)
-        }
     }
 
     func testLocalStorage() async throws {
-        let frameworkOutputDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("XCFrameworks")
         try fileManager.createDirectory(at: frameworkOutputDir, withIntermediateDirectories: true)
 
-        let tempDir = fileManager.temporaryDirectory
         let storage = LocalCacheStorage(cacheDirectory: .custom(tempDir))
         let storageDir = tempDir.appendingPathComponent("Scipio")
 
@@ -141,7 +129,7 @@ final class PrepareTests: XCTestCase {
             try await runner.run(packageDirectory: testPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded.")
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
         }
 
         XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appendingPathComponent("ScipioTesting").path))
@@ -161,8 +149,19 @@ final class PrepareTests: XCTestCase {
         XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appendingPathComponent("ScipioTesting").path))
 
         addTeardownBlock {
-            try self.fileManager.removeItem(atPath: frameworkOutputDir.path)
-            try self.fileManager.removeItem(atPath: storageDir.path)
+            try self.fileManager.removeItem(at: storageDir)
+        }
+    }
+
+    override func tearDownWithError() throws {
+        try removeIfExist(at: testPackagePath.appendingPathComponent(".build"))
+        try removeIfExist(at: frameworkOutputDir)
+        try super.tearDownWithError()
+    }
+
+    private func removeIfExist(at path: URL) throws {
+        if fileManager.fileExists(atPath: path.path) {
+            try self.fileManager.removeItem(at: path)
         }
     }
 }

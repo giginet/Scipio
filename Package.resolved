@@ -1,12 +1,39 @@
 {
   "pins" : [
     {
+      "identity" : "aexml",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tadija/AEXML.git",
+      "state" : {
+        "revision" : "38f7d00b23ecd891e1ee656fa6aeebd6ba04ecc3",
+        "version" : "4.6.1"
+      }
+    },
+    {
+      "identity" : "pathkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/kylef/PathKit.git",
+      "state" : {
+        "revision" : "3bfd2737b700b9a36565a8c94f4ad2b050a5e574",
+        "version" : "1.0.1"
+      }
+    },
+    {
       "identity" : "rainbow",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/onevcat/Rainbow",
       "state" : {
         "revision" : "e0dada9cd44e3fa7ec3b867e49a8ddbf543e3df3",
         "version" : "4.0.1"
+      }
+    },
+    {
+      "identity" : "spectre",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/kylef/Spectre.git",
+      "state" : {
+        "revision" : "26cc5e9ae0947092c7139ef7ba612e34646086c7",
+        "version" : "0.10.1"
       }
     },
     {
@@ -41,8 +68,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-driver.git",
       "state" : {
-        "branch" : "release/5.7",
-        "revision" : "3d1af45a920fb1a4c3a1a3ca416fdd49dc8d48b3"
+        "branch" : "main",
+        "revision" : "93c612e842120e5af583c4cc1e7bda60b239b83e"
       }
     },
     {
@@ -50,8 +77,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-llbuild.git",
       "state" : {
-        "branch" : "release/5.7",
-        "revision" : "1a3f33f4fa41b7c5528eab7937c2045b510df667"
+        "branch" : "main",
+        "revision" : "22506fae04b61030d51c8950e059320036978459"
       }
     },
     {
@@ -68,8 +95,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-package-manager.git",
       "state" : {
-        "branch" : "swift-5.7-RELEASE",
-        "revision" : "7b898e6cad75a3c096ad947508eb948ad5f614d4"
+        "branch" : "swift-DEVELOPMENT-SNAPSHOT-2022-11-12-a",
+        "revision" : "2faf9d225bb5382bdd45fa6149b14a068ac2d473"
       }
     },
     {
@@ -86,8 +113,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-tools-support-core.git",
       "state" : {
-        "branch" : "release/5.7",
-        "revision" : "184eba382f6abbb362ffc02942d790ff35019ad4"
+        "branch" : "main",
+        "revision" : "50b34c79fd99da359d83f2f6b90d96634bd8697c"
+      }
+    },
+    {
+      "identity" : "xcodeproj",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tuist/XcodeProj.git",
+      "state" : {
+        "revision" : "b6de1bfe021b861c94e7c83821b595083f74b997",
+        "version" : "8.8.0"
       }
     },
     {
@@ -95,8 +131,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jpsim/Yams.git",
       "state" : {
-        "revision" : "9ff1cc9327586db4e0c8f46f064b6a82ec1566fa",
-        "version" : "4.0.6"
+        "revision" : "01835dc202670b5bb90d07f3eae41867e9ed29f6",
+        "version" : "5.0.1"
       }
     }
   ],

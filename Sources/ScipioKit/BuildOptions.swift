@@ -1,7 +1,21 @@
 import Foundation
 
 struct BuildOptions: Hashable, Codable {
-   var buildConfiguration: BuildConfiguration
+    init(
+        buildConfiguration: BuildConfiguration,
+        isSimulatorSupported: Bool,
+        isDebugSymbolsEmbedded: Bool,
+        frameworkType: FrameworkType,
+        sdks: [SDK]
+    ) {
+        self.buildConfiguration = buildConfiguration
+        self.isSimulatorSupported = isSimulatorSupported
+        self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
+        self.frameworkType = frameworkType
+        self.sdks = sdks
+    }
+
+    var buildConfiguration: BuildConfiguration
     var isSimulatorSupported: Bool
     var isDebugSymbolsEmbedded: Bool
     var frameworkType: FrameworkType

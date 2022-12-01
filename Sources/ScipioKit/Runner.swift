@@ -137,10 +137,17 @@ public struct Runner {
         let resolver = Resolver(package: package)
         try await resolver.resolve()
 
-        let generator = ProjectGenerator()
-        try generator.generate(for: package,
-                               embedDebugSymbols: buildOptions.isDebugSymbolsEmbedded,
-                               frameworkType: buildOptions.frameworkType)
+        let generator = ProjectGenerator(package: package,
+                                         buildOptions: buildOptions)
+        do {
+            try generator.generate()
+        } catch let error as LocalizedError {
+            logger.error("""
+                Project generation is failed:
+                \(error.errorDescription ?? "Unknown reason")
+            """)
+            throw error
+        }
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
 
