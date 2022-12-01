@@ -65,6 +65,7 @@ class ProjectGenerator {
                 path: nil
             )
         )
+        mainGroup.addChild(productGroup)
 
         let rootObject = addObject(
             PBXProject(
@@ -76,7 +77,6 @@ class ProjectGenerator {
             )
         )
         pbxProj.rootObject = rootObject
-
     }
 
     enum Error: LocalizedError {
@@ -362,10 +362,10 @@ class ProjectGenerator {
                     configuration.buildSettings["DEFINES_MODULE"] = true
                 }
             }
-            
+
             return nil
         } else if let generatedModuleMapType = clangTarget.moduleMapType.generatedModuleMapType {
-            // If package has module map type, it generates new modulemap
+            // If package has modulemap type, it generates new modulemap
             let generatedModuleMapPath = try generateModuleMap(for: clangTarget, moduleMapType: generatedModuleMapType)
             return generatedModuleMapPath
         }

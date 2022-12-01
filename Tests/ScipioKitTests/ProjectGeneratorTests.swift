@@ -8,26 +8,25 @@ private let fixturePath = URL(fileURLWithPath: #file)
     .appendingPathComponent("Resources")
     .appendingPathComponent("Fixtures")
 private let testPackagePath = fixturePath.appendingPathComponent("E2ETestPackage")
+private let clangPackagePath = fixturePath.appendingPathComponent("ClangPackage")
 
 final class ProjectGeneratorTests: XCTestCase {
-    private var projectGenerator: ProjectGenerator!
-    private var package: Package!
     private let fileSystem: some FileSystem = localFileSystem
 
-    override func setUpWithError() throws {
-        package = try Package(packageDirectory: testPackagePath)
-        projectGenerator = ProjectGenerator(package: package,
-                                            buildOptions: .init(buildConfiguration: .debug,
-                                                                isSimulatorSupported: true,
-                                                                isDebugSymbolsEmbedded: false,
-                                                                frameworkType: .static,
-                                                                sdks: [.iOS]),
-                                            fileSystem: localFileSystem)
-
-        try super.setUpWithError()
-    }
+    private func prepareGenerator(for packagePath: URL) throws -> (Package, ProjectGenerator) {
+        let package = try Package(packageDirectory: packagePath)
+        let projectGenerator = ProjectGenerator(package: package,
+                                                buildOptions: .init(buildConfiguration: .debug,
+                                                                    isSimulatorSupported: true,
+                                                                    isDebugSymbolsEmbedded: false,
+                                                                    frameworkType: .static,
+                                                                    sdks: [.iOS]),
+                                                fileSystem: localFileSystem)
+        return (package, projectGenerator)
+        }
 
     func testGeneratedProject() throws {
+        let (package, projectGenerator) = try prepareGenerator(for: testPackagePath)
         let projectPath = package.projectPath
         try projectGenerator.generate()
         XCTAssertTrue(fileSystem.exists(projectPath))
@@ -85,6 +84,65 @@ final class ProjectGeneratorTests: XCTestCase {
             XCTAssertEqual(
                 configuration.buildSettings["SUPPORTS_MACCATALYST"] as? String,
                 "NO"
+            )
+        }
+    }
+
+    func testGeneratedClangTarget() throws {
+        let (package, projectGenerator) = try prepareGenerator(for: clangPackagePath)
+        let projectPath = package.projectPath
+        try projectGenerator.generate()
+        XCTAssertTrue(fileSystem.exists(projectPath))
+
+        let project = try XcodeProj(pathString: projectPath.path)
+
+        // Check targets
+        let targets = project.pbxproj.nativeTargets
+        XCTAssertEqual(Set(targets.map(\.name)), ["some_lib"])
+
+        let target = try XCTUnwrap(project.pbxproj.targets(named: "some_lib").first)
+
+        // Check file tree
+        XCTAssertEqual(Set(project.pbxproj.groups.compactMap(\.name)), ["some_lib", "include", "Products"])
+        let rootGroup = try XCTUnwrap(project.pbxproj.rootGroup())
+        let libraryGroup = try XCTUnwrap(rootGroup.group(named: "some_lib"))
+        XCTAssertNotNil(libraryGroup.file(named: "some_lib.c"))
+
+        let includeGroup = try XCTUnwrap(libraryGroup.group(named: "include"))
+        XCTAssertNotNil(includeGroup.file(named: "some_lib.h"))
+
+        // Check build phase
+        let buildPhase = try XCTUnwrap(try target.sourcesBuildPhase())
+        XCTAssertEqual(buildPhase.files?.count, 1)
+
+        // Check header
+        let headerBuildPhase = try XCTUnwrap(target.buildPhases.first(where: { $0 is PBXHeadersBuildPhase }) as? PBXHeadersBuildPhase)
+        let publicHeader = try XCTUnwrap(headerBuildPhase.files?.first)
+        XCTAssertEqual(publicHeader.file?.path, "some_lib.h")
+        XCTAssertEqual(publicHeader.settings?["ATTRIBUTES"] as! [String], ["Public"])
+
+        // Check build settings
+        XCTAssertEqual(target.buildConfigurationList?.buildConfigurations.map(\.name), ["Debug", "Release"])
+        for configuration in target.buildConfigurationList!.buildConfigurations {
+            XCTAssertEqual(
+                configuration.buildSettings["MACH_O_TYPE"] as? String,
+                "staticlib", "If frameworkType is static, MACH_O_TYPE should be set"
+            )
+            XCTAssertEqual(
+                configuration.buildSettings["BUILD_LIBRARY_FOR_DISTRIBUTION"] as? String,
+                "YES"
+            )
+            XCTAssertEqual(
+                configuration.buildSettings["FRAMEWORK_SEARCH_PATHS"] as? [String],
+                ["$(inherited)", "$(PLATFORM_DIR)/Developer/Library/Frameworks"]
+            )
+            XCTAssertEqual(
+                configuration.buildSettings["CLANG_ENABLE_MODULES"] as? String,
+                "YES"
+            )
+            XCTAssertEqual(
+                configuration.buildSettings["DEFINES_MODULE"] as? String,
+                "YES"
             )
         }
     }
