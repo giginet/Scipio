@@ -5,11 +5,12 @@ import PackageDescription
 
 let package = Package(
     name: "ClangPackage",
+    platforms: [.iOS(.v11)],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
-            name: "ClangPackage",
-            targets: ["ClangPackage"]),
+            name: "some_lib",
+            targets: ["some_lib"]),
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
@@ -17,11 +18,8 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "ClangPackage",
-            dependencies: [],
-            path: ".",
-            sources: ["src"],
-            publicHeadersPath: "include"
+            name: "some_lib",
+            dependencies: []
         ),
     ]
 )
