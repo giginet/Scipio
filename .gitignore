@@ -9,3 +9,4 @@ DerivedData/
 .netrc
 .swiftpm
 **/Resources/**/Package.resolved
+*.xcframework
