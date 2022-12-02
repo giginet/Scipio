@@ -23,7 +23,7 @@ final class ProjectGeneratorTests: XCTestCase {
                                                                     sdks: [.iOS]),
                                                 fileSystem: localFileSystem)
         return (package, projectGenerator)
-        }
+    }
 
     func testGeneratedProject() throws {
         let (package, projectGenerator) = try prepareGenerator(for: testPackagePath)
