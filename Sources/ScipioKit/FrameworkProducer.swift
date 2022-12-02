@@ -1,12 +1,17 @@
 import Foundation
 import PackageGraph
+import PackageModel
 
 struct BuildProduct {
     var package: ResolvedPackage
     var target: ResolvedTarget
 
-    func frameworkName() -> String {
+    var frameworkName: String {
         "\(target.name.packageNamed()).xcframework"
+    }
+
+    var isBinaryTarget: Bool {
+        target.underlyingTarget is BinaryTarget
     }
 }
 
@@ -51,38 +56,65 @@ struct FrameworkProducer {
         try await compiler.clean()
 
         let products = productsToBuild(for: mode)
-
         for product in products {
-            let frameworkName = product.frameworkName()
-            let xcframeworkPath = outputDir.appendingPathComponent(frameworkName)
-            let exists = fileSystem.exists(xcframeworkPath)
+            if product.isBinaryTarget {
+                logger.error("🚧 \(product.target) is binaryTarget. Currently, binaryTarget is not supported. Skip it.")
+                continue
+            } else {
+                try await buildXCFrameworkIfNeeded(
+                    product,
+                    mode: mode,
+                    outputDir: outputDir,
+                    cacheSystem: cacheSystem,
+                    compiler: compiler
+                )
+            }
 
-            if exists && isCacheEnabled {
-                let isValidCache = await cacheSystem.existsValidCache(product: product)
-                if isValidCache {
-                    logger.info("✅ Valid \(product.target.name).xcframework is exists. Skip building.", metadata: .color(.green))
-                    continue
-                } else {
-                    logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
-                    logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
-                    try fileSystem.removeFileTree(at: xcframeworkPath)
+            if isCacheEnabled {
+                let outputPath = outputDir.appendingPathComponent(product.frameworkName)
+                try? await cacheSystem.cacheFramework(at: outputPath, product: product)
+
+                if case .prepareDependencies = mode {
+                    try await generateVersionFile(for: product, using: cacheSystem)
                 }
             }
+        }
+    }
 
-            let frameworkPath = outputDir.appendingPathComponent(frameworkName)
-            let restored = await cacheSystem.restoreCacheIfPossible(product: product)
-            if restored {
-                logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
+    private func buildXCFrameworkIfNeeded(
+        _ product: BuildProduct,
+        mode: Runner.Mode,
+        outputDir: URL,
+        cacheSystem: CacheSystem,
+        compiler: Compiler<some Executor>
+    ) async throws {
+        let frameworkName = product.frameworkName
+        let outputPath = outputDir.appendingPathComponent(product.frameworkName)
+        let exists = fileSystem.exists(outputPath)
+
+        let needToBuild: Bool
+        if exists && isCacheEnabled {
+            let isValidCache = await cacheSystem.existsValidCache(product: product)
+            if isValidCache {
+                logger.info("✅ Valid \(product.target.name).xcframework is exists. Skip building.", metadata: .color(.green))
+                return
             } else {
-                try await compiler.createXCFramework(target: product.target,
-                                                     outputDirectory: outputDir)
+                logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
+                logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
+                try fileSystem.removeFileTree(at: outputPath)
+                let restored = await cacheSystem.restoreCacheIfPossible(product: product)
+                needToBuild = !restored
+                if restored {
+                    logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
+                }
             }
+        } else {
+            needToBuild = true
+        }
 
-            try? await cacheSystem.cacheFramework(at: frameworkPath, product: product)
-
-            if case .prepareDependencies = mode {
-                try await generateVersionFile(for: product, using: cacheSystem)
-            }
+        if needToBuild {
+            try await compiler.createXCFramework(target: product.target,
+                                                 outputDirectory: outputDir)
         }
     }
 
