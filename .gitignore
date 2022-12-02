@@ -10,3 +10,4 @@ DerivedData/
 .swiftpm
 **/Resources/**/Package.resolved
 *.xcframework
+.build
