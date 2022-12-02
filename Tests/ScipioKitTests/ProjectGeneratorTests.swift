@@ -13,20 +13,19 @@ private let clangPackagePath = fixturePath.appendingPathComponent("ClangPackage"
 final class ProjectGeneratorTests: XCTestCase {
     private let fileSystem: some FileSystem = localFileSystem
 
-    private func prepareGenerator(for packagePath: URL) throws -> (Package, ProjectGenerator) {
-        let package = try Package(packageDirectory: packagePath)
-        let projectGenerator = ProjectGenerator(package: package,
-                                                buildOptions: .init(buildConfiguration: .debug,
-                                                                    isSimulatorSupported: true,
-                                                                    isDebugSymbolsEmbedded: false,
-                                                                    frameworkType: .static,
-                                                                    sdks: [.iOS]),
-                                                fileSystem: localFileSystem)
-        return (package, projectGenerator)
+    private func makeGenerator(for package: Package) throws -> ProjectGenerator {
+        ProjectGenerator(package: package,
+                         buildOptions: .init(buildConfiguration: .debug,
+                                             isSimulatorSupported: true,
+                                             isDebugSymbolsEmbedded: false,
+                                             frameworkType: .static,
+                                             sdks: [.iOS]),
+                         fileSystem: localFileSystem)
     }
 
     func testGeneratedProject() throws {
-        let (package, projectGenerator) = try prepareGenerator(for: testPackagePath)
+        let package = try Package(packageDirectory: testPackagePath)
+        let projectGenerator = try makeGenerator(for: package)
         let projectPath = package.projectPath
         try projectGenerator.generate()
         XCTAssertTrue(fileSystem.exists(projectPath))
@@ -89,7 +88,8 @@ final class ProjectGeneratorTests: XCTestCase {
     }
 
     func testGeneratedClangTarget() throws {
-        let (package, projectGenerator) = try prepareGenerator(for: clangPackagePath)
+        let package = try Package(packageDirectory: clangPackagePath)
+        let projectGenerator = try makeGenerator(for: package)
         let projectPath = package.projectPath
         try projectGenerator.generate()
         XCTAssertTrue(fileSystem.exists(projectPath))
