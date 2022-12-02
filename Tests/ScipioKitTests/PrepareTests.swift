@@ -67,15 +67,17 @@ final class PrepareTests: XCTestCase {
         let packages = rootPackage.graph.packages
             .filter { $0.manifest.displayName != rootPackage.manifest.displayName }
 
-        for subPackage in packages {
-            for target in subPackage.targets {
-                try await cacheSystem.generateVersionFile(subPackage: subPackage, target: target)
-                // generate dummy directory
-                try fileManager.createDirectory(
-                    at: frameworkOutputDir.appendingPathComponent("\(target.name).xcframework"),
-                    withIntermediateDirectories: true
-                )
-            }
+        let allProducts = packages.flatMap { package in
+            package.targets.map { BuildProduct(package: package, target: $0) }
+        }
+
+        for product in allProducts {
+            try await cacheSystem.generateVersionFile(for: product)
+            // generate dummy directory
+            try fileManager.createDirectory(
+                at: frameworkOutputDir.appendingPathComponent("\(product.target.name).xcframework"),
+                withIntermediateDirectories: true
+            )
         }
         let versionFile2 = frameworkOutputDir.appendingPathComponent(".ScipioTesting.version")
         XCTAssertTrue(fileManager.fileExists(atPath: versionFile2.path))

@@ -137,23 +137,23 @@ struct CacheSystem {
         self.fileSystem = fileSystem
     }
 
-    func cacheFramework(_ frameworkPath: URL, subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
-        let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
+    func cacheFramework(at frameworkPath: URL, product: BuildProduct) async throws {
+        let cacheKey = try await calculateCacheKey(of: product)
 
         await storage?.cacheFramework(frameworkPath, for: cacheKey)
     }
 
-    func generateVersionFile(subPackage: ResolvedPackage, target: ResolvedTarget) async throws {
-        let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
+    func generateVersionFile(for product: BuildProduct) async throws {
+        let cacheKey = try await calculateCacheKey(of: product)
 
         let data = try jsonEncoder.encode(cacheKey)
-        let versionFilePath = outputDirectory.appendingPathComponent(versionFileName(for: target.name))
+        let versionFilePath = outputDirectory.appendingPathComponent(versionFileName(for: product.target.name))
         fileSystem.write(data, to: versionFilePath)
     }
 
-    func existsValidCache(subPackage: ResolvedPackage, target: ResolvedTarget) async -> Bool {
+    func existsValidCache(product: BuildProduct) async -> Bool {
         do {
-            let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
+            let cacheKey = try await calculateCacheKey(of: product)
             let versionFilePath = versionFilePath(for: cacheKey.targetName)
             guard fileSystem.exists(versionFilePath) else { return false }
             let decoder = JSONDecoder()
@@ -167,10 +167,10 @@ struct CacheSystem {
         }
     }
 
-    func restoreCacheIfPossible(subPackage: ResolvedPackage, target: ResolvedTarget) async -> Bool {
+    func restoreCacheIfPossible(product: BuildProduct) async -> Bool {
         guard let storage = storage else { return false }
         do {
-            let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
+            let cacheKey = try await calculateCacheKey(of: product)
             if await storage.existsValidCache(for: cacheKey) {
                 try await storage.fetchArtifacts(for: cacheKey, to: outputDirectory)
                 return true
@@ -182,15 +182,15 @@ struct CacheSystem {
         }
     }
 
-    private func fetchArtifacts(subPackage: ResolvedPackage, target: ResolvedTarget, to destination: URL) async throws {
+    private func fetchArtifacts(product: BuildProduct, to destination: URL) async throws {
         guard let storage = storage else { return }
-        let cacheKey = try await calculateCacheKey(package: subPackage, target: target)
+        let cacheKey = try await calculateCacheKey(of: product)
         try await storage.fetchArtifacts(for: cacheKey, to: destination)
     }
 
-    private func calculateCacheKey(package: ResolvedPackage, target: ResolvedTarget) async throws -> CacheKey {
-        let targetName = target.name
-        let pin = try retrievePin(package: package, target: target)
+    private func calculateCacheKey(of product: BuildProduct) async throws -> CacheKey {
+        let targetName = product.target.name
+        let pin = try retrievePin(product: product)
         let buildOptions = buildOptions
         guard let clangVersion = try await ClangChecker().fetchClangVersion() else { throw Error.compilerVersionNotDetected } // TODO DI
         return CacheKey(
@@ -201,10 +201,10 @@ struct CacheSystem {
         )
     }
 
-    private func retrievePin(package: ResolvedPackage, target: ResolvedTarget) throws -> PinsStore.Pin {
+    private func retrievePin(product: BuildProduct) throws -> PinsStore.Pin {
         let pinsStore = try rootPackage.workspace.pinsStore.load()
-        guard let pin = pinsStore.pinsMap[package.identity] else {
-            throw Error.revisionNotDetected(package.manifest.displayName)
+        guard let pin = pinsStore.pinsMap[product.package.identity] else {
+            throw Error.revisionNotDetected(product.package.manifest.displayName)
         }
         return pin
     }
