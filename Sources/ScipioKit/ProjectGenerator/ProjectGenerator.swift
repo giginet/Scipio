@@ -65,6 +65,7 @@ class ProjectGenerator {
                 path: nil
             )
         )
+        mainGroup.addChild(productGroup)
 
         let rootObject = addObject(
             PBXProject(
@@ -76,7 +77,6 @@ class ProjectGenerator {
             )
         )
         pbxProj.rootObject = rootObject
-
     }
 
     enum Error: LocalizedError {
@@ -343,18 +343,29 @@ class ProjectGenerator {
             .contains(clangTarget.c99name)
 
         if case .custom(let path) = clangTarget.moduleMapType {
+            // If modulemap path is specified, use this
             return path
         } else if hasUmbrellaHeader {
+            // If package contains umbrella headers, it generates modulemap using Xcode
             let files = includeFileRefs.map { fileRef in
-                PBXBuildFile(file: fileRef, settings: ["ATTRIBUTES": "Public"])
+                addObject(PBXBuildFile(file: fileRef, settings: ["ATTRIBUTES": ["Public"]]))
             }
             let headerPhase = addObject(
                 PBXHeadersBuildPhase(files: files)
             )
 
             xcodeTarget.buildPhases.append(headerPhase)
+
+            if let allConfigurations = xcodeTarget.buildConfigurationList?.buildConfigurations {
+                for configuration in allConfigurations {
+                    configuration.buildSettings["CLANG_ENABLE_MODULES"] = true
+                    configuration.buildSettings["DEFINES_MODULE"] = true
+                }
+            }
+
             return nil
         } else if let generatedModuleMapType = clangTarget.moduleMapType.generatedModuleMapType {
+            // If package has modulemap type, it generates new modulemap
             let generatedModuleMapPath = try generateModuleMap(for: clangTarget, moduleMapType: generatedModuleMapType)
             return generatedModuleMapPath
         }
