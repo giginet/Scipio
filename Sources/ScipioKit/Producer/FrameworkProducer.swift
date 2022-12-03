@@ -2,19 +2,6 @@ import Foundation
 import PackageGraph
 import PackageModel
 
-struct BuildProduct {
-    var package: ResolvedPackage
-    var target: ResolvedTarget
-
-    var frameworkName: String {
-        "\(target.name.packageNamed()).xcframework"
-    }
-
-    var isBinaryTarget: Bool {
-        target.underlyingTarget is BinaryTarget
-    }
-}
-
 struct FrameworkProducer {
     let rootPackage: Package
     let buildOptions: BuildOptions

@@ -60,3 +60,16 @@ struct Package {
         self.workspace = workspace
     }
 }
+
+struct BuildProduct {
+    var package: ResolvedPackage
+    var target: ResolvedTarget
+
+    var frameworkName: String {
+        "\(target.name.packageNamed()).xcframework"
+    }
+
+    var isBinaryTarget: Bool {
+        target.underlyingTarget is BinaryTarget
+    }
+}
