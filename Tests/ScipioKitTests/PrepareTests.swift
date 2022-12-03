@@ -30,7 +30,7 @@ final class PrepareTests: XCTestCase {
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
                 frameworkType: .dynamic,
-                cacheMode: .disabled,
+                cacheMode: .project,
                 verbose: true))
         do {
             try await runner.run(packageDirectory: testPackagePath,
