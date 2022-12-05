@@ -21,11 +21,6 @@ struct Compiler<E: Executor> {
         self.extractor = DwarfExtractor(executor: executor)
     }
 
-    func clean() async throws {
-        logger.info("🗑️ Cleaning \(rootPackage.name)...")
-        try await xcodebuild.clean(package: rootPackage)
-    }
-
     func createXCFramework(target: ResolvedTarget,
                            outputDirectory: URL) async throws {
         let buildConfiguration = buildOptions.buildConfiguration

@@ -59,11 +59,12 @@ struct FrameworkProducer {
             return
         }
 
-//        do {
-//            try await compiler.clean()
-//        } catch {
-//            logger.warning("⚠️ Unable to clean project.")
-//        }
+        let cleaner = Cleaner(rootPackage: rootPackage)
+        do {
+            try await cleaner.clean()
+        } catch {
+            logger.warning("⚠️ Unable to clean project.")
+        }
 
         for product in libraryTargets {
             assert(product.target.type == .library)
