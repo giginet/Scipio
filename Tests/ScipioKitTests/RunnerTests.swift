@@ -8,8 +8,9 @@ private let fixturePath = URL(fileURLWithPath: #file)
     .appendingPathComponent("Resources")
     .appendingPathComponent("Fixtures")
 private let testPackagePath = fixturePath.appendingPathComponent("E2ETestPackage")
+private let binaryPackagePath = fixturePath.appendingPathComponent("BinaryPackage")
 
-final class PrepareTests: XCTestCase {
+final class RunnerTests: XCTestCase {
     private let fileManager: FileManager = .default
     lazy var tempDir = fileManager.temporaryDirectory
     lazy var frameworkOutputDir = tempDir.appendingPathComponent("XCFrameworks")
@@ -20,9 +21,13 @@ final class PrepareTests: XCTestCase {
         super.setUp()
     }
 
-    func testBuildXCFramework() async throws {
+    override func setUpWithError() throws {
         try fileManager.createDirectory(at: frameworkOutputDir, withIntermediateDirectories: true)
 
+        try super.setUpWithError()
+    }
+
+    func testBuildXCFramework() async throws {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
@@ -53,8 +58,6 @@ final class PrepareTests: XCTestCase {
     }
 
     func testCacheIsValid() async throws {
-        try fileManager.createDirectory(at: frameworkOutputDir, withIntermediateDirectories: true)
-
         let rootPackage = try Package(packageDirectory: testPackagePath)
         let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                       buildOptions: .init(buildConfiguration: .release,
@@ -112,8 +115,6 @@ final class PrepareTests: XCTestCase {
     }
 
     func testLocalStorage() async throws {
-        try fileManager.createDirectory(at: frameworkOutputDir, withIntermediateDirectories: true)
-
         let storage = LocalCacheStorage(cacheDirectory: .custom(tempDir))
         let storageDir = tempDir.appendingPathComponent("Scipio")
 
@@ -152,6 +153,28 @@ final class PrepareTests: XCTestCase {
 
         addTeardownBlock {
             try self.fileManager.removeItem(at: storageDir)
+        }
+    }
+
+    func testExtractBinary() async throws {
+        let runner = Runner(
+            mode: .createPackage,
+            options: .init(
+                buildConfiguration: .release,
+                isSimulatorSupported: false,
+                isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
+                cacheMode: .disabled,
+                verbose: false)
+        )
+
+        try await runner.run(packageDirectory: binaryPackagePath, frameworkOutputDir: .custom(frameworkOutputDir))
+
+        let binaryPath = frameworkOutputDir.appendingPathComponent("SomeBinary.xcframework")
+        XCTAssertTrue(fileManager.fileExists(atPath: binaryPath.path))
+
+        addTeardownBlock {
+            try self.fileManager.removeItem(atPath: binaryPath.path)
         }
     }
 

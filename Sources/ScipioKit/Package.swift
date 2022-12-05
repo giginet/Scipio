@@ -69,7 +69,7 @@ struct BuildProduct {
         "\(target.name.packageNamed()).xcframework"
     }
 
-    var isBinaryTarget: Bool {
-        target.underlyingTarget is BinaryTarget
+    var binaryTarget: BinaryTarget? {
+        target.underlyingTarget as? BinaryTarget
     }
 }

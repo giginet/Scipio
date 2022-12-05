@@ -3,9 +3,11 @@ import PackageGraph
 import PackageModel
 
 struct FrameworkProducer {
+    let mode: Runner.Mode
     let rootPackage: Package
     let buildOptions: BuildOptions
     let cacheMode: Runner.Options.CacheMode
+    let outputDir: URL
     let fileSystem: any FileSystem
 
     private var cacheStorage: (any CacheStorage)? {
@@ -23,39 +25,57 @@ struct FrameworkProducer {
     }
 
     init(
+        mode: Runner.Mode,
         rootPackage: Package,
         buildOptions: BuildOptions,
         cacheMode: Runner.Options.CacheMode,
+        outputDir: URL,
         fileSystem: any FileSystem = localFileSystem
     ) {
+        self.mode = mode
         self.rootPackage = rootPackage
         self.buildOptions = buildOptions
         self.cacheMode = cacheMode
+        self.outputDir = outputDir
         self.fileSystem = fileSystem
     }
 
-    func produce(mode: Runner.Mode, outputDir: URL) async throws {
+    func produce() async throws {
+        let targets = allTargets(for: mode)
+        try await buildAllLibraryTargets(
+            libraryTargets: targets.filter { $0.target.type == .library }
+        )
+
+        let binaryTargets = targets.compactMap(\.binaryTarget)
+        try await extractAllBinaryTarget(binaryTargets: binaryTargets)
+    }
+
+    private func buildAllLibraryTargets(libraryTargets: [BuildProduct]) async throws {
+        let compiler = Compiler(rootPackage: rootPackage, buildOptions: buildOptions)
         let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                       buildOptions: buildOptions,
                                       outputDirectory: outputDir,
                                       storage: cacheStorage)
-        let compiler = Compiler(rootPackage: rootPackage, buildOptions: buildOptions)
-        try await compiler.clean()
 
-        let products = productsToBuild(for: mode)
-        for product in products {
-            if product.isBinaryTarget {
-                logger.warning("🚧 \(product.target) is binaryTarget. Currently, binaryTarget is not supported. Skip it.")
-                continue
-            } else {
-                try await buildXCFrameworkIfNeeded(
-                    product,
-                    mode: mode,
-                    outputDir: outputDir,
-                    cacheSystem: cacheSystem,
-                    compiler: compiler
-                )
-            }
+        guard !libraryTargets.isEmpty else {
+            return
+        }
+
+        do {
+            try await compiler.clean()
+        } catch {
+            logger.warning("⚠️ Unable to clean project.")
+        }
+
+        for product in libraryTargets {
+            assert(product.target.type == .library)
+            try await buildXCFrameworkIfNeeded(
+                product,
+                mode: mode,
+                outputDir: outputDir,
+                cacheSystem: cacheSystem,
+                compiler: compiler
+            )
 
             if isCacheEnabled {
                 let outputPath = outputDir.appendingPathComponent(product.frameworkName)
@@ -105,6 +125,17 @@ struct FrameworkProducer {
         }
     }
 
+    private func extractAllBinaryTarget(binaryTargets: [BinaryTarget]) async throws {
+        for binaryTarget in binaryTargets {
+            let binaryExtractor = BinaryExtractor(
+                package: rootPackage,
+                outputDirectory: outputDir,
+                fileSystem: fileSystem
+            )
+            try binaryExtractor.extract(of: binaryTarget)
+        }
+    }
+
     private func generateVersionFile(for product: BuildProduct, using cacheSystem: CacheSystem) async throws {
         do {
             try await cacheSystem.generateVersionFile(for: product)
@@ -113,7 +144,7 @@ struct FrameworkProducer {
         }
     }
 
-    private func productsToBuild(for mode: Runner.Mode) -> [BuildProduct] {
+    private func allTargets(for mode: Runner.Mode) -> [BuildProduct] {
         let packages: [ResolvedPackage]
         switch mode {
         case .createPackage:
@@ -124,7 +155,6 @@ struct FrameworkProducer {
         return packages
             .flatMap { package in
                 package.targets
-                    .filter { $0.type == .library }
                     .map { BuildProduct(package: package, target: $0) }
             }
     }

@@ -5,6 +5,9 @@ import PackageDescription
 
 let package = Package(
     name: "BinaryPackage",
+    platforms: [
+        .iOS(.v11)
+    ],
     products: [
         .library(name: "BinaryPackage",
                  targets: ["SomeBinary"])
