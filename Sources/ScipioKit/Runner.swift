@@ -1,4 +1,7 @@
 import Foundation
+import OrderedCollections
+
+public typealias PlatformMatrix = [String: OrderedSet<SDK>]
 
 public struct Runner {
     private let options: Options
@@ -39,6 +42,7 @@ public struct Runner {
             frameworkType: FrameworkType,
             outputDirectory: URL? = nil,
             cacheMode: CacheMode,
+            platformMatrix: PlatformMatrix = [:],
             verbose: Bool
         ) {
             self.buildConfiguration = buildConfiguration
@@ -47,6 +51,7 @@ public struct Runner {
             self.frameworkType = frameworkType
             self.outputDirectory = outputDirectory
             self.cacheMode = cacheMode
+            self.platformMatrix = platformMatrix
             self.verbose = verbose
         }
 
@@ -56,6 +61,7 @@ public struct Runner {
         public var frameworkType: FrameworkType
         public var outputDirectory: URL?
         public var cacheMode: CacheMode
+        public var platformMatrix: PlatformMatrix
         public var verbose: Bool
 
         public enum CacheMode {
@@ -147,6 +153,7 @@ public struct Runner {
             rootPackage: package,
             buildOptions: buildOptions,
             cacheMode: options.cacheMode,
+            platformMatrix: options.platformMatrix,
             outputDir: outputDir
         )
         do {

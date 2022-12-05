@@ -1,12 +1,14 @@
 import Foundation
 import PackageGraph
 import PackageModel
+import OrderedCollections
 
 struct FrameworkProducer {
     private let mode: Runner.Mode
     private let rootPackage: Package
     private let buildOptions: BuildOptions
     private let cacheMode: Runner.Options.CacheMode
+    private let platformMatrix: PlatformMatrix
     private let outputDir: URL
     private let fileSystem: any FileSystem
 
@@ -29,6 +31,7 @@ struct FrameworkProducer {
         rootPackage: Package,
         buildOptions: BuildOptions,
         cacheMode: Runner.Options.CacheMode,
+        platformMatrix: PlatformMatrix,
         outputDir: URL,
         fileSystem: any FileSystem = localFileSystem
     ) {
@@ -36,6 +39,7 @@ struct FrameworkProducer {
         self.rootPackage = rootPackage
         self.buildOptions = buildOptions
         self.cacheMode = cacheMode
+        self.platformMatrix = platformMatrix
         self.outputDir = outputDir
         self.fileSystem = fileSystem
     }
@@ -51,24 +55,27 @@ struct FrameworkProducer {
     }
 
     private func buildAllLibraryTargets(libraryTargets: [BuildProduct]) async throws {
-        let compiler = Compiler(rootPackage: rootPackage, buildOptions: buildOptions)
-        let cacheSystem = CacheSystem(rootPackage: rootPackage,
-                                      buildOptions: buildOptions,
-                                      outputDirectory: outputDir,
-                                      storage: cacheStorage)
-
         guard !libraryTargets.isEmpty else {
             return
         }
 
-        do {
-            try await compiler.clean()
-        } catch {
-            logger.warning("⚠️ Unable to clean project.")
-        }
+//        do {
+//            try await compiler.clean()
+//        } catch {
+//            logger.warning("⚠️ Unable to clean project.")
+//        }
 
         for product in libraryTargets {
             assert(product.target.type == .library)
+
+            let buildOptionsForProduct = makeBuildOptions(for: product, basedOn: buildOptions, platformMatrix: platformMatrix)
+            let compiler = Compiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
+
+            let cacheSystem = CacheSystem(rootPackage: rootPackage,
+                                          buildOptions: buildOptionsForProduct,
+                                          outputDirectory: outputDir,
+                                          storage: cacheStorage)
+
             try await buildXCFrameworkIfNeeded(
                 product,
                 mode: mode,
@@ -133,6 +140,16 @@ struct FrameworkProducer {
             )
             try binaryExtractor.extract(of: binaryTarget)
         }
+    }
+
+    private func makeBuildOptions(for product: BuildProduct, basedOn baseBuildOptions: BuildOptions, platformMatrix: PlatformMatrix) -> BuildOptions {
+        guard let overriddenSDKs = platformMatrix[product.target.name] else {
+            return baseBuildOptions
+        }
+
+        var newBuildOptions = baseBuildOptions
+        newBuildOptions.sdks = overriddenSDKs
+        return newBuildOptions
     }
 
     private func generateVersionFile(for product: BuildProduct, using cacheSystem: CacheSystem) async throws {

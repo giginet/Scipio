@@ -6,6 +6,7 @@ import PackageModel
 import PackageLoading
 import PackageGraph
 import Basics
+import OrderedCollections
 
 struct Package {
     let packageDirectory: URL
@@ -30,8 +31,8 @@ struct Package {
         buildDirectory.appendingPathComponent("\(name).xcodeproj")
     }
 
-    var supportedSDKs: [SDK] {
-        manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:))
+    var supportedSDKs: OrderedSet<SDK> {
+        OrderedSet(manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:)))
     }
 
     init(packageDirectory: URL) throws {
