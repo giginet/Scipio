@@ -38,7 +38,7 @@ let package = Package(
         .target(
             name: "ScipioKit",
             dependencies: [
-                .productItem(name: "SwiftPM", package: "swift-package-manager"),
+                .productItem(name: "SwiftPMDataModel-auto", package: "swift-package-manager"),
                 .productItem(name: "Logging", package: "swift-log"),
                 .productItem(name: "Rainbow", package: "Rainbow"),
                 .productItem(name: "XcodeProj", package: "XcodeProj"),
