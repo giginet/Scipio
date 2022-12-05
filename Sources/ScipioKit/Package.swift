@@ -36,7 +36,7 @@ struct Package {
 
     init(packageDirectory: URL) throws {
         self.packageDirectory = packageDirectory
-        let absolutePath = AbsolutePath(packageDirectory.path)
+        let absolutePath = try AbsolutePath(validating: packageDirectory.path)
 
         self.toolchain = try UserToolchain(destination: try .hostDestination())
 
