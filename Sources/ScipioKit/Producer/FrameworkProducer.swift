@@ -80,7 +80,7 @@ struct FrameworkProducer {
         let exists = fileSystem.exists(outputPath)
 
         let needToBuild: Bool
-        if exists && isCacheEnabled {
+        if exists, isCacheEnabled {
             let isValidCache = await cacheSystem.existsValidCache(product: product)
             if isValidCache {
                 logger.info("✅ Valid \(product.target.name).xcframework is exists. Skip building.", metadata: .color(.green))
