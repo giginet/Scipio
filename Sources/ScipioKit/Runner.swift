@@ -62,17 +62,6 @@ public struct Runner {
             case disabled
             case project
             case storage(any CacheStorage)
-
-            func extract() -> (Bool, CacheStorage?) {
-                switch self {
-                case .disabled:
-                    return (false, nil)
-                case .project:
-                    return (true, nil)
-                case .storage(let cacheStorage):
-                    return (true, cacheStorage)
-                }
-            }
         }
     }
     private var mode: Mode
@@ -153,28 +142,14 @@ public struct Runner {
 
         try fileSystem.createDirectory(outputDir, recursive: true)
 
-        let (isCacheEnabled, cacheStorage) = options.cacheMode.extract()
-        let compiler = Compiler(rootPackage: package,
-                                cacheStorage: cacheStorage,
-                                executor: ProcessExecutor(),
-                                fileSystem: fileSystem)
+        let producer = FrameworkProducer(rootPackage: package,
+                                         buildOptions: buildOptions,
+                                         cacheMode: options.cacheMode)
         do {
-            switch mode {
-            case .createPackage:
-                try await compiler.build(
-                    mode: .createPackage,
-                    buildOptions: buildOptions,
-                    outputDir: outputDir,
-                    isCacheEnabled: isCacheEnabled
-                )
-            case .prepareDependencies:
-                try await compiler.build(
-                    mode: .prepareDependencies,
-                    buildOptions: buildOptions,
-                    outputDir: outputDir,
-                    isCacheEnabled: isCacheEnabled
-                )
-            }
+            try await producer.produce(
+                mode: mode,
+                outputDir: outputDir
+            )
             logger.info("❇️ Succeeded.", metadata: .color(.green))
         } catch {
             logger.error("Something went wrong during building", metadata: .color(.red))
