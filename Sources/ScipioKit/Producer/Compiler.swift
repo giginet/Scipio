@@ -83,8 +83,8 @@ struct Compiler<E: Executor> {
         // You can use AsyncStream
         var symbolMapPaths: [URL] = []
         for dSYMs in debugSymbols {
-            let maps = try await self.extractor.dump(dwarfPath: dSYMs.dwarfPath)
-            let paths = maps.values.map { uuid in
+            let dumpedDSYMsMaps = try await self.extractor.dump(dwarfPath: dSYMs.dwarfPath)
+            let paths = dumpedDSYMsMaps.values.map { uuid in
                 buildArtifactsDirectoryPath(buildConfiguration: dSYMs.buildConfiguration, sdk: dSYMs.sdk)
                     .appendingPathComponent("\(uuid.uuidString).bcsymbolmap")
             }
