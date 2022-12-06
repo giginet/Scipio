@@ -45,7 +45,7 @@ struct FrameworkProducer {
         let products = productsToBuild(for: mode)
         for product in products {
             if product.isBinaryTarget {
-                logger.error("🚧 \(product.target) is binaryTarget. Currently, binaryTarget is not supported. Skip it.")
+                logger.warning("🚧 \(product.target) is binaryTarget. Currently, binaryTarget is not supported. Skip it.")
                 continue
             } else {
                 try await buildXCFrameworkIfNeeded(
