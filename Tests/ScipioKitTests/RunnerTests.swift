@@ -178,6 +178,43 @@ final class RunnerTests: XCTestCase {
         }
     }
 
+    func testWithPlatformMatrix() async throws {
+        let runner = Runner(
+            mode: .prepareDependencies,
+            options: .init(
+                buildConfiguration: .release,
+                isSimulatorSupported: true,
+                isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
+                cacheMode: .project,
+                platformMatrix: ["ScipioTesting": [.iOS, .watchOS]],
+                verbose: false)
+        )
+
+        try await runner.run(packageDirectory: testPackagePath,
+                             frameworkOutputDir: .custom(frameworkOutputDir))
+
+        ["ScipioTesting"].forEach { library in
+            let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
+            let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
+            let contentsOfXCFramework = try! XCTUnwrap(fileManager.contentsOfDirectory(atPath: xcFramework.path))
+            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
+                          "Should create \(library).xcramework")
+            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
+                          "Should create .\(library).version")
+            XCTAssertEqual(
+                Set(contentsOfXCFramework),
+                [
+                    "Info.plist",
+                    "watchos-arm64_arm64_32_armv7k",
+                    "ios-arm64_x86_64-simulator",
+                    "watchos-arm64_i386_x86_64-simulator",
+                    "ios-arm64",
+                ]
+            )
+        }
+    }
+
     override func tearDownWithError() throws {
         try removeIfExist(at: testPackagePath.appendingPathComponent(".build"))
         try removeIfExist(at: frameworkOutputDir)
