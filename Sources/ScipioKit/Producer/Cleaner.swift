@@ -1,7 +1,7 @@
 import Foundation
 
 struct Cleaner<E: Executor> {
-    let rootPackage: Package
+    private let rootPackage: Package
     private let xcodebuild: XcodeBuildClient<E>
 
     init(rootPackage: Package, executor: E = ProcessExecutor()) {
