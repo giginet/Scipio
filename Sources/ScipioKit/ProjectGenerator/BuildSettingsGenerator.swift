@@ -135,6 +135,7 @@ struct TargetBuildSettingsGenerator {
             "SWIFT_ACTIVE_COMPILATION_CONDITIONS": [.inherited],
             "FRAMEWORK_SEARCH_PATHS": [.inherited, "$(PLATFORM_DIR)/Developer/Library/Frameworks"],
             "BUILD_LIBRARY_FOR_DISTRIBUTION": true,
+            "DEFINES_MODULE": true,
         ]
     }
 
