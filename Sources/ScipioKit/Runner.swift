@@ -142,14 +142,15 @@ public struct Runner {
 
         try fileSystem.createDirectory(outputDir, recursive: true)
 
-        let producer = FrameworkProducer(rootPackage: package,
-                                         buildOptions: buildOptions,
-                                         cacheMode: options.cacheMode)
+        let producer = FrameworkProducer(
+            mode: mode,
+            rootPackage: package,
+            buildOptions: buildOptions,
+            cacheMode: options.cacheMode,
+            outputDir: outputDir
+        )
         do {
-            try await producer.produce(
-                mode: mode,
-                outputDir: outputDir
-            )
+            try await producer.produce()
             logger.info("❇️ Succeeded.", metadata: .color(.green))
         } catch {
             logger.error("Something went wrong during building", metadata: .color(.red))
