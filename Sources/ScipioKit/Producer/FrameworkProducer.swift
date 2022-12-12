@@ -69,7 +69,7 @@ struct FrameworkProducer {
         for product in libraryTargets {
             assert(product.target.type == .library)
 
-            let buildOptionsForProduct = makeBuildOptions(for: product, basedOn: buildOptions, platformMatrix: platformMatrix)
+            let buildOptionsForProduct = buildOptions.overridingSDKs(for: product, platformMatrix: platformMatrix)
             let compiler = Compiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
 
             let cacheSystem = CacheSystem(rootPackage: rootPackage,
@@ -143,16 +143,6 @@ struct FrameworkProducer {
         }
     }
 
-    private func makeBuildOptions(for product: BuildProduct, basedOn baseBuildOptions: BuildOptions, platformMatrix: PlatformMatrix) -> BuildOptions {
-        guard let overriddenSDKs = platformMatrix[product.target.name] else {
-            return baseBuildOptions
-        }
-
-        var newBuildOptions = baseBuildOptions
-        newBuildOptions.sdks = overriddenSDKs
-        return newBuildOptions
-    }
-
     private func generateVersionFile(for product: BuildProduct, using cacheSystem: CacheSystem) async throws {
         do {
             try await cacheSystem.generateVersionFile(for: product)
@@ -184,5 +174,16 @@ extension Package {
             return graph.packages
              .filter { $0.manifest.displayName != manifest.displayName }
         }
+    }
+}
+
+extension BuildOptions {
+    fileprivate func overridingSDKs(for product: BuildProduct, platformMatrix: PlatformMatrix) -> BuildOptions {
+        guard let overriddenSDKs = platformMatrix[product.target.name] else {
+            return self
+        }
+        var newBuildOptions = self
+        newBuildOptions.sdks = overriddenSDKs
+        return newBuildOptions
     }
 }
