@@ -3,12 +3,12 @@ import PackageGraph
 import PackageModel
 
 struct FrameworkProducer {
-    let mode: Runner.Mode
-    let rootPackage: Package
-    let buildOptions: BuildOptions
-    let cacheMode: Runner.Options.CacheMode
-    let outputDir: URL
-    let fileSystem: any FileSystem
+    private let mode: Runner.Mode
+    private let rootPackage: Package
+    private let buildOptions: BuildOptions
+    private let cacheMode: Runner.Options.CacheMode
+    private let outputDir: URL
+    private let fileSystem: any FileSystem
 
     private var cacheStorage: (any CacheStorage)? {
         switch cacheMode {
@@ -79,7 +79,7 @@ struct FrameworkProducer {
 
             if isCacheEnabled {
                 let outputPath = outputDir.appendingPathComponent(product.frameworkName)
-                try? await cacheSystem.cacheFramework(at: outputPath, product: product)
+                try? await cacheSystem.cacheFramework(product, at: outputPath)
 
                 if case .prepareDependencies = mode {
                     try await generateVersionFile(for: product, using: cacheSystem)
@@ -105,15 +105,14 @@ struct FrameworkProducer {
             if isValidCache {
                 logger.info("✅ Valid \(product.target.name).xcframework is exists. Skip building.", metadata: .color(.green))
                 return
-            } else {
-                logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
-                logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
-                try fileSystem.removeFileTree(at: outputPath)
-                let restored = await cacheSystem.restoreCacheIfPossible(product: product)
-                needToBuild = !restored
-                if restored {
-                    logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
-                }
+            }
+            logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
+            logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
+            try fileSystem.removeFileTree(at: outputPath)
+            let restored = await cacheSystem.restoreCacheIfPossible(product: product)
+            needToBuild = !restored
+            if restored {
+                logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
             }
         } else {
             needToBuild = true
@@ -145,14 +144,7 @@ struct FrameworkProducer {
     }
 
     private func allTargets(for mode: Runner.Mode) -> [BuildProduct] {
-        let packages: [ResolvedPackage]
-        switch mode {
-        case .createPackage:
-            packages = rootPackage.graph.rootPackages
-        case .prepareDependencies:
-            packages = dependenciesPackages(for: rootPackage)
-        }
-        return packages
+        rootPackage.resolveDependenciesPackages(for: mode)
             .flatMap { package in
                 package.targets
                     .map { BuildProduct(package: package, target: $0) }
@@ -162,5 +154,17 @@ struct FrameworkProducer {
     private func dependenciesPackages(for package: Package) -> [ResolvedPackage] {
         package.graph.packages
             .filter { $0.manifest.displayName != package.manifest.displayName }
+    }
+}
+
+extension Package {
+    fileprivate func resolveDependenciesPackages(for mode: Runner.Mode) -> [ResolvedPackage] {
+        switch  mode {
+        case .createPackage:
+            return graph.rootPackages
+        case .prepareDependencies:
+            return graph.packages
+             .filter { $0.manifest.displayName != manifest.displayName }
+        }
     }
 }
