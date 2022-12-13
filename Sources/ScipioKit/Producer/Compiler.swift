@@ -2,9 +2,9 @@ import Foundation
 import PackageGraph
 
 struct Compiler<E: Executor> {
-    let rootPackage: Package
-    let buildOptions: BuildOptions
-    let fileSystem: any FileSystem
+    private let rootPackage: Package
+    private let buildOptions: BuildOptions
+    private let fileSystem: any FileSystem
     private let xcodebuild: XcodeBuildClient<E>
     private let extractor: DwarfExtractor<E>
 
@@ -19,14 +19,6 @@ struct Compiler<E: Executor> {
         self.fileSystem = fileSystem
         self.xcodebuild = XcodeBuildClient(executor: executor)
         self.extractor = DwarfExtractor(executor: executor)
-    }
-
-    private func buildArtifactsDirectoryPath(buildConfiguration: BuildConfiguration, sdk: SDK) -> URL {
-        rootPackage.workspaceDirectory.appendingPathComponent("\(buildConfiguration.settingsValue)-\(sdk.name)")
-    }
-
-    private func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> URL {
-        buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appendingPathComponent("\(target).framework.dSYM")
     }
 
     func clean() async throws {
@@ -73,7 +65,7 @@ struct Compiler<E: Executor> {
         sdks: Set<SDK>
     ) async throws -> [URL] {
         let debugSymbols: [DebugSymbol] = sdks.compactMap { sdk in
-            let dsymPath = buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: sdk, target: target)
+            let dsymPath = rootPackage.buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: sdk, target: target)
             guard fileSystem.exists(dsymPath) else { return nil }
             return DebugSymbol(dSYMPath: dsymPath,
                                target: target,
@@ -83,9 +75,9 @@ struct Compiler<E: Executor> {
         // You can use AsyncStream
         var symbolMapPaths: [URL] = []
         for dSYMs in debugSymbols {
-            let dumpedDSYMsMaps = try await self.extractor.dump(dwarfPath: dSYMs.dwarfPath)
+            let dumpedDSYMsMaps = try await extractor.dump(dwarfPath: dSYMs.dwarfPath)
             let paths = dumpedDSYMsMaps.values.map { uuid in
-                buildArtifactsDirectoryPath(buildConfiguration: dSYMs.buildConfiguration, sdk: dSYMs.sdk)
+                rootPackage.buildArtifactsDirectoryPath(buildConfiguration: dSYMs.buildConfiguration, sdk: dSYMs.sdk)
                     .appendingPathComponent("\(uuid.uuidString).bcsymbolmap")
             }
             symbolMapPaths.append(contentsOf: paths)
@@ -105,5 +97,15 @@ struct Compiler<E: Executor> {
 extension Package {
     var archivesPath: URL {
         workspaceDirectory.appendingPathComponent("archives")
+    }
+}
+
+extension Package {
+    fileprivate func buildArtifactsDirectoryPath(buildConfiguration: BuildConfiguration, sdk: SDK) -> URL {
+        workspaceDirectory.appendingPathComponent("\(buildConfiguration.settingsValue)-\(sdk.name)")
+    }
+
+    fileprivate func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> URL {
+        buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appendingPathComponent("\(target).framework.dSYM")
     }
 }

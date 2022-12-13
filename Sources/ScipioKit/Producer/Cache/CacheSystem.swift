@@ -137,7 +137,7 @@ struct CacheSystem {
         self.fileSystem = fileSystem
     }
 
-    func cacheFramework(at frameworkPath: URL, product: BuildProduct) async throws {
+    func cacheFramework(_ product: BuildProduct, at frameworkPath: URL) async throws {
         let cacheKey = try await calculateCacheKey(of: product)
 
         await storage?.cacheFramework(frameworkPath, for: cacheKey)
