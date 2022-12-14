@@ -1,4 +1,5 @@
 import Foundation
+import OrderedCollections
 
 struct BuildOptions: Hashable, Codable {
     init(
@@ -6,7 +7,7 @@ struct BuildOptions: Hashable, Codable {
         isSimulatorSupported: Bool,
         isDebugSymbolsEmbedded: Bool,
         frameworkType: FrameworkType,
-        sdks: [SDK]
+        sdks: OrderedSet<SDK>
     ) {
         self.buildConfiguration = buildConfiguration
         self.isSimulatorSupported = isSimulatorSupported
@@ -19,7 +20,7 @@ struct BuildOptions: Hashable, Codable {
     var isSimulatorSupported: Bool
     var isDebugSymbolsEmbedded: Bool
     var frameworkType: FrameworkType
-    var sdks: [SDK]
+    var sdks: OrderedSet<SDK>
 }
 
 public enum BuildConfiguration: String, Codable {
@@ -39,7 +40,7 @@ public enum FrameworkType: String, Codable {
     case `static`
 }
 
-enum SDK: String, Codable {
+public enum SDK: String, Codable {
     case macOS
     case macCatalyst
     case iOS
