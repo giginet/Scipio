@@ -467,6 +467,10 @@ extension ResolvedTarget {
             return nil
         }
     }
+
+    fileprivate var resourceDir: URL {
+        underlyingTarget.path.appending(component: "Resources").asURL
+    }
 }
 
 private var infoPlist: String {
