@@ -209,6 +209,10 @@ class ProjectGenerator {
             throw Error.unsupportedTarget(targetName: target.name, kind: target.type)
         }
 
+        guard let resolvedPackage = package.graph.package(for: target) else {
+            throw Error.unknownError
+        }
+
         // Generate Info.plist
         let plistPath = package.buildDirectory.appendingPathComponent(target.infoPlistFileName)
         fileSystem.write(infoPlist.data(using: .utf8)!, to: plistPath)
@@ -257,12 +261,12 @@ class ProjectGenerator {
             PBXSourcesBuildPhase(files: buildFiles)
         )
 
-        if !target.underlyingTarget.resources.isEmpty {
-            logger.warning(
-            """
-            🚧 \(target.name) has resources. However, resource support is currently partial yet.
-            You can't use `Bundle.module` using Scipio
-            """)
+        if fileSystem.exists(target.resourceDir) {
+            let resourceGenerator = ResourceBundleTargetGenerator(
+                package: resolvedPackage,
+                target: target
+            )
+            try resourceGenerator.generate()
         }
 
         let resourcePhase = addObject(

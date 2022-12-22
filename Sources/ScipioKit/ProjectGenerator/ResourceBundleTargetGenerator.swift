@@ -39,7 +39,7 @@ struct ResourceBundleTargetGenerator {
         "\(target.c99name)-Resources"
     }
 
-    func generate() async throws -> PBXTarget {
+    func generate() throws -> PBXTarget {
         let builder = makeTargetSourceBuilder()
         let (_, resouces, _, _, _) = try builder.run()
 
