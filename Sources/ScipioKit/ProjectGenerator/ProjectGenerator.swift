@@ -254,6 +254,9 @@ class ProjectGenerator {
             ])
         )
 
+        // Make Resource target if needed
+        let resourceTarget = try makeResourceTarget(for: target)
+
         let productRef: PBXFileReference? = try? pbxProj.rootObject?
             .productsGroup?
             .addFile(
@@ -283,15 +286,26 @@ class ProjectGenerator {
             )
         }
 
-        let buildFiles: [PBXBuildFile] = fileReferences.map { reference in
+        // Inject a bundle accessor
+        let additionalFiles: [PBXFileReference]
+        if let resourceTarget {
+            let bundleAccessorGenerator = BundleAccessorGenerator(package: package)
+            let accessorPath = bundleAccessorGenerator.generate(resourceBundleName: resourceTarget.name)
+            let bundleAccessorReference = addObject(
+                try targetGroup.addFile(at: Path(accessorPath.path), sourceRoot: sourceRoot.toPath())
+            )
+            additionalFiles = [bundleAccessorReference]
+        } else {
+            additionalFiles = []
+        }
+
+        let buildFiles: [PBXBuildFile] = (fileReferences + additionalFiles).map { reference in
             addObject(PBXBuildFile(file: reference))
         }
 
         let compilePhase = addObject(
             PBXSourcesBuildPhase(files: buildFiles)
         )
-
-        let resourceTarget = try makeResourceTarget(for: target)
 
         let frameworkTarget = PBXNativeTarget(name: target.c99name,
                                               buildConfigurationList: buildConfigurationList,
