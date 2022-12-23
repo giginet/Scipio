@@ -155,7 +155,7 @@ class ProjectGenerator {
             }
         }
 
-        // Make LinkPhase for each Xcode targets
+        // Register dependencies for each Xcode targets
         for (target, xcodeTargetContainer) in xcodeTargets {
             let frameworkTarget = xcodeTargetContainer.frameworkTarget
 
@@ -187,6 +187,7 @@ class ProjectGenerator {
                 frameworkTarget.buildPhases.append(resourcePhase)
             }
 
+            // Make Link Phase
             let linkReferences: [PBXBuildFile]
             if target.type == .library {
                 linkReferences = dependsTargets
@@ -204,8 +205,7 @@ class ProjectGenerator {
             frameworkTarget.buildPhases.append(linkPhase)
 
             // Add -fmodule-map-file for Swift targets
-            let isSwiftTarget = target.underlyingTarget is SwiftTarget
-            if isSwiftTarget {
+            if target.isSwiftTarget {
                 for dependency in dependsTargets {
                     guard let moduleMapPath = moduleMaps[dependency] else { continue }
                     let relativePath = moduleMapPath.relative(to: sourceRoot!)
@@ -547,6 +547,10 @@ extension ResolvedTarget {
 
     fileprivate var resourceDir: URL {
         underlyingTarget.path.appending(component: "Resources").asURL
+    }
+
+    fileprivate var isSwiftTarget: Bool {
+        underlyingTarget is SwiftTarget
     }
 }
 
