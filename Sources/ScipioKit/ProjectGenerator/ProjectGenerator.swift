@@ -133,13 +133,15 @@ class ProjectGenerator {
             .filter { $0.type == .library }
             .sorted { $0.name < $1.name }
 
-        let frameworkTargets: [ResolvedTarget: PBXNativeTarget] = try targetsToGenerate.reduce(into: [:]) { targets, target in
-            let xcodeTarget = addObject(
-                try makeTarget(for: target)
-            )
-            targets[target] = xcodeTarget
+        let xcodeTargets: [ResolvedTarget: GeneratedTargetsContainer] = try targetsToGenerate.reduce(into: [:]) { targets, target in
+            targets[target] = try makeTargets(for: target)
         }
-        frameworkTargets.values.forEach { self.pbxProj.rootObject?.targets.append($0) }
+        xcodeTargets.values.forEach { container in
+            container.targets.forEach { target in
+                addObject(target)
+                self.pbxProj.rootObject?.targets.append(target)
+            }
+        }
 
         let resourceTargets: [ResolvedTarget: PBXNativeTarget] = try targetsToGenerate.reduce(into: [:]) { targets, target in
             guard let resourceTarget = try makeResourceTarget(for: target) else {
@@ -151,16 +153,19 @@ class ProjectGenerator {
         resourceTargets.values.forEach { self.pbxProj.rootObject?.targets.append($0) }
 
         // Generate ModuleMaps for Clang targets
-        let moduleMaps: [ResolvedTarget: AbsolutePath] = try frameworkTargets.reduce(into: [:]) { (collection, tuple) in
+        let moduleMaps: [ResolvedTarget: AbsolutePath] = try xcodeTargets.reduce(into: [:]) { (collection, tuple) in
             let (target, xcodeTarget) = tuple
             if let clangTarget = target.underlyingTarget as? ClangTarget,
-               let moduleMapPath = try applyClangTargetSpecificSettings(for: clangTarget, xcodeTarget: xcodeTarget).moduleMapPath {
+               let moduleMapPath = try applyClangTargetSpecificSettings(
+                for: clangTarget,
+                xcodeTarget: xcodeTarget.frameworkTarget
+               ).moduleMapPath {
                 collection[target] = moduleMapPath
             }
         }
 
         // Make LinkPhase for each Xcode targets
-        for (target, xcodeTarget) in frameworkTargets {
+        for (target, xcodeTarget) in xcodeTargets.mapValues(\.frameworkTarget) {
             let dependsTargets = try target.recursiveDependencies().compactMap { dependency in
                 if case .target(let resolvedTarget, _) = dependency {
                     return resolvedTarget
@@ -168,7 +173,7 @@ class ProjectGenerator {
                 return nil
             }
             xcodeTarget.dependencies = dependsTargets
-                .compactMap { frameworkTargets[$0] }
+                .compactMap { xcodeTargets[$0]?.frameworkTarget }
                 .map { target in
                     addObject(PBXTargetDependency(target: target))
                 }
@@ -176,7 +181,7 @@ class ProjectGenerator {
             let linkReferences: [PBXBuildFile]
             if target.type == .library {
                 linkReferences = dependsTargets
-                    .compactMap { frameworkTargets[$0] }
+                    .compactMap { xcodeTargets[$0]?.frameworkTarget }
                     .map { dependency in
                         addObject(PBXBuildFile(file: dependency.product))
                     }
@@ -206,7 +211,17 @@ class ProjectGenerator {
         }
     }
 
-    private func makeTarget(for target: ResolvedTarget) throws -> PBXNativeTarget {
+    private struct GeneratedTargetsContainer {
+        var target: ResolvedTarget
+        var frameworkTarget: PBXNativeTarget
+        var resourceBundleTarget: PBXNativeTarget?
+
+        var targets: Set<PBXNativeTarget> {
+            Set([frameworkTarget, resourceBundleTarget].compactMap { $0 })
+        }
+    }
+
+    private func makeTargets(for target: ResolvedTarget) throws -> GeneratedTargetsContainer {
         let targetSettingsGenerator = TargetBuildSettingsGenerator(
             package: package,
             isDebugSymbolsEmbedded: buildOptions.isDebugSymbolsEmbedded,
@@ -270,11 +285,13 @@ class ProjectGenerator {
         // TODO generate resource accessor to support Bundle.module
         // https://github.com/apple/swift-package-manager/blob/29a16bc2dc0ef72b7044c1dc6236236e3d0120e0/Sources/Build/BuildPlan.swift#L806-L852
 
-        return PBXNativeTarget(name: target.c99name,
-                               buildConfigurationList: buildConfigurationList,
-                               buildPhases: [compilePhase],
-                               product: productRef,
-                               productType: productType)
+        let frameworkTarget = PBXNativeTarget(name: target.c99name,
+                                              buildConfigurationList: buildConfigurationList,
+                                              buildPhases: [compilePhase],
+                                              product: productRef,
+                                              productType: productType)
+
+        return .init(target: target, frameworkTarget: frameworkTarget, resourceBundleTarget: nil)
     }
 
     private func makeResourceTarget(for target: ResolvedTarget) throws -> PBXNativeTarget? {
