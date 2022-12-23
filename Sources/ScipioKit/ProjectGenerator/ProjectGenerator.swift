@@ -348,9 +348,9 @@ class ProjectGenerator {
         }
         resourcesReferences.forEach { addObject($0) }
 
-        let buildFiles = resourcesReferences.map { PBXBuildFile(file: $0) }
+        let buildFiles = resourcesReferences.map { addObject(PBXBuildFile(file: $0)) }
 
-        let resourcePhase = PBXResourcesBuildPhase(files: buildFiles)
+        let resourcePhase = addObject(PBXResourcesBuildPhase(files: buildFiles))
 
         // Generate Info.plist
         let plistFileName = "\(resourceTargetName)_Info.plist"
@@ -358,13 +358,14 @@ class ProjectGenerator {
         let plistData = InfoPlistGenerator().generate(bundleType: .bundle)
         fileSystem.write(plistData, to: plistPath)
 
-        let configurations = ["Debug", "Release"].map { configuration in
+        let builder = ResourceBundleSettingsBuilder()
+        let configurations = [.debug, .release].map { (configuration: BuildConfiguration) in
             addObject(
-                XCBuildConfiguration(
-                    name: configuration,
-                    buildSettings: [
-                        "INFOPLIST_FILE": plistPath.path,
-                    ]
+                builder.generate(
+                    for: target,
+                    configuration: configuration,
+                    infoPlistPath: plistPath,
+                    isSimulatorSupported: buildOptions.isSimulatorSupported
                 )
             )
         }

@@ -81,6 +81,7 @@ struct ProjectBuildSettingsGenerator {
             "GCC_PREPROCESSOR_DEFINITIONS": [.inherited, "SWIFT_PACKAGE=1"],
             "USE_HEADERMAP": false,
             "CLANG_ENABLE_OBJC_ARC": true,
+            "SKIP_INSTALL": true,
         ]
     }
 
@@ -143,7 +144,7 @@ struct TargetBuildSettingsGenerator {
         var settings: [String: XCConfigValue] = baseSettings(for: target)
         settings["INFOPLIST_FILE"] = .string(infoPlistPath.path)
 
-        settings.merge(platformSettings(for: target, isSimulatorSupported: isSimulatorSupported))
+        settings.merge(PlatformSettingsBuilder.platformSettings(for: target, isSimulatorSupported: isSimulatorSupported))
 
         switch target.type {
         case .library:
@@ -152,11 +153,11 @@ struct TargetBuildSettingsGenerator {
                 "PRODUCT_NAME": "$(TARGET_NAME:c99extidentifier)",
                 "PRODUCT_MODULE_NAME": "$(TARGET_NAME:c99extidentifier)",
                 "PRODUCT_BUNDLE_IDENTIFIER": .string(target.c99name.spm_mangledToBundleIdentifier()),
-                "SKIP_INSTALL": true,
                 "LD_RUNTIME_SEARCH_PATH": [.inherited, "$(TOOLCHAIN_DIR)/usr/lib/swift/macosx"],
             ])
         case .test:
             settings.merge([
+                "SKIP_INSTALL": false,
                 "CLANG_ENABLE_MODULES": true,
                 "EMBEDDED_CONTENT_CONTAINS_SWIFT": true,
                 "LD_RUNPATH_SEARCH_PATHS": [.inherited, "@loader_path/../Frameworks", "@loader_path/Frameworks"],
@@ -196,7 +197,40 @@ struct TargetBuildSettingsGenerator {
         )
     }
 
-    private func platformSettings(for target: ResolvedTarget, isSimulatorSupported: Bool) -> [String: XCConfigValue] {
+    private func buildHeaderSearchPaths(for target: ResolvedTarget) -> [String] {
+        var headerSearchPaths: [String] = ["$(inherited)"]
+        guard let targetDependencies = try? target.recursiveTargetDependencies() else {
+            return headerSearchPaths
+        }
+        for dependencyModule in [target] + targetDependencies {
+            switch dependencyModule.underlyingTarget {
+            case let systemTarget as SystemLibraryTarget:
+                headerSearchPaths.append("$(SRCROOT)/\(systemTarget.path.relative(to: sourceRootDir).pathString)")
+            case let clangTarget as ClangTarget:
+                headerSearchPaths.append("$(SRCROOT)/\(clangTarget.includeDir.relative(to: sourceRootDir).pathString)")
+            default:
+                continue
+            }
+        }
+        return headerSearchPaths
+    }
+}
+
+struct ResourceBundleSettingsBuilder {
+    func generate(for target: ResolvedTarget, configuration: BuildConfiguration, infoPlistPath: URL, isSimulatorSupported: Bool) -> XCBuildConfiguration {
+        let buildSettings: [String: XCConfigValue] = [
+            "INFOPLIST_FILE": .string(infoPlistPath.path),
+        ]
+        let platformSettings = PlatformSettingsBuilder.platformSettings(for: target, isSimulatorSupported: isSimulatorSupported)
+
+        let settings = buildSettings.merging(platformSettings) { $1 }
+
+        return XCBuildConfiguration(name: configuration.settingsValue, buildSettings: settings.mapValues(\.rawConfigValue))
+    }
+}
+
+private struct PlatformSettingsBuilder {
+    static func platformSettings(for target: ResolvedTarget, isSimulatorSupported: Bool) -> [String: XCConfigValue] {
         var settings: [String: XCConfigValue] = [:]
 
         // If platforms are not specified on target's manifests
@@ -237,14 +271,14 @@ struct TargetBuildSettingsGenerator {
         let shouldSupportMacCatalyst = supportedPlatforms.map(\.platform).contains(.macCatalyst)
         settings["SUPPORTS_MACCATALYST"] = .bool(shouldSupportMacCatalyst)
 
-        let supportedPlatformValues = buildSupportedPlatformsValue(supportedPlatforms: supportedPlatforms)
+        let supportedPlatformValues = buildSupportedPlatformsValue(supportedPlatforms: supportedPlatforms, isSimulatorSupported: isSimulatorSupported)
         settings["SUPPORTED_PLATFORMS"] = .string(supportedPlatformValues.joined(separator: " "))
 
         return settings
     }
 
     // Build values for SUPPORTED_PLATFORMS
-    private func buildSupportedPlatformsValue(supportedPlatforms: [SupportedPlatform]) -> [String] {
+    private static func buildSupportedPlatformsValue(supportedPlatforms: [SupportedPlatform], isSimulatorSupported: Bool) -> [String] {
         let supportedPlatformValues = supportedPlatforms.compactMap { platform in
             switch platform.platform {
             case .iOS: return "iphoneos"
@@ -270,24 +304,6 @@ struct TargetBuildSettingsGenerator {
         }
         return supportedPlatformValues
 
-    }
-
-    private func buildHeaderSearchPaths(for target: ResolvedTarget) -> [String] {
-        var headerSearchPaths: [String] = ["$(inherited)"]
-        guard let targetDependencies = try? target.recursiveTargetDependencies() else {
-            return headerSearchPaths
-        }
-        for dependencyModule in [target] + targetDependencies {
-            switch dependencyModule.underlyingTarget {
-            case let systemTarget as SystemLibraryTarget:
-                headerSearchPaths.append("$(SRCROOT)/\(systemTarget.path.relative(to: sourceRootDir).pathString)")
-            case let clangTarget as ClangTarget:
-                headerSearchPaths.append("$(SRCROOT)/\(clangTarget.includeDir.relative(to: sourceRootDir).pathString)")
-            default:
-                continue
-            }
-        }
-        return headerSearchPaths
     }
 }
 
