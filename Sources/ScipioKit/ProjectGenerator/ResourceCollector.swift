@@ -20,7 +20,7 @@ struct ResourceCollector {
             target: package.manifest.targetMap[target.name]!, // TODO
             path: target.underlyingTarget.path,
             defaultLocalization: package.manifest.defaultLocalization,
-            additionalFileRules: [], // TODO
+            additionalFileRules: FileRuleDescription.xcbuildFileTypes,
             toolsVersion: package.manifest.toolsVersion,
             fileSystem: TSCBasic.localFileSystem,
             observabilityScope: observabilitySystem.topScope)
