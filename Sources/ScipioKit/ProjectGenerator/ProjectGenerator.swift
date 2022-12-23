@@ -133,16 +133,25 @@ class ProjectGenerator {
             .filter { $0.type == .library }
             .sorted { $0.name < $1.name }
 
-        let xcodeTargets: [ResolvedTarget: PBXNativeTarget] = try targetsToGenerate.reduce(into: [:]) { targets, target in
+        let frameworkTargets: [ResolvedTarget: PBXNativeTarget] = try targetsToGenerate.reduce(into: [:]) { targets, target in
             let xcodeTarget = addObject(
                 try makeTarget(for: target)
             )
             targets[target] = xcodeTarget
         }
-        xcodeTargets.values.forEach { self.pbxProj.rootObject?.targets.append($0) }
+        frameworkTargets.values.forEach { self.pbxProj.rootObject?.targets.append($0) }
+
+        let resourceTargets: [ResolvedTarget: PBXNativeTarget] = try targetsToGenerate.reduce(into: [:]) { targets, target in
+            guard let resourceTarget = try makeResourceTarget(for: target) else {
+                return
+            }
+            addObject(resourceTarget)
+            targets[target] = resourceTarget
+        }
+        resourceTargets.values.forEach { self.pbxProj.rootObject?.targets.append($0) }
 
         // Generate ModuleMaps for Clang targets
-        let moduleMaps: [ResolvedTarget: AbsolutePath] = try xcodeTargets.reduce(into: [:]) { (collection, tuple) in
+        let moduleMaps: [ResolvedTarget: AbsolutePath] = try frameworkTargets.reduce(into: [:]) { (collection, tuple) in
             let (target, xcodeTarget) = tuple
             if let clangTarget = target.underlyingTarget as? ClangTarget,
                let moduleMapPath = try applyClangTargetSpecificSettings(for: clangTarget, xcodeTarget: xcodeTarget).moduleMapPath {
@@ -151,7 +160,7 @@ class ProjectGenerator {
         }
 
         // Make LinkPhase for each Xcode targets
-        for (target, xcodeTarget) in xcodeTargets {
+        for (target, xcodeTarget) in frameworkTargets {
             let dependsTargets = try target.recursiveDependencies().compactMap { dependency in
                 if case .target(let resolvedTarget, _) = dependency {
                     return resolvedTarget
@@ -159,7 +168,7 @@ class ProjectGenerator {
                 return nil
             }
             xcodeTarget.dependencies = dependsTargets
-                .compactMap { xcodeTargets[$0] }
+                .compactMap { frameworkTargets[$0] }
                 .map { target in
                     addObject(PBXTargetDependency(target: target))
                 }
@@ -167,7 +176,7 @@ class ProjectGenerator {
             let linkReferences: [PBXBuildFile]
             if target.type == .library {
                 linkReferences = dependsTargets
-                    .compactMap { xcodeTargets[$0] }
+                    .compactMap { frameworkTargets[$0] }
                     .map { dependency in
                         addObject(PBXBuildFile(file: dependency.product))
                     }
@@ -209,13 +218,10 @@ class ProjectGenerator {
             throw Error.unsupportedTarget(targetName: target.name, kind: target.type)
         }
 
-        guard let resolvedPackage = package.graph.package(for: target) else {
-            throw Error.unknownError
-        }
-
         // Generate Info.plist
         let plistPath = package.buildDirectory.appendingPathComponent(target.infoPlistFileName)
-        fileSystem.write(infoPlist.data(using: .utf8)!, to: plistPath)
+        let plistData = InfoPlistGenerator().generate(bundleType: .framework)
+        fileSystem.write(plistData, to: plistPath)
 
         let buildConfigurationList = addObject(
             XCConfigurationList(buildConfigurations: [
@@ -261,50 +267,92 @@ class ProjectGenerator {
             PBXSourcesBuildPhase(files: buildFiles)
         )
 
-        if fileSystem.exists(target.resourceDir) {
-            let resourceGenerator = ResourceBundleTargetGenerator(
-                package: resolvedPackage,
-                target: target
-            )
-            try resourceGenerator.generate()
-        }
-
-        let resourcePhase = addObject(
-            try makeResourcePhase(for: target, targetGroup: targetGroup)
-        )
-
         // TODO generate resource accessor to support Bundle.module
         // https://github.com/apple/swift-package-manager/blob/29a16bc2dc0ef72b7044c1dc6236236e3d0120e0/Sources/Build/BuildPlan.swift#L806-L852
 
         return PBXNativeTarget(name: target.c99name,
                                buildConfigurationList: buildConfigurationList,
-                               buildPhases: [compilePhase, resourcePhase],
+                               buildPhases: [compilePhase],
                                product: productRef,
                                productType: productType)
     }
 
-    private func makeResourcePhase(for target: ResolvedTarget, targetGroup: PBXGroup) throws -> PBXResourcesBuildPhase {
-        guard let sourceRoot else {
-            throw Error.invalidPackage(packageName: package.name)
+    private func makeResourceTarget(for target: ResolvedTarget) throws -> PBXNativeTarget? {
+        guard let resolvedPackage = package.graph.package(for: target) else {
+            throw Error.unknownError
         }
 
-        let resourcesReferences: [PBXFileReference] = try target.underlyingTarget.resources.reduce([]) { lists, resource in
-            let resourcesGroup = try targetGroup.addGroup(named: "Resources").first!
-
-            if case let .process(localization) = resource.rule,
-               localization != nil {
-                throw Error.localizationNotSupported(targetName: target.name)
-            }
-
-            let files = try walk(resource.path)
-            return try files.map { file in
-                try resourcesGroup.addFile(at: file.toPath(), sourceRoot: sourceRoot.toPath())
-            } + lists
+        guard fileSystem.exists(target.resourceDir) else {
+            return nil
         }
+
+        guard let mainGroup = pbxProj.rootObject?.mainGroup else {
+            throw Error.unknownError
+        }
+
+        let resourceTargetName = "\(target.c99name)-Resources"
+        let resourceTargetGroup = createOrGetGroup(
+            named: resourceTargetName,
+            in: mainGroup,
+            path: try AbsolutePath(validating: target.resourceDir.path))
+
+        let collector = ResourceCollector(
+            package: resolvedPackage,
+            target: target
+        )
+        let resources = try collector.collect()
+
+        let resourcesReferences: [PBXFileReference] = try resources.reduce([]) { files, resource in
+            let filePath = target.resourceDir.appendingPathComponent(resource.destination.pathString)
+            let file = try resourceTargetGroup.addFile(at: Path(filePath.path), sourceRoot: Path(target.resourceDir.path))
+            return files + [file]
+        }
+        resourcesReferences.forEach { addObject($0) }
 
         let buildFiles = resourcesReferences.map { PBXBuildFile(file: $0) }
 
-        return PBXResourcesBuildPhase(files: buildFiles)
+        let resourcePhase = PBXResourcesBuildPhase(files: buildFiles)
+
+        // Generate Info.plist
+        let plistFileName = "\(resourceTargetName)_Info.plist"
+        let plistPath = package.buildDirectory.appendingPathComponent(plistFileName)
+        let plistData = InfoPlistGenerator().generate(bundleType: .bundle)
+        fileSystem.write(plistData, to: plistPath)
+
+        let configurations = ["Debug", "Release"].map { configuration in
+            addObject(
+                XCBuildConfiguration(
+                    name: configuration,
+                    buildSettings: [
+                        "INFOPLIST_FILE": plistPath.path,
+                    ]
+                )
+            )
+        }
+        let configurationList = addObject(
+            XCConfigurationList(
+                buildConfigurations: configurations,
+                defaultConfigurationName: "Debug",
+                defaultConfigurationIsVisible: true
+            )
+        )
+
+        let productRef: PBXFileReference? = try? pbxProj.rootObject?
+            .productsGroup?
+            .addFile(
+                at: Path("\(resourceTargetName).bundle"),
+                sourceTree: .buildProductsDir,
+                sourceRoot: Path(target.resourceDir.path),
+                validatePresence: false
+            )
+
+        return PBXNativeTarget(
+            name: resourceTargetName,
+            buildConfigurationList: configurationList,
+            buildPhases: [resourcePhase],
+            product: productRef,
+            productType: .bundle
+        )
     }
 
     private struct ClangTargetSettingResult {
@@ -477,32 +525,39 @@ extension ResolvedTarget {
     }
 }
 
-private var infoPlist: String {
-    """
-    <?xml version="1.0" encoding="UTF-8"?>
-    <plist version="1.0">
-    <dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
-    <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
-    <key>CFBundleIdentifier</key>
-    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
-    <key>CFBundlePackageType</key>
-    <string>FMWK</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>CFBundleSignature</key>
-    <string>????</string>
-    <key>CFBundleVersion</key>
-    <string>$(CURRENT_PROJECT_VERSION)</string>
-    <key>NSPrincipalClass</key>
-    <string></string>
-    </dict>
-    </plist>
-    """
+private struct InfoPlistGenerator {
+    fileprivate enum BundleType: String {
+        case framework = "FMWK"
+        case bundle = "BNDL"
+    }
+
+    fileprivate func generate(bundleType: BundleType) -> Data {
+        """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <plist version="1.0">
+        <dict>
+        <key>CFBundleDevelopmentRegion</key>
+        <string>en</string>
+        <key>CFBundleExecutable</key>
+        <string>$(EXECUTABLE_NAME)</string>
+        <key>CFBundleIdentifier</key>
+        <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+        <key>CFBundleInfoDictionaryVersion</key>
+        <string>6.0</string>
+        <key>CFBundleName</key>
+        <string>$(PRODUCT_NAME)</string>
+        <key>CFBundlePackageType</key>
+        <string>\(bundleType.rawValue)</string>
+        <key>CFBundleShortVersionString</key>
+        <string>1.0</string>
+        <key>CFBundleSignature</key>
+        <string>????</string>
+        <key>CFBundleVersion</key>
+        <string>$(CURRENT_PROJECT_VERSION)</string>
+        <key>NSPrincipalClass</key>
+        <string></string>
+        </dict>
+        </plist>
+        """.data(using: .utf8)!
+    }
 }
