@@ -195,6 +195,10 @@ final class ProjectGeneratorTests: XCTestCase {
                     .path
             )
             XCTAssertEqual(
+                configuration.buildSettings["CODE_SIGNING_ALLOWED"] as? String,
+                "NO"
+            )
+            XCTAssertEqual(
                 configuration.buildSettings["SUPPORTED_PLATFORMS"] as? String,
                 "iphoneos iphonesimulator"
             )
