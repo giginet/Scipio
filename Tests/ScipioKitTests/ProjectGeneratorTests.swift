@@ -178,7 +178,7 @@ final class ProjectGeneratorTests: XCTestCase {
             Set(resourcePhaseFiles.map(\.file?.name)),
             ["giginet.png", "AvatarView.xib"]
         )
-        
+
         XCTAssertEqual(
             frameworkTarget.dependencies.map(\.target?.name), ["ResourcePackage-Resources"],
             "The resource bundle target must be dependency"

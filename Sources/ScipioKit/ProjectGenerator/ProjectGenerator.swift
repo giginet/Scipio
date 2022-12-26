@@ -318,6 +318,19 @@ class ProjectGenerator {
         return .init(target: target, frameworkTarget: frameworkTarget, resourceBundleTarget: resourceTarget)
     }
 
+    private func generateBundleAccessor(
+        for resourceTarget: PBXNativeTarget,
+        targetGroup: PBXGroup,
+        sourceRoot: AbsolutePath
+    ) throws -> PBXFileReference {
+        let bundleAccessorGenerator = BundleAccessorGenerator(package: package)
+        let accessorPath = bundleAccessorGenerator.generate(resourceBundleName: resourceTarget.name)
+        let bundleAccessorReference = addObject(
+            try targetGroup.addFile(at: Path(accessorPath.path), sourceRoot: sourceRoot.toPath())
+        )
+        return bundleAccessorReference
+    }
+
     private func makeResourceTarget(for target: ResolvedTarget) throws -> PBXNativeTarget? {
         guard let resolvedPackage = package.graph.package(for: target) else {
             throw Error.unknownError
