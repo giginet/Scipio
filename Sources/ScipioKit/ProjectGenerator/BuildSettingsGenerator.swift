@@ -217,7 +217,12 @@ struct TargetBuildSettingsGenerator {
 }
 
 struct ResourceBundleSettingsBuilder {
-    func generate(for target: ResolvedTarget, configuration: BuildConfiguration, infoPlistPath: URL, isSimulatorSupported: Bool) -> XCBuildConfiguration {
+    func generate(
+        for target: ResolvedTarget,
+        configuration: BuildConfiguration,
+        infoPlistPath: URL,
+        isSimulatorSupported: Bool
+    ) -> XCBuildConfiguration {
         let buildSettings: [String: XCConfigValue] = [
             "INFOPLIST_FILE": .string(infoPlistPath.path),
             // https://developer.apple.com/forums/thread/708659

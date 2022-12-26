@@ -230,7 +230,9 @@ class ProjectGenerator {
         }
     }
 
-    private func makeTargets(for target: ResolvedTarget) throws -> GeneratedTargetsContainer {
+    private func makeTargets(
+        for target: ResolvedTarget
+    ) throws -> GeneratedTargetsContainer {
         let targetSettingsGenerator = TargetBuildSettingsGenerator(
             package: package,
             isDebugSymbolsEmbedded: buildOptions.isDebugSymbolsEmbedded,

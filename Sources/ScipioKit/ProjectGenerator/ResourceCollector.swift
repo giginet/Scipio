@@ -6,18 +6,32 @@ import XcodeProj
 import TSCBasic
 
 struct ResourceCollector {
+    enum Error: LocalizedError {
+        case unableLoadingManifest(ResolvedTarget)
+
+        var errorDescription: String? {
+            switch self {
+            case .unableLoadingManifest(let target):
+                return "Unable to load the package manifest on \(target.name)"
+            }
+        }
+    }
+
     init(package: ResolvedPackage, target: ResolvedTarget, fileSystem: FileSystem = localFileSystem) {
         self.package = package
         self.target = target
         self.fileSystem = fileSystem
     }
 
-    private func makeTargetSourceBuilder() -> TargetSourcesBuilder {
-        TargetSourcesBuilder(
+    private func makeTargetSourceBuilder() throws -> TargetSourcesBuilder {
+        guard let targetDescription = package.manifest.targetMap[target.name] else {
+            throw Error.unableLoadingManifest(target)
+        }
+        return TargetSourcesBuilder(
             packageIdentity: package.identity,
             packageKind: package.manifest.packageKind,
-            packagePath: package.path  ,
-            target: package.manifest.targetMap[target.name]!,
+            packagePath: package.path,
+            target: targetDescription,
             path: target.underlyingTarget.path,
             defaultLocalization: package.manifest.defaultLocalization,
             additionalFileRules: FileRuleDescription.xcbuildFileTypes,
@@ -31,7 +45,7 @@ struct ResourceCollector {
     private let fileSystem: FileSystem
 
     func collect() throws -> [Resource] {
-        let builder = makeTargetSourceBuilder()
+        let builder = try makeTargetSourceBuilder()
         let (_, resources, _, _, _) = try builder.run()
 
         return resources
