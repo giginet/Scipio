@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="21507" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="21505"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="System colors in document resources" minToolsVersion="11.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <view contentMode="scaleToFill" id="BdK-4c-AhI" customClass="AvatarView" customModule="ResourcePackage">
+            <rect key="frame" x="0.0" y="0.0" width="393" height="446"/>
+            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+            <subviews>
+                <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="qgD-RO-OcD">
+                    <rect key="frame" x="0.0" y="53" width="393" height="393"/>
+                    <constraints>
+                        <constraint firstAttribute="width" secondItem="qgD-RO-OcD" secondAttribute="height" multiplier="1:1" id="hHO-8M-Vn9"/>
+                    </constraints>
+                </imageView>
+            </subviews>
+            <viewLayoutGuide key="safeArea" id="cd1-jh-pse"/>
+            <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+            <constraints>
+                <constraint firstItem="cd1-jh-pse" firstAttribute="trailing" secondItem="qgD-RO-OcD" secondAttribute="trailing" id="0xq-ni-gUs"/>
+                <constraint firstItem="qgD-RO-OcD" firstAttribute="centerX" secondItem="BdK-4c-AhI" secondAttribute="centerX" id="HHl-no-7Lz"/>
+                <constraint firstItem="qgD-RO-OcD" firstAttribute="leading" secondItem="cd1-jh-pse" secondAttribute="leading" id="ieP-1Y-dOH"/>
+                <constraint firstItem="cd1-jh-pse" firstAttribute="bottom" secondItem="qgD-RO-OcD" secondAttribute="bottom" id="yLU-gJ-dxJ"/>
+            </constraints>
+            <nil key="simulatedTopBarMetrics"/>
+            <nil key="simulatedBottomBarMetrics"/>
+            <freeformSimulatedSizeMetrics key="simulatedDestinationMetrics"/>
+            <connections>
+                <outlet property="imageView" destination="qgD-RO-OcD" id="7sI-Ql-J1h"/>
+            </connections>
+            <point key="canvasLocation" x="215" y="-58"/>
+        </view>
+    </objects>
+    <resources>
+        <systemColor name="systemBackgroundColor">
+            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+        </systemColor>
+    </resources>
+</document>

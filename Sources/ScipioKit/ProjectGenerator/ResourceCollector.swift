@@ -17,7 +17,7 @@ struct ResourceCollector {
             packageIdentity: package.identity,
             packageKind: package.manifest.packageKind,
             packagePath: package.path  ,
-            target: package.manifest.targetMap[target.name]!, // TODO
+            target: package.manifest.targetMap[target.name]!,
             path: target.underlyingTarget.path,
             defaultLocalization: package.manifest.defaultLocalization,
             additionalFileRules: FileRuleDescription.xcbuildFileTypes,
