@@ -25,7 +25,7 @@ private class BundleMarker { }
 extension Foundation.Bundle {
     static let module: Bundle = {
         let frameworkBundle: Bundle = .init(for: BundleMarker.self)
-        guard let resourceBundleURL = frameworkBundle.url(forResource: "ResourcePackage-Resources", withExtension: "bundle"),
+        guard let resourceBundleURL = frameworkBundle.url(forResource: "\(resourceBundleName.asSwiftStringLiteralConstant)", withExtension: "bundle"),
           let bundle = Bundle(url: resourceBundleURL) else {
             fatalError("could not load resource bundle")
         }
