@@ -256,7 +256,7 @@ class ProjectGenerator {
             ])
         )
 
-        // Make Resource target if needed
+        // Make Resource target if needed (returns nil if not necessary)
         let resourceTarget = try makeResourceTarget(for: target)
 
         let productRef: PBXFileReference? = try? pbxProj.rootObject?
