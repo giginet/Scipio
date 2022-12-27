@@ -1,12 +1,12 @@
 import Foundation
 
-struct InfoPlistGenerator {
+enum InfoPlistGenerator {
     enum BundleType: String {
         case framework = "FMWK"
         case bundle = "BNDL"
     }
 
-    func generate(bundleType: BundleType) -> Data {
+    static func generate(bundleType: BundleType) -> Data {
         """
         <?xml version="1.0" encoding="UTF-8"?>
         <plist version="1.0">

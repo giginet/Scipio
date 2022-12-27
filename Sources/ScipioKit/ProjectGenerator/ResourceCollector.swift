@@ -46,8 +46,6 @@ struct ResourceCollector {
 
     func collect() throws -> [Resource] {
         let builder = try makeTargetSourceBuilder()
-        let (_, resources, _, _, _) = try builder.run()
-
-        return resources
+        return try builder.run().resources
     }
 }

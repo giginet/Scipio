@@ -246,7 +246,7 @@ class ProjectGenerator {
 
         // Generate Info.plist
         let plistPath = package.buildDirectory.appendingPathComponent(target.infoPlistFileName)
-        let plistData = InfoPlistGenerator().generate(bundleType: .framework)
+        let plistData = InfoPlistGenerator.generate(bundleType: .framework)
         fileSystem.write(plistData, to: plistPath)
 
         let buildConfigurationList = addObject(
@@ -356,12 +356,11 @@ class ProjectGenerator {
         )
         let resources = try collector.collect()
 
-        let resourcesReferences: [PBXFileReference] = try resources.reduce([]) { files, resource in
+        let resourcesReferences: [PBXFileReference] = try resources.map { resource in
             let filePath = target.resourceDir.appendingPathComponent(resource.destination.pathString)
             let file = try resourceTargetGroup.addFile(at: Path(filePath.path), sourceRoot: Path(target.resourceDir.path))
-            return files + [file]
+            return addObject(file)
         }
-        resourcesReferences.forEach { addObject($0) }
 
         let buildFiles = resourcesReferences.map { addObject(PBXBuildFile(file: $0)) }
 
@@ -370,7 +369,7 @@ class ProjectGenerator {
         // Generate Info.plist
         let plistFileName = "\(resourceTargetName)_Info.plist"
         let plistPath = package.buildDirectory.appendingPathComponent(plistFileName)
-        let plistData = InfoPlistGenerator().generate(bundleType: .bundle)
+        let plistData = InfoPlistGenerator.generate(bundleType: .bundle)
         fileSystem.write(plistData, to: plistPath)
 
         let builder = ResourceBundleSettingsBuilder()

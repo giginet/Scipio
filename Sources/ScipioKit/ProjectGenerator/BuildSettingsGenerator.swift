@@ -198,21 +198,22 @@ struct TargetBuildSettingsGenerator {
     }
 
     private func buildHeaderSearchPaths(for target: ResolvedTarget) -> [String] {
-        var headerSearchPaths: [String] = ["$(inherited)"]
+        let headerSearchPaths: [String] = ["$(inherited)"]
         guard let targetDependencies = try? target.recursiveTargetDependencies() else {
             return headerSearchPaths
         }
-        for dependencyModule in [target] + targetDependencies {
-            switch dependencyModule.underlyingTarget {
-            case let systemTarget as SystemLibraryTarget:
-                headerSearchPaths.append("$(SRCROOT)/\(systemTarget.path.relative(to: sourceRootDir).pathString)")
-            case let clangTarget as ClangTarget:
-                headerSearchPaths.append("$(SRCROOT)/\(clangTarget.includeDir.relative(to: sourceRootDir).pathString)")
-            default:
-                continue
+
+        return headerSearchPaths + ([target] + targetDependencies)
+            .compactMap { dependencyModule in
+                switch dependencyModule.underlyingTarget {
+                case let systemTarget as SystemLibraryTarget:
+                    return "$(SRCROOT)/\(systemTarget.path.relative(to: sourceRootDir).pathString)"
+                case let clangTarget as ClangTarget:
+                    return "$(SRCROOT)/\(clangTarget.includeDir.relative(to: sourceRootDir).pathString)"
+                default:
+                    return nil
+                }
             }
-        }
-        return headerSearchPaths
     }
 }
 
