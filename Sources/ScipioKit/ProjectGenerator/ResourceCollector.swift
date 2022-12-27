@@ -6,6 +6,10 @@ import XcodeProj
 import TSCBasic
 
 struct ResourceCollector {
+    private let package: ResolvedPackage
+    private let target: ResolvedTarget
+    private let fileSystem: FileSystem
+
     enum Error: LocalizedError {
         case unableLoadingManifest(ResolvedTarget)
 
@@ -39,10 +43,6 @@ struct ResourceCollector {
             fileSystem: TSCBasic.localFileSystem,
             observabilityScope: observabilitySystem.topScope)
     }
-
-    private let package: ResolvedPackage
-    private let target: ResolvedTarget
-    private let fileSystem: FileSystem
 
     func collect() throws -> [Resource] {
         let builder = try makeTargetSourceBuilder()
