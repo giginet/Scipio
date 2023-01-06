@@ -81,7 +81,7 @@ struct ProjectBuildSettingsGenerator {
             "GCC_PREPROCESSOR_DEFINITIONS": [.inherited, "SWIFT_PACKAGE=1"],
             "USE_HEADERMAP": false,
             "CLANG_ENABLE_OBJC_ARC": true,
-            "SKIP_INSTALL": true,
+            "SKIP_INSTALL": false,
         ]
     }
 
@@ -157,7 +157,6 @@ struct TargetBuildSettingsGenerator {
             ])
         case .test:
             settings.merge([
-                "SKIP_INSTALL": false,
                 "CLANG_ENABLE_MODULES": true,
                 "EMBEDDED_CONTENT_CONTAINS_SWIFT": true,
                 "LD_RUNPATH_SEARCH_PATHS": [.inherited, "@loader_path/../Frameworks", "@loader_path/Frameworks"],
