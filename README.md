@@ -83,7 +83,7 @@ All XCFrameworks are generated into `MyAppDependencies/XCFramework` in default.
 |-\-configuration, -c|Build configuration for generated frameworks (debug / release)|release|
 |-\-output, -o|Path indicates a XCFrameworks output directory|$PACKAGE_ROOT/XCFrameworks|
 |-\-embed-debug-symbols|Whether embed debug symbols to frameworks or not|-|
-|-\--static|Whether generated frameworks are Static Frameworks or not|-|
+|-\-static|Whether generated frameworks are Static Frameworks or not|-|
 |-\-support-simulators|Whether also building for simulators of each SDKs or not|-|
 |-\-cache-policy|How to reuse built frameworks|project|
 
