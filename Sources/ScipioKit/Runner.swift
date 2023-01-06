@@ -161,7 +161,9 @@ public struct Runner {
             logger.info("❇️ Succeeded.", metadata: .color(.green))
         } catch {
             logger.error("Something went wrong during building", metadata: .color(.red))
-            logger.error("Please execute with --verbose option.", metadata: .color(.red))
+            if !options.verbose {
+                logger.error("Please execute with --verbose option.", metadata: .color(.red))
+            }
             logger.error("\(error.localizedDescription)")
             throw Error.compilerError(error)
         }
