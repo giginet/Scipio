@@ -9,6 +9,7 @@ private let fixturePath = URL(fileURLWithPath: #file)
     .appendingPathComponent("Fixtures")
 private let testPackagePath = fixturePath.appendingPathComponent("E2ETestPackage")
 private let clangPackagePath = fixturePath.appendingPathComponent("ClangPackage")
+private let resourcePackagePath = fixturePath.appendingPathComponent("ResourcePackage")
 
 final class ProjectGeneratorTests: XCTestCase {
     private let fileSystem: some FileSystem = localFileSystem
@@ -143,6 +144,63 @@ final class ProjectGeneratorTests: XCTestCase {
             XCTAssertEqual(
                 configuration.buildSettings["DEFINES_MODULE"] as? String,
                 "YES"
+            )
+        }
+    }
+
+    func testGeneratedResourcePackageProject() async throws {
+        let package = try Package(packageDirectory: resourcePackagePath)
+        let projectGenerator = try makeGenerator(for: package)
+        let projectPath = package.projectPath
+        try projectGenerator.generate()
+        XCTAssertTrue(fileSystem.exists(projectPath))
+
+        let project = try XcodeProj(pathString: projectPath.path)
+
+        // Check targets
+        let targets = project.pbxproj.nativeTargets
+        XCTAssertEqual(Set(targets.map(\.name)), ["ResourcePackage", "ResourcePackage-Resources"])
+
+        let frameworkTarget = try XCTUnwrap(project.pbxproj.targets(named: "ResourcePackage").first)
+        let resourceTarget = try XCTUnwrap(project.pbxproj.targets(named: "ResourcePackage-Resources").first)
+
+        XCTAssertEqual(resourceTarget.productType, .bundle)
+
+        // Check file tree
+        XCTAssertEqual(Set(project.pbxproj.groups.compactMap(\.name)), ["ResourcePackage", "ResourcePackage-Resources", "Products"])
+        let rootGroup = try XCTUnwrap(project.pbxproj.rootGroup())
+        let bundleGroup = try XCTUnwrap(rootGroup.group(named: "ResourcePackage-Resources"))
+        XCTAssertEqual(Set(bundleGroup.children.map(\.name)), ["giginet.png", "AvatarView.xib"])
+
+        // Check build phase
+        let resourcePhaseFiles = try XCTUnwrap(try resourceTarget.resourcesBuildPhase()?.files)
+        XCTAssertEqual(
+            Set(resourcePhaseFiles.map(\.file?.name)),
+            ["giginet.png", "AvatarView.xib"]
+        )
+
+        XCTAssertEqual(
+            frameworkTarget.dependencies.map(\.target?.name), ["ResourcePackage-Resources"],
+            "The resource bundle target must be dependency"
+        )
+
+        // Check build settings
+        XCTAssertEqual(resourceTarget.buildConfigurationList?.buildConfigurations.map(\.name), ["Debug", "Release"])
+        for configuration in resourceTarget.buildConfigurationList!.buildConfigurations {
+            XCTAssertEqual(
+                configuration.buildSettings["INFOPLIST_FILE"] as? String,
+                resourcePackagePath
+                    .appendingPathComponent(".build")
+                    .appendingPathComponent("ResourcePackage-Resources_Info.plist")
+                    .path
+            )
+            XCTAssertEqual(
+                configuration.buildSettings["CODE_SIGNING_ALLOWED"] as? String,
+                "NO"
+            )
+            XCTAssertEqual(
+                configuration.buildSettings["SUPPORTED_PLATFORMS"] as? String,
+                "iphoneos iphonesimulator"
             )
         }
     }

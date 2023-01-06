@@ -121,53 +121,77 @@ class ProjectGenerator {
         }
         pbxProj.rootObject?.projectDirPath = URL(fileURLWithPath: sourceRootDir.pathString, relativeTo: parentDirectoryPath).path
 
-        try generateTargets()
+        try generateAllTargets()
 
         let projectFile = XcodeProj(workspace: .init(), pbxproj: pbxProj)
         try projectFile.write(pathString: projectPath.path, override: true)
     }
 
-    private func generateTargets() throws {
+    private func generateAllTargets() throws {
         // First, generate PBXTargets of all libraries
         let targetsToGenerate = package.graph.reachableTargets
             .filter { $0.type == .library }
             .sorted { $0.name < $1.name }
 
-        let xcodeTargets: [ResolvedTarget: PBXNativeTarget] = try targetsToGenerate.reduce(into: [:]) { targets, target in
-            let xcodeTarget = addObject(
-                try makeTarget(for: target)
-            )
-            targets[target] = xcodeTarget
+        let xcodeTargets: [ResolvedTarget: GeneratedTargetsContainer] = try targetsToGenerate.reduce(into: [:]) { targets, target in
+            targets[target] = try makeTargets(for: target)
         }
-        xcodeTargets.values.forEach { self.pbxProj.rootObject?.targets.append($0) }
+        for container in xcodeTargets.values {
+            container.targets.forEach { target in
+                addObject(target)
+                self.pbxProj.rootObject?.targets.append(target)
+            }
+        }
 
         // Generate ModuleMaps for Clang targets
         let moduleMaps: [ResolvedTarget: AbsolutePath] = try xcodeTargets.reduce(into: [:]) { (collection, tuple) in
             let (target, xcodeTarget) = tuple
             if let clangTarget = target.underlyingTarget as? ClangTarget,
-               let moduleMapPath = try applyClangTargetSpecificSettings(for: clangTarget, xcodeTarget: xcodeTarget).moduleMapPath {
+               let moduleMapPath = try applyClangTargetSpecificSettings(
+                for: clangTarget,
+                xcodeTarget: xcodeTarget.frameworkTarget
+               ).moduleMapPath {
                 collection[target] = moduleMapPath
             }
         }
 
-        // Make LinkPhase for each Xcode targets
-        for (target, xcodeTarget) in xcodeTargets {
+        // Register dependencies for each Xcode targets
+        for (target, xcodeTargetContainer) in xcodeTargets {
+            let frameworkTarget = xcodeTargetContainer.frameworkTarget
+
+            // Add a resource target and Package dependencies as target dependencies
             let dependsTargets = try target.recursiveDependencies().compactMap { dependency in
                 if case .target(let resolvedTarget, _) = dependency {
                     return resolvedTarget
                 }
                 return nil
             }
-            xcodeTarget.dependencies = dependsTargets
-                .compactMap { xcodeTargets[$0] }
+            let resourceTargets = [xcodeTargetContainer.resourceBundleTarget].compactMap { $0 }
+
+            let dependencyTargets = dependsTargets
+                .compactMap { xcodeTargets[$0]?.frameworkTarget }
+
+            frameworkTarget.dependencies = (resourceTargets + dependencyTargets)
                 .map { target in
                     addObject(PBXTargetDependency(target: target))
                 }
 
+            // Add Resource bundle to Resources Phase
+            if let resourceTarget = xcodeTargetContainer.resourceBundleTarget {
+                let bundleFileReference = addObject(
+                    PBXBuildFile(file: resourceTarget.product)
+                )
+                let resourcePhase = addObject(
+                    PBXResourcesBuildPhase(files: [bundleFileReference])
+                )
+                frameworkTarget.buildPhases.append(resourcePhase)
+            }
+
+            // Make Link Phase
             let linkReferences: [PBXBuildFile]
             if target.type == .library {
                 linkReferences = dependsTargets
-                    .compactMap { xcodeTargets[$0] }
+                    .compactMap { xcodeTargets[$0]?.frameworkTarget }
                     .map { dependency in
                         addObject(PBXBuildFile(file: dependency.product))
                     }
@@ -178,15 +202,14 @@ class ProjectGenerator {
             let linkPhase = addObject(
                 PBXFrameworksBuildPhase(files: linkReferences)
             )
-            xcodeTarget.buildPhases.append(linkPhase)
+            frameworkTarget.buildPhases.append(linkPhase)
 
             // Add -fmodule-map-file for Swift targets
-            let isSwiftTarget = target.underlyingTarget is SwiftTarget
-            if isSwiftTarget {
+            if target.isSwiftTarget {
                 for dependency in dependsTargets {
                     guard let moduleMapPath = moduleMaps[dependency] else { continue }
                     let relativePath = moduleMapPath.relative(to: sourceRoot!)
-                    xcodeTarget.buildConfigurationList?.buildConfigurations.forEach { configuration in
+                    frameworkTarget.buildConfigurationList?.buildConfigurations.forEach { configuration in
                         configuration.buildSettings = configuration.buildSettings.appending(
                             "OTHER_SWIFT_FLAGS",
                             values: "-Xcc", "-fmodule-map-file=$(SRCROOT)/\(relativePath.pathString)"
@@ -197,7 +220,19 @@ class ProjectGenerator {
         }
     }
 
-    private func makeTarget(for target: ResolvedTarget) throws -> PBXNativeTarget {
+    private struct GeneratedTargetsContainer {
+        var target: ResolvedTarget
+        var frameworkTarget: PBXNativeTarget
+        var resourceBundleTarget: PBXNativeTarget?
+
+        var targets: Set<PBXNativeTarget> {
+            Set([frameworkTarget, resourceBundleTarget].compactMap { $0 })
+        }
+    }
+
+    private func makeTargets(
+        for target: ResolvedTarget
+    ) throws -> GeneratedTargetsContainer {
         let targetSettingsGenerator = TargetBuildSettingsGenerator(
             package: package,
             isDebugSymbolsEmbedded: buildOptions.isDebugSymbolsEmbedded,
@@ -211,7 +246,8 @@ class ProjectGenerator {
 
         // Generate Info.plist
         let plistPath = package.buildDirectory.appendingPathComponent(target.infoPlistFileName)
-        fileSystem.write(infoPlist.data(using: .utf8)!, to: plistPath)
+        let plistData = InfoPlistGenerator.generate(bundleType: .framework)
+        fileSystem.write(plistData, to: plistPath)
 
         let buildConfigurationList = addObject(
             XCConfigurationList(buildConfigurations: [
@@ -219,6 +255,9 @@ class ProjectGenerator {
                 addObject(targetSettingsGenerator.generate(for: target, configuration: .release, infoPlistPath: plistPath)),
             ])
         )
+
+        // Make Resource target if needed (returns nil if not necessary)
+        let resourceTarget = try makeResourceTarget(for: target)
 
         let productRef: PBXFileReference? = try? pbxProj.rootObject?
             .productsGroup?
@@ -249,7 +288,20 @@ class ProjectGenerator {
             )
         }
 
-        let buildFiles: [PBXBuildFile] = fileReferences.map { reference in
+        // Inject a bundle accessor
+        let additionalFiles: [PBXFileReference]
+        if let resourceTarget {
+            let bundleAccessorGenerator = BundleAccessorGenerator(package: package)
+            let accessorPath = bundleAccessorGenerator.generate(resourceBundleName: resourceTarget.name)
+            let bundleAccessorReference = addObject(
+                try targetGroup.addFile(at: Path(accessorPath.path), sourceRoot: sourceRoot.toPath())
+            )
+            additionalFiles = [bundleAccessorReference]
+        } else {
+            additionalFiles = []
+        }
+
+        let buildFiles: [PBXBuildFile] = (fileReferences + additionalFiles).map { reference in
             addObject(PBXBuildFile(file: reference))
         }
 
@@ -257,50 +309,104 @@ class ProjectGenerator {
             PBXSourcesBuildPhase(files: buildFiles)
         )
 
-        if !target.underlyingTarget.resources.isEmpty {
-            logger.warning(
-            """
-            🚧 \(target.name) has resources. However, resource support is currently partial yet.
-            You can't use `Bundle.module` using Scipio
-            """)
-        }
+        let frameworkTarget = PBXNativeTarget(name: target.c99name,
+                                              buildConfigurationList: buildConfigurationList,
+                                              buildPhases: [compilePhase],
+                                              product: productRef,
+                                              productType: productType)
 
-        let resourcePhase = addObject(
-            try makeResourcePhase(for: target, targetGroup: targetGroup)
-        )
-
-        // TODO generate resource accessor to support Bundle.module
-        // https://github.com/apple/swift-package-manager/blob/29a16bc2dc0ef72b7044c1dc6236236e3d0120e0/Sources/Build/BuildPlan.swift#L806-L852
-
-        return PBXNativeTarget(name: target.c99name,
-                               buildConfigurationList: buildConfigurationList,
-                               buildPhases: [compilePhase, resourcePhase],
-                               product: productRef,
-                               productType: productType)
+        return .init(target: target, frameworkTarget: frameworkTarget, resourceBundleTarget: resourceTarget)
     }
 
-    private func makeResourcePhase(for target: ResolvedTarget, targetGroup: PBXGroup) throws -> PBXResourcesBuildPhase {
-        guard let sourceRoot else {
-            throw Error.invalidPackage(packageName: package.name)
+    private func generateBundleAccessor(
+        for resourceTarget: PBXNativeTarget,
+        targetGroup: PBXGroup,
+        sourceRoot: AbsolutePath
+    ) throws -> PBXFileReference {
+        let bundleAccessorGenerator = BundleAccessorGenerator(package: package)
+        let accessorPath = bundleAccessorGenerator.generate(resourceBundleName: resourceTarget.name)
+        let bundleAccessorReference = addObject(
+            try targetGroup.addFile(at: Path(accessorPath.path), sourceRoot: sourceRoot.toPath())
+        )
+        return bundleAccessorReference
+    }
+
+    private func makeResourceTarget(for target: ResolvedTarget) throws -> PBXNativeTarget? {
+        guard let resolvedPackage = package.graph.package(for: target) else {
+            throw Error.unknownError
         }
 
-        let resourcesReferences: [PBXFileReference] = try target.underlyingTarget.resources.reduce([]) { lists, resource in
-            let resourcesGroup = try targetGroup.addGroup(named: "Resources").first!
-
-            if case let .process(localization) = resource.rule,
-               localization != nil {
-                throw Error.localizationNotSupported(targetName: target.name)
-            }
-
-            let files = try walk(resource.path)
-            return try files.map { file in
-                try resourcesGroup.addFile(at: file.toPath(), sourceRoot: sourceRoot.toPath())
-            } + lists
+        guard fileSystem.exists(target.resourceDir) else {
+            return nil
         }
 
-        let buildFiles = resourcesReferences.map { PBXBuildFile(file: $0) }
+        guard let mainGroup = pbxProj.rootObject?.mainGroup else {
+            throw Error.unknownError
+        }
 
-        return PBXResourcesBuildPhase(files: buildFiles)
+        let resourceTargetName = "\(target.c99name)-Resources"
+        let resourceTargetGroup = createOrGetGroup(
+            named: resourceTargetName,
+            in: mainGroup,
+            path: try AbsolutePath(validating: target.resourceDir.path))
+
+        let collector = ResourceCollector(
+            package: resolvedPackage,
+            target: target
+        )
+        let resources = try collector.collect()
+
+        let resourcesReferences: [PBXFileReference] = try resources.map { resource in
+            let filePath = target.resourceDir.appendingPathComponent(resource.destination.pathString)
+            let file = try resourceTargetGroup.addFile(at: Path(filePath.path), sourceRoot: Path(target.resourceDir.path))
+            return addObject(file)
+        }
+
+        let buildFiles = resourcesReferences.map { addObject(PBXBuildFile(file: $0)) }
+
+        let resourcePhase = addObject(PBXResourcesBuildPhase(files: buildFiles))
+
+        // Generate Info.plist
+        let plistFileName = "\(resourceTargetName)_Info.plist"
+        let plistPath = package.buildDirectory.appendingPathComponent(plistFileName)
+        let plistData = InfoPlistGenerator.generate(bundleType: .bundle)
+        fileSystem.write(plistData, to: plistPath)
+
+        let builder = ResourceBundleSettingsBuilder()
+        let configurations = [.debug, .release].map { (configuration: BuildConfiguration) in
+            addObject(
+                builder.generate(
+                    for: target,
+                    configuration: configuration,
+                    infoPlistPath: plistPath,
+                    isSimulatorSupported: buildOptions.isSimulatorSupported
+                )
+            )
+        }
+        let configurationList = addObject(
+            XCConfigurationList(
+                buildConfigurations: configurations,
+                defaultConfigurationName: "Debug",
+                defaultConfigurationIsVisible: true
+            )
+        )
+
+        let productRef: PBXFileReference? = try? pbxProj.rootObject?
+            .productsGroup?
+            .addFile(
+                at: Path("\(resourceTargetName).bundle"),
+                sourceTree: .buildProductsDir,
+                sourceRoot: Path(target.resourceDir.path),
+                validatePresence: false
+            )
+
+        return PBXNativeTarget(
+            name: resourceTargetName,
+            buildConfigurationList: configurationList,
+            buildPhases: [resourcePhase],
+            product: productRef,
+            productType: .bundle
+        )
     }
 
     private struct ClangTargetSettingResult {
@@ -467,34 +573,12 @@ extension ResolvedTarget {
             return nil
         }
     }
-}
 
-private var infoPlist: String {
-    """
-    <?xml version="1.0" encoding="UTF-8"?>
-    <plist version="1.0">
-    <dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
-    <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
-    <key>CFBundleIdentifier</key>
-    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
-    <key>CFBundlePackageType</key>
-    <string>FMWK</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>CFBundleSignature</key>
-    <string>????</string>
-    <key>CFBundleVersion</key>
-    <string>$(CURRENT_PROJECT_VERSION)</string>
-    <key>NSPrincipalClass</key>
-    <string></string>
-    </dict>
-    </plist>
-    """
+    fileprivate var resourceDir: URL {
+        underlyingTarget.path.appending(component: "Resources").asURL
+    }
+
+    fileprivate var isSwiftTarget: Bool {
+        underlyingTarget is SwiftTarget
+    }
 }

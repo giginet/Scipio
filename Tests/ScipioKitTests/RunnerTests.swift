@@ -9,6 +9,7 @@ private let fixturePath = URL(fileURLWithPath: #file)
     .appendingPathComponent("Fixtures")
 private let testPackagePath = fixturePath.appendingPathComponent("E2ETestPackage")
 private let binaryPackagePath = fixturePath.appendingPathComponent("BinaryPackage")
+private let resourcePackagePath = fixturePath.appendingPathComponent("ResourcePackage")
 
 final class RunnerTests: XCTestCase {
     private let fileManager: FileManager = .default
@@ -211,6 +212,41 @@ final class RunnerTests: XCTestCase {
                     "watchos-arm64_i386_x86_64-simulator",
                     "ios-arm64",
                 ]
+            )
+        }
+    }
+
+    func testWithResourcePackage() async throws {
+        let runner = Runner(
+            mode: .createPackage,
+            options: .init(
+                buildConfiguration: .release,
+                isSimulatorSupported: true,
+                isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
+                cacheMode: .project,
+                verbose: false)
+        )
+
+        try await runner.run(packageDirectory: resourcePackagePath,
+                             frameworkOutputDir: .custom(frameworkOutputDir))
+
+        let xcFramework = frameworkOutputDir.appendingPathComponent("ResourcePackage.xcframework")
+        for arch in ["ios-arm64", "ios-arm64_x86_64-simulator"] {
+            let bundlePath = xcFramework
+                .appendingPathComponent(arch)
+                .appendingPathComponent("ResourcePackage.framework")
+                .appendingPathComponent("ResourcePackage-Resources.bundle")
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: bundlePath.path),
+                "A framework for \(arch) should contain resource bundles"
+            )
+
+            let contents = try XCTUnwrap(try fileManager.contentsOfDirectory(atPath: bundlePath.path))
+            XCTAssertEqual(
+                Set(contents),
+                ["giginet.png", "AvatarView.nib", "Info.plist"],
+                "The resource bundle should contain expected resources"
             )
         }
     }
