@@ -45,8 +45,10 @@ struct Compiler<E: Executor> {
             debugSymbolPaths = nil
         }
 
-        let outputXCFrameworkPath = outputDirectory.appendingPathComponent(target.xcFrameworkName)
+        let frameworkName = target.xcFrameworkName
+        let outputXCFrameworkPath = outputDirectory.appendingPathComponent(frameworkName)
         if fileSystem.exists(outputXCFrameworkPath) && force {
+            logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
             try fileSystem.removeFileTree(at: outputXCFrameworkPath)
         }
 
@@ -113,6 +115,6 @@ extension Package {
 
 extension ResolvedTarget {
     var xcFrameworkName: String {
-        c99name.packageNamed()
+        "\(c99name.packageNamed()).xcframework"
     }
 }
