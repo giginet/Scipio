@@ -57,7 +57,6 @@ struct BuildFlagsGenerator {
         }
     }
 
-
     private func satisfyConditions(_ condition: PackageConditionDescription) -> Bool {
         Set(condition.platformNames).isSuperset(of: platforms.map(\.rawValue)) && condition.config == buildConfiguration.settingsValue
     }
