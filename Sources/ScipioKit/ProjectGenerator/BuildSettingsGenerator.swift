@@ -250,7 +250,7 @@ struct TargetBuildSettingsGenerator {
             case .iOS: return "iphoneos"
             case .macOS: return "macosx"
             case .watchOS: return "watchos"
-            case .tvOS: return "tvos"
+            case .tvOS: return "appletvos"
             case .driverKit: return "driverkit"
             default: return nil
             }
