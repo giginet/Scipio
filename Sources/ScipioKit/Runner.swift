@@ -43,6 +43,7 @@ public struct Runner {
             outputDirectory: URL? = nil,
             cacheMode: CacheMode,
             platformMatrix: PlatformMatrix = [:],
+            force: Bool,
             verbose: Bool
         ) {
             self.buildConfiguration = buildConfiguration
@@ -52,6 +53,7 @@ public struct Runner {
             self.outputDirectory = outputDirectory
             self.cacheMode = cacheMode
             self.platformMatrix = platformMatrix
+            self.force = force
             self.verbose = verbose
         }
 
@@ -62,6 +64,7 @@ public struct Runner {
         public var outputDirectory: URL?
         public var cacheMode: CacheMode
         public var platformMatrix: PlatformMatrix
+        public var force: Bool
         public var verbose: Bool
 
         public enum CacheMode {
@@ -154,6 +157,7 @@ public struct Runner {
             buildOptions: buildOptions,
             cacheMode: options.cacheMode,
             platformMatrix: options.platformMatrix,
+            force: options.force,
             outputDir: outputDir
         )
         do {

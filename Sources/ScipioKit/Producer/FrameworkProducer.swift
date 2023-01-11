@@ -9,6 +9,7 @@ struct FrameworkProducer {
     private let buildOptions: BuildOptions
     private let cacheMode: Runner.Options.CacheMode
     private let platformMatrix: PlatformMatrix
+    private let force: Bool
     private let outputDir: URL
     private let fileSystem: any FileSystem
 
@@ -32,6 +33,7 @@ struct FrameworkProducer {
         buildOptions: BuildOptions,
         cacheMode: Runner.Options.CacheMode,
         platformMatrix: PlatformMatrix,
+        force: Bool,
         outputDir: URL,
         fileSystem: any FileSystem = localFileSystem
     ) {
@@ -40,6 +42,7 @@ struct FrameworkProducer {
         self.buildOptions = buildOptions
         self.cacheMode = cacheMode
         self.platformMatrix = platformMatrix
+        self.force = force
         self.outputDir = outputDir
         self.fileSystem = fileSystem
     }
@@ -128,7 +131,8 @@ struct FrameworkProducer {
 
         if needToBuild {
             try await compiler.createXCFramework(target: product.target,
-                                                 outputDirectory: outputDir)
+                                                 outputDirectory: outputDir,
+                                                 force: force)
         }
     }
 

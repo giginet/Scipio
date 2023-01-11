@@ -48,6 +48,7 @@ extension Scipio {
                     isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
                     frameworkType: buildOptions.frameworkType,
                     cacheMode: runnerCacheMode,
+                    force: buildOptions.force,
                     verbose: globalOptions.verbose)
             )
 

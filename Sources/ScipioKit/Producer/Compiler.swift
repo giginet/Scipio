@@ -22,7 +22,8 @@ struct Compiler<E: Executor> {
     }
 
     func createXCFramework(target: ResolvedTarget,
-                           outputDirectory: URL) async throws {
+                           outputDirectory: URL,
+                           force: Bool) async throws {
         let buildConfiguration = buildOptions.buildConfiguration
         let sdks = extractSDKs(isSimulatorSupported: buildOptions.isSimulatorSupported)
 
@@ -42,6 +43,11 @@ struct Compiler<E: Executor> {
                                                                  sdks: sdks)
         } else {
             debugSymbolPaths = nil
+        }
+
+        let outputXCFrameworkPath = outputDirectory.appendingPathComponent(target.xcFrameworkName)
+        if fileSystem.exists(outputXCFrameworkPath) && force {
+            try fileSystem.removeFileTree(at: outputXCFrameworkPath)
         }
 
         try await xcodebuild.createXCFramework(
@@ -102,5 +108,11 @@ extension Package {
 
     fileprivate func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> URL {
         buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appendingPathComponent("\(target).framework.dSYM")
+    }
+}
+
+extension ResolvedTarget {
+    var xcFrameworkName: String {
+        c99name.packageNamed()
     }
 }
