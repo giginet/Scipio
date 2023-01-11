@@ -54,7 +54,7 @@ let package = Package(
             name: "MyAppDependency",
             dependencies: [
                 // List all dependencies to build
-                .productItem(name: "APNGKit", package: "APNGKit"),
+                .product(name: "APNGKit", package: "APNGKit"),
             ]),
     ]
 )

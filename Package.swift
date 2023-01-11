@@ -33,15 +33,15 @@ let package = Package(
         .executableTarget(name: "scipio",
                           dependencies: [
                             .target(name: "ScipioKit"),
-                            .productItem(name: "ArgumentParser", package: "swift-argument-parser"),
+                            .product(name: "ArgumentParser", package: "swift-argument-parser"),
                           ]),
         .target(
             name: "ScipioKit",
             dependencies: [
-                .productItem(name: "SwiftPMDataModel-auto", package: "swift-package-manager"),
-                .productItem(name: "Logging", package: "swift-log"),
-                .productItem(name: "Rainbow", package: "Rainbow"),
-                .productItem(name: "XcodeProj", package: "XcodeProj"),
+                .product(name: "SwiftPMDataModel-auto", package: "swift-package-manager"),
+                .product(name: "Logging", package: "swift-log"),
+                .product(name: "Rainbow", package: "Rainbow"),
+                .product(name: "XcodeProj", package: "XcodeProj"),
             ]),
         .testTarget(
             name: "ScipioKitTests",
