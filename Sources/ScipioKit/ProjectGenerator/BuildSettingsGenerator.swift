@@ -148,8 +148,8 @@ struct TargetBuildSettingsGenerator {
 
         settings["HEADER_SEARCH_PATHS"] = .list(buildHeaderSearchPaths(for: target).map(XCConfigValue.string))
 
-        let flagsGenerator = BuildFlagsGenerator(package: package, buildConfiguration: configuration, platforms: platforms)
-        let manifestSettings = try flagsGenerator.generate(for: target)
+        let flagsGenerator = BuildFlagsGenerator(package: package, target: target, buildConfiguration: configuration, platforms: platforms)
+        let manifestSettings = try flagsGenerator.generate()
         settings.merge(manifestSettings)
 
         if isDebugSymbolsEmbedded {

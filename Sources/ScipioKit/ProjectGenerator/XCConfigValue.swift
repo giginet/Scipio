@@ -51,6 +51,8 @@ extension [String: XCConfigValue] {
                 self[key] = rhs
             case (.some(.list(let lhs)), .some(.list(let rhs))):
                 self[key] = .list(lhs + rhs)
+            case (.some(.string(let lhs)), .some(.string(let rhs))):
+                self[key] = .list([lhs, rhs])
             default:
                 continue
             }
