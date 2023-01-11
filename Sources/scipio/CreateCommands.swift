@@ -16,7 +16,7 @@ extension Scipio {
         @OptionGroup var buildOptions: BuildOptionGroup
         @OptionGroup var globalOptions: GlobalOptionGroup
 
-        @Option(help: "Platforms to create XCFramework for",
+        @Option(help: "Platforms to create XCFramework for.(availables: \(availablePlatforms.map(\.rawValue).joined(separator: ", ")))",
                 completion: .list(availablePlatforms.map(\.rawValue)))
         var platforms: [SDK] = []
 
@@ -60,7 +60,8 @@ extension SDK: ExpressibleByArgument {
     public init?(argument: String) {
         if let initialized = SDK(rawValue: argument) {
             self = initialized
+        } else {
+            return nil
         }
-        return nil
     }
 }
