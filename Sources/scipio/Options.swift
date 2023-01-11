@@ -32,7 +32,7 @@ struct BuildOptionGroup: ParsableArguments {
     @Flag(name: [.customLong("static")],
           help: "Whether generated frameworks are Static Frameworks or not")
     var shouldBuildStaticFramework = false
-    
+
     @Flag(name: [.short, .long],
           help: "Whether overwrite generated frameworks or not")
     var force: Bool = false
