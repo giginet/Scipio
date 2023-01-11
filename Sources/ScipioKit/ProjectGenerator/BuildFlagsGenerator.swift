@@ -34,7 +34,7 @@ struct BuildFlagsGenerator {
         return try targetDescription.settings
             .filter { setting in
                 if let condition = setting.condition {
-                    return self.satisfyConditions(condition)
+                    return self.isSatisfied(condition)
                 } else {
                     return true
                 }
@@ -57,7 +57,7 @@ struct BuildFlagsGenerator {
         }
     }
 
-    private func satisfyConditions(_ condition: PackageConditionDescription) -> Bool {
+    private func isSatisfied(_ condition: PackageConditionDescription) -> Bool {
         Set(condition.platformNames).isSuperset(of: platforms.map(\.rawValue)) && condition.config == buildConfiguration.settingsValue
     }
 
