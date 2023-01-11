@@ -1,9 +1,11 @@
 import Foundation
 import PackageModel
 import PackageGraph
+import TSCBasic
 
 struct BuildFlagsGenerator {
     private let package: Package
+    private let target: ResolvedTarget
     private let buildConfiguration: BuildConfiguration
     private let platforms: Set<SDK>
 
@@ -18,13 +20,14 @@ struct BuildFlagsGenerator {
         }
     }
 
-    init(package: Package, buildConfiguration: BuildConfiguration, platforms: Set<SDK>) {
+    init(package: Package, target: ResolvedTarget, buildConfiguration: BuildConfiguration, platforms: Set<SDK>) {
         self.package = package
+        self.target = target
         self.buildConfiguration = buildConfiguration
         self.platforms = platforms
     }
 
-    func generate(for target: ResolvedTarget) throws -> [String: XCConfigValue] {
+    func generate() throws -> [String: XCConfigValue] {
         guard let targetDescription = package.manifest.targets.first(where: { $0.name == target.name }) else {
             return [:]
         }
@@ -36,8 +39,8 @@ struct BuildFlagsGenerator {
                     return true
                 }
             }
-            .reduce(into: [:]) { settings, target in
-                settings.merge(try xcodeprojSettings(for: target))
+            .reduce(into: [:]) { settings, setting in
+                settings.merge(try xcodeprojSettings(for: setting))
             }
     }
 
@@ -59,16 +62,17 @@ struct BuildFlagsGenerator {
         Set(condition.platformNames).isSuperset(of: platforms.map(\.rawValue)) && condition.config == buildConfiguration.settingsValue
     }
 
-    private func resolvePath(for value: String) -> String {
-        let targetRoot = package.packageDirectory
-        return targetRoot.appendingPathComponent(value).path
+    private func resolvePath(for value: String) throws -> String {
+        let targetRoot = target.underlyingTarget.path
+        let subPath = try RelativePath(validating: value)
+        return targetRoot.appending(subPath).pathString
     }
 
     private func cSettings(for setting: TargetBuildSettingDescription.Setting) throws -> [String: XCConfigValue] {
         precondition(setting.tool == .c, "invalid tool")
         switch setting.kind {
         case .headerSearchPath(let value):
-            return ["HEADER_SEARCH_PATHS": .string(resolvePath(for: value))]
+            return ["HEADER_SEARCH_PATHS": .string(try resolvePath(for: value))]
         case .define(let value):
             return ["GCC_PREPROCESSOR_DEFINITIONS": .string(value)]
         case .linkedFramework:
@@ -84,7 +88,7 @@ struct BuildFlagsGenerator {
         precondition(setting.tool == .cxx, "invalid tool")
         switch setting.kind {
         case .headerSearchPath(let value):
-            return ["HEADER_SEARCH_PATHS": .string(resolvePath(for: value))]
+            return ["HEADER_SEARCH_PATHS": .string(try resolvePath(for: value))]
         case .define(let value):
             return ["GCC_PREPROCESSOR_DEFINITIONS": .string(value)]
         case .linkedFramework:
