@@ -8,7 +8,7 @@ public struct Runner {
     private let fileSystem: any FileSystem
 
     public enum Mode {
-        case createPackage
+        case createPackage(platforms: Set<SDK>?)
         case prepareDependencies
     }
 
@@ -120,7 +120,7 @@ public struct Runner {
             throw Error.invalidPackage(packagePath)
         }
 
-        let sdks = package.supportedSDKs
+        let sdks = detectPlatformsToBuild(package: package)
         guard !sdks.isEmpty else {
             throw Error.platformNotSpecified
         }
@@ -170,6 +170,19 @@ public struct Runner {
             }
             logger.error("\(error.localizedDescription)")
             throw Error.compilerError(error)
+        }
+    }
+
+    private func detectPlatformsToBuild(package: Package) -> OrderedSet<SDK> {
+        switch mode {
+        case .createPackage(let platforms):
+            if let platforms {
+                return OrderedSet(platforms)
+            } else {
+                return package.supportedSDKs
+            }
+        case .prepareDependencies:
+            return package.supportedSDKs
         }
     }
 }

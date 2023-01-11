@@ -16,10 +16,21 @@ extension Scipio {
         @OptionGroup var buildOptions: BuildOptionGroup
         @OptionGroup var globalOptions: GlobalOptionGroup
 
+        @Option(help: "Platforms to create XCFramework for",
+                completion: .list(availablePlatforms.map(\.rawValue)))
+        var platforms: [SDK] = []
+
         mutating func run() async throws {
             LoggingSystem.bootstrap()
 
-            let runner = Runner(mode: .createPackage,
+            let platformsToCreate: Set<SDK>?
+            if platforms.isEmpty {
+                platformsToCreate = nil
+            } else {
+                platformsToCreate = Set(platforms)
+            }
+
+            let runner = Runner(mode: .createPackage(platforms: platformsToCreate),
                                 options: .init(
                                     buildConfiguration: buildOptions.buildConfiguration,
                                     isSimulatorSupported: buildOptions.supportSimulators,
@@ -40,5 +51,16 @@ extension Scipio {
             try await runner.run(packageDirectory: packageDirectory,
                                  frameworkOutputDir: outputDir)
         }
+    }
+}
+
+private let availablePlatforms: [SDK] = [.iOS, .macOS, .tvOS, .watchOS]
+
+extension SDK: ExpressibleByArgument {
+    public init?(argument: String) {
+        if let initialized = SDK(rawValue: argument) {
+            self = initialized
+        }
+        return nil
     }
 }

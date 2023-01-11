@@ -162,7 +162,7 @@ final class RunnerTests: XCTestCase {
 
     func testExtractBinary() async throws {
         let runner = Runner(
-            mode: .createPackage,
+            mode: .createPackage(platforms: nil),
             options: .init(
                 buildConfiguration: .release,
                 isSimulatorSupported: false,
@@ -223,13 +223,14 @@ final class RunnerTests: XCTestCase {
 
     func testWithResourcePackage() async throws {
         let runner = Runner(
-            mode: .createPackage,
+            mode: .createPackage(platforms: nil),
             options: .init(
                 buildConfiguration: .release,
                 isSimulatorSupported: true,
                 isDebugSymbolsEmbedded: false,
                 frameworkType: .dynamic,
                 cacheMode: .project,
+                force: false,
                 verbose: false)
         )
 
