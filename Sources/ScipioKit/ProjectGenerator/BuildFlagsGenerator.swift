@@ -4,7 +4,7 @@ import PackageGraph
 import TSCBasic
 
 struct BuildFlagsGenerator {
-    private let package: Package
+    private let rootPackage: Package
     private let target: ResolvedTarget
     private let buildConfiguration: BuildConfiguration
     private let platforms: Set<SDK>
@@ -21,14 +21,15 @@ struct BuildFlagsGenerator {
     }
 
     init(package: Package, target: ResolvedTarget, buildConfiguration: BuildConfiguration, platforms: Set<SDK>) {
-        self.package = package
+        self.rootPackage = package
         self.target = target
         self.buildConfiguration = buildConfiguration
         self.platforms = platforms
     }
 
     func generate() throws -> [String: XCConfigValue] {
-        guard let targetDescription = package.manifest.targets.first(where: { $0.name == target.name }) else {
+        guard let subPackage = rootPackage.graph.packages.first(where: { $0.targets.contains { $0.name == target.name } }),
+              let targetDescription = subPackage.manifest.targets.first(where: { $0.name == target.name }) else {
             return [:]
         }
         return try targetDescription.settings
