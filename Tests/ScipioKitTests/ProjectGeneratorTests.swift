@@ -10,6 +10,7 @@ private let fixturePath = URL(fileURLWithPath: #file)
 private let testPackagePath = fixturePath.appendingPathComponent("E2ETestPackage")
 private let clangPackagePath = fixturePath.appendingPathComponent("ClangPackage")
 private let resourcePackagePath = fixturePath.appendingPathComponent("ResourcePackage")
+private let settingsPackagePath = fixturePath.appendingPathComponent("SettingsPackage")
 
 final class ProjectGeneratorTests: XCTestCase {
     private let fileSystem: some FileSystem = localFileSystem
@@ -203,5 +204,23 @@ final class ProjectGeneratorTests: XCTestCase {
                 "iphoneos iphonesimulator"
             )
         }
+    }
+
+    func testSettingsPackageProject() async throws {
+        let package = try Package(packageDirectory: settingsPackagePath)
+        let projectGenerator = try makeGenerator(for: package)
+        let projectPath = package.projectPath
+        try projectGenerator.generate()
+        XCTAssertTrue(fileSystem.exists(projectPath))
+
+        let project = try XcodeProj(pathString: projectPath.path)
+        let target = try XCTUnwrap(project.pbxproj.nativeTargets.first)
+
+        let configuration = try XCTUnwrap(target.buildConfigurationList?.buildConfigurations.first)
+        print(configuration.buildSettings)
+        XCTAssertEqual(
+            configuration.buildSettings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] as! [String],
+            ["$(inherited)", "MY_FLAG", "ANOTHER_FLAG"]
+        )
     }
 }

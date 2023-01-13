@@ -235,6 +235,7 @@ class ProjectGenerator {
     ) throws -> GeneratedTargetsContainer {
         let targetSettingsGenerator = TargetBuildSettingsGenerator(
             package: package,
+            platforms: Set(buildOptions.sdks),
             isDebugSymbolsEmbedded: buildOptions.isDebugSymbolsEmbedded,
             isStaticFramework: buildOptions.frameworkType == .static,
             isSimulatorSupported: buildOptions.isSimulatorSupported
@@ -251,8 +252,8 @@ class ProjectGenerator {
 
         let buildConfigurationList = addObject(
             XCConfigurationList(buildConfigurations: [
-                addObject(targetSettingsGenerator.generate(for: target, configuration: .debug, infoPlistPath: plistPath)),
-                addObject(targetSettingsGenerator.generate(for: target, configuration: .release, infoPlistPath: plistPath)),
+                addObject(try targetSettingsGenerator.generate(for: target, configuration: .debug, infoPlistPath: plistPath)),
+                addObject(try targetSettingsGenerator.generate(for: target, configuration: .release, infoPlistPath: plistPath)),
             ])
         )
 

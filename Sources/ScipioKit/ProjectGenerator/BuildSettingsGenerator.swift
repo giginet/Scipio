@@ -9,42 +9,6 @@ import struct PackageModel.SupportedPlatform
 import TSCBasic
 import XcodeProj
 
-private enum XCConfigValue {
-    case string(String)
-    case list([XCConfigValue])
-    case bool(Bool)
-
-    static let inherited: Self = .string("$(inherited)")
-
-    var rawConfigValue: Any {
-        switch self {
-        case .string(let rawString): return rawString
-        case .bool(let bool): return bool
-        case .list(let list): return list.map(\.rawConfigValue)
-        }
-    }
-}
-
-extension XCConfigValue: ExpressibleByBooleanLiteral {
-    init(booleanLiteral value: BooleanLiteralType) {
-        self = .bool(value)
-    }
-}
-
-extension XCConfigValue: ExpressibleByStringLiteral {
-    init(stringLiteral value: StringLiteralType) {
-        self = .string(value)
-    }
-}
-
-extension XCConfigValue: ExpressibleByArrayLiteral {
-    typealias ArrayLiteralElement = XCConfigValue
-
-    init(arrayLiteral elements: ArrayLiteralElement...) {
-        self = .list(elements)
-    }
-}
-
 private enum TargetDeviceFamily: Int {
     case iPhone = 1
     case iPad = 2
@@ -110,12 +74,14 @@ struct ProjectBuildSettingsGenerator {
 
 struct TargetBuildSettingsGenerator {
     private let package: Package
+    private let platforms: Set<SDK>
     private let isDebugSymbolsEmbedded: Bool
     private let isStaticFramework: Bool
     private let isSimulatorSupported: Bool
 
-    init(package: Package, isDebugSymbolsEmbedded: Bool, isStaticFramework: Bool, isSimulatorSupported: Bool) {
+    init(package: Package, platforms: Set<SDK>, isDebugSymbolsEmbedded: Bool, isStaticFramework: Bool, isSimulatorSupported: Bool) {
         self.package = package
+        self.platforms = platforms
         self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
         self.isStaticFramework = isStaticFramework
         self.isSimulatorSupported = isSimulatorSupported
@@ -140,7 +106,7 @@ struct TargetBuildSettingsGenerator {
         ]
     }
 
-    func generate(for target: ResolvedTarget, configuration: BuildConfiguration, infoPlistPath: URL) -> XCBuildConfiguration {
+    func generate(for target: ResolvedTarget, configuration: BuildConfiguration, infoPlistPath: URL) throws -> XCBuildConfiguration {
         var settings: [String: XCConfigValue] = baseSettings(for: target)
         settings["INFOPLIST_FILE"] = .string(infoPlistPath.path)
 
@@ -181,6 +147,10 @@ struct TargetBuildSettingsGenerator {
         }
 
         settings["HEADER_SEARCH_PATHS"] = .list(buildHeaderSearchPaths(for: target).map(XCConfigValue.string))
+
+        let flagsGenerator = BuildFlagsGenerator(package: package, target: target, buildConfiguration: configuration, platforms: platforms)
+        let manifestSettings = try flagsGenerator.generate()
+        settings.merge(manifestSettings)
 
         if isDebugSymbolsEmbedded {
             settings["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
@@ -311,24 +281,6 @@ private struct PlatformSettingsBuilder {
         }
         return supportedPlatformValues
 
-    }
-}
-
-extension [String: XCConfigValue] {
-    fileprivate mutating func merge(_ other: Self) {
-        let allKeys = Set(self.keys).union(other.keys)
-        for key in allKeys {
-            switch (self[key], other[key]) {
-            case (.some, .none):
-                continue
-            case (.none, .some(let rhs)):
-                self[key] = rhs
-            case (.some(.list(let lhs)), .some(.list(let rhs))):
-                self[key] = .list(lhs + rhs)
-            default:
-                continue
-            }
-        }
     }
 }
 
