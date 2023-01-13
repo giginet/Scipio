@@ -37,6 +37,7 @@ final class RunnerTests: XCTestCase {
                 isDebugSymbolsEmbedded: false,
                 frameworkType: .dynamic,
                 cacheMode: .project,
+                overwrite: false,
                 verbose: true))
         do {
             try await runner.run(packageDirectory: testPackagePath,
@@ -94,6 +95,7 @@ final class RunnerTests: XCTestCase {
                 isDebugSymbolsEmbedded: false,
                 frameworkType: .dynamic,
                 cacheMode: .project,
+                overwrite: false,
                 verbose: false)
         )
         do {
@@ -127,6 +129,7 @@ final class RunnerTests: XCTestCase {
                 isDebugSymbolsEmbedded: false,
                 frameworkType: .dynamic,
                 cacheMode: .storage(storage),
+                overwrite: false,
                 verbose: false)
         )
         do {
@@ -159,13 +162,14 @@ final class RunnerTests: XCTestCase {
 
     func testExtractBinary() async throws {
         let runner = Runner(
-            mode: .createPackage,
+            mode: .createPackage(platforms: nil),
             options: .init(
                 buildConfiguration: .release,
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
                 frameworkType: .dynamic,
                 cacheMode: .disabled,
+                overwrite: false,
                 verbose: false)
         )
 
@@ -189,6 +193,7 @@ final class RunnerTests: XCTestCase {
                 frameworkType: .dynamic,
                 cacheMode: .project,
                 platformMatrix: ["ScipioTesting": [.iOS, .watchOS]],
+                overwrite: false,
                 verbose: false)
         )
 
@@ -218,13 +223,14 @@ final class RunnerTests: XCTestCase {
 
     func testWithResourcePackage() async throws {
         let runner = Runner(
-            mode: .createPackage,
+            mode: .createPackage(platforms: nil),
             options: .init(
                 buildConfiguration: .release,
                 isSimulatorSupported: true,
                 isDebugSymbolsEmbedded: false,
                 frameworkType: .dynamic,
                 cacheMode: .project,
+                overwrite: false,
                 verbose: false)
         )
 

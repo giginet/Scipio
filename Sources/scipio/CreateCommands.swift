@@ -1,6 +1,7 @@
 import Foundation
 import ScipioKit
 import ArgumentParser
+import OrderedCollections
 import Logging
 
 extension Scipio {
@@ -16,16 +17,28 @@ extension Scipio {
         @OptionGroup var buildOptions: BuildOptionGroup
         @OptionGroup var globalOptions: GlobalOptionGroup
 
+        @Option(help: "Platforms to create XCFramework for.(availables: \(availablePlatforms.map(\.rawValue).joined(separator: ", ")))",
+                completion: .list(availablePlatforms.map(\.rawValue)))
+        var platforms: [SDK] = []
+
         mutating func run() async throws {
             LoggingSystem.bootstrap()
 
-            let runner = Runner(mode: .createPackage,
+            let platformsToCreate: Set<SDK>?
+            if platforms.isEmpty {
+                platformsToCreate = nil
+            } else {
+                platformsToCreate = Set(platforms)
+            }
+
+            let runner = Runner(mode: .createPackage(platforms: platformsToCreate),
                                 options: .init(
                                     buildConfiguration: buildOptions.buildConfiguration,
                                     isSimulatorSupported: buildOptions.supportSimulators,
                                     isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
                                     frameworkType: buildOptions.frameworkType,
                                     cacheMode: .disabled,
+                                    overwrite: buildOptions.overwrite,
                                     verbose: globalOptions.verbose)
             )
 
@@ -38,6 +51,18 @@ extension Scipio {
 
             try await runner.run(packageDirectory: packageDirectory,
                                  frameworkOutputDir: outputDir)
+        }
+    }
+}
+
+private let availablePlatforms: OrderedSet<SDK> = [.iOS, .macOS, .tvOS, .watchOS]
+
+extension SDK: ExpressibleByArgument {
+    public init?(argument: String) {
+        if let initialized = SDK(rawValue: argument) {
+            self = initialized
+        } else {
+            return nil
         }
     }
 }

@@ -8,7 +8,7 @@ public struct Runner {
     private let fileSystem: any FileSystem
 
     public enum Mode {
-        case createPackage
+        case createPackage(platforms: Set<SDK>?)
         case prepareDependencies
     }
 
@@ -43,6 +43,8 @@ public struct Runner {
             outputDirectory: URL? = nil,
             cacheMode: CacheMode,
             platformMatrix: PlatformMatrix = [:],
+            skipProjectGeneration: Bool = false,
+            overwrite: Bool,
             verbose: Bool
         ) {
             self.buildConfiguration = buildConfiguration
@@ -52,6 +54,8 @@ public struct Runner {
             self.outputDirectory = outputDirectory
             self.cacheMode = cacheMode
             self.platformMatrix = platformMatrix
+            self.skipProjectGeneration = false
+            self.overwrite = overwrite
             self.verbose = verbose
         }
 
@@ -62,6 +66,8 @@ public struct Runner {
         public var outputDirectory: URL?
         public var cacheMode: CacheMode
         public var platformMatrix: PlatformMatrix
+        public var skipProjectGeneration: Bool
+        public var overwrite: Bool
         public var verbose: Bool
 
         public enum CacheMode {
@@ -117,7 +123,7 @@ public struct Runner {
             throw Error.invalidPackage(packagePath)
         }
 
-        let sdks = package.supportedSDKs
+        let sdks = detectPlatformsToBuild(package: package)
         guard !sdks.isEmpty else {
             throw Error.platformNotSpecified
         }
@@ -132,16 +138,20 @@ public struct Runner {
         let resolver = Resolver(package: package)
         try await resolver.resolve()
 
-        let generator = ProjectGenerator(package: package,
-                                         buildOptions: buildOptions)
-        do {
-            try generator.generate()
-        } catch let error as LocalizedError {
-            logger.error("""
+        if options.skipProjectGeneration {
+            logger.info("Skip Xcode project generation")
+        } else {
+            let generator = ProjectGenerator(package: package,
+                                             buildOptions: buildOptions)
+            do {
+                try generator.generate()
+            } catch let error as LocalizedError {
+                logger.error("""
                 Project generation is failed:
                 \(error.errorDescription ?? "Unknown reason")
             """)
-            throw error
+                throw error
+            }
         }
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
@@ -154,6 +164,7 @@ public struct Runner {
             buildOptions: buildOptions,
             cacheMode: options.cacheMode,
             platformMatrix: options.platformMatrix,
+            overwrite: options.overwrite,
             outputDir: outputDir
         )
         do {
@@ -166,6 +177,19 @@ public struct Runner {
             }
             logger.error("\(error.localizedDescription)")
             throw Error.compilerError(error)
+        }
+    }
+
+    private func detectPlatformsToBuild(package: Package) -> OrderedSet<SDK> {
+        switch mode {
+        case .createPackage(let platforms):
+            if let platforms {
+                return OrderedSet(platforms)
+            } else {
+                return package.supportedSDKs
+            }
+        case .prepareDependencies:
+            return package.supportedSDKs
         }
     }
 }
