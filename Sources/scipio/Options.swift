@@ -33,9 +33,9 @@ struct BuildOptionGroup: ParsableArguments {
           help: "Whether generated frameworks are Static Frameworks or not")
     var shouldBuildStaticFramework = false
 
-    @Flag(name: [.short, .long],
+    @Flag(name: [.customShort("f", allowingJoined: false), .long],
           help: "Whether overwrite generated frameworks or not")
-    var force: Bool = false
+    var overwrite: Bool = false
 }
 
 extension BuildOptionGroup {

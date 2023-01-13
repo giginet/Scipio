@@ -37,7 +37,7 @@ extension Scipio {
                                     isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
                                     frameworkType: buildOptions.frameworkType,
                                     cacheMode: .disabled,
-                                    force: buildOptions.force,
+                                    overwrite: buildOptions.overwrite,
                                     verbose: globalOptions.verbose)
             )
 

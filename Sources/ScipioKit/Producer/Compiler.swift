@@ -23,7 +23,7 @@ struct Compiler<E: Executor> {
 
     func createXCFramework(target: ResolvedTarget,
                            outputDirectory: URL,
-                           force: Bool) async throws {
+                           overwrite: Bool) async throws {
         let buildConfiguration = buildOptions.buildConfiguration
         let sdks = extractSDKs(isSimulatorSupported: buildOptions.isSimulatorSupported)
 
@@ -47,7 +47,7 @@ struct Compiler<E: Executor> {
 
         let frameworkName = target.xcFrameworkName
         let outputXCFrameworkPath = outputDirectory.appendingPathComponent(frameworkName)
-        if fileSystem.exists(outputXCFrameworkPath) && force {
+        if fileSystem.exists(outputXCFrameworkPath) && overwrite {
             logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
             try fileSystem.removeFileTree(at: outputXCFrameworkPath)
         }

@@ -163,8 +163,8 @@ struct TargetBuildSettingsGenerator {
             ])
         default:
             settings.merge([
-                "SWIFT_FORCE_STATIC_LINK_STDLIB": false,
-                "SWIFT_FORCE_DYNAMIC_LINK_STDLIB": true,
+                "SWIFT_overwrite_STATIC_LINK_STDLIB": false,
+                "SWIFT_overwrite_DYNAMIC_LINK_STDLIB": true,
                 "LD_RUNTIME_SEARCH_PATH": [.inherited, "$(TOOLCHAIN_DIR)/usr/lib/swift/macosx", "@executable_path"],
             ])
         }

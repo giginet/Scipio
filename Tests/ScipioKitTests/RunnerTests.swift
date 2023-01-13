@@ -37,7 +37,7 @@ final class RunnerTests: XCTestCase {
                 isDebugSymbolsEmbedded: false,
                 frameworkType: .dynamic,
                 cacheMode: .project,
-                force: false,
+                overwrite: false,
                 verbose: true))
         do {
             try await runner.run(packageDirectory: testPackagePath,
@@ -95,7 +95,7 @@ final class RunnerTests: XCTestCase {
                 isDebugSymbolsEmbedded: false,
                 frameworkType: .dynamic,
                 cacheMode: .project,
-                force: false,
+                overwrite: false,
                 verbose: false)
         )
         do {
@@ -129,7 +129,7 @@ final class RunnerTests: XCTestCase {
                 isDebugSymbolsEmbedded: false,
                 frameworkType: .dynamic,
                 cacheMode: .storage(storage),
-                force: false,
+                overwrite: false,
                 verbose: false)
         )
         do {
@@ -169,7 +169,7 @@ final class RunnerTests: XCTestCase {
                 isDebugSymbolsEmbedded: false,
                 frameworkType: .dynamic,
                 cacheMode: .disabled,
-                force: false,
+                overwrite: false,
                 verbose: false)
         )
 
@@ -193,7 +193,7 @@ final class RunnerTests: XCTestCase {
                 frameworkType: .dynamic,
                 cacheMode: .project,
                 platformMatrix: ["ScipioTesting": [.iOS, .watchOS]],
-                force: false,
+                overwrite: false,
                 verbose: false)
         )
 
@@ -230,7 +230,7 @@ final class RunnerTests: XCTestCase {
                 isDebugSymbolsEmbedded: false,
                 frameworkType: .dynamic,
                 cacheMode: .project,
-                force: false,
+                overwrite: false,
                 verbose: false)
         )
 

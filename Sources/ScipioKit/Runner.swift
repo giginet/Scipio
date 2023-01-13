@@ -44,7 +44,7 @@ public struct Runner {
             cacheMode: CacheMode,
             platformMatrix: PlatformMatrix = [:],
             skipProjectGeneration: Bool = false,
-            force: Bool,
+            overwrite: Bool,
             verbose: Bool
         ) {
             self.buildConfiguration = buildConfiguration
@@ -55,7 +55,7 @@ public struct Runner {
             self.cacheMode = cacheMode
             self.platformMatrix = platformMatrix
             self.skipProjectGeneration = false
-            self.force = force
+            self.overwrite = overwrite
             self.verbose = verbose
         }
 
@@ -67,7 +67,7 @@ public struct Runner {
         public var cacheMode: CacheMode
         public var platformMatrix: PlatformMatrix
         public var skipProjectGeneration: Bool
-        public var force: Bool
+        public var overwrite: Bool
         public var verbose: Bool
 
         public enum CacheMode {
@@ -164,7 +164,7 @@ public struct Runner {
             buildOptions: buildOptions,
             cacheMode: options.cacheMode,
             platformMatrix: options.platformMatrix,
-            force: options.force,
+            overwrite: options.overwrite,
             outputDir: outputDir
         )
         do {
