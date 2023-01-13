@@ -124,9 +124,9 @@ struct BuildFlagsGenerator {
         case .define:
             throw Error.unsupportedSettings(setting)
         case .linkedFramework(let value):
-            return ["LINK_LIBRARIES": .string(value)]
-        case .linkedLibrary(let value):
             return ["LINK_FRAMEWORKS": .string(value)]
+        case .linkedLibrary(let value):
+            return ["LINK_LIBRARIES": .string(value)]
         case .unsafeFlags(let value):
             return ["OTHER_LDFLAGS": .list(value)]
         }
