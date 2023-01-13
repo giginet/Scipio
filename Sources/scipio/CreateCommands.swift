@@ -1,6 +1,7 @@
 import Foundation
 import ScipioKit
 import ArgumentParser
+import OrderedCollections
 import Logging
 
 extension Scipio {
@@ -54,7 +55,7 @@ extension Scipio {
     }
 }
 
-private let availablePlatforms: [SDK] = [.iOS, .macOS, .tvOS, .watchOS]
+private let availablePlatforms: OrderedSet<SDK> = [.iOS, .macOS, .tvOS, .watchOS]
 
 extension SDK: ExpressibleByArgument {
     public init?(argument: String) {

@@ -114,7 +114,7 @@ extension Package {
 }
 
 extension ResolvedTarget {
-    var xcFrameworkName: String {
+    fileprivate var xcFrameworkName: String {
         "\(c99name.packageNamed()).xcframework"
     }
 }
