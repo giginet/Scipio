@@ -11,11 +11,14 @@ struct BuildFlagsGenerator {
 
     enum Error: LocalizedError {
         case unsupportedSettings(TargetBuildSettingDescription.Setting)
+        case unknownTarget(ResolvedTarget)
 
         var errorDescription: String? {
             switch self {
             case .unsupportedSettings(let setting):
                 return "Unsupported settings \(setting.kind) for \(setting.tool)"
+            case .unknownTarget(let target):
+                return "\(target) is not found in package manifests"
             }
         }
     }
@@ -30,7 +33,7 @@ struct BuildFlagsGenerator {
     func generate() throws -> [String: XCConfigValue] {
         guard let subPackage = rootPackage.graph.packages.first(where: { $0.targets.contains { $0.name == target.name } }),
               let targetDescription = subPackage.manifest.targets.first(where: { $0.name == target.name }) else {
-            return [:]
+            throw Error.unknownTarget(target)
         }
         return try targetDescription.settings
             .filter { setting in
