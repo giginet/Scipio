@@ -2,7 +2,7 @@ import Foundation
 import PackageGraph
 
 struct XcodeBuildCompiler<E: Executor>: Compiler {
-    private let rootPackage: Package
+    let rootPackage: Package
     private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem
     private let xcodebuild: XcodeBuildClient<E>
@@ -62,32 +62,6 @@ struct XcodeBuildCompiler<E: Executor>: Compiler {
         )
     }
 
-    private func extractDebugSymbolPaths(
-        target: ResolvedTarget,
-        buildConfiguration: BuildConfiguration,
-        sdks: Set<SDK>
-    ) async throws -> [URL] {
-        let debugSymbols: [DebugSymbol] = sdks.compactMap { sdk in
-            let dsymPath = rootPackage.buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: sdk, target: target)
-            guard fileSystem.exists(dsymPath) else { return nil }
-            return DebugSymbol(dSYMPath: dsymPath,
-                               target: target,
-                               sdk: sdk,
-                               buildConfiguration: buildConfiguration)
-        }
-        // You can use AsyncStream
-        var symbolMapPaths: [URL] = []
-        for dSYMs in debugSymbols {
-            let dumpedDSYMsMaps = try await extractor.dump(dwarfPath: dSYMs.dwarfPath)
-            let paths = dumpedDSYMsMaps.values.map { uuid in
-                rootPackage.buildArtifactsDirectoryPath(buildConfiguration: dSYMs.buildConfiguration, sdk: dSYMs.sdk)
-                    .appendingPathComponent("\(uuid.uuidString).bcsymbolmap")
-            }
-            symbolMapPaths.append(contentsOf: paths)
-        }
-        return debugSymbols.map { $0.dSYMPath } + symbolMapPaths
-    }
-
     private func extractSDKs(isSimulatorSupported: Bool) -> Set<SDK> {
         if isSimulatorSupported {
             return Set(buildOptions.sdks.flatMap { $0.extractForSimulators() })
@@ -100,21 +74,5 @@ struct XcodeBuildCompiler<E: Executor>: Compiler {
 extension Package {
     var archivesPath: URL {
         workspaceDirectory.appendingPathComponent("archives")
-    }
-}
-
-extension Package {
-    fileprivate func buildArtifactsDirectoryPath(buildConfiguration: BuildConfiguration, sdk: SDK) -> URL {
-        workspaceDirectory.appendingPathComponent("\(buildConfiguration.settingsValue)-\(sdk.settingValue)")
-    }
-
-    fileprivate func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> URL {
-        buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appendingPathComponent("\(target).framework.dSYM")
-    }
-}
-
-extension ResolvedTarget {
-    fileprivate var xcFrameworkName: String {
-        "\(c99name.packageNamed()).xcframework"
     }
 }
