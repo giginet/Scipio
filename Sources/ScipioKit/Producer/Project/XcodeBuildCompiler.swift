@@ -21,11 +21,14 @@ struct XcodeBuildCompiler<E: Executor>: Compiler {
         self.extractor = DwarfExtractor(executor: executor)
     }
 
-    func createXCFramework(target: ResolvedTarget,
-                           outputDirectory: URL,
-                           overwrite: Bool) async throws {
+    func createXCFramework(
+        buildProduct: BuildProduct,
+        outputDirectory: URL,
+        overwrite: Bool
+    ) async throws {
         let buildConfiguration = buildOptions.buildConfiguration
         let sdks = extractSDKs(isSimulatorSupported: buildOptions.isSimulatorSupported)
+        let target = buildProduct.target
 
         let sdkNames = sdks.map(\.displayName).joined(separator: ", ")
         logger.info("📦 Building \(target.name) for \(sdkNames)")
@@ -54,7 +57,7 @@ struct XcodeBuildCompiler<E: Executor>: Compiler {
 
         try await xcodebuild.createXCFramework(
             package: rootPackage,
-            target: target,
+            buildProduct: buildProduct,
             buildConfiguration: buildConfiguration,
             sdks: sdks,
             debugSymbolPaths: debugSymbolPaths,

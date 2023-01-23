@@ -129,7 +129,7 @@ struct FrameworkProducer {
             case .library:
                 // let compiler = XcodeBuildCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
                 let compiler = PIFCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
-                try await compiler.createXCFramework(target: product.target,
+                try await compiler.createXCFramework(buildProduct: product,
                                                      outputDirectory: outputDir,
                                                      overwrite: overwrite)
             case .binary:

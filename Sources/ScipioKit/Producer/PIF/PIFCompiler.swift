@@ -40,14 +40,15 @@ struct PIFCompiler: Compiler {
         return try await toolchainGenerator.makeToolChain(sdk: sdk)
     }
 
-    func createXCFramework(target: ResolvedTarget, outputDirectory: URL, overwrite: Bool) async throws {
+    func createXCFramework(buildProduct: BuildProduct, outputDirectory: URL, overwrite: Bool) async throws {
         let sdks = sdksToBuild
         let sdkNames = sdks.map(\.displayName).joined(separator: ", ")
+        let target = buildProduct.target
         logger.info("📦 Building \(target.name) for \(sdkNames)")
 
         let xcBuildClient: XCBuildClient = .init(
             package: rootPackage,
-            productName: target.name,
+            buildProduct: buildProduct,
             configuration: buildOptions.buildConfiguration
         )
 
