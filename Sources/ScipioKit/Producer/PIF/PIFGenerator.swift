@@ -6,9 +6,9 @@ import PackageGraph
 import XCBuildSupport
 
 struct PIFGenerator {
-    let package: Package
-    let buildParameters: PIFBuilderParameters
-    let buildOptions: BuildOptions
+    private let package: Package
+    private let buildParameters: PIFBuilderParameters
+    private let buildOptions: BuildOptions
     private let fileSystem: any TSCBasic.FileSystem
 
     init(
@@ -37,7 +37,7 @@ struct PIFGenerator {
         )
     }
 
-    func dumpJSON(for sdk: SDK, to path: AbsolutePath) throws {
+    func generateJSON(for sdk: SDK) throws -> AbsolutePath {
         let topLevelObject = modify(try generatePIF(), for: sdk)
 
         try PIF.sign(topLevelObject.workspace)
@@ -45,7 +45,9 @@ struct PIFGenerator {
         encoder.userInfo[.encodeForXCBuild] = true
 
         let newJSONData = try encoder.encode(topLevelObject)
+        let path = try AbsolutePath(validating: package.buildDirectory.path).appending(component: "manifest-\(sdk.settingValue).pif")
         try fileSystem.writeFileContents(path, data: newJSONData)
+        return path
     }
 
     private func modify(_ pif: PIF.TopLevelObject, for sdk: SDK) -> PIF.TopLevelObject {
