@@ -15,6 +15,16 @@ extension Logger.Metadata {
     static func color(_ color: NamedColor) -> Self { ["color": .color(color)] }
 }
 
+extension Logger {
+    func error(_ error: Error) {
+        if let error = error as? LocalizedError, let description = error.errorDescription {
+            self.error("⚠️ \(description)", metadata: .color(.red))
+        } else {
+            self.error("⚠️ \(error.localizedDescription)", metadata: .color(.red))
+        }
+    }
+}
+
 struct ScipioLogHandler: LogHandler {
     var logLevel: Logger.Level = .info
     var metadata = Logger.Metadata()

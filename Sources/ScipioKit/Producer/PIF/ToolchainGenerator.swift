@@ -7,7 +7,7 @@ struct ToolchainGenerator {
     private let toolchainDirPath: AbsolutePath
     private let executor: any Executor
 
-    init(toolchainDirPath: AbsolutePath, executor: any Executor) {
+    init(toolchainDirPath: AbsolutePath, executor: any Executor = ProcessExecutor()) {
         self.toolchainDirPath = toolchainDirPath
         self.executor = executor
     }
