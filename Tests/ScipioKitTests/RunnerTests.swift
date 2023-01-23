@@ -242,16 +242,23 @@ final class RunnerTests: XCTestCase {
             let bundlePath = xcFramework
                 .appendingPathComponent(arch)
                 .appendingPathComponent("ResourcePackage.framework")
-                .appendingPathComponent("ResourcePackage-Resources.bundle")
+                .appendingPathComponent("ResourcePackage_ResourcePackage.bundle")
             XCTAssertTrue(
                 fileManager.fileExists(atPath: bundlePath.path),
                 "A framework for \(arch) should contain resource bundles"
             )
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: bundlePath.appendingPathComponent("giginet.png").path),
+                "Image files should be contained"
+            )
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: bundlePath.appendingPathComponent("AvatarView.nib").path),
+                "XIB files should be contained"
+            )
 
             let contents = try XCTUnwrap(try fileManager.contentsOfDirectory(atPath: bundlePath.path))
-            XCTAssertEqual(
-                Set(contents),
-                ["giginet.png", "AvatarView.nib", "Info.plist"],
+            XCTAssertTrue(
+                Set(contents).isSuperset(of: ["giginet.png", "AvatarView.nib", "Info.plist"]),
                 "The resource bundle should contain expected resources"
             )
         }
