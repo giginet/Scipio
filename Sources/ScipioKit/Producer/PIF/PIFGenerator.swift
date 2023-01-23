@@ -56,7 +56,7 @@ struct PIFGenerator {
                 if let target = baseTarget as? PIF.Target {
                     let isObjectTarget = target.productType == .objectFile
 
-                    guard isObjectTarget else { continue }
+                    guard [.objectFile, .bundle].contains(target.productType) else { continue }
 
                     if isObjectTarget {
                         let targetName = target.name
