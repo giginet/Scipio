@@ -12,7 +12,6 @@ struct PIFCompiler: Compiler {
 
     private let toolchainGenerator: ToolchainGenerator
     private let buildParametersGenerator: BuildParametersGenerator
-    private let xcBuildClient: XCBuildClient = .init(executor: ProcessExecutor())
 
     init(
         rootPackage: Package,
@@ -33,6 +32,12 @@ struct PIFCompiler: Compiler {
         let sdkNames = sdks.map(\.displayName).joined(separator: ", ")
         logger.info("📦 Building \(target.name) for \(sdkNames)")
 
+        let xcBuildClient: XCBuildClient = .init(
+            package: rootPackage,
+            productName: target.name,
+            configuration: buildOptions.buildConfiguration
+        )
+
         for sdk in sdks {
             let toolchain = try await toolchainGenerator.makeToolChain(sdk: sdk)
             let buildParameters = try makeBuildParameters(toolchain: toolchain)
@@ -52,9 +57,7 @@ struct PIFCompiler: Compiler {
             do {
                 try await xcBuildClient.buildFramework(
                     pifPath: pifPath,
-                    buildParametersPath: buildParametersPath,
-                    configuration: buildOptions.buildConfiguration,
-                    target: .allExcludingTests
+                    buildParametersPath: buildParametersPath
                 )
             } catch {
                 logger.error("Unable to build for \(sdk.displayName)", metadata: .color(.red))
@@ -80,7 +83,11 @@ struct PIFCompiler: Compiler {
             try fileSystem.removeFileTree(outputXCFrameworkPath)
         }
 
-        // TODO
+        try await xcBuildClient.createXCFramework(
+            sdks: sdksToBuild,
+            debugSymbols: debugSymbolPaths,
+            outputPath: outputXCFrameworkPath
+        )
     }
 
     private func makeBuildParameters(toolchain: UserToolchain) throws -> BuildParameters {

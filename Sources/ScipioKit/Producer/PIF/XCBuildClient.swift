@@ -1,28 +1,18 @@
 import Foundation
 import TSCBasic
+import PackageGraph
 
 struct XCBuildClient {
+    private let package: Package
+    private let productName: String
+    private let configuration: BuildConfiguration
     private let executor: any Executor
 
-    init(executor: any Executor) {
+    init(package: Package, productName: String, configuration: BuildConfiguration, executor: any Executor = ProcessExecutor()) {
+        self.package = package
+        self.productName = productName
+        self.configuration = configuration
         self.executor = executor
-    }
-
-    enum Target {
-        case allIncludingTests
-        case allExcludingTests
-        case target(String)
-        case product(String)
-
-        var argumentValue: String {
-            switch self {
-            case .allExcludingTests: return "AllExcludingTests"
-            case .allIncludingTests: return "AllIncludingTests"
-            case .target(let targetName): return targetName
-            case .product(let productName):
-                return "\(productName)_\(String(productName.hash, radix: 16, uppercase: true))_PackageProduct"
-            }
-        }
     }
 
     private func fetchXCBuildPath() async throws -> AbsolutePath {
@@ -40,11 +30,13 @@ struct XCBuildClient {
         return try AbsolutePath(validating: try result.unwrapOutput())
     }
 
+    private var productTargetName: String {
+        "\(productName)_\(String(productName.hash, radix: 16, uppercase: true))_PackageProduct"
+    }
+
     func buildFramework(
         pifPath: AbsolutePath,
-        buildParametersPath: AbsolutePath,
-        configuration: BuildConfiguration,
-        target: Target
+        buildParametersPath: AbsolutePath
     ) async throws {
         let xcbuildPath = try await fetchXCBuildPath()
         try await executor.execute(
@@ -58,7 +50,39 @@ struct XCBuildClient {
             "--buildParametersFile",
             buildParametersPath.pathString,
             "--target",
-            target.argumentValue
+            productTargetName
         )
+    }
+
+    private func frameworkPath(of sdk: SDK) throws -> AbsolutePath {
+        let frameworkPath = try RelativePath(validating: "./DerivedData/Products/\(productDirectoryName(sdk: sdk))/PackageFrameworks")
+            .appending(component: "\(productName).framework")
+        return try AbsolutePath(validating: package.buildDirectory.path).appending(frameworkPath)
+    }
+
+    private func productDirectoryName(sdk: SDK) -> String {
+        if sdk == .macOS {
+            return configuration.settingsValue
+        } else {
+            return "\(configuration.settingsValue)-\(sdk.settingValue)"
+        }
+    }
+
+    func createXCFramework(sdks: Set<SDK>, debugSymbols: [URL]?, outputPath: AbsolutePath) async throws {
+        let xcbuildPath = try await fetchXCBuildPath()
+        let arguments: [String] = [xcbuildPath.pathString, "createXCFramework"]
+
+        let frameworksArguments: [String] = try sdks.reduce([]) { arguments, sdk in
+            let path = try frameworkPath(of: sdk)
+            return arguments + ["-framework", path.pathString]
+        }
+
+        let debugSymbolsArguments: [String] = debugSymbols?.reduce(into: []) { arguments, path in
+            arguments.append(contentsOf: ["-debug-symbols", path.path])
+        } ?? []
+
+        let outputPathArguments: [String] = ["-output", outputPath.pathString]
+
+        try await executor.execute(arguments + frameworksArguments + debugSymbolsArguments + outputPathArguments)
     }
 }
