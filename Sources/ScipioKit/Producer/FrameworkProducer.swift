@@ -3,7 +3,7 @@ import PackageGraph
 import PackageModel
 import OrderedCollections
 
-struct XcodebuildFrameworkProducer {
+struct FrameworkProducer {
     private let mode: Runner.Mode
     private let rootPackage: Package
     private let buildOptions: BuildOptions
