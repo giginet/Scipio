@@ -3,8 +3,37 @@ import TSCBasic
 import XCBuildSupport
 import SPMBuildCore
 
+struct XCBBuildParameters: Encodable {
+    struct RunDestination: Encodable {
+        var platform: String
+        var sdk: String
+        var sdkVariant: String?
+        var targetArchitecture: String
+        var supportedArchitectures: [String]
+        var disableOnlyActiveArch: Bool
+    }
+
+    struct XCBSettingsTable: Encodable {
+        var table: [String: String]
+    }
+
+    struct SettingsOverride: Encodable {
+        var synthesized: XCBSettingsTable? = nil
+    }
+
+    var configurationName: String
+    var overrides: SettingsOverride
+    var activeRunDestination: RunDestination
+}
+
 struct BuildParametersGenerator {
-    func generate() throws -> AbsolutePath {
+    private let fileSystem: any TSCBasic.FileSystem
+
+    init(fileSystem: any TSCBasic.FileSystem = TSCBasic.localFileSystem) {
+        self.fileSystem = fileSystem
+    }
+
+    func generate(for sdk: SDK, buildParameters: BuildParameters, destinationDir: AbsolutePath) throws -> AbsolutePath {
         // Generate the run destination parameters.
         let runDestination = XCBBuildParameters.RunDestination(
             platform: sdk.settingValue,
@@ -60,6 +89,7 @@ struct BuildParametersGenerator {
         )
 
         // Write out the parameters as a JSON file, and return the path.
+        let filePath = destinationDir.appending(component: "build-parameters-\(sdk.settingValue).json")
         let encoder = JSONEncoder.makeWithDefaults()
         let data = try encoder.encode(params)
         try self.fileSystem.writeFileContents(filePath, bytes: ByteString(data))
