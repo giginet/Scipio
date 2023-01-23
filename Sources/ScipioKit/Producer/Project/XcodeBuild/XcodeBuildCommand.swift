@@ -33,6 +33,6 @@ extension XcodeBuildCommand {
         target: ResolvedTarget,
         sdk: SDK
     ) -> URL {
-        package.archivesPath.appendingPathComponent("\(target.name)_\(sdk.name).xcarchive")
+        package.archivesPath.appendingPathComponent("\(target.name)_\(sdk.settingValue).xcarchive")
     }
 }

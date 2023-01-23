@@ -105,7 +105,7 @@ extension Package {
 
 extension Package {
     fileprivate func buildArtifactsDirectoryPath(buildConfiguration: BuildConfiguration, sdk: SDK) -> URL {
-        workspaceDirectory.appendingPathComponent("\(buildConfiguration.settingsValue)-\(sdk.name)")
+        workspaceDirectory.appendingPathComponent("\(buildConfiguration.settingsValue)-\(sdk.settingValue)")
     }
 
     fileprivate func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> URL {
