@@ -1,7 +1,6 @@
 import Foundation
 import Workspace
-import struct TSCBasic.AbsolutePath
-import func TSCBasic.tsc_await
+import TSCBasic
 import PackageModel
 import PackageLoading
 import PackageGraph
@@ -31,8 +30,22 @@ struct Package {
         buildDirectory.appendingPathComponent("\(name).xcodeproj")
     }
 
-    var supportedSDKs: OrderedSet<SDK> {
+    var supportedSDKs: OrderedCollections.OrderedSet<SDK> {
         OrderedSet(manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:)))
+    }
+
+    private static func makeWorkspace(packagePath: AbsolutePath) throws -> Workspace {
+        var workspaceConfiguration: WorkspaceConfiguration = .default
+        // override default configuration to treat XIB files
+        workspaceConfiguration.additionalFileRules = FileRuleDescription.xcbuildFileTypes
+
+        let fileSystem = TSCBasic.localFileSystem
+        let workspace = try Workspace(
+            fileSystem: fileSystem,
+            location: Workspace.Location(forRootPackage: packagePath, fileSystem: fileSystem),
+            configuration: workspaceConfiguration
+        )
+        return workspace
     }
 
     init(packageDirectory: URL) throws {
@@ -40,15 +53,8 @@ struct Package {
         let absolutePath = try AbsolutePath(validating: packageDirectory.path)
 
         self.toolchain = try UserToolchain(destination: try .hostDestination())
-
-#if swift(>=5.7)
-        let loader = ManifestLoader(toolchain: toolchain)
-#else // for Swift 5.6
-        let resources = ToolchainConfiguration(swiftCompilerPath: toolchain.swiftCompilerPath)
-        let loader = ManifestLoader(toolchain: resources)
-#endif
-        let workspace = try Workspace(forRootPackage: absolutePath, customManifestLoader: loader)
-
+        
+        let workspace = try Self.makeWorkspace(packagePath: try AbsolutePath(validating: packageDirectory.path))
         self.graph = try workspace.loadPackageGraph(rootPath: absolutePath, observabilityScope: observabilitySystem.topScope)
         let scope = observabilitySystem.topScope
         self.manifest = try tsc_await {
