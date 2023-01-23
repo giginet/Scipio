@@ -60,12 +60,6 @@ struct PIFFrameworkProducer {
     }
 }
 
-private struct PIFGenerator {
-    func generate() throws -> AbsolutePath {
-        return try .init(validating: "$HOME")
-    }
-}
-
 private struct XCBuildRunner {
     private let executor: any Executor
 
