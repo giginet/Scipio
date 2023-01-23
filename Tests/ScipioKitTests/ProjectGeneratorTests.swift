@@ -217,7 +217,6 @@ final class ProjectGeneratorTests: XCTestCase {
         let target = try XCTUnwrap(project.pbxproj.nativeTargets.first)
 
         let configuration = try XCTUnwrap(target.buildConfigurationList?.buildConfigurations.first)
-        print(configuration.buildSettings)
         XCTAssertEqual(
             configuration.buildSettings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] as! [String],
             ["$(inherited)", "MY_FLAG", "ANOTHER_FLAG"]

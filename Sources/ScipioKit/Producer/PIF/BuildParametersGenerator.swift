@@ -72,10 +72,7 @@ struct BuildParametersGenerator {
         ).joined(separator: " ")
 
         settings["FRAMEWORK_SEARCH_PATHS"] = ["$(inherited)", "$(BUILT_PRODUCTS_DIR)/PackageFrameworks"].joined(separator: " ")
-        print(try buildParameters.toolchain.toolchainLibDir.pathString)
-
-        print(buildParameters.toolchain.extraFlags)
-
+        
         // Optionally also set the list of architectures to build for.
         if let architectures = buildParameters.architectures, !architectures.isEmpty {
             settings["ARCHS"] = architectures.joined(separator: " ")
