@@ -51,7 +51,7 @@ struct PIFCompiler: Compiler {
             let buildParametersPath = try buildParametersGenerator.generate(
                 for: sdk,
                 buildParameters: buildParameters,
-                destinationDir: try AbsolutePath(validating: rootPackage.archivesPath.path)
+                destinationDir: try AbsolutePath(validating: rootPackage.buildDirectory.path)
             )
 
             do {

@@ -73,7 +73,8 @@ struct FrameworkProducer {
             assert(product.target.type == .library)
 
             let buildOptionsForProduct = buildOptions.overridingSDKs(for: product, platformMatrix: platformMatrix)
-            let compiler = XcodeBuildCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
+//            let compiler = XcodeBuildCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
+            let compiler = PIFCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
 
             let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                           buildOptions: buildOptionsForProduct,
