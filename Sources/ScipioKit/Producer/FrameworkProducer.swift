@@ -144,6 +144,7 @@ struct FrameworkProducer {
                 fileSystem: fileSystem
             )
             try binaryExtractor.extract(of: binaryTarget)
+            logger.info("✅ Copy \(binaryTarget.c99name).xcframework", metadata: .color(.green))
         }
     }
 
