@@ -9,22 +9,35 @@ struct PIFCompiler: Compiler {
     let rootPackage: Package
     private let buildOptions: BuildOptions
     private let fileSystem: any TSCBasic.FileSystem
+    private let executor: any Executor
 
-    private let toolchainGenerator: ToolchainGenerator
     private let buildParametersGenerator: BuildParametersGenerator
 
     init(
         rootPackage: Package,
         buildOptions: BuildOptions,
-        fileSystem: any TSCBasic.FileSystem = TSCBasic.localFileSystem
+        fileSystem: any TSCBasic.FileSystem = TSCBasic.localFileSystem,
+        executor: any Executor = ProcessExecutor()
     ) {
         self.rootPackage = rootPackage
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
-
-        let toolchainDirPath = try! AbsolutePath(validating: "/usr/bin") // TODO ./Toolchains/XcodeDefault.xctoolchain/usr/bin
-        self.toolchainGenerator = ToolchainGenerator(toolchainDirPath: toolchainDirPath)
+        self.executor = executor
         self.buildParametersGenerator = .init(fileSystem: fileSystem)
+    }
+
+    private func fetchDefaultToolchainBinPath() async throws -> AbsolutePath {
+        let result = try await executor.execute("/usr/bin/xcrun", "xcode-select", "-p")
+        let rawString = try result.unwrapOutput()
+        let developerDirPath = try AbsolutePath(validating: rawString)
+        let toolchainPath = try RelativePath(validating: "./Toolchains/XcodeDefault.xctoolchain/usr/bin")
+        return developerDirPath.appending(toolchainPath)
+    }
+
+    private func makeToolchain(for sdk: SDK) async throws -> UserToolchain {
+        let toolchainDirPath = try await fetchDefaultToolchainBinPath()
+        let toolchainGenerator = ToolchainGenerator(toolchainDirPath: toolchainDirPath)
+        return try await toolchainGenerator.makeToolChain(sdk: sdk)
     }
 
     func createXCFramework(target: ResolvedTarget, outputDirectory: URL, overwrite: Bool) async throws {
@@ -39,7 +52,7 @@ struct PIFCompiler: Compiler {
         )
 
         for sdk in sdks {
-            let toolchain = try await toolchainGenerator.makeToolChain(sdk: sdk)
+            let toolchain = try await makeToolchain(for: sdk)
             let buildParameters = try makeBuildParameters(toolchain: toolchain)
 
             let generator = try PIFGenerator(
