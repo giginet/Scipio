@@ -158,7 +158,7 @@ public struct Runner {
 
         try fileSystem.createDirectory(outputDir, recursive: true)
 
-        let producer = FrameworkProducer(
+        let producer = XcodebuildFrameworkProducer(
             mode: mode,
             rootPackage: package,
             buildOptions: buildOptions,
