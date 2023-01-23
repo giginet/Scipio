@@ -1,7 +1,7 @@
 import Foundation
 import PackageGraph
 
-struct Compiler<E: Executor> {
+struct XcodeBuildCompiler<E: Executor>: Compiler {
     private let rootPackage: Package
     private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem

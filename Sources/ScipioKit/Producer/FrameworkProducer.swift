@@ -3,7 +3,7 @@ import PackageGraph
 import PackageModel
 import OrderedCollections
 
-struct XcodebuildFrameworkProducer {
+struct FrameworkProducer {
     private let mode: Runner.Mode
     private let rootPackage: Package
     private let buildOptions: BuildOptions
@@ -73,7 +73,7 @@ struct XcodebuildFrameworkProducer {
             assert(product.target.type == .library)
 
             let buildOptionsForProduct = buildOptions.overridingSDKs(for: product, platformMatrix: platformMatrix)
-            let compiler = Compiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
+            let compiler = XcodeBuildCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
 
             let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                           buildOptions: buildOptionsForProduct,
@@ -104,7 +104,7 @@ struct XcodebuildFrameworkProducer {
         mode: Runner.Mode,
         outputDir: URL,
         cacheSystem: CacheSystem,
-        compiler: Compiler<some Executor>
+        compiler: any Compiler
     ) async throws {
         let frameworkName = product.frameworkName
         let outputPath = outputDir.appendingPathComponent(product.frameworkName)
