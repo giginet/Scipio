@@ -5,7 +5,7 @@ import TSCBasic
 protocol Compiler {
     var rootPackage: Package { get }
 
-    func createXCFramework(target: ResolvedTarget,
+    func createXCFramework(buildProduct: BuildProduct,
                            outputDirectory: URL,
                            overwrite: Bool) async throws
 }

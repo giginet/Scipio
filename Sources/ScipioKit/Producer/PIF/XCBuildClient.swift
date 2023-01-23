@@ -4,13 +4,13 @@ import PackageGraph
 
 struct XCBuildClient {
     private let package: Package
-    private let productName: String
+    private let buildProduct: BuildProduct
     private let configuration: BuildConfiguration
     private let executor: any Executor
 
-    init(package: Package, productName: String, configuration: BuildConfiguration, executor: any Executor = ProcessExecutor()) {
+    init(package: Package, buildProduct: BuildProduct, configuration: BuildConfiguration, executor: any Executor = ProcessExecutor()) {
         self.package = package
-        self.productName = productName
+        self.buildProduct = buildProduct
         self.configuration = configuration
         self.executor = executor
     }
@@ -31,7 +31,8 @@ struct XCBuildClient {
     }
 
     private var productTargetName: String {
-        "\(productName)_\(String(productName.hash, radix: 16, uppercase: true))_PackageProduct"
+        let productName = buildProduct.target.name
+        return "\(productName)_\(String(productName.hash, radix: 16, uppercase: true))_PackageProduct"
     }
 
     func buildFramework(
@@ -56,7 +57,7 @@ struct XCBuildClient {
 
     private func frameworkPath(of sdk: SDK) throws -> AbsolutePath {
         let frameworkPath = try RelativePath(validating: "./Products/\(productDirectoryName(sdk: sdk))/PackageFrameworks")
-            .appending(component: "\(productName).framework")
+            .appending(component: "\(buildProduct.target.c99name).framework")
         return try AbsolutePath(validating: package.derivedDataPath.path).appending(frameworkPath)
     }
 

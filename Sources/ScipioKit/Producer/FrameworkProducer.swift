@@ -131,7 +131,7 @@ struct FrameworkProducer {
         }
 
         if needToBuild {
-            try await compiler.createXCFramework(target: product.target,
+            try await compiler.createXCFramework(buildProduct: product,
                                                  outputDirectory: outputDir,
                                                  overwrite: overwrite)
         }
