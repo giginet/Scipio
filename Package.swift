@@ -18,8 +18,8 @@ let package = Package(
     dependencies: [
         // A revision after Xcodeproj module is removed
         // https://github.com/apple/swift-package-manager/pull/5748
-        .package(url: "https://github.com/apple/swift-package-manager.git",
-                 revision: "swift-DEVELOPMENT-SNAPSHOT-2022-11-12-a"),
+        .package(url: "https://github.com/giginet/swift-package-manager.git",
+                 revision: "bdf3780a458af4d14df66c6afc486e737db860b9"),
         .package(url: "https://github.com/apple/swift-log.git",
                  .upToNextMinor(from: "1.4.2")),
         .package(url: "https://github.com/apple/swift-argument-parser.git", 
@@ -39,6 +39,7 @@ let package = Package(
             name: "ScipioKit",
             dependencies: [
                 .product(name: "SwiftPMDataModel-auto", package: "swift-package-manager"),
+                .product(name: "XCBuildSupport", package: "swift-package-manager"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Rainbow", package: "Rainbow"),
                 .product(name: "XcodeProj", package: "XcodeProj"),
