@@ -54,10 +54,11 @@ struct PIFGenerator {
         for project in pif.workspace.projects {
             for baseTarget in project.targets {
                 if let target = baseTarget as? PIF.Target {
-                    let isProductTarget = target.name.hasSuffix("Product")
                     let isObjectTarget = target.productType == .objectFile
 
-                    if isObjectTarget || isProductTarget {
+                    guard isObjectTarget else { continue }
+
+                    if isObjectTarget {
                         let targetName = target.name
                         target.productType = .framework
                         target.productName = "\(targetName).framework"
@@ -67,7 +68,7 @@ struct PIFGenerator {
                         var configuration = original
                         var settings = configuration.buildSettings
 
-                        if isObjectTarget || isProductTarget {
+                        if isObjectTarget {
                             let targetName = target.name
                             let executableName = targetName.spm_mangledToC99ExtendedIdentifier()
 
@@ -99,7 +100,15 @@ struct PIFGenerator {
                             settings[.MARKETING_VERSION] = "1.0" // Version
                             settings[.CURRENT_PROJECT_VERSION] = "1" // Build
 
+                            // Enable `-enable-library-evolution` to emit swiftinterface
+                            let enableLibraryEvolutionFlag = "-enable-library-evolution"
+                            if settings[.OTHER_SWIFT_FLAGS] == nil {
+                                settings[.OTHER_SWIFT_FLAGS] = [enableLibraryEvolutionFlag]
+                            } else {
+                                settings[.OTHER_SWIFT_FLAGS]?.append(enableLibraryEvolutionFlag)
+                            }
                             settings[.SWIFT_EMIT_MODULE_INTERFACE] = "YES"
+                            settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
                         }
 
                         // If the built framework is named same as one of the target in the package, it can be picked up
