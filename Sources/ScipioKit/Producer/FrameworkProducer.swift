@@ -127,7 +127,8 @@ struct FrameworkProducer {
         if needToBuild {
             switch product.target.type {
             case .library:
-                let compiler = Compiler(rootPackage: rootPackage, buildOptions: buildOptions)
+                // let compiler = XcodeBuildCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
+                let compiler = PIFCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
                 try await compiler.createXCFramework(target: product.target,
                                                      outputDirectory: outputDir,
                                                      overwrite: overwrite)

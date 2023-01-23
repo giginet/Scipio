@@ -93,6 +93,6 @@ struct BuildParametersGenerator {
         let encoder = JSONEncoder.makeWithDefaults()
         let data = try encoder.encode(params)
         try self.fileSystem.writeFileContents(filePath, bytes: ByteString(data))
-        return try .init(validating: "$HOME")
+        return filePath
     }
 }
