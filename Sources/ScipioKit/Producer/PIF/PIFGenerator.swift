@@ -109,6 +109,7 @@ struct PIFGenerator {
                             }
                             settings[.SWIFT_EMIT_MODULE_INTERFACE] = "YES"
                             settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
+                            settings[.MODULEMAP_PATH] = nil
                         }
 
                         // If the built framework is named same as one of the target in the package, it can be picked up
