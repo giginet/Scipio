@@ -7,20 +7,17 @@ import XCBuildSupport
 
 struct PIFGenerator {
     private let package: Package
-    private let target: ResolvedTarget
     private let buildParameters: PIFBuilderParameters
     private let buildOptions: BuildOptions
     private let fileSystem: any TSCBasic.FileSystem
 
     init(
         package: Package,
-        target: ResolvedTarget,
         buildParameters: BuildParameters,
         buildOptions: BuildOptions,
         fileSystem: any TSCBasic.FileSystem = TSCBasic.localFileSystem
     ) throws {
         self.package = package
-        self.target = target
         self.buildParameters = PIFBuilderParameters(buildParameters)
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
@@ -48,7 +45,7 @@ struct PIFGenerator {
         encoder.userInfo[.encodeForXCBuild] = true
 
         let newJSONData = try encoder.encode(topLevelObject)
-        let path = try AbsolutePath(validating: package.buildDirectory.path).appending(component: "manifest-\(sdk.settingValue).pif")
+        let path = try AbsolutePath(validating: package.buildDirectory.path).appending(component: "manifes-\(sdk.settingValue).pif")
         try fileSystem.writeFileContents(path, data: newJSONData)
         return path
     }
@@ -61,10 +58,12 @@ struct PIFGenerator {
 
                     guard [.objectFile, .bundle].contains(pifTarget.productType) else { continue }
 
+                    let name = pifTarget.name
+                    let c99Name = pifTarget.name.spm_mangledToC99ExtendedIdentifier()
+
                     if isObjectTarget {
-                        let targetName = target.name
                         pifTarget.productType = .framework
-                        pifTarget.productName = "\(targetName).framework"
+                        pifTarget.productName = "\(name).framework"
                     }
 
                     let newConfigurations = pifTarget.buildConfigurations.map { original in
@@ -72,14 +71,11 @@ struct PIFGenerator {
                         var settings = configuration.buildSettings
 
                         if isObjectTarget {
-                            let targetName = target.name
-                            let executableName = target.c99name
-
                             settings[.PRODUCT_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
                             settings[.PRODUCT_MODULE_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
-                            settings[.EXECUTABLE_NAME] = executableName
-                            settings[.TARGET_NAME] = targetName
-                            settings[.PRODUCT_BUNDLE_IDENTIFIER] = targetName.spm_mangledToC99ExtendedIdentifier()
+                            settings[.EXECUTABLE_NAME] = c99Name
+                            settings[.TARGET_NAME] = name
+                            settings[.PRODUCT_BUNDLE_IDENTIFIER] = name.spm_mangledToBundleIdentifier()
                             settings[.CLANG_ENABLE_MODULES] = "YES"
                             settings[.DEFINES_MODULE] = "YES"
                             settings[.SKIP_INSTALL] = "NO"
@@ -116,8 +112,8 @@ struct PIFGenerator {
                             settings[.MODULEMAP_PATH] = nil
                             // Generate modulemap supporting Framework
                             settings[.MODULEMAP_FILE_CONTENTS] = """
-                framework module \(target.c99name) {
-                    header "\(target.name)-Swift.h"
+                framework module \(c99Name) {
+                    header "\(name)-Swift.h"
                     export *
                 }
                 """

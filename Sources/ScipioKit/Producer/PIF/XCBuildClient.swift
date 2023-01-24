@@ -47,18 +47,18 @@ struct XCBuildClient {
             "--configuration",
             configuration.settingsValue,
             "--derivedDataPath",
-            package.derivedDataPath.path,
+            package.derivedDataPath(for: buildProduct.target).path,
             "--buildParametersFile",
             buildParametersPath.pathString,
             "--target",
-            productTargetName
+            buildProduct.target.name
         )
     }
 
-    private func frameworkPath(of sdk: SDK) throws -> AbsolutePath {
+    private func frameworkPath(target: ResolvedTarget, of sdk: SDK) throws -> AbsolutePath {
         let frameworkPath = try RelativePath(validating: "./Products/\(productDirectoryName(sdk: sdk))/PackageFrameworks")
             .appending(component: "\(buildProduct.target.c99name).framework")
-        return try AbsolutePath(validating: package.derivedDataPath.path).appending(frameworkPath)
+        return try AbsolutePath(validating: package.derivedDataPath(for: target).path).appending(frameworkPath)
     }
 
     private func productDirectoryName(sdk: SDK) -> String {
@@ -74,7 +74,7 @@ struct XCBuildClient {
         let arguments: [String] = [xcbuildPath.pathString, "createXCFramework"]
 
         let frameworksArguments: [String] = try sdks.reduce([]) { arguments, sdk in
-            let path = try frameworkPath(of: sdk)
+            let path = try frameworkPath(target: buildProduct.target, of: sdk)
             return arguments + ["-framework", path.pathString]
         }
 
@@ -89,7 +89,9 @@ struct XCBuildClient {
 }
 
 extension Package {
-    fileprivate var derivedDataPath: URL {
+    fileprivate func derivedDataPath(for target: ResolvedTarget) -> URL {
         workspaceDirectory.appendingPathComponent("DerivedData")
+            .appendingPathComponent(self.name)
+            .appendingPathComponent(target.name)
     }
 }
