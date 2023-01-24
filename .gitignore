@@ -11,3 +11,4 @@ DerivedData/
 **/Resources/**/Package.resolved
 *.xcframework
 .build
+Tests/**/XCFrameworks/*
