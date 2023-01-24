@@ -7,17 +7,20 @@ import XCBuildSupport
 
 struct PIFGenerator {
     private let package: Package
+    private let target: ResolvedTarget
     private let buildParameters: PIFBuilderParameters
     private let buildOptions: BuildOptions
     private let fileSystem: any TSCBasic.FileSystem
 
     init(
         package: Package,
+        target: ResolvedTarget,
         buildParameters: BuildParameters,
         buildOptions: BuildOptions,
         fileSystem: any TSCBasic.FileSystem = TSCBasic.localFileSystem
     ) throws {
         self.package = package
+        self.target = target
         self.buildParameters = PIFBuilderParameters(buildParameters)
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
@@ -53,24 +56,24 @@ struct PIFGenerator {
     private func modify(_ pif: PIF.TopLevelObject, for sdk: SDK) -> PIF.TopLevelObject {
         for project in pif.workspace.projects {
             for baseTarget in project.targets {
-                if let target = baseTarget as? PIF.Target {
-                    let isObjectTarget = target.productType == .objectFile
+                if let pifTarget = baseTarget as? PIF.Target {
+                    let isObjectTarget = pifTarget.productType == .objectFile
 
-                    guard [.objectFile, .bundle].contains(target.productType) else { continue }
+                    guard [.objectFile, .bundle].contains(pifTarget.productType) else { continue }
 
                     if isObjectTarget {
                         let targetName = target.name
-                        target.productType = .framework
-                        target.productName = "\(targetName).framework"
+                        pifTarget.productType = .framework
+                        pifTarget.productName = "\(targetName).framework"
                     }
 
-                    let newConfigurations = target.buildConfigurations.map { original in
+                    let newConfigurations = pifTarget.buildConfigurations.map { original in
                         var configuration = original
                         var settings = configuration.buildSettings
 
                         if isObjectTarget {
                             let targetName = target.name
-                            let executableName = targetName.spm_mangledToC99ExtendedIdentifier()
+                            let executableName = target.c99name
 
                             settings[.PRODUCT_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
                             settings[.PRODUCT_MODULE_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
@@ -90,7 +93,8 @@ struct PIFGenerator {
                                 settings[.MACH_O_TYPE] = "staticlib"
                             }
 
-                            settings[.LIBRARY_SEARCH_PATHS] = ["$(inherited)", "\(buildParameters.toolchainLibDir.pathString)/swift/\(sdk.settingValue)"]
+                            settings[.LIBRARY_SEARCH_PATHS, default: ["$(inherited)"]]
+                                .append("\(buildParameters.toolchainLibDir.pathString)/swift/\(sdk.settingValue)")
 
                             settings[.GENERATE_INFOPLIST_FILE] = "YES"
 
@@ -101,15 +105,22 @@ struct PIFGenerator {
                             settings[.CURRENT_PROJECT_VERSION] = "1" // Build
 
                             // Enable `-enable-library-evolution` to emit swiftinterface
-                            let enableLibraryEvolutionFlag = "-enable-library-evolution"
-                            if settings[.OTHER_SWIFT_FLAGS] == nil {
-                                settings[.OTHER_SWIFT_FLAGS] = [enableLibraryEvolutionFlag]
-                            } else {
-                                settings[.OTHER_SWIFT_FLAGS]?.append(enableLibraryEvolutionFlag)
-                            }
+                            settings[.OTHER_SWIFT_FLAGS, default: ["$(inherited)"]]
+                                .append("-enable-library-evolution")
+
                             settings[.SWIFT_EMIT_MODULE_INTERFACE] = "YES"
+                            // Add Bridging Headers to frameworks
                             settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
+
+                            // Add auto-generated modulemap
                             settings[.MODULEMAP_PATH] = nil
+                            // Generate modulemap supporting Framework
+                            settings[.MODULEMAP_FILE_CONTENTS] = """
+                framework module \(target.c99name) {
+                    header "\(target.name)-Swift.h"
+                    export *
+                }
+                """
                         }
 
                         // If the built framework is named same as one of the target in the package, it can be picked up
@@ -122,7 +133,7 @@ struct PIFGenerator {
                         return configuration
                     }
 
-                    target.buildConfigurations = newConfigurations
+                    pifTarget.buildConfigurations = newConfigurations
                 }
             }
         }

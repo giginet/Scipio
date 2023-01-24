@@ -58,6 +58,7 @@ struct PIFCompiler: Compiler {
 
             let generator = try PIFGenerator(
                 package: rootPackage,
+                target: buildProduct.target,
                 buildParameters: buildParameters,
                 buildOptions: buildOptions
             )
