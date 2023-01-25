@@ -45,7 +45,8 @@ struct PIFGenerator {
         encoder.userInfo[.encodeForXCBuild] = true
 
         let newJSONData = try encoder.encode(topLevelObject)
-        let path = try AbsolutePath(validating: package.buildDirectory.path).appending(component: "manifes-\(sdk.settingValue).pif")
+        let path = try AbsolutePath(validating: package.workspaceDirectory.path)
+            .appending(component: "manifest-\(package.name)-\(sdk.settingValue).pif")
         try fileSystem.writeFileContents(path, data: newJSONData)
         return path
     }
