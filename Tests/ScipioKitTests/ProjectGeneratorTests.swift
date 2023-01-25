@@ -19,7 +19,6 @@ final class ProjectGeneratorTests: XCTestCase {
     private func makeGenerator(for package: Package) throws -> ProjectGenerator {
         ProjectGenerator(package: package,
                          buildOptions: .init(buildConfiguration: .debug,
-                                             isSimulatorSupported: true,
                                              isDebugSymbolsEmbedded: false,
                                              frameworkType: .static,
                                              sdks: [.iOS]),

@@ -7,9 +7,9 @@ import TSCBasic
 struct FrameworkProducer {
     private let mode: Runner.Mode
     private let rootPackage: Package
-    private let buildOptions: BuildOptions
+    private let baseBuildOptions: BuildOptions
+    private let buildOptionsMatrix: [String: BuildOptions]
     private let cacheMode: Runner.Options.CacheMode
-    private let platformMatrix: PlatformMatrix
     private let overwrite: Bool
     private let outputDir: URL
     private let fileSystem: any FileSystem
@@ -32,17 +32,17 @@ struct FrameworkProducer {
         mode: Runner.Mode,
         rootPackage: Package,
         buildOptions: BuildOptions,
+        buildOptionsMatrix: [String: BuildOptions],
         cacheMode: Runner.Options.CacheMode,
-        platformMatrix: PlatformMatrix,
         overwrite: Bool,
         outputDir: URL,
         fileSystem: any FileSystem = localFileSystem
     ) {
         self.mode = mode
         self.rootPackage = rootPackage
-        self.buildOptions = buildOptions
+        self.baseBuildOptions = buildOptions
+        self.buildOptionsMatrix = buildOptionsMatrix
         self.cacheMode = cacheMode
-        self.platformMatrix = platformMatrix
         self.overwrite = overwrite
         self.outputDir = outputDir
         self.fileSystem = fileSystem
@@ -56,6 +56,10 @@ struct FrameworkProducer {
 
         let binaryTargets = targets.compactMap(\.binaryTarget)
         try await extractAllBinaryTarget(binaryTargets: binaryTargets)
+    }
+
+    private func overriddenBuildOption(for buildProduct: BuildProduct) -> BuildOptions {
+        buildOptionsMatrix[buildProduct.target.name] ?? baseBuildOptions
     }
 
     private func buildAllLibraryTargets(libraryTargets: [BuildProduct]) async throws {
@@ -73,12 +77,14 @@ struct FrameworkProducer {
         for product in libraryTargets {
             assert(product.target.type == .library)
 
-            let buildOptionsForProduct = buildOptions.overridingSDKs(for: product, platformMatrix: platformMatrix)
-//            let compiler = XcodeBuildCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
-            let compiler = PIFCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
+            let overriddenBuildOption = overriddenBuildOption(for: product)
 
+//            let compiler = XcodeBuildCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
+            let compiler = PIFCompiler(rootPackage: rootPackage,
+                                       buildOptions: overriddenBuildOption)
+            
             let cacheSystem = CacheSystem(rootPackage: rootPackage,
-                                          buildOptions: buildOptionsForProduct,
+                                          buildOptions: overriddenBuildOption,
                                           outputDirectory: outputDir,
                                           storage: cacheStorage)
 
@@ -180,16 +186,5 @@ extension Package {
             return graph.packages
              .filter { $0.manifest.displayName != manifest.displayName }
         }
-    }
-}
-
-extension BuildOptions {
-    fileprivate func overridingSDKs(for product: BuildProduct, platformMatrix: PlatformMatrix) -> BuildOptions {
-        guard let overriddenSDKs = platformMatrix[product.target.name] else {
-            return self
-        }
-        var newBuildOptions = self
-        newBuildOptions.sdks = overriddenSDKs
-        return newBuildOptions
     }
 }

@@ -57,7 +57,6 @@ final class RunnerTests: XCTestCase {
         let rootPackage = try Package(packageDirectory: testPackagePath)
         let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                       buildOptions: .init(buildConfiguration: .release,
-                                                          isSimulatorSupported: false,
                                                           isDebugSymbolsEmbedded: false,
                                                           frameworkType: .dynamic,
                                                           sdks: [.iOS]),
@@ -161,16 +160,21 @@ final class RunnerTests: XCTestCase {
     func testWithPlatformMatrix() async throws {
         let runner = Runner(
             mode: .prepareDependencies,
-            options: .init(cacheMode: .disabled)
+            options: .init(
+                baseBuildOptions: .init(isSimulatorSupported: true),
+                buildOptionsMatrix:
+                    ["ScipioTesting": .init(platforms: .specific([.iOS, .watchOS]))],
+                cacheMode: .disabled
+            )
         )
 
         try await runner.run(packageDirectory: testPackagePath,
                              frameworkOutputDir: .custom(frameworkOutputDir))
 
-        ["ScipioTesting"].forEach { library in
+        for library in ["ScipioTesting"] {
             let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
             let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
-            let contentsOfXCFramework = try! XCTUnwrap(fileManager.contentsOfDirectory(atPath: xcFramework.path))
+            let contentsOfXCFramework = try XCTUnwrap(fileManager.contentsOfDirectory(atPath: xcFramework.path))
             XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
                           "Should create \(library).xcramework")
             XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
@@ -192,7 +196,10 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
-                baseBuildOptions: .init(isSimulatorSupported: true),
+                baseBuildOptions: .init(
+                    platforms: .specific([.iOS]),
+                    isSimulatorSupported: true
+                ),
                 cacheMode: .disabled
             )
         )

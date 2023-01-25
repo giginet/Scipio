@@ -28,7 +28,7 @@ struct XcodeBuildCompiler<E: Executor>: Compiler {
         overwrite: Bool
     ) async throws {
         let buildConfiguration = buildOptions.buildConfiguration
-        let sdks = extractSDKs(isSimulatorSupported: buildOptions.isSimulatorSupported)
+        let sdks = buildOptions.sdks
         let target = buildProduct.target
 
         let sdkNames = sdks.map(\.displayName).joined(separator: ", ")
@@ -44,7 +44,7 @@ struct XcodeBuildCompiler<E: Executor>: Compiler {
         if buildOptions.isDebugSymbolsEmbedded {
             debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
                                                                  buildConfiguration: buildConfiguration,
-                                                                 sdks: sdks)
+                                                                 sdks: Set(sdks))
         } else {
             debugSymbolPaths = nil
         }
@@ -60,18 +60,10 @@ struct XcodeBuildCompiler<E: Executor>: Compiler {
             package: rootPackage,
             buildProduct: buildProduct,
             buildConfiguration: buildConfiguration,
-            sdks: sdks,
+            sdks: Set(sdks),
             debugSymbolPaths: debugSymbolPaths,
             outputDir: outputDirectory
         )
-    }
-
-    private func extractSDKs(isSimulatorSupported: Bool) -> Set<SDK> {
-        if isSimulatorSupported {
-            return Set(buildOptions.sdks.flatMap { $0.extractForSimulators() })
-        } else {
-            return Set(buildOptions.sdks)
-        }
     }
 }
 

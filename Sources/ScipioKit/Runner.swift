@@ -3,8 +3,6 @@ import OrderedCollections
 import protocol TSCBasic.FileSystem
 import var TSCBasic.localFileSystem
 
-public typealias PlatformMatrix = [String: OrderedSet<SDK>]
-
 public struct Runner {
     private let options: Options
     private let fileSystem: any FileSystem
@@ -39,14 +37,14 @@ public struct Runner {
     public struct Options {
         public struct BuildOptions {
             public var buildConfiguration: BuildConfiguration
-            public var platforms: Platform
+            public var platforms: PlatformSpecifier
             public var isSimulatorSupported: Bool
             public var isDebugSymbolsEmbedded: Bool
             public var frameworkType: FrameworkType
 
             public init(
                 buildConfiguration: BuildConfiguration = .release,
-                platforms: Platform = .manifest,
+                platforms: PlatformSpecifier = .manifest,
                 isSimulatorSupported: Bool = false,
                 isDebugSymbolsEmbedded: Bool = false,
                 frameworkType: FrameworkType = .dynamic
@@ -63,12 +61,21 @@ public struct Runner {
             case project
             case storage(any CacheStorage)
         }
-        public enum Platform {
+        public enum PlatformSpecifier {
             case manifest
-            case specific(Set<SDK>)
+            case specific(Set<Platform>)
+        }
+
+        public enum Platform: String, Hashable {
+            case iOS
+            case macOS
+            case macCatalyst
+            case tvOS
+            case watchOS
         }
 
         public var baseBuildOptions: BuildOptions
+        public var buildOptionMatrix: [String: BuildOptions]
         public var outputDirectory: URL?
         public var cacheMode: CacheMode
         public var skipProjectGeneration: Bool
@@ -77,6 +84,7 @@ public struct Runner {
 
         public init(
             baseBuildOptions: BuildOptions = .init(),
+            buildOptionsMatrix: [String: BuildOptions] = [:],
             outputDirectory: URL? = nil,
             cacheMode: CacheMode = .project,
             skipProjectGeneration: Bool = false,
@@ -84,6 +92,7 @@ public struct Runner {
             verbose: Bool = false
         ) {
             self.baseBuildOptions = baseBuildOptions
+            self.buildOptionMatrix = buildOptionsMatrix
             self.outputDirectory = outputDirectory
             self.cacheMode = cacheMode
             self.skipProjectGeneration = skipProjectGeneration
@@ -138,16 +147,11 @@ public struct Runner {
             throw Error.invalidPackage(packagePath)
         }
 
-        let sdks = detectPlatformsToBuild(package: package)
-        guard !sdks.isEmpty else {
+        let buildOptions = buildOption(from: options.baseBuildOptions, package: package)
+        guard !buildOptions.sdks.isEmpty else {
             throw Error.platformNotSpecified
         }
 
-        let buildOptions = BuildOptions(buildConfiguration: options.baseBuildOptions.buildConfiguration,
-                                        isSimulatorSupported: options.baseBuildOptions.isSimulatorSupported,
-                                        isDebugSymbolsEmbedded: options.baseBuildOptions.isDebugSymbolsEmbedded,
-                                        frameworkType: options.baseBuildOptions.frameworkType,
-                                        sdks: sdks)
         try fileSystem.createDirectory(package.workspaceDirectory.absolutePath, recursive: true)
 
         let resolver = Resolver(package: package)
@@ -173,12 +177,16 @@ public struct Runner {
 
         try fileSystem.createDirectory(outputDir.absolutePath, recursive: true)
 
+        let buildOptionsMatrix = options.buildOptionMatrix.mapValues { runnerOptions in
+            self.buildOption(from: runnerOptions, package: package)
+        }
+
         let producer = FrameworkProducer(
             mode: mode,
             rootPackage: package,
             buildOptions: buildOptions,
+            buildOptionsMatrix: buildOptionsMatrix,
             cacheMode: options.cacheMode,
-            platformMatrix: [:],
             overwrite: options.overwrite,
             outputDir: outputDir
         )
@@ -195,12 +203,46 @@ public struct Runner {
         }
     }
 
-    private func detectPlatformsToBuild(package: Package) -> OrderedSet<SDK> {
+    private func buildOption(from runnerOption: Runner.Options.BuildOptions, package: Package) -> BuildOptions {
+        let sdks = detectSDKsToBuild(package: package, isSimulatorSupported: runnerOption.isSimulatorSupported)
+        return BuildOptions(
+            buildConfiguration: runnerOption.buildConfiguration,
+            isDebugSymbolsEmbedded: runnerOption.isDebugSymbolsEmbedded,
+            frameworkType: runnerOption.frameworkType,
+            sdks: OrderedSet(sdks)
+        )
+    }
+
+    private func detectSDKsToBuild(package: Package, isSimulatorSupported: Bool) -> Set<SDK> {
         switch options.baseBuildOptions.platforms {
         case .manifest:
-            return package.supportedSDKs
-        case .specific(let sdks):
-            return OrderedSet(sdks)
+            return Set(package.supportedSDKs.flatMap { sdk in
+                isSimulatorSupported ? [sdk] : sdk.extractForSimulators()
+            })
+        case .specific(let platforms):
+            return Set(platforms.flatMap { $0.extractSDK(isSimulatorSupported: isSimulatorSupported) })
+        }
+    }
+}
+
+extension Runner.Options.Platform {
+    fileprivate func extractSDK(isSimulatorSupported: Bool) -> Set<SDK> {
+        if isSimulatorSupported {
+            switch self {
+            case .macOS: return [.macOS]
+            case .macCatalyst: return [.macCatalyst]
+            case .iOS: return [.iOS, .iOSSimulator]
+            case .tvOS: return [.tvOS, .tvOSSimulator]
+            case .watchOS: return [.watchOS, .watchOSSimulator]
+            }
+        } else {
+            switch self {
+            case .macOS: return [.macOS]
+            case .macCatalyst: return [.macCatalyst]
+            case .iOS: return [.iOS]
+            case .tvOS: return [.tvOS]
+            case .watchOS: return [.watchOS]
+            }
         }
     }
 }

@@ -19,12 +19,12 @@ extension Scipio {
 
         @Option(help: "Platforms to create XCFramework for.(availables: \(availablePlatforms.map(\.rawValue).joined(separator: ", ")))",
                 completion: .list(availablePlatforms.map(\.rawValue)))
-        var platforms: [SDK] = []
+        var platforms: [Runner.Options.Platform] = []
 
         mutating func run() async throws {
             LoggingSystem.bootstrap()
 
-            let platform: Runner.Options.Platform
+            let platform: Runner.Options.PlatformSpecifier
             if platforms.isEmpty {
                 platform = .manifest
             } else {
@@ -62,12 +62,4 @@ extension Scipio {
 
 private let availablePlatforms: OrderedSet<SDK> = [.iOS, .macOS, .tvOS, .watchOS]
 
-extension SDK: ExpressibleByArgument {
-    public init?(argument: String) {
-        if let initialized = SDK(rawValue: argument) {
-            self = initialized
-        } else {
-            return nil
-        }
-    }
-}
+extension Runner.Options.Platform: ExpressibleByArgument { }

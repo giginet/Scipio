@@ -238,7 +238,7 @@ class ProjectGenerator {
             platforms: Set(buildOptions.sdks),
             isDebugSymbolsEmbedded: buildOptions.isDebugSymbolsEmbedded,
             isStaticFramework: buildOptions.frameworkType == .static,
-            isSimulatorSupported: buildOptions.isSimulatorSupported
+            isSimulatorSupported: true
         )
 
         guard let productType = target.xcodeProductType else {
@@ -380,7 +380,7 @@ class ProjectGenerator {
                     for: target,
                     configuration: configuration,
                     infoPlistPath: plistPath,
-                    isSimulatorSupported: buildOptions.isSimulatorSupported
+                    isSimulatorSupported: true
                 )
             )
         }
