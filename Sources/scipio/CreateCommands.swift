@@ -24,22 +24,27 @@ extension Scipio {
         mutating func run() async throws {
             LoggingSystem.bootstrap()
 
-            let platformsToCreate: Set<SDK>?
+            let platform: Runner.Options.Platform
             if platforms.isEmpty {
-                platformsToCreate = nil
+                platform = .manifest
             } else {
-                platformsToCreate = Set(platforms)
+                platform = .specific(Set(platforms))
             }
 
-            let runner = Runner(mode: .createPackage(platforms: platformsToCreate),
+            let runner = Runner(mode: .createPackage,
                                 options: .init(
-                                    buildConfiguration: buildOptions.buildConfiguration,
-                                    isSimulatorSupported: buildOptions.supportSimulators,
-                                    isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
-                                    frameworkType: buildOptions.frameworkType,
+                                    baseBuildOptions: .init(
+                                        buildConfiguration: buildOptions.buildConfiguration,
+                                        platforms: platform,
+                                        isSimulatorSupported: buildOptions.supportSimulators,
+                                        isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
+                                        frameworkType: buildOptions.frameworkType
+                                    ),
                                     cacheMode: .disabled,
+                                    skipProjectGeneration: globalOptions.skipProjectGeneration,
                                     overwrite: buildOptions.overwrite,
-                                    verbose: globalOptions.verbose)
+                                    verbose: globalOptions.verbose
+                                )
             )
 
             let outputDir: Runner.OutputDirectory

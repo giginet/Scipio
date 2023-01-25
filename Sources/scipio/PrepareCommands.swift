@@ -40,17 +40,22 @@ extension Scipio {
                 runnerCacheMode = .storage(LocalCacheStorage())
             }
 
-            let runner = Runner(
-                mode: .prepareDependencies,
-                options: .init(
-                    buildConfiguration: buildOptions.buildConfiguration,
-                    isSimulatorSupported: buildOptions.supportSimulators,
-                    isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
-                    frameworkType: buildOptions.frameworkType,
-                    cacheMode: runnerCacheMode,
-                    overwrite: buildOptions.overwrite,
-                    verbose: globalOptions.verbose)
+            let runner = Runner(mode: .prepareDependencies,
+                                options: .init(
+                                    baseBuildOptions: .init(
+                                        buildConfiguration: buildOptions.buildConfiguration,
+                                        platforms: .manifest,
+                                        isSimulatorSupported: buildOptions.supportSimulators,
+                                        isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
+                                        frameworkType: buildOptions.frameworkType
+                                    ),
+                                    cacheMode: runnerCacheMode,
+                                    skipProjectGeneration: globalOptions.skipProjectGeneration,
+                                    overwrite: buildOptions.overwrite,
+                                    verbose: globalOptions.verbose
+                                )
             )
+
 
             let outputDir: Runner.OutputDirectory
             if let customOutputDir = buildOptions.customOutputDirectory {

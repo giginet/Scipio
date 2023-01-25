@@ -10,7 +10,7 @@ public struct Runner {
     private let fileSystem: any FileSystem
 
     public enum Mode {
-        case createPackage(platforms: Set<SDK>?)
+        case createPackage
         case prepareDependencies
     }
 
@@ -39,17 +39,20 @@ public struct Runner {
     public struct Options {
         public struct BuildOptions {
             public var buildConfiguration: BuildConfiguration
+            public var platforms: Platform
             public var isSimulatorSupported: Bool
             public var isDebugSymbolsEmbedded: Bool
             public var frameworkType: FrameworkType
 
             public init(
                 buildConfiguration: BuildConfiguration = .release,
+                platforms: Platform = .manifest,
                 isSimulatorSupported: Bool = false,
                 isDebugSymbolsEmbedded: Bool = false,
                 frameworkType: FrameworkType = .dynamic
             ) {
                 self.buildConfiguration = buildConfiguration
+                self.platforms = platforms
                 self.isSimulatorSupported = isSimulatorSupported
                 self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
                 self.frameworkType = frameworkType
@@ -59,6 +62,10 @@ public struct Runner {
             case disabled
             case project
             case storage(any CacheStorage)
+        }
+        public enum Platform {
+            case manifest
+            case specific(Set<SDK>)
         }
 
         public var baseBuildOptions: BuildOptions
@@ -189,15 +196,11 @@ public struct Runner {
     }
 
     private func detectPlatformsToBuild(package: Package) -> OrderedSet<SDK> {
-        switch mode {
-        case .createPackage(let platforms):
-            if let platforms {
-                return OrderedSet(platforms)
-            } else {
-                return package.supportedSDKs
-            }
-        case .prepareDependencies:
+        switch options.baseBuildOptions.platforms {
+        case .manifest:
             return package.supportedSDKs
+        case .specific(let sdks):
+            return OrderedSet(sdks)
         }
     }
 }
