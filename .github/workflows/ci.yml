@@ -20,4 +20,4 @@ jobs:
       run: |
         swift test --verbose
       env:
-        ENABLE_INTEGRATION_TESTS=1
+        ENABLE_INTEGRATION_TESTS: 1
