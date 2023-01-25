@@ -31,7 +31,9 @@ final class RunnerTests: XCTestCase {
     func testBuildXCFramework() async throws {
         let runner = Runner(
             mode: .prepareDependencies,
-            options: .init()
+            options: .init(
+                baseBuildOptions: .init(isSimulatorSupported: false)
+            )
         )
         do {
             try await runner.run(packageDirectory: testPackagePath,
@@ -163,8 +165,8 @@ final class RunnerTests: XCTestCase {
             options: .init(
                 baseBuildOptions: .init(isSimulatorSupported: true),
                 buildOptionsMatrix:
-                    ["ScipioTesting": .init(platforms: .specific([.iOS, .watchOS]))],
-                cacheMode: .disabled
+                    ["ScipioTesting": .init(platforms: .specific([.iOS, .watchOS]), isSimulatorSupported: true)],
+                cacheMode: .project
             )
         )
 

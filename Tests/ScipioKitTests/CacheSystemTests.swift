@@ -40,8 +40,7 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
     "frameworkType" : "dynamic",
     "sdks" : [
       "iOS"
-    ],
-    "isSimulatorSupported" : false
+    ]
   },
   "targetName" : "MyTarget",
   "clangVersion" : "clang-1400.0.29.102",

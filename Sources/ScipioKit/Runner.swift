@@ -61,7 +61,7 @@ public struct Runner {
             case project
             case storage(any CacheStorage)
         }
-        public enum PlatformSpecifier {
+        public enum PlatformSpecifier: Equatable {
             case manifest
             case specific(Set<Platform>)
         }
@@ -147,7 +147,7 @@ public struct Runner {
             throw Error.invalidPackage(packagePath)
         }
 
-        let buildOptions = buildOption(from: options.baseBuildOptions, package: package)
+        let buildOptions = buildOptions(from: options.baseBuildOptions, package: package)
         guard !buildOptions.sdks.isEmpty else {
             throw Error.platformNotSpecified
         }
@@ -178,7 +178,10 @@ public struct Runner {
         try fileSystem.createDirectory(outputDir.absolutePath, recursive: true)
 
         let buildOptionsMatrix = options.buildOptionMatrix.mapValues { runnerOptions in
-            self.buildOption(from: runnerOptions, package: package)
+            self.buildOptions(
+                from: options.baseBuildOptions.merge(overriding: runnerOptions),
+                package: package
+            )
         }
 
         let producer = FrameworkProducer(
@@ -203,8 +206,11 @@ public struct Runner {
         }
     }
 
-    private func buildOption(from runnerOption: Runner.Options.BuildOptions, package: Package) -> BuildOptions {
-        let sdks = detectSDKsToBuild(package: package, isSimulatorSupported: runnerOption.isSimulatorSupported)
+    private func buildOptions(
+        from runnerOption: Runner.Options.BuildOptions,
+        package: Package
+    ) -> BuildOptions {
+        let sdks = detectSDKsToBuild(platforms: runnerOption.platforms, package: package, isSimulatorSupported: runnerOption.isSimulatorSupported)
         return BuildOptions(
             buildConfiguration: runnerOption.buildConfiguration,
             isDebugSymbolsEmbedded: runnerOption.isDebugSymbolsEmbedded,
@@ -213,15 +219,46 @@ public struct Runner {
         )
     }
 
-    private func detectSDKsToBuild(package: Package, isSimulatorSupported: Bool) -> Set<SDK> {
-        switch options.baseBuildOptions.platforms {
+    private func detectSDKsToBuild(
+        platforms: Runner.Options.PlatformSpecifier,
+        package: Package,
+        isSimulatorSupported: Bool
+    ) -> Set<SDK> {
+        switch platforms {
         case .manifest:
-            return Set(package.supportedSDKs.flatMap { sdk in
-                isSimulatorSupported ? [sdk] : sdk.extractForSimulators()
+            return Set(package.supportedSDKs.reduce([]) { sdks, sdk in
+                sdks + (isSimulatorSupported ? sdk.extractForSimulators() : [sdk])
             })
         case .specific(let platforms):
-            return Set(platforms.flatMap { $0.extractSDK(isSimulatorSupported: isSimulatorSupported) })
+            return Set(platforms.reduce([]) { sdks, sdk in
+                sdks + sdk.extractSDK(isSimulatorSupported: isSimulatorSupported)
+            })
         }
+    }
+}
+
+extension Runner.Options.BuildOptions {
+    fileprivate func merge(overriding overridingOptions: Self) -> Self {
+        let defaultOptions: Self = .init()
+
+        func fetch<T: Equatable>(_ key: KeyPath<Self, T>) -> T {
+            let baseValue = self[keyPath: key]
+            let newValue = overridingOptions[keyPath: key]
+            let defaultValue = defaultOptions[keyPath: key]
+            if baseValue != newValue && newValue == defaultValue {
+                return defaultValue
+            }
+            return newValue
+        }
+
+        return .init(
+            buildConfiguration: fetch(\.buildConfiguration),
+            platforms: fetch(\.platforms),
+            isSimulatorSupported: fetch(\.isSimulatorSupported),
+            isDebugSymbolsEmbedded: fetch(\.isDebugSymbolsEmbedded),
+            frameworkType: fetch(\.frameworkType)
+        )
+
     }
 }
 
