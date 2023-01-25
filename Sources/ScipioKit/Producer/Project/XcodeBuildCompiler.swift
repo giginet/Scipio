@@ -1,5 +1,6 @@
 import Foundation
 import PackageGraph
+import TSCBasic
 
 struct XcodeBuildCompiler<E: Executor>: Compiler {
     let rootPackage: Package
@@ -50,9 +51,9 @@ struct XcodeBuildCompiler<E: Executor>: Compiler {
 
         let frameworkName = target.xcFrameworkName
         let outputXCFrameworkPath = outputDirectory.appendingPathComponent(frameworkName)
-        if fileSystem.exists(outputXCFrameworkPath) && overwrite {
+        if fileSystem.exists(outputXCFrameworkPath.absolutePath) && overwrite {
             logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(at: outputXCFrameworkPath)
+            try fileSystem.removeFileTree(outputXCFrameworkPath.absolutePath)
         }
 
         try await xcodebuild.createXCFramework(
