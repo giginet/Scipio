@@ -21,7 +21,7 @@ extension Compiler {
 
         let debugSymbols: [DebugSymbol] = sdks.compactMap { sdk in
             let dsymPath = rootPackage.buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: sdk, target: target)
-            guard fileSystem.exists(dsymPath) else { return nil }
+            guard fileSystem.exists(dsymPath.absolutePath) else { return nil }
             return DebugSymbol(dSYMPath: dsymPath,
                                target: target,
                                sdk: sdk,

@@ -1,5 +1,7 @@
 import Foundation
 import OrderedCollections
+import protocol TSCBasic.FileSystem
+import var TSCBasic.localFileSystem
 
 public typealias PlatformMatrix = [String: OrderedSet<SDK>]
 
@@ -94,7 +96,7 @@ public struct Runner {
         if fileURL.path.hasPrefix("/") {
             return fileURL
         } else if let currentDirectory = fileSystem.currentWorkingDirectory {
-            return URL(fileURLWithPath: fileURL.path, relativeTo: currentDirectory)
+            return URL(fileURLWithPath: fileURL.path, relativeTo: currentDirectory.asURL)
         } else {
             return fileURL
         }
@@ -133,7 +135,7 @@ public struct Runner {
                                         isDebugSymbolsEmbedded: options.isDebugSymbolsEmbedded,
                                         frameworkType: options.frameworkType,
                                         sdks: sdks)
-        try fileSystem.createDirectory(package.workspaceDirectory, recursive: true)
+        try fileSystem.createDirectory(package.workspaceDirectory.absolutePath, recursive: true)
 
         let resolver = Resolver(package: package)
         try await resolver.resolve()
@@ -156,7 +158,7 @@ public struct Runner {
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
 
-        try fileSystem.createDirectory(outputDir, recursive: true)
+        try fileSystem.createDirectory(outputDir.absolutePath, recursive: true)
 
         let producer = FrameworkProducer(
             mode: mode,

@@ -1,6 +1,5 @@
 import Foundation
-import struct TSCBasic.ByteString
-import struct TSCBasic.SHA256
+import TSCBasic
 import struct TSCUtility.Version
 import PackageGraph
 
@@ -128,7 +127,7 @@ struct CacheSystem {
         buildOptions: BuildOptions,
         outputDirectory: URL,
         storage: (any CacheStorage)?,
-        fileSystem: FileSystem = localFileSystem
+        fileSystem: any FileSystem = localFileSystem
     ) {
         self.rootPackage = rootPackage
         self.buildOptions = buildOptions
@@ -148,19 +147,19 @@ struct CacheSystem {
 
         let data = try jsonEncoder.encode(cacheKey)
         let versionFilePath = outputDirectory.appendingPathComponent(versionFileName(for: product.target.name))
-        fileSystem.write(data, to: versionFilePath)
+        try fileSystem.writeFileContents(versionFilePath.absolutePath, data: data)
     }
 
     func existsValidCache(product: BuildProduct) async -> Bool {
         do {
             let cacheKey = try await calculateCacheKey(of: product)
             let versionFilePath = versionFilePath(for: cacheKey.targetName)
-            guard fileSystem.exists(versionFilePath) else { return false }
+            guard fileSystem.exists(versionFilePath.absolutePath) else { return false }
             let decoder = JSONDecoder()
-            guard let contents = fileSystem.contents(of: versionFilePath) else {
+            guard let contents = try? fileSystem.readFileContents(versionFilePath.absolutePath).contents else {
                 throw Error.couldNotReadVersionFile(versionFilePath)
             }
-            let versionFileKey = try decoder.decode(CacheKey.self, from: contents)
+            let versionFileKey = try decoder.decode(CacheKey.self, from: Data(contents))
             return versionFileKey == cacheKey
         } catch {
             return false
