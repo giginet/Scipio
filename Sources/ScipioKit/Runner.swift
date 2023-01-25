@@ -37,45 +37,51 @@ public struct Runner {
     }
 
     public struct Options {
-        public init(
-            buildConfiguration: BuildConfiguration,
-            isSimulatorSupported: Bool,
-            isDebugSymbolsEmbedded: Bool,
-            frameworkType: FrameworkType,
-            outputDirectory: URL? = nil,
-            cacheMode: CacheMode,
-            platformMatrix: PlatformMatrix = [:],
-            skipProjectGeneration: Bool = false,
-            overwrite: Bool,
-            verbose: Bool
-        ) {
-            self.buildConfiguration = buildConfiguration
-            self.isSimulatorSupported = isSimulatorSupported
-            self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
-            self.frameworkType = frameworkType
-            self.outputDirectory = outputDirectory
-            self.cacheMode = cacheMode
-            self.platformMatrix = platformMatrix
-            self.skipProjectGeneration = false
-            self.overwrite = overwrite
-            self.verbose = verbose
+        public struct BuildOptions {
+            public var buildConfiguration: BuildConfiguration
+            public var isSimulatorSupported: Bool
+            public var isDebugSymbolsEmbedded: Bool
+            public var frameworkType: FrameworkType
+
+            public init(
+                buildConfiguration: BuildConfiguration = .release,
+                isSimulatorSupported: Bool = false,
+                isDebugSymbolsEmbedded: Bool = false,
+                frameworkType: FrameworkType = .dynamic
+            ) {
+                self.buildConfiguration = buildConfiguration
+                self.isSimulatorSupported = isSimulatorSupported
+                self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
+                self.frameworkType = frameworkType
+            }
         }
-
-        public var buildConfiguration: BuildConfiguration
-        public var isSimulatorSupported: Bool
-        public var isDebugSymbolsEmbedded: Bool
-        public var frameworkType: FrameworkType
-        public var outputDirectory: URL?
-        public var cacheMode: CacheMode
-        public var platformMatrix: PlatformMatrix
-        public var skipProjectGeneration: Bool
-        public var overwrite: Bool
-        public var verbose: Bool
-
         public enum CacheMode {
             case disabled
             case project
             case storage(any CacheStorage)
+        }
+
+        public var baseBuildOptions: BuildOptions
+        public var outputDirectory: URL?
+        public var cacheMode: CacheMode
+        public var skipProjectGeneration: Bool
+        public var overwrite: Bool
+        public var verbose: Bool
+
+        public init(
+            baseBuildOptions: BuildOptions = .init(),
+            outputDirectory: URL? = nil,
+            cacheMode: CacheMode = .project,
+            skipProjectGeneration: Bool = false,
+            overwrite: Bool = false,
+            verbose: Bool = false
+        ) {
+            self.baseBuildOptions = baseBuildOptions
+            self.outputDirectory = outputDirectory
+            self.cacheMode = cacheMode
+            self.skipProjectGeneration = skipProjectGeneration
+            self.overwrite = overwrite
+            self.verbose = verbose
         }
     }
     private var mode: Mode
@@ -130,10 +136,10 @@ public struct Runner {
             throw Error.platformNotSpecified
         }
 
-        let buildOptions = BuildOptions(buildConfiguration: options.buildConfiguration,
-                                        isSimulatorSupported: options.isSimulatorSupported,
-                                        isDebugSymbolsEmbedded: options.isDebugSymbolsEmbedded,
-                                        frameworkType: options.frameworkType,
+        let buildOptions = BuildOptions(buildConfiguration: options.baseBuildOptions.buildConfiguration,
+                                        isSimulatorSupported: options.baseBuildOptions.isSimulatorSupported,
+                                        isDebugSymbolsEmbedded: options.baseBuildOptions.isDebugSymbolsEmbedded,
+                                        frameworkType: options.baseBuildOptions.frameworkType,
                                         sdks: sdks)
         try fileSystem.createDirectory(package.workspaceDirectory.absolutePath, recursive: true)
 
@@ -165,7 +171,7 @@ public struct Runner {
             rootPackage: package,
             buildOptions: buildOptions,
             cacheMode: options.cacheMode,
-            platformMatrix: options.platformMatrix,
+            platformMatrix: [:],
             overwrite: options.overwrite,
             outputDir: outputDir
         )

@@ -29,13 +29,17 @@ final class IntegrationTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildConfiguration: .release,
-                isSimulatorSupported: false,
-                isDebugSymbolsEmbedded: false,
-                frameworkType: .static,
+                baseBuildOptions: .init(
+                    buildConfiguration: .release,
+                    isSimulatorSupported: false,
+                    isDebugSymbolsEmbedded: false,
+                    frameworkType: .static
+                ),
                 cacheMode: .disabled,
+                skipProjectGeneration: false,
                 overwrite: true,
-                verbose: false)
+                verbose: false
+            )
         )
         let outputDir = fileManager.temporaryDirectory
             .appendingPathComponent("Scipio")
