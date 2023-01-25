@@ -108,6 +108,8 @@ struct PIFGenerator {
                             // Add Bridging Headers to frameworks
                             settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
+                            pifTarget.impartedBuildProperties.buildSettings[.OTHER_CFLAGS] = ["$(inherited)"]
+
                             // Add auto-generated modulemap
                             settings[.MODULEMAP_PATH] = nil
                             // Generate modulemap supporting Framework

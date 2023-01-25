@@ -53,7 +53,7 @@ struct Package {
         let absolutePath = try AbsolutePath(validating: packageDirectory.path)
 
         self.toolchain = try UserToolchain(destination: try .hostDestination())
-        
+
         let workspace = try Self.makeWorkspace(packagePath: try AbsolutePath(validating: packageDirectory.path))
         self.graph = try workspace.loadPackageGraph(rootPath: absolutePath, observabilityScope: observabilitySystem.topScope)
         let scope = observabilitySystem.topScope

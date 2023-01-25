@@ -84,9 +84,9 @@ struct BuildFlagsGenerator {
             throw Error.unsupportedSettings(setting)
         case .unsafeFlags(let value):
             return ["OTHER_CFLAGS": .list(value)]
-        case .upcomingFeatures(_):
+        case .upcomingFeatures:
             throw Error.unsupportedSettings(setting)
-        case .experimentalFeatures(_):
+        case .experimentalFeatures:
             throw Error.unsupportedSettings(setting)
         }
     }
@@ -104,9 +104,9 @@ struct BuildFlagsGenerator {
             throw Error.unsupportedSettings(setting)
         case .unsafeFlags(let value):
             return ["OTHER_CPLUSPLUSFLAGS": .list(value)]
-        case .upcomingFeatures(_):
+        case .upcomingFeatures:
             throw Error.unsupportedSettings(setting)
-        case .experimentalFeatures(_):
+        case .experimentalFeatures:
             throw Error.unsupportedSettings(setting)
         }
     }
@@ -124,9 +124,9 @@ struct BuildFlagsGenerator {
             throw Error.unsupportedSettings(setting)
         case .unsafeFlags(let value):
             return ["OTHER_SWIFT_FLAGS": .list(value)]
-        case .upcomingFeatures(_):
+        case .upcomingFeatures:
             throw Error.unsupportedSettings(setting)
-        case .experimentalFeatures(_):
+        case .experimentalFeatures:
             throw Error.unsupportedSettings(setting)
         }
     }
@@ -144,9 +144,9 @@ struct BuildFlagsGenerator {
             return ["LINK_LIBRARIES": .string(value)]
         case .unsafeFlags(let value):
             return ["OTHER_LDFLAGS": .list(value)]
-        case .upcomingFeatures(_):
+        case .upcomingFeatures:
             throw Error.unsupportedSettings(setting)
-        case .experimentalFeatures(_):
+        case .experimentalFeatures:
             throw Error.unsupportedSettings(setting)
         }
     }

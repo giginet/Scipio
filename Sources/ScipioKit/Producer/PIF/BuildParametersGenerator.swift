@@ -18,7 +18,7 @@ struct XCBBuildParameters: Encodable {
     }
 
     struct SettingsOverride: Encodable {
-        var synthesized: XCBSettingsTable? = nil
+        var synthesized: XCBSettingsTable?
     }
 
     var configurationName: String
@@ -72,7 +72,7 @@ struct BuildParametersGenerator {
         ).joined(separator: " ")
 
         settings["FRAMEWORK_SEARCH_PATHS"] = ["$(inherited)", "$(BUILT_PRODUCTS_DIR)/PackageFrameworks"].joined(separator: " ")
-        
+
         // Optionally also set the list of architectures to build for.
         if let architectures = buildParameters.architectures, !architectures.isEmpty {
             settings["ARCHS"] = architectures.joined(separator: " ")
