@@ -35,7 +35,7 @@ public struct Runner {
     }
 
     public struct Options {
-        public struct BuildOptions {
+        public struct BaseBuildOptions {
             public var buildConfiguration: BuildConfiguration
             public var platforms: PlatformSpecifier
             public var isSimulatorSupported: Bool
@@ -56,6 +56,28 @@ public struct Runner {
                 self.frameworkType = frameworkType
             }
         }
+        public struct TargetBuildOptions {
+            public var buildConfiguration: BuildConfiguration?
+            public var platforms: PlatformSpecifier?
+            public var isSimulatorSupported: Bool?
+            public var isDebugSymbolsEmbedded: Bool?
+            public var frameworkType: FrameworkType?
+
+            public init(
+                buildConfiguration: BuildConfiguration? = nil,
+                platforms: PlatformSpecifier? = nil,
+                isSimulatorSupported: Bool? = nil,
+                isDebugSymbolsEmbedded: Bool? = nil,
+                frameworkType: FrameworkType? = nil
+            ) {
+                self.buildConfiguration = buildConfiguration
+                self.platforms = platforms
+                self.isSimulatorSupported = isSimulatorSupported
+                self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
+                self.frameworkType = frameworkType
+            }
+        }
+
         public enum CacheMode {
             case disabled
             case project
@@ -74,8 +96,8 @@ public struct Runner {
             case watchOS
         }
 
-        public var baseBuildOptions: BuildOptions
-        public var buildOptionMatrix: [String: BuildOptions]
+        public var baseBuildOptions: BaseBuildOptions
+        public var buildOptionMatrix: [String: TargetBuildOptions]
         public var outputDirectory: URL?
         public var cacheMode: CacheMode
         public var skipProjectGeneration: Bool
@@ -83,8 +105,8 @@ public struct Runner {
         public var verbose: Bool
 
         public init(
-            baseBuildOptions: BuildOptions = .init(),
-            buildOptionsMatrix: [String: BuildOptions] = [:],
+            baseBuildOptions: BaseBuildOptions = .init(),
+            buildOptionsMatrix: [String: TargetBuildOptions] = [:],
             outputDirectory: URL? = nil,
             cacheMode: CacheMode = .project,
             skipProjectGeneration: Bool = false,
@@ -179,7 +201,7 @@ public struct Runner {
 
         let buildOptionsMatrix = options.buildOptionMatrix.mapValues { runnerOptions in
             self.buildOptions(
-                from: options.baseBuildOptions.merge(overriding: runnerOptions),
+                from: options.baseBuildOptions.overridden(by: runnerOptions),
                 package: package
             )
         }
@@ -207,7 +229,7 @@ public struct Runner {
     }
 
     private func buildOptions(
-        from runnerOption: Runner.Options.BuildOptions,
+        from runnerOption: Runner.Options.BaseBuildOptions,
         package: Package
     ) -> BuildOptions {
         let sdks = detectSDKsToBuild(platforms: runnerOption.platforms, package: package, isSimulatorSupported: runnerOption.isSimulatorSupported)
@@ -237,28 +259,19 @@ public struct Runner {
     }
 }
 
-extension Runner.Options.BuildOptions {
-    fileprivate func merge(overriding overridingOptions: Self) -> Self {
-        let defaultOptions: Self = .init()
-
-        func fetch<T: Equatable>(_ key: KeyPath<Self, T>) -> T {
-            let baseValue = self[keyPath: key]
-            let newValue = overridingOptions[keyPath: key]
-            let defaultValue = defaultOptions[keyPath: key]
-            if baseValue != newValue && newValue == defaultValue {
-                return defaultValue
-            }
-            return newValue
+extension Runner.Options.BaseBuildOptions {
+    fileprivate func overridden(by overridingOptions: Runner.Options.TargetBuildOptions) -> Self {
+        func fetch<T>(_ baseKeyPath: KeyPath<Self, T>, by overridingKeyPath: KeyPath<Runner.Options.TargetBuildOptions, T?>) -> T {
+            overridingOptions[keyPath: overridingKeyPath] ?? self[keyPath: baseKeyPath]
         }
 
         return .init(
-            buildConfiguration: fetch(\.buildConfiguration),
-            platforms: fetch(\.platforms),
-            isSimulatorSupported: fetch(\.isSimulatorSupported),
-            isDebugSymbolsEmbedded: fetch(\.isDebugSymbolsEmbedded),
-            frameworkType: fetch(\.frameworkType)
+            buildConfiguration: fetch(\.buildConfiguration, by: \.buildConfiguration),
+            platforms: fetch(\.platforms, by: \.platforms),
+            isSimulatorSupported: fetch(\.isSimulatorSupported, by: \.isSimulatorSupported),
+            isDebugSymbolsEmbedded: fetch(\.isDebugSymbolsEmbedded, by: \.isDebugSymbolsEmbedded),
+            frameworkType: fetch(\.frameworkType, by: \.frameworkType)
         )
-
     }
 }
 
