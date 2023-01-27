@@ -140,7 +140,7 @@ struct FrameworkProducer {
                     outputDirectory: outputDir,
                     fileSystem: fileSystem
                 )
-                try binaryExtractor.extract(of: binaryTarget)
+                try binaryExtractor.extract(of: binaryTarget, overwrite: overwrite)
                 logger.info("✅ Copy \(binaryTarget.c99name).xcframework", metadata: .color(.green))
             default:
                 fatalError("Unexpected target type \(product.target.type)")
