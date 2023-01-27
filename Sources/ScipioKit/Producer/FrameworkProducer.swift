@@ -49,16 +49,13 @@ struct FrameworkProducer {
 
     func produce() async throws {
         let targets = allTargets(for: mode)
-        try await buildAllLibraryTargets(
-            libraryTargets: targets.filter { $0.target.type == .library }
+        try await processAllTargets(
+            targets: targets.filter { [.library, .binary].contains($0.target.type)  }
         )
-
-        let binaryTargets = targets.compactMap(\.binaryTarget)
-        try await extractAllBinaryTarget(binaryTargets: binaryTargets)
     }
 
-    private func buildAllLibraryTargets(libraryTargets: [BuildProduct]) async throws {
-        guard !libraryTargets.isEmpty else {
+    private func processAllTargets(targets: [BuildProduct]) async throws {
+        guard !targets.isEmpty else {
             return
         }
 
@@ -69,23 +66,21 @@ struct FrameworkProducer {
             logger.warning("⚠️ Unable to clean project.")
         }
 
-        for product in libraryTargets {
-            assert(product.target.type == .library)
-
+        for product in targets {
+            assert([.library, .binary].contains(product.target.type))
             let buildOptionsForProduct = buildOptions.overridingSDKs(for: product, platformMatrix: platformMatrix)
-            let compiler = Compiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
 
             let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                           buildOptions: buildOptionsForProduct,
                                           outputDirectory: outputDir,
                                           storage: cacheStorage)
 
-            try await buildXCFrameworkIfNeeded(
+            try await prepareXCFrameworkIfNeeded(
                 product,
                 mode: mode,
+                buildOptions: buildOptionsForProduct,
                 outputDir: outputDir,
-                cacheSystem: cacheSystem,
-                compiler: compiler
+                cacheSystem: cacheSystem
             )
 
             if isCacheEnabled {
@@ -99,12 +94,12 @@ struct FrameworkProducer {
         }
     }
 
-    private func buildXCFrameworkIfNeeded(
+    private func prepareXCFrameworkIfNeeded(
         _ product: BuildProduct,
         mode: Runner.Mode,
+        buildOptions: BuildOptions,
         outputDir: URL,
-        cacheSystem: CacheSystem,
-        compiler: Compiler<some Executor>
+        cacheSystem: CacheSystem
     ) async throws {
         let frameworkName = product.frameworkName
         let outputPath = outputDir.appendingPathComponent(product.frameworkName)
@@ -130,21 +125,26 @@ struct FrameworkProducer {
         }
 
         if needToBuild {
-            try await compiler.createXCFramework(target: product.target,
-                                                 outputDirectory: outputDir,
-                                                 overwrite: overwrite)
-        }
-    }
-
-    private func extractAllBinaryTarget(binaryTargets: [BinaryTarget]) async throws {
-        for binaryTarget in binaryTargets {
-            let binaryExtractor = BinaryExtractor(
-                package: rootPackage,
-                outputDirectory: outputDir,
-                fileSystem: fileSystem
-            )
-            try binaryExtractor.extract(of: binaryTarget)
-            logger.info("✅ Copy \(binaryTarget.c99name).xcframework", metadata: .color(.green))
+            switch product.target.type {
+            case .library:
+                let compiler = Compiler(rootPackage: rootPackage, buildOptions: buildOptions)
+                try await compiler.createXCFramework(target: product.target,
+                                                     outputDirectory: outputDir,
+                                                     overwrite: overwrite)
+            case .binary:
+                guard let binaryTarget = product.target.underlyingTarget as? BinaryTarget else {
+                    fatalError("Unexpected failure")
+                }
+                let binaryExtractor = BinaryExtractor(
+                    package: rootPackage,
+                    outputDirectory: outputDir,
+                    fileSystem: fileSystem
+                )
+                try binaryExtractor.extract(of: binaryTarget)
+                logger.info("✅ Copy \(binaryTarget.c99name).xcframework", metadata: .color(.green))
+            default:
+                fatalError("Unexpected target type \(product.target.type)")
+            }
         }
     }
 
