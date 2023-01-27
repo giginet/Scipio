@@ -17,7 +17,7 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "SomeBinary",
-            path: "../SomeBinary.zip"
+            path: "SomeBinary.zip"
         )
     ]
 )

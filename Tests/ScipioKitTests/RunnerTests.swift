@@ -10,6 +10,7 @@ private let fixturePath = URL(fileURLWithPath: #file)
 private let testPackagePath = fixturePath.appendingPathComponent("E2ETestPackage")
 private let binaryPackagePath = fixturePath.appendingPathComponent("BinaryPackage")
 private let resourcePackagePath = fixturePath.appendingPathComponent("ResourcePackage")
+private let usingBinaryPackagePath = fixturePath.appendingPathComponent("UsingBinaryPackage")
 
 final class RunnerTests: XCTestCase {
     private let fileManager: FileManager = .default
@@ -17,7 +18,7 @@ final class RunnerTests: XCTestCase {
     lazy var frameworkOutputDir = tempDir.appendingPathComponent("XCFrameworks")
 
     override class func setUp() {
-        LoggingSystem.bootstrap { _ in SwiftLogNoOpLogHandler() }
+//        LoggingSystem.bootstrap { _ in SwiftLogNoOpLogHandler() }
 
         super.setUp()
     }
@@ -168,7 +169,7 @@ final class RunnerTests: XCTestCase {
                 isSimulatorSupported: false,
                 isDebugSymbolsEmbedded: false,
                 frameworkType: .dynamic,
-                cacheMode: .disabled,
+                cacheMode: .project,
                 overwrite: false,
                 verbose: false)
         )
@@ -176,7 +177,42 @@ final class RunnerTests: XCTestCase {
         try await runner.run(packageDirectory: binaryPackagePath, frameworkOutputDir: .custom(frameworkOutputDir))
 
         let binaryPath = frameworkOutputDir.appendingPathComponent("SomeBinary.xcframework")
-        XCTAssertTrue(fileManager.fileExists(atPath: binaryPath.path))
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: binaryPath.path),
+            "Binary frameworks should be copied."
+        )
+
+        addTeardownBlock {
+            try self.fileManager.removeItem(atPath: binaryPath.path)
+        }
+    }
+
+    func testPrepareBinary() async throws {
+        let runner = Runner(
+            mode: .prepareDependencies,
+            options: .init(
+                buildConfiguration: .release,
+                isSimulatorSupported: false,
+                isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
+                cacheMode: .project,
+                overwrite: false,
+                verbose: false)
+        )
+
+        try await runner.run(packageDirectory: usingBinaryPackagePath, frameworkOutputDir: .custom(frameworkOutputDir))
+
+        let binaryPath = frameworkOutputDir.appendingPathComponent("SomeBinary.xcframework")
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: binaryPath.path),
+            "Binary frameworks should be copied."
+        )
+
+        let versionFilePath = frameworkOutputDir.appendingPathComponent(".SomeBinary.version")
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: versionFilePath.path),
+            "Version files should be created"
+        )
 
         addTeardownBlock {
             try self.fileManager.removeItem(atPath: binaryPath.path)
