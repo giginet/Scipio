@@ -219,6 +219,72 @@ final class RunnerTests: XCTestCase {
         }
     }
 
+    func testBinaryHasValidCache() async throws {
+        // Generate VersionFile
+        let rootPackage = try Package(packageDirectory: usingBinaryPackagePath)
+        let cacheSystem = CacheSystem(rootPackage: rootPackage,
+                                      buildOptions: .init(buildConfiguration: .release,
+                                                          isSimulatorSupported: false,
+                                                          isDebugSymbolsEmbedded: false,
+                                                          frameworkType: .dynamic,
+                                                          sdks: [.iOS]),
+                                      outputDirectory: frameworkOutputDir,
+                                      storage: nil)
+        let packages = rootPackage.graph.packages
+            .filter { $0.manifest.displayName != rootPackage.manifest.displayName }
+
+        let allProducts = packages.flatMap { package in
+            package.targets.map { BuildProduct(package: package, target: $0) }
+        }
+
+        for product in allProducts {
+            try await cacheSystem.generateVersionFile(for: product)
+            // generate dummy directory
+            try fileManager.createDirectory(
+                at: frameworkOutputDir.appendingPathComponent("\(product.target.name).xcframework"),
+                withIntermediateDirectories: true
+            )
+        }
+        let versionFile2 = frameworkOutputDir.appendingPathComponent(".SomeBinary.version")
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: versionFile2.path),
+            "VersionFile should be generated"
+        )
+
+        // Attempt to generate XCFrameworks
+        let runner = Runner(
+            mode: .prepareDependencies,
+            options: .init(
+                buildConfiguration: .release,
+                isSimulatorSupported: false,
+                isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
+                cacheMode: .project,
+                overwrite: false,
+                verbose: false)
+        )
+
+        try await runner.run(packageDirectory: usingBinaryPackagePath, frameworkOutputDir: .custom(frameworkOutputDir))
+
+        let binaryPath = frameworkOutputDir.appendingPathComponent("SomeBinary.xcframework")
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: binaryPath.path),
+            "Binary frameworks should be copied."
+        )
+
+        // We generated an empty XCFramework directory to simulate cache is valid before.
+        // So if runner doesn't create valid XCFrameworks, framework's contents are not exists
+        let infoPlistPath = binaryPath.appendingPathComponent("Info.plist")
+        XCTAssertFalse(
+            fileManager.fileExists(atPath: infoPlistPath.path),
+            "XCFramework should not be updated"
+        )
+
+        addTeardownBlock {
+            try self.fileManager.removeItem(atPath: binaryPath.path)
+        }
+    }
+
     func testWithPlatformMatrix() async throws {
         let runner = Runner(
             mode: .prepareDependencies,
