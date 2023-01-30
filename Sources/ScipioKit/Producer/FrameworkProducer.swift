@@ -48,7 +48,7 @@ struct FrameworkProducer {
     }
 
     func produce() async throws {
-        let targets = allTargets(for: mode)
+        let targets = try allTargets(for: mode)
         try await processAllTargets(
             targets: targets.filter { [.library, .binary].contains($0.target.type)  }
         )
@@ -156,29 +156,33 @@ struct FrameworkProducer {
         }
     }
 
-    private func allTargets(for mode: Runner.Mode) -> [BuildProduct] {
-        rootPackage.resolveDependenciesPackages(for: mode)
-            .flatMap { package in
-                package.targets
-                    .map { BuildProduct(package: package, target: $0) }
+    private func allTargets(for mode: Runner.Mode) throws -> [BuildProduct] {
+        switch  mode {
+        case .createPackage:
+            return rootPackage.graph.rootPackages
+                .flatMap { package in
+                    package.targets
+                        .map { BuildProduct(package: package, target: $0) }
+                }
+        case .prepareDependencies:
+            guard let descriptionTarget = rootPackage.graph.rootPackages.first?.targets.first else {
+                return []
             }
+            return try descriptionTarget.recursiveDependencies().compactMap { dependency -> BuildProduct? in
+                guard let target = dependency.target else {
+                    return nil
+                }
+                guard let package = rootPackage.graph.package(for: target) else {
+                    return nil
+                }
+                return BuildProduct(package: package, target: target)
+            }
+        }
     }
 
     private func dependenciesPackages(for package: Package) -> [ResolvedPackage] {
         package.graph.packages
             .filter { $0.manifest.displayName != package.manifest.displayName }
-    }
-}
-
-extension Package {
-    fileprivate func resolveDependenciesPackages(for mode: Runner.Mode) -> [ResolvedPackage] {
-        switch  mode {
-        case .createPackage:
-            return graph.rootPackages
-        case .prepareDependencies:
-            return graph.packages
-             .filter { $0.manifest.displayName != manifest.displayName }
-        }
     }
 }
 
