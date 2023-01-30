@@ -18,7 +18,7 @@ final class RunnerTests: XCTestCase {
     lazy var frameworkOutputDir = tempDir.appendingPathComponent("XCFrameworks")
 
     override class func setUp() {
-//        LoggingSystem.bootstrap { _ in SwiftLogNoOpLogHandler() }
+        LoggingSystem.bootstrap { _ in SwiftLogNoOpLogHandler() }
 
         super.setUp()
     }
