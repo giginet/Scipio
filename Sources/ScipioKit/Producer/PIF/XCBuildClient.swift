@@ -80,7 +80,7 @@ struct XCBuildClient {
 
         let arguments: [String] = [
             xcbuildPath.pathString,
-            "createXCFramework"
+            "createXCFramework",
         ]
         + additionalArguments
         try await executor.execute(arguments)
