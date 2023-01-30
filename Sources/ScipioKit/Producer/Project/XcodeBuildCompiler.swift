@@ -30,6 +30,7 @@ struct XcodeBuildCompiler<E: Executor>: Compiler {
         let sdks = extractSDKs(isSimulatorSupported: buildOptions.isSimulatorSupported)
         let target = buildProduct.target
 
+        // Build frameworks for each SDK
         let sdkNames = sdks.map(\.displayName).joined(separator: ", ")
         logger.info("📦 Building \(target.name) for \(sdkNames)")
 
@@ -38,6 +39,14 @@ struct XcodeBuildCompiler<E: Executor>: Compiler {
         }
 
         logger.info("🚀 Combining into XCFramework...")
+
+        // If there is existing framework, remove it
+        let frameworkName = target.xcFrameworkName
+        let outputXCFrameworkPath = outputDirectory.appendingPathComponent(frameworkName)
+        if fileSystem.exists(outputXCFrameworkPath) && overwrite {
+            logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
+            try fileSystem.removeFileTree(at: outputXCFrameworkPath)
+        }
 
         let debugSymbolPaths: [URL]?
         if buildOptions.isDebugSymbolsEmbedded {
@@ -48,13 +57,7 @@ struct XcodeBuildCompiler<E: Executor>: Compiler {
             debugSymbolPaths = nil
         }
 
-        let frameworkName = target.xcFrameworkName
-        let outputXCFrameworkPath = outputDirectory.appendingPathComponent(frameworkName)
-        if fileSystem.exists(outputXCFrameworkPath) && overwrite {
-            logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(at: outputXCFrameworkPath)
-        }
-
+        // Combine all frameworks into one XCFramework
         try await xcodebuild.createXCFramework(
             package: rootPackage,
             buildProduct: buildProduct,

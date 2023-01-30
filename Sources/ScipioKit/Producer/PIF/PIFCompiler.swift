@@ -44,6 +44,8 @@ struct PIFCompiler: Compiler {
         let sdks = sdksToBuild
         let sdkNames = sdks.map(\.displayName).joined(separator: ", ")
         let target = buildProduct.target
+
+        // Build frameworks for each SDK
         logger.info("📦 Building \(target.name) for \(sdkNames)")
 
         let xcBuildClient: XCBuildClient = .init(
@@ -81,6 +83,14 @@ struct PIFCompiler: Compiler {
 
         logger.info("🚀 Combining into XCFramework...")
 
+        // If there is existing framework, remove it
+        let frameworkName = target.xcFrameworkName
+        let outputXCFrameworkPath = try AbsolutePath(validating: outputDirectory.path).appending(component: frameworkName)
+        if fileSystem.exists(outputXCFrameworkPath) && overwrite {
+            logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
+            try fileSystem.removeFileTree(outputXCFrameworkPath)
+        }
+
         let debugSymbolPaths: [URL]?
         if buildOptions.isDebugSymbolsEmbedded {
             debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
@@ -90,13 +100,7 @@ struct PIFCompiler: Compiler {
             debugSymbolPaths = nil
         }
 
-        let frameworkName = target.xcFrameworkName
-        let outputXCFrameworkPath = try AbsolutePath(validating: outputDirectory.path).appending(component: frameworkName)
-        if fileSystem.exists(outputXCFrameworkPath) && overwrite {
-            logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(outputXCFrameworkPath)
-        }
-
+        // Combine all frameworks into one XCFramework
         try await xcBuildClient.createXCFramework(
             sdks: sdksToBuild,
             debugSymbols: debugSymbolPaths,
