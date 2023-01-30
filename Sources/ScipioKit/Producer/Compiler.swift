@@ -48,7 +48,7 @@ struct Compiler<E: Executor> {
         let frameworkName = target.xcFrameworkName
         let outputXCFrameworkPath = outputDirectory.appendingPathComponent(frameworkName)
         if fileSystem.exists(outputXCFrameworkPath) && overwrite {
-            logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
+            logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
             try fileSystem.removeFileTree(at: outputXCFrameworkPath)
         }
 
