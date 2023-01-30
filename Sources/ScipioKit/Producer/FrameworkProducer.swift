@@ -113,7 +113,7 @@ struct FrameworkProducer {
                 return
             }
             logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
-            logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
+            logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
             try fileSystem.removeFileTree(at: outputPath)
             let restored = await cacheSystem.restoreCacheIfPossible(product: product)
             needToBuild = !restored
