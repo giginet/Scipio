@@ -71,8 +71,22 @@ struct XCBuildClient {
 
     func createXCFramework(sdks: Set<SDK>, debugSymbols: [URL]?, outputPath: AbsolutePath) async throws {
         let xcbuildPath = try await fetchXCBuildPath()
-        let arguments: [String] = [xcbuildPath.pathString, "createXCFramework"]
 
+        let additionalArguments = try buildCreateXCFrameworkArguments(
+            sdks: sdks,
+            debugSymbols: debugSymbols,
+            outputPath: outputPath
+        )
+
+        let arguments: [String] = [
+            xcbuildPath.pathString,
+            "createXCFramework"
+        ]
+        + additionalArguments
+        try await executor.execute(arguments)
+    }
+
+    private func buildCreateXCFrameworkArguments(sdks: Set<SDK>, debugSymbols: [URL]?, outputPath: AbsolutePath) throws -> [String] {
         let frameworksArguments: [String] = try sdks.reduce([]) { arguments, sdk in
             let path = try frameworkPath(target: buildProduct.target, of: sdk)
             return arguments + ["-framework", path.pathString]
@@ -84,7 +98,7 @@ struct XCBuildClient {
 
         let outputPathArguments: [String] = ["-output", outputPath.pathString]
 
-        try await executor.execute(arguments + frameworksArguments + debugSymbolsArguments + outputPathArguments)
+        return frameworksArguments + debugSymbolsArguments + outputPathArguments
     }
 }
 
