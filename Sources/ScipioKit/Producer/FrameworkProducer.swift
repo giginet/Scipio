@@ -60,13 +60,6 @@ struct FrameworkProducer {
             return
         }
 
-        let cleaner = Cleaner(rootPackage: rootPackage)
-        do {
-            try await cleaner.clean()
-        } catch {
-            logger.warning("⚠️ Unable to clean project.")
-        }
-
         for product in targets {
             assert([.library, .binary].contains(product.target.type))
             let buildOptionsForProduct = buildOptions.overridingSDKs(for: product, platformMatrix: platformMatrix)

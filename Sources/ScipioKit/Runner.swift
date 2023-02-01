@@ -140,22 +140,6 @@ public struct Runner {
         let resolver = Resolver(package: package)
         try await resolver.resolve()
 
-        if options.skipProjectGeneration {
-            logger.info("Skip Xcode project generation")
-        } else {
-            let generator = ProjectGenerator(package: package,
-                                             buildOptions: buildOptions)
-            do {
-                try generator.generate()
-            } catch let error as LocalizedError {
-                logger.error("""
-                Project generation is failed:
-                \(error.errorDescription ?? "Unknown reason")
-            """)
-                throw error
-            }
-        }
-
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
 
         try fileSystem.createDirectory(outputDir.absolutePath, recursive: true)
