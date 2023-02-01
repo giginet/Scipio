@@ -1,72 +1,24 @@
 import Foundation
 import PackageGraph
+import TSCBasic
 
-struct Compiler<E: Executor> {
-    private let rootPackage: Package
-    private let buildOptions: BuildOptions
-    private let fileSystem: any FileSystem
-    private let xcodebuild: XcodeBuildClient<E>
-    private let extractor: DwarfExtractor<E>
+protocol Compiler {
+    var rootPackage: Package { get }
 
-    init(
-        rootPackage: Package,
-        buildOptions: BuildOptions,
-        executor: E = ProcessExecutor(),
-        fileSystem: any FileSystem = localFileSystem
-    ) {
-        self.rootPackage = rootPackage
-        self.buildOptions = buildOptions
-        self.fileSystem = fileSystem
-        self.xcodebuild = XcodeBuildClient(executor: executor)
-        self.extractor = DwarfExtractor(executor: executor)
-    }
-
-    func createXCFramework(target: ResolvedTarget,
+    func createXCFramework(buildProduct: BuildProduct,
                            outputDirectory: URL,
-                           overwrite: Bool) async throws {
-        let buildConfiguration = buildOptions.buildConfiguration
-        let sdks = extractSDKs(isSimulatorSupported: buildOptions.isSimulatorSupported)
+                           overwrite: Bool) async throws
+}
 
-        let sdkNames = sdks.map(\.displayName).joined(separator: ", ")
-        logger.info("📦 Building \(target.name) for \(sdkNames)")
-
-        for sdk in sdks {
-            try await xcodebuild.archive(package: rootPackage, target: target, buildConfiguration: buildConfiguration, sdk: sdk)
-        }
-
-        logger.info("🚀 Combining into XCFramework...")
-
-        let debugSymbolPaths: [URL]?
-        if buildOptions.isDebugSymbolsEmbedded {
-            debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
-                                                                 buildConfiguration: buildConfiguration,
-                                                                 sdks: sdks)
-        } else {
-            debugSymbolPaths = nil
-        }
-
-        let frameworkName = target.xcFrameworkName
-        let outputXCFrameworkPath = outputDirectory.appendingPathComponent(frameworkName)
-        if fileSystem.exists(outputXCFrameworkPath) && overwrite {
-            logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(at: outputXCFrameworkPath)
-        }
-
-        try await xcodebuild.createXCFramework(
-            package: rootPackage,
-            target: target,
-            buildConfiguration: buildConfiguration,
-            sdks: sdks,
-            debugSymbolPaths: debugSymbolPaths,
-            outputDir: outputDirectory
-        )
-    }
-
-    private func extractDebugSymbolPaths(
+extension Compiler {
+    func extractDebugSymbolPaths(
         target: ResolvedTarget,
         buildConfiguration: BuildConfiguration,
-        sdks: Set<SDK>
+        sdks: Set<SDK>,
+        fileSystem: FileSystem = localFileSystem
     ) async throws -> [URL] {
+        let extractor = DwarfExtractor()
+
         let debugSymbols: [DebugSymbol] = sdks.compactMap { sdk in
             let dsymPath = rootPackage.buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: sdk, target: target)
             guard fileSystem.exists(dsymPath) else { return nil }
@@ -87,34 +39,14 @@ struct Compiler<E: Executor> {
         }
         return debugSymbols.map { $0.dSYMPath } + symbolMapPaths
     }
-
-    private func extractSDKs(isSimulatorSupported: Bool) -> Set<SDK> {
-        if isSimulatorSupported {
-            return Set(buildOptions.sdks.flatMap { $0.extractForSimulators() })
-        } else {
-            return Set(buildOptions.sdks)
-        }
-    }
-}
-
-extension Package {
-    var archivesPath: URL {
-        workspaceDirectory.appendingPathComponent("archives")
-    }
 }
 
 extension Package {
     fileprivate func buildArtifactsDirectoryPath(buildConfiguration: BuildConfiguration, sdk: SDK) -> URL {
-        workspaceDirectory.appendingPathComponent("\(buildConfiguration.settingsValue)-\(sdk.name)")
+        workspaceDirectory.appendingPathComponent("\(buildConfiguration.settingsValue)-\(sdk.settingValue)")
     }
 
     fileprivate func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> URL {
         buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appendingPathComponent("\(target).framework.dSYM")
-    }
-}
-
-extension ResolvedTarget {
-    fileprivate var xcFrameworkName: String {
-        "\(c99name.packageNamed()).xcframework"
     }
 }

@@ -45,7 +45,7 @@ struct ProcessExecutor: Executor {
             switch self {
             case .terminated(let result):
                 var errors = ["Execution was terminated:"]
-                if let output = try? result.unwrapStdErrOutput() {
+                if let output = try? result.unwrapOutput() {
                     errors.append(output)
                 }
                 return errors.joined(separator: "\n")

@@ -50,7 +50,7 @@ struct FrameworkProducer {
     func produce() async throws {
         let targets = allTargets(for: mode)
         try await processAllTargets(
-            targets: targets.filter { [.library, .binary].contains($0.target.type)  }
+            targets: targets.filter { [.library, .binary].contains($0.target.type) }
         )
     }
 
@@ -127,8 +127,9 @@ struct FrameworkProducer {
         if needToBuild {
             switch product.target.type {
             case .library:
-                let compiler = Compiler(rootPackage: rootPackage, buildOptions: buildOptions)
-                try await compiler.createXCFramework(target: product.target,
+                // let compiler = XcodeBuildCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
+                let compiler = PIFCompiler(rootPackage: rootPackage, buildOptions: buildOptions)
+                try await compiler.createXCFramework(buildProduct: product,
                                                      outputDirectory: outputDir,
                                                      overwrite: overwrite)
             case .binary:

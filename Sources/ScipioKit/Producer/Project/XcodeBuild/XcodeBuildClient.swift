@@ -6,7 +6,7 @@ struct XcodeBuildClient<E: Executor> {
 
     func createXCFramework(
         package: Package,
-        target: ResolvedTarget,
+        buildProduct: BuildProduct,
         buildConfiguration: BuildConfiguration,
         sdks: Set<SDK>,
         debugSymbolPaths: [URL]?,
@@ -14,7 +14,7 @@ struct XcodeBuildClient<E: Executor> {
     ) async throws {
         try await executor.execute(CreateXCFrameworkCommand(
             package: package,
-            target: target,
+            target: buildProduct.target,
             buildConfiguration: buildConfiguration,
             sdks: sdks,
             debugSymbolPaths: debugSymbolPaths,

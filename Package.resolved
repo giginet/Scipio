@@ -59,8 +59,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-crypto.git",
       "state" : {
-        "revision" : "ddb07e896a2a8af79512543b1c7eb9797f8898a5",
-        "version" : "1.1.7"
+        "revision" : "75ec60b8b4cc0f085c3ac414f3dca5625fa3588e",
+        "version" : "2.2.4"
       }
     },
     {
@@ -93,10 +93,9 @@
     {
       "identity" : "swift-package-manager",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-package-manager.git",
+      "location" : "https://github.com/giginet/swift-package-manager.git",
       "state" : {
-        "branch" : "swift-DEVELOPMENT-SNAPSHOT-2022-11-12-a",
-        "revision" : "2faf9d225bb5382bdd45fa6149b14a068ac2d473"
+        "revision" : "bdf3780a458af4d14df66c6afc486e737db860b9"
       }
     },
     {

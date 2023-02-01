@@ -98,10 +98,10 @@ public enum SDK: String, Codable {
         }
     }
 
-    var name: String {
+    var settingValue: String {
         switch self {
         case .macOS:
-            return "macos"
+            return "macosx"
         case .macCatalyst:
             return "maccatalyst"
         case .iOS:
