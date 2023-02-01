@@ -49,10 +49,15 @@ struct FrameworkProducer {
     }
 
     func produce() async throws {
+        try await clean()
+
         let targets = allTargets(for: mode)
         try await processAllTargets(
             targets: targets.filter { [.library, .binary].contains($0.target.type) }
         )
+    }
+
+    func clean() async throws {
     }
 
     private func processAllTargets(targets: [BuildProduct]) async throws {

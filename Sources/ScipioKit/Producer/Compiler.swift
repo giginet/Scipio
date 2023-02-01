@@ -8,6 +8,7 @@ protocol Compiler {
     func createXCFramework(buildProduct: BuildProduct,
                            outputDirectory: URL,
                            overwrite: Bool) async throws
+    func clean() async throws
 }
 
 extension Compiler {
