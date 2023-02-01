@@ -67,7 +67,7 @@ struct PIFCompiler: Compiler {
             let buildParametersPath = try buildParametersGenerator.generate(
                 for: sdk,
                 buildParameters: buildParameters,
-                destinationDir: try AbsolutePath(validating: descriptionPackage.workspaceDirectory.path)
+                destinationDir: descriptionPackage.workspaceDirectory
             )
 
             do {
@@ -91,7 +91,7 @@ struct PIFCompiler: Compiler {
             try fileSystem.removeFileTree(outputXCFrameworkPath)
         }
 
-        let debugSymbolPaths: [URL]?
+        let debugSymbolPaths: [AbsolutePath]?
         if buildOptions.isDebugSymbolsEmbedded {
             debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
                                                                  buildConfiguration: buildOptions.buildConfiguration,
@@ -110,7 +110,7 @@ struct PIFCompiler: Compiler {
 
     private func makeBuildParameters(toolchain: UserToolchain) throws -> BuildParameters {
         .init(
-            dataPath: try AbsolutePath(validating: descriptionPackage.buildDirectory.path),
+            dataPath: descriptionPackage.buildDirectory,
             configuration: buildOptions.buildConfiguration.spmConfiguration,
             toolchain: toolchain,
             destinationTriple: toolchain.triple,

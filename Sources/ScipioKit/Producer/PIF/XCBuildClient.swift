@@ -47,7 +47,7 @@ struct XCBuildClient {
             "--configuration",
             configuration.settingsValue,
             "--derivedDataPath",
-            descriptionPackage.derivedDataPath(for: buildProduct.target).path,
+            descriptionPackage.derivedDataPath(for: buildProduct.target).pathString,
             "--buildParametersFile",
             buildParametersPath.pathString,
             "--target",
@@ -58,7 +58,7 @@ struct XCBuildClient {
     private func frameworkPath(target: ResolvedTarget, of sdk: SDK) throws -> AbsolutePath {
         let frameworkPath = try RelativePath(validating: "./Products/\(productDirectoryName(sdk: sdk))/PackageFrameworks")
             .appending(component: "\(buildProduct.target.c99name).framework")
-        return try AbsolutePath(validating: descriptionPackage.derivedDataPath(for: target).path).appending(frameworkPath)
+        return descriptionPackage.derivedDataPath(for: target).appending(frameworkPath)
     }
 
     private func productDirectoryName(sdk: SDK) -> String {
@@ -69,7 +69,7 @@ struct XCBuildClient {
         }
     }
 
-    func createXCFramework(sdks: Set<SDK>, debugSymbols: [URL]?, outputPath: AbsolutePath) async throws {
+    func createXCFramework(sdks: Set<SDK>, debugSymbols: [AbsolutePath]?, outputPath: AbsolutePath) async throws {
         let xcbuildPath = try await fetchXCBuildPath()
 
         let additionalArguments = try buildCreateXCFrameworkArguments(
@@ -86,14 +86,14 @@ struct XCBuildClient {
         try await executor.execute(arguments)
     }
 
-    private func buildCreateXCFrameworkArguments(sdks: Set<SDK>, debugSymbols: [URL]?, outputPath: AbsolutePath) throws -> [String] {
+    private func buildCreateXCFrameworkArguments(sdks: Set<SDK>, debugSymbols: [AbsolutePath]?, outputPath: AbsolutePath) throws -> [String] {
         let frameworksArguments: [String] = try sdks.reduce([]) { arguments, sdk in
             let path = try frameworkPath(target: buildProduct.target, of: sdk)
             return arguments + ["-framework", path.pathString]
         }
 
         let debugSymbolsArguments: [String] = debugSymbols?.reduce(into: []) { arguments, path in
-            arguments.append(contentsOf: ["-debug-symbols", path.path])
+            arguments.append(contentsOf: ["-debug-symbols", path.pathString])
         } ?? []
 
         let outputPathArguments: [String] = ["-output", outputPath.pathString]
@@ -103,9 +103,8 @@ struct XCBuildClient {
 }
 
 extension DescriptionPackage {
-    fileprivate func derivedDataPath(for target: ResolvedTarget) -> URL {
+    fileprivate func derivedDataPath(for target: ResolvedTarget) -> AbsolutePath {
         derivedDataPath
-            .appendingPathComponent(self.name)
-            .appendingPathComponent(target.name)
+            .appending(components: self.name, target.name)
     }
 }

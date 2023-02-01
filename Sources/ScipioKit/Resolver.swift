@@ -15,7 +15,7 @@ struct Resolver<E: Executor> {
     func resolve() async throws {
         logger.info("🔁 Resolving Dependencies...")
 
-        try fileSystem.changeCurrentWorkingDirectory(to: package.packageDirectory.absolutePath)
+        try fileSystem.changeCurrentWorkingDirectory(to: package.packageDirectory)
         try await executor.execute("/usr/bin/xcrun", "swift", "package", "resolve")
     }
 }

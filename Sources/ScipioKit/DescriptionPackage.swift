@@ -9,7 +9,7 @@ import OrderedCollections
 
 struct DescriptionPackage {
     let mode: Runner.Mode
-    let packageDirectory: URL
+    let packageDirectory: AbsolutePath
     private let toolchain: UserToolchain
     let workspace: Workspace
     let graph: PackageGraph
@@ -23,24 +23,24 @@ struct DescriptionPackage {
         manifest.displayName
     }
 
-    var buildDirectory: URL {
-        packageDirectory.appendingPathComponent(".build")
+    var buildDirectory: AbsolutePath {
+        packageDirectory.appending(component: ".build")
     }
 
-    var workspaceDirectory: URL {
-        buildDirectory.appendingPathComponent("scipio")
+    var workspaceDirectory: AbsolutePath {
+        buildDirectory.appending(component: "scipio")
     }
 
-    var projectPath: URL {
-        buildDirectory.appendingPathComponent("\(name).xcodeproj")
+    var projectPath: AbsolutePath {
+        buildDirectory.appending(component: "\(name).xcodeproj")
     }
 
     var supportedSDKs: OrderedCollections.OrderedSet<SDK> {
         OrderedSet(manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:)))
     }
 
-    var derivedDataPath: URL {
-        workspaceDirectory.appendingPathComponent("DerivedData")
+    var derivedDataPath: AbsolutePath {
+        workspaceDirectory.appending(component: "DerivedData")
     }
 
     private static func makeWorkspace(packagePath: AbsolutePath) throws -> Workspace {
@@ -57,19 +57,18 @@ struct DescriptionPackage {
         return workspace
     }
 
-    init(packageDirectory: URL, mode: Runner.Mode) throws {
+    init(packageDirectory: AbsolutePath, mode: Runner.Mode) throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
-        let absolutePath = try AbsolutePath(validating: packageDirectory.path)
 
         self.toolchain = try UserToolchain(destination: try .hostDestination())
 
-        let workspace = try Self.makeWorkspace(packagePath: try AbsolutePath(validating: packageDirectory.path))
-        self.graph = try workspace.loadPackageGraph(rootPath: absolutePath, observabilityScope: observabilitySystem.topScope)
+        let workspace = try Self.makeWorkspace(packagePath: packageDirectory)
+        self.graph = try workspace.loadPackageGraph(rootPath: packageDirectory, observabilityScope: observabilitySystem.topScope)
         let scope = observabilitySystem.topScope
         self.manifest = try tsc_await {
             workspace.loadRootManifest(
-                at: absolutePath,
+                at: packageDirectory,
                 observabilityScope: scope,
                 completion: $0
             )

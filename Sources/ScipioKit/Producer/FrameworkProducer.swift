@@ -55,8 +55,8 @@ struct FrameworkProducer {
     }
 
     func clean() async throws {
-        if fileSystem.exists(descriptionPackage.derivedDataPath.absolutePath) {
-            try fileSystem.removeFileTree(descriptionPackage.derivedDataPath.absolutePath)
+        if fileSystem.exists(descriptionPackage.derivedDataPath) {
+            try fileSystem.removeFileTree(descriptionPackage.derivedDataPath)
         }
     }
 

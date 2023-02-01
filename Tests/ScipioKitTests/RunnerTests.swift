@@ -61,7 +61,7 @@ final class RunnerTests: XCTestCase {
     }
 
     func testCacheIsValid() async throws {
-        let descriptionPackage = try DescriptionPackage(packageDirectory: testPackagePath, mode: .prepareDependencies)
+        let descriptionPackage = try DescriptionPackage(packageDirectory: testPackagePath.absolutePath, mode: .prepareDependencies)
         let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       buildOptions: .init(buildConfiguration: .release,
                                                           isSimulatorSupported: false,
@@ -221,7 +221,10 @@ final class RunnerTests: XCTestCase {
 
     func testBinaryHasValidCache() async throws {
         // Generate VersionFile
-        let descriptionPackage = try DescriptionPackage(packageDirectory: usingBinaryPackagePath, mode: .prepareDependencies)
+        let descriptionPackage = try DescriptionPackage(
+            packageDirectory: usingBinaryPackagePath.absolutePath,
+            mode: .prepareDependencies
+        )
         let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       buildOptions: .init(buildConfiguration: .release,
                                                           isSimulatorSupported: false,

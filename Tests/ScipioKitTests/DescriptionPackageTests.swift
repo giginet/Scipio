@@ -10,7 +10,7 @@ private let fixturePath = URL(fileURLWithPath: #file)
 final class DescriptionPackageTests: XCTestCase {
     func testPackage() throws {
         let rootPath = fixturePath.appendingPathComponent("TestingPackage")
-        let package = try XCTUnwrap(try DescriptionPackage(packageDirectory: rootPath, mode: .prepareDependencies))
+        let package = try XCTUnwrap(try DescriptionPackage(packageDirectory: rootPath.absolutePath, mode: .prepareDependencies))
         XCTAssertEqual(package.name, "TestingPackage")
 
         let packageNames = package.graph.packages.map(\.manifest.displayName)

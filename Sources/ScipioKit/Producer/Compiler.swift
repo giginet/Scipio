@@ -16,24 +16,24 @@ extension Compiler {
         buildConfiguration: BuildConfiguration,
         sdks: Set<SDK>,
         fileSystem: FileSystem = localFileSystem
-    ) async throws -> [URL] {
+    ) async throws -> [AbsolutePath] {
         let extractor = DwarfExtractor()
 
         let debugSymbols: [DebugSymbol] = sdks.compactMap { sdk in
             let dsymPath = descriptionPackage.buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: sdk, target: target)
-            guard fileSystem.exists(dsymPath.absolutePath) else { return nil }
+            guard fileSystem.exists(dsymPath) else { return nil }
             return DebugSymbol(dSYMPath: dsymPath,
                                target: target,
                                sdk: sdk,
                                buildConfiguration: buildConfiguration)
         }
         // You can use AsyncStream
-        var symbolMapPaths: [URL] = []
+        var symbolMapPaths: [AbsolutePath] = []
         for dSYMs in debugSymbols {
             let dumpedDSYMsMaps = try await extractor.dump(dwarfPath: dSYMs.dwarfPath)
             let paths = dumpedDSYMsMaps.values.map { uuid in
                 descriptionPackage.buildArtifactsDirectoryPath(buildConfiguration: dSYMs.buildConfiguration, sdk: dSYMs.sdk)
-                    .appendingPathComponent("\(uuid.uuidString).bcsymbolmap")
+                    .appending(component: "\(uuid.uuidString).bcsymbolmap")
             }
             symbolMapPaths.append(contentsOf: paths)
         }
@@ -42,11 +42,11 @@ extension Compiler {
 }
 
 extension DescriptionPackage {
-    fileprivate func buildArtifactsDirectoryPath(buildConfiguration: BuildConfiguration, sdk: SDK) -> URL {
-        workspaceDirectory.appendingPathComponent("\(buildConfiguration.settingsValue)-\(sdk.settingValue)")
+    fileprivate func buildArtifactsDirectoryPath(buildConfiguration: BuildConfiguration, sdk: SDK) -> AbsolutePath {
+        workspaceDirectory.appending(component: "\(buildConfiguration.settingsValue)-\(sdk.settingValue)")
     }
 
-    fileprivate func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> URL {
-        buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appendingPathComponent("\(target).framework.dSYM")
+    fileprivate func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> AbsolutePath {
+        buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appending(component: "\(target).framework.dSYM")
     }
 }
