@@ -16,6 +16,7 @@ let package = Package(
             targets: ["ScipioKit"]),
     ],
     dependencies: [
+        // A revision after Xcodeproj module is removed
         // https://github.com/apple/swift-package-manager/pull/5748
         .package(url: "https://github.com/giginet/swift-package-manager.git",
                  revision: "bdf3780a458af4d14df66c6afc486e737db860b9"),
@@ -25,6 +26,8 @@ let package = Package(
                  .upToNextMinor(from: "1.1.0")),
         .package(url: "https://github.com/onevcat/Rainbow",
                  .upToNextMinor(from: "4.0.1")),
+        .package(url: "https://github.com/tuist/XcodeProj.git",
+                 .upToNextMinor(from: "8.8.0")),
     ],
     targets: [
         .executableTarget(name: "scipio",
@@ -39,6 +42,7 @@ let package = Package(
                 .product(name: "XCBuildSupport", package: "swift-package-manager"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Rainbow", package: "Rainbow"),
+                .product(name: "XcodeProj", package: "XcodeProj"),
             ]),
         .testTarget(
             name: "ScipioKitTests",
