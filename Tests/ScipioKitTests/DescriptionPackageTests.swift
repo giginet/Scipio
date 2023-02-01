@@ -8,12 +8,44 @@ private let fixturePath = URL(fileURLWithPath: #file)
     .appendingPathComponent("Fixtures")
 
 final class DescriptionPackageTests: XCTestCase {
-    func testPackage() throws {
+    func testDescriptionPackage() throws {
         let rootPath = fixturePath.appendingPathComponent("TestingPackage")
         let package = try XCTUnwrap(try DescriptionPackage(packageDirectory: rootPath.absolutePath, mode: .prepareDependencies))
         XCTAssertEqual(package.name, "TestingPackage")
 
         let packageNames = package.graph.packages.map(\.manifest.displayName)
         XCTAssertEqual(packageNames, ["TestingPackage", "swift-log"])
+
+        XCTAssertEqual(
+            package.workspaceDirectory.pathString,
+            rootPath.appendingPathComponent(".build/scipio").path
+        )
+
+        XCTAssertEqual(
+            package.derivedDataPath.pathString,
+            rootPath.appendingPathComponent(".build/scipio/DerivedData").path
+        )
+    }
+
+    func testBuildProductsInPrepareMode() throws {
+        let rootPath = fixturePath.appendingPathComponent("IntegrationTestPackage")
+        let package = try XCTUnwrap(try DescriptionPackage(packageDirectory: rootPath.absolutePath, mode: .prepareDependencies))
+        XCTAssertEqual(package.name, "IntegrationTestPackage")
+
+        XCTAssertEqual(
+            Set(package.buildProducts.map(\.target.name)),
+            ["Logging", "Atomics", "_AtomicsShims", "OrderedCollections"]
+        )
+    }
+
+    func testBuildProductsInCreateMode() throws {
+        let rootPath = fixturePath.appendingPathComponent("BinaryPackage")
+        let package = try XCTUnwrap(try DescriptionPackage(packageDirectory: rootPath.absolutePath, mode: .createPackage(platforms: nil)))
+        XCTAssertEqual(package.name, "BinaryPackage")
+
+        XCTAssertEqual(
+            Set(package.buildProducts.map(\.target.name)),
+            ["SomeBinary"]
+        )
     }
 }
