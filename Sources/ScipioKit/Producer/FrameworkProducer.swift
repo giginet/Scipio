@@ -49,22 +49,23 @@ struct FrameworkProducer {
     }
 
     func produce() async throws {
+        try await clean()
+
         let targets = try allTargets(for: mode)
         try await processAllTargets(
             targets: targets.filter { [.library, .binary].contains($0.target.type) }
         )
     }
 
+    func clean() async throws {
+        if fileSystem.exists(rootPackage.derivedDataPath.absolutePath) {
+            try fileSystem.removeFileTree(rootPackage.derivedDataPath.absolutePath)
+        }
+    }
+
     private func processAllTargets(targets: [BuildProduct]) async throws {
         guard !targets.isEmpty else {
             return
-        }
-
-        let cleaner = Cleaner(rootPackage: rootPackage)
-        do {
-            try await cleaner.clean()
-        } catch {
-            logger.warning("⚠️ Unable to clean project.")
         }
 
         for product in targets {
@@ -128,7 +129,6 @@ struct FrameworkProducer {
         if needToBuild {
             switch product.target.type {
             case .library:
-                // let compiler = XcodeBuildCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
                 let compiler = PIFCompiler(rootPackage: rootPackage, buildOptions: buildOptions)
                 try await compiler.createXCFramework(buildProduct: product,
                                                      outputDirectory: outputDir,

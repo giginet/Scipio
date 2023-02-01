@@ -104,7 +104,7 @@ struct XCBuildClient {
 
 extension Package {
     fileprivate func derivedDataPath(for target: ResolvedTarget) -> URL {
-        workspaceDirectory.appendingPathComponent("DerivedData")
+        derivedDataPath
             .appendingPathComponent(self.name)
             .appendingPathComponent(target.name)
     }

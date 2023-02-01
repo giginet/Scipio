@@ -34,6 +34,10 @@ struct Package {
         OrderedSet(manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:)))
     }
 
+    var derivedDataPath: URL {
+        workspaceDirectory.appendingPathComponent("DerivedData")
+    }
+
     private static func makeWorkspace(packagePath: AbsolutePath) throws -> Workspace {
         var workspaceConfiguration: WorkspaceConfiguration = .default
         // override default configuration to treat XIB files

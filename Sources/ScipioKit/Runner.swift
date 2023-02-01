@@ -45,7 +45,6 @@ public struct Runner {
             outputDirectory: URL? = nil,
             cacheMode: CacheMode,
             platformMatrix: PlatformMatrix = [:],
-            skipProjectGeneration: Bool = false,
             overwrite: Bool,
             verbose: Bool
         ) {
@@ -56,7 +55,6 @@ public struct Runner {
             self.outputDirectory = outputDirectory
             self.cacheMode = cacheMode
             self.platformMatrix = platformMatrix
-            self.skipProjectGeneration = false
             self.overwrite = overwrite
             self.verbose = verbose
         }
@@ -68,7 +66,6 @@ public struct Runner {
         public var outputDirectory: URL?
         public var cacheMode: CacheMode
         public var platformMatrix: PlatformMatrix
-        public var skipProjectGeneration: Bool
         public var overwrite: Bool
         public var verbose: Bool
 
@@ -139,22 +136,6 @@ public struct Runner {
 
         let resolver = Resolver(package: package)
         try await resolver.resolve()
-
-        if options.skipProjectGeneration {
-            logger.info("Skip Xcode project generation")
-        } else {
-            let generator = ProjectGenerator(package: package,
-                                             buildOptions: buildOptions)
-            do {
-                try generator.generate()
-            } catch let error as LocalizedError {
-                logger.error("""
-                Project generation is failed:
-                \(error.errorDescription ?? "Unknown reason")
-            """)
-                throw error
-            }
-        }
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
 
