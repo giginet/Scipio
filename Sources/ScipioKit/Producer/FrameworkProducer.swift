@@ -58,6 +58,9 @@ struct FrameworkProducer {
     }
 
     func clean() async throws {
+        if fileSystem.exists(rootPackage.derivedDataPath.absolutePath) {
+            try fileSystem.removeFileTree(rootPackage.derivedDataPath.absolutePath)
+        }
     }
 
     private func processAllTargets(targets: [BuildProduct]) async throws {
@@ -126,7 +129,6 @@ struct FrameworkProducer {
         if needToBuild {
             switch product.target.type {
             case .library:
-                // let compiler = XcodeBuildCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
                 let compiler = PIFCompiler(rootPackage: rootPackage, buildOptions: buildOptions)
                 try await compiler.createXCFramework(buildProduct: product,
                                                      outputDirectory: outputDir,

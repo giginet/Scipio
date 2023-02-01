@@ -108,12 +108,6 @@ struct PIFCompiler: Compiler {
         )
     }
 
-    func clean() async throws {
-        if fileSystem.exists(rootPackage.derivedDataPath.absolutePath) {
-            try fileSystem.removeFileTree(rootPackage.derivedDataPath.absolutePath)
-        }
-    }
-
     private func makeBuildParameters(toolchain: UserToolchain) throws -> BuildParameters {
         .init(
             dataPath: try AbsolutePath(validating: rootPackage.buildDirectory.path),
