@@ -6,7 +6,7 @@ import OrderedCollections
 import TSCBasic
 
 struct PIFCompiler: Compiler {
-    let rootPackage: Package
+    let descriptionPackage: DescriptionPackage
     private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem
     private let executor: any Executor
@@ -14,12 +14,12 @@ struct PIFCompiler: Compiler {
     private let buildParametersGenerator: BuildParametersGenerator
 
     init(
-        rootPackage: Package,
+        descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         fileSystem: any FileSystem = TSCBasic.localFileSystem,
         executor: any Executor = ProcessExecutor()
     ) {
-        self.rootPackage = rootPackage
+        self.descriptionPackage = descriptionPackage
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
         self.executor = executor
@@ -49,7 +49,7 @@ struct PIFCompiler: Compiler {
         logger.info("📦 Building \(target.name) for \(sdkNames)")
 
         let xcBuildClient: XCBuildClient = .init(
-            package: rootPackage,
+            package: descriptionPackage,
             buildProduct: buildProduct,
             configuration: buildOptions.buildConfiguration
         )
@@ -59,7 +59,7 @@ struct PIFCompiler: Compiler {
             let buildParameters = try makeBuildParameters(toolchain: toolchain)
 
             let generator = try PIFGenerator(
-                package: rootPackage,
+                package: descriptionPackage,
                 buildParameters: buildParameters,
                 buildOptions: buildOptions
             )
@@ -67,7 +67,7 @@ struct PIFCompiler: Compiler {
             let buildParametersPath = try buildParametersGenerator.generate(
                 for: sdk,
                 buildParameters: buildParameters,
-                destinationDir: try AbsolutePath(validating: rootPackage.workspaceDirectory.path)
+                destinationDir: try AbsolutePath(validating: descriptionPackage.workspaceDirectory.path)
             )
 
             do {
@@ -110,7 +110,7 @@ struct PIFCompiler: Compiler {
 
     private func makeBuildParameters(toolchain: UserToolchain) throws -> BuildParameters {
         .init(
-            dataPath: try AbsolutePath(validating: rootPackage.buildDirectory.path),
+            dataPath: try AbsolutePath(validating: descriptionPackage.buildDirectory.path),
             configuration: buildOptions.buildConfiguration.spmConfiguration,
             toolchain: toolchain,
             destinationTriple: toolchain.triple,

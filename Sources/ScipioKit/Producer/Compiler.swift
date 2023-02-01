@@ -3,7 +3,7 @@ import PackageGraph
 import TSCBasic
 
 protocol Compiler {
-    var rootPackage: Package { get }
+    var descriptionPackage: DescriptionPackage { get }
 
     func createXCFramework(buildProduct: BuildProduct,
                            outputDirectory: URL,
@@ -20,7 +20,7 @@ extension Compiler {
         let extractor = DwarfExtractor()
 
         let debugSymbols: [DebugSymbol] = sdks.compactMap { sdk in
-            let dsymPath = rootPackage.buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: sdk, target: target)
+            let dsymPath = descriptionPackage.buildDebugSymbolPath(buildConfiguration: buildConfiguration, sdk: sdk, target: target)
             guard fileSystem.exists(dsymPath.absolutePath) else { return nil }
             return DebugSymbol(dSYMPath: dsymPath,
                                target: target,
@@ -32,7 +32,7 @@ extension Compiler {
         for dSYMs in debugSymbols {
             let dumpedDSYMsMaps = try await extractor.dump(dwarfPath: dSYMs.dwarfPath)
             let paths = dumpedDSYMsMaps.values.map { uuid in
-                rootPackage.buildArtifactsDirectoryPath(buildConfiguration: dSYMs.buildConfiguration, sdk: dSYMs.sdk)
+                descriptionPackage.buildArtifactsDirectoryPath(buildConfiguration: dSYMs.buildConfiguration, sdk: dSYMs.sdk)
                     .appendingPathComponent("\(uuid.uuidString).bcsymbolmap")
             }
             symbolMapPaths.append(contentsOf: paths)
@@ -41,7 +41,7 @@ extension Compiler {
     }
 }
 
-extension Package {
+extension DescriptionPackage {
     fileprivate func buildArtifactsDirectoryPath(buildConfiguration: BuildConfiguration, sdk: SDK) -> URL {
         workspaceDirectory.appendingPathComponent("\(buildConfiguration.settingsValue)-\(sdk.settingValue)")
     }

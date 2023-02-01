@@ -6,7 +6,7 @@ import TSCBasic
 
 struct FrameworkProducer {
     private let mode: Runner.Mode
-    private let rootPackage: Package
+    private let descriptionPackage: DescriptionPackage
     private let buildOptions: BuildOptions
     private let cacheMode: Runner.Options.CacheMode
     private let platformMatrix: PlatformMatrix
@@ -30,7 +30,7 @@ struct FrameworkProducer {
 
     init(
         mode: Runner.Mode,
-        rootPackage: Package,
+        descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         cacheMode: Runner.Options.CacheMode,
         platformMatrix: PlatformMatrix,
@@ -39,7 +39,7 @@ struct FrameworkProducer {
         fileSystem: any FileSystem = localFileSystem
     ) {
         self.mode = mode
-        self.rootPackage = rootPackage
+        self.descriptionPackage = descriptionPackage
         self.buildOptions = buildOptions
         self.cacheMode = cacheMode
         self.platformMatrix = platformMatrix
@@ -58,8 +58,8 @@ struct FrameworkProducer {
     }
 
     func clean() async throws {
-        if fileSystem.exists(rootPackage.derivedDataPath.absolutePath) {
-            try fileSystem.removeFileTree(rootPackage.derivedDataPath.absolutePath)
+        if fileSystem.exists(descriptionPackage.derivedDataPath.absolutePath) {
+            try fileSystem.removeFileTree(descriptionPackage.derivedDataPath.absolutePath)
         }
     }
 
@@ -72,7 +72,7 @@ struct FrameworkProducer {
             assert([.library, .binary].contains(product.target.type))
             let buildOptionsForProduct = buildOptions.overridingSDKs(for: product, platformMatrix: platformMatrix)
 
-            let cacheSystem = CacheSystem(rootPackage: rootPackage,
+            let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                           buildOptions: buildOptionsForProduct,
                                           outputDirectory: outputDir,
                                           storage: cacheStorage)
@@ -129,7 +129,7 @@ struct FrameworkProducer {
         if needToBuild {
             switch product.target.type {
             case .library:
-                let compiler = PIFCompiler(rootPackage: rootPackage, buildOptions: buildOptions)
+                let compiler = PIFCompiler(descriptionPackage: descriptionPackage, buildOptions: buildOptions)
                 try await compiler.createXCFramework(buildProduct: product,
                                                      outputDirectory: outputDir,
                                                      overwrite: overwrite)
@@ -138,7 +138,7 @@ struct FrameworkProducer {
                     fatalError("Unexpected failure")
                 }
                 let binaryExtractor = BinaryExtractor(
-                    package: rootPackage,
+                    package: descriptionPackage,
                     outputDirectory: outputDir,
                     fileSystem: fileSystem
                 )
@@ -161,20 +161,20 @@ struct FrameworkProducer {
     private func allTargets(for mode: Runner.Mode) throws -> [BuildProduct] {
         switch  mode {
         case .createPackage:
-            return rootPackage.graph.rootPackages
+            return descriptionPackage.graph.rootPackages
                 .flatMap { package in
                     package.targets
                         .map { BuildProduct(package: package, target: $0) }
                 }
         case .prepareDependencies:
-            guard let descriptionTarget = rootPackage.graph.rootPackages.first?.targets.first else {
+            guard let descriptionTarget = descriptionPackage.graph.rootPackages.first?.targets.first else {
                 return []
             }
             return try descriptionTarget.recursiveDependencies().compactMap { dependency -> BuildProduct? in
                 guard let target = dependency.target else {
                     return nil
                 }
-                guard let package = rootPackage.graph.package(for: target) else {
+                guard let package = descriptionPackage.graph.package(for: target) else {
                     return nil
                 }
                 return BuildProduct(package: package, target: target)
@@ -182,7 +182,7 @@ struct FrameworkProducer {
         }
     }
 
-    private func dependenciesPackages(for package: Package) -> [ResolvedPackage] {
+    private func dependenciesPackages(for package: DescriptionPackage) -> [ResolvedPackage] {
         package.graph.packages
             .filter { $0.manifest.displayName != package.manifest.displayName }
     }

@@ -61,8 +61,8 @@ final class RunnerTests: XCTestCase {
     }
 
     func testCacheIsValid() async throws {
-        let rootPackage = try Package(packageDirectory: testPackagePath)
-        let cacheSystem = CacheSystem(rootPackage: rootPackage,
+        let descriptionPackage = try DescriptionPackage(packageDirectory: testPackagePath)
+        let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       buildOptions: .init(buildConfiguration: .release,
                                                           isSimulatorSupported: false,
                                                           isDebugSymbolsEmbedded: false,
@@ -70,8 +70,8 @@ final class RunnerTests: XCTestCase {
                                                           sdks: [.iOS]),
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
-        let packages = rootPackage.graph.packages
-            .filter { $0.manifest.displayName != rootPackage.manifest.displayName }
+        let packages = descriptionPackage.graph.packages
+            .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
 
         let allProducts = packages.flatMap { package in
             package.targets.map { BuildProduct(package: package, target: $0) }
@@ -221,8 +221,8 @@ final class RunnerTests: XCTestCase {
 
     func testBinaryHasValidCache() async throws {
         // Generate VersionFile
-        let rootPackage = try Package(packageDirectory: usingBinaryPackagePath)
-        let cacheSystem = CacheSystem(rootPackage: rootPackage,
+        let descriptionPackage = try DescriptionPackage(packageDirectory: usingBinaryPackagePath)
+        let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       buildOptions: .init(buildConfiguration: .release,
                                                           isSimulatorSupported: false,
                                                           isDebugSymbolsEmbedded: false,
@@ -230,8 +230,8 @@ final class RunnerTests: XCTestCase {
                                                           sdks: [.iOS]),
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
-        let packages = rootPackage.graph.packages
-            .filter { $0.manifest.displayName != rootPackage.manifest.displayName }
+        let packages = descriptionPackage.graph.packages
+            .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
 
         let allProducts = packages.flatMap { package in
             package.targets.map { BuildProduct(package: package, target: $0) }

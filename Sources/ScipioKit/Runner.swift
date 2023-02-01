@@ -115,14 +115,14 @@ public struct Runner {
 
     public func run(packageDirectory: URL, frameworkOutputDir: OutputDirectory) async throws {
         let packagePath = resolveURL(packageDirectory)
-        let package: Package
+        let descriptionPackage: DescriptionPackage
         do {
-            package = try Package(packageDirectory: packagePath)
+            descriptionPackage = try DescriptionPackage(packageDirectory: packagePath)
         } catch {
             throw Error.invalidPackage(packagePath)
         }
 
-        let sdks = detectPlatformsToBuild(package: package)
+        let sdks = detectPlatformsToBuild(descriptionPackage: descriptionPackage)
         guard !sdks.isEmpty else {
             throw Error.platformNotSpecified
         }
@@ -132,9 +132,9 @@ public struct Runner {
                                         isDebugSymbolsEmbedded: options.isDebugSymbolsEmbedded,
                                         frameworkType: options.frameworkType,
                                         sdks: sdks)
-        try fileSystem.createDirectory(package.workspaceDirectory.absolutePath, recursive: true)
+        try fileSystem.createDirectory(descriptionPackage.workspaceDirectory.absolutePath, recursive: true)
 
-        let resolver = Resolver(package: package)
+        let resolver = Resolver(package: descriptionPackage)
         try await resolver.resolve()
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
@@ -143,7 +143,7 @@ public struct Runner {
 
         let producer = FrameworkProducer(
             mode: mode,
-            rootPackage: package,
+            descriptionPackage: descriptionPackage,
             buildOptions: buildOptions,
             cacheMode: options.cacheMode,
             platformMatrix: options.platformMatrix,
@@ -163,16 +163,16 @@ public struct Runner {
         }
     }
 
-    private func detectPlatformsToBuild(package: Package) -> OrderedSet<SDK> {
+    private func detectPlatformsToBuild(descriptionPackage: DescriptionPackage) -> OrderedSet<SDK> {
         switch mode {
         case .createPackage(let platforms):
             if let platforms {
                 return OrderedSet(platforms)
             } else {
-                return package.supportedSDKs
+                return descriptionPackage.supportedSDKs
             }
         case .prepareDependencies:
-            return package.supportedSDKs
+            return descriptionPackage.supportedSDKs
         }
     }
 }

@@ -99,7 +99,7 @@ public protocol CacheStorage {
 }
 
 struct CacheSystem {
-    private let rootPackage: Package
+    private let descriptionPackage: DescriptionPackage
     private let buildOptions: BuildOptions
     private let outputDirectory: URL
     private let storage: (any CacheStorage)?
@@ -123,13 +123,13 @@ struct CacheSystem {
     }
 
     init(
-        rootPackage: Package,
+        descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         outputDirectory: URL,
         storage: (any CacheStorage)?,
         fileSystem: any FileSystem = localFileSystem
     ) {
-        self.rootPackage = rootPackage
+        self.descriptionPackage = descriptionPackage
         self.buildOptions = buildOptions
         self.outputDirectory = outputDirectory
         self.storage = storage
@@ -201,7 +201,7 @@ struct CacheSystem {
     }
 
     private func retrievePin(product: BuildProduct) throws -> PinsStore.Pin {
-        let pinsStore = try rootPackage.workspace.pinsStore.load()
+        let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         guard let pin = pinsStore.pinsMap[product.package.identity] else {
             throw Error.revisionNotDetected(product.package.manifest.displayName)
         }

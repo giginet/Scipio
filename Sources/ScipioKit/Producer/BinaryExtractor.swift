@@ -4,7 +4,7 @@ import PackageModel
 import TSCBasic
 
 struct BinaryExtractor {
-    var package: Package
+    var package: DescriptionPackage
     var outputDirectory: URL
     var fileSystem: any FileSystem
 

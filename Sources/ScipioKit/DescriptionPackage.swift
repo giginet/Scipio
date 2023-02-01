@@ -7,7 +7,7 @@ import PackageGraph
 import Basics
 import OrderedCollections
 
-struct Package {
+struct DescriptionPackage {
     let packageDirectory: URL
     let toolchain: UserToolchain
     let workspace: Workspace
