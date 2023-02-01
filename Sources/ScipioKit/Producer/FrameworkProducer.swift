@@ -5,7 +5,6 @@ import OrderedCollections
 import TSCBasic
 
 struct FrameworkProducer {
-    private let mode: Runner.Mode
     private let descriptionPackage: DescriptionPackage
     private let buildOptions: BuildOptions
     private let cacheMode: Runner.Options.CacheMode
@@ -29,7 +28,6 @@ struct FrameworkProducer {
     }
 
     init(
-        mode: Runner.Mode,
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         cacheMode: Runner.Options.CacheMode,
@@ -38,7 +36,6 @@ struct FrameworkProducer {
         outputDir: URL,
         fileSystem: any FileSystem = localFileSystem
     ) {
-        self.mode = mode
         self.descriptionPackage = descriptionPackage
         self.buildOptions = buildOptions
         self.cacheMode = cacheMode
@@ -51,7 +48,7 @@ struct FrameworkProducer {
     func produce() async throws {
         try await clean()
 
-        let targets = try allTargets(for: mode)
+        let targets = try descriptionPackage.recursiveBuildProducts()
         try await processAllTargets(
             targets: targets.filter { [.library, .binary].contains($0.target.type) }
         )
@@ -79,7 +76,6 @@ struct FrameworkProducer {
 
             try await prepareXCFrameworkIfNeeded(
                 product,
-                mode: mode,
                 buildOptions: buildOptionsForProduct,
                 outputDir: outputDir,
                 cacheSystem: cacheSystem
@@ -89,7 +85,7 @@ struct FrameworkProducer {
                 let outputPath = outputDir.appendingPathComponent(product.frameworkName)
                 try? await cacheSystem.cacheFramework(product, at: outputPath)
 
-                if case .prepareDependencies = mode {
+                if case .prepareDependencies = descriptionPackage.mode {
                     try await generateVersionFile(for: product, using: cacheSystem)
                 }
             }
@@ -98,7 +94,6 @@ struct FrameworkProducer {
 
     private func prepareXCFrameworkIfNeeded(
         _ product: BuildProduct,
-        mode: Runner.Mode,
         buildOptions: BuildOptions,
         outputDir: URL,
         cacheSystem: CacheSystem
@@ -156,35 +151,6 @@ struct FrameworkProducer {
         } catch {
             logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
         }
-    }
-
-    private func allTargets(for mode: Runner.Mode) throws -> [BuildProduct] {
-        switch  mode {
-        case .createPackage:
-            return descriptionPackage.graph.rootPackages
-                .flatMap { package in
-                    package.targets
-                        .map { BuildProduct(package: package, target: $0) }
-                }
-        case .prepareDependencies:
-            guard let descriptionTarget = descriptionPackage.graph.rootPackages.first?.targets.first else {
-                return []
-            }
-            return try descriptionTarget.recursiveDependencies().compactMap { dependency -> BuildProduct? in
-                guard let target = dependency.target else {
-                    return nil
-                }
-                guard let package = descriptionPackage.graph.package(for: target) else {
-                    return nil
-                }
-                return BuildProduct(package: package, target: target)
-            }
-        }
-    }
-
-    private func dependenciesPackages(for package: DescriptionPackage) -> [ResolvedPackage] {
-        package.graph.packages
-            .filter { $0.manifest.displayName != package.manifest.displayName }
     }
 }
 

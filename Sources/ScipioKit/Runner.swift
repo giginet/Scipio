@@ -117,7 +117,7 @@ public struct Runner {
         let packagePath = resolveURL(packageDirectory)
         let descriptionPackage: DescriptionPackage
         do {
-            descriptionPackage = try DescriptionPackage(packageDirectory: packagePath)
+            descriptionPackage = try DescriptionPackage(packageDirectory: packagePath, mode: mode)
         } catch {
             throw Error.invalidPackage(packagePath)
         }
@@ -142,7 +142,6 @@ public struct Runner {
         try fileSystem.createDirectory(outputDir.absolutePath, recursive: true)
 
         let producer = FrameworkProducer(
-            mode: mode,
             descriptionPackage: descriptionPackage,
             buildOptions: buildOptions,
             cacheMode: options.cacheMode,

@@ -8,11 +8,16 @@ import Basics
 import OrderedCollections
 
 struct DescriptionPackage {
+    let mode: Runner.Mode
     let packageDirectory: URL
-    let toolchain: UserToolchain
+    private let toolchain: UserToolchain
     let workspace: Workspace
     let graph: PackageGraph
     let manifest: Manifest
+
+    enum Error: LocalizedError {
+        case packageNotDefined
+    }
 
     var name: String {
         manifest.displayName
@@ -52,8 +57,9 @@ struct DescriptionPackage {
         return workspace
     }
 
-    init(packageDirectory: URL) throws {
+    init(packageDirectory: URL, mode: Runner.Mode) throws {
         self.packageDirectory = packageDirectory
+        self.mode = mode
         let absolutePath = try AbsolutePath(validating: packageDirectory.path)
 
         self.toolchain = try UserToolchain(destination: try .hostDestination())
@@ -69,6 +75,30 @@ struct DescriptionPackage {
             )
         }
         self.workspace = workspace
+    }
+
+    func recursiveBuildProducts() throws -> [BuildProduct] {
+        switch  mode {
+        case .createPackage:
+            return graph.rootPackages
+                .flatMap { package in
+                    package.targets
+                        .map { BuildProduct(package: package, target: $0) }
+                }
+        case .prepareDependencies:
+            guard let descriptionTarget = graph.rootPackages.first?.targets.first else {
+                return []
+            }
+            return try descriptionTarget.recursiveDependencies().compactMap { dependency -> BuildProduct? in
+                guard let target = dependency.target else {
+                    return nil
+                }
+                guard let package = graph.package(for: target) else {
+                    return nil
+                }
+                return BuildProduct(package: package, target: target)
+            }
+        }
     }
 }
 
