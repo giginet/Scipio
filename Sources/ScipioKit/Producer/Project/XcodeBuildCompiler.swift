@@ -44,9 +44,9 @@ struct XcodeBuildCompiler<E: Executor>: Compiler {
         // If there is existing framework, remove it
         let frameworkName = target.xcFrameworkName
         let outputXCFrameworkPath = outputDirectory.appendingPathComponent(frameworkName)
-        if fileSystem.exists(outputXCFrameworkPath) && overwrite {
+        if fileSystem.exists(outputXCFrameworkPath.absolutePath) && overwrite {
             logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(at: outputXCFrameworkPath)
+            try fileSystem.removeFileTree(outputXCFrameworkPath.absolutePath)
         }
 
         let debugSymbolPaths: [URL]?

@@ -6,7 +6,7 @@ import struct TSCBasic.AbsolutePath
 import struct TSCBasic.RelativePath
 import var TSCBasic.localFileSystem
 import func TSCBasic.walk
-import protocol FileSystem
+import protocol TSCBasic.FileSystem
 import PackageLoading
 import PackageModel
 import Basics
