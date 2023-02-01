@@ -15,7 +15,7 @@ struct DescriptionPackage {
     let graph: PackageGraph
     let manifest: Manifest
 
-    let buildProducts: [BuildProduct]
+    let buildProducts: Set<BuildProduct>
 
     enum Error: LocalizedError {
         case packageNotDefined
@@ -90,32 +90,39 @@ struct DescriptionPackage {
         self.buildProducts = try Self.resolveBuildProducts(mode: mode, graph: graph)
     }
 
-    private static func resolveBuildProducts(mode: Runner.Mode, graph: PackageGraph) throws -> [BuildProduct] {
+    private static func resolveBuildProducts(mode: Runner.Mode, graph: PackageGraph) throws -> Set<BuildProduct> {
         switch mode {
         case .createPackage:
-            return graph.rootPackages
+            return Set(try graph.rootPackages
                 .flatMap { package in
-                    package.targets
-                        .map { BuildProduct(package: package, target: $0) }
-                }
+                    try package.products.flatMap { product in
+                        try product.targets.flatMap { target in
+                            try target.recursiveDependencies()
+                                .compactMap { dependency in buildProduct(from: dependency, graph: graph) }
+                        }
+                    }
+                })
         case .prepareDependencies:
             guard let descriptionTarget = graph.rootPackages.first?.targets.first else {
                 throw Error.descriptionTargetNotDefined
             }
-            return try descriptionTarget.recursiveDependencies().compactMap { dependency -> BuildProduct? in
-                guard let target = dependency.target else {
-                    return nil
-                }
-                guard let package = graph.package(for: target) else {
-                    return nil
-                }
-                return BuildProduct(package: package, target: target)
-            }
+            return Set(try descriptionTarget.recursiveDependencies()
+                .compactMap { buildProduct(from: $0, graph: graph) })
         }
+    }
+
+    private static func buildProduct(from dependency: ResolvedTarget.Dependency, graph: PackageGraph) -> BuildProduct? {
+        guard let target = dependency.target else {
+            return nil
+        }
+        guard let package = graph.package(for: target) else {
+            return nil
+        }
+        return BuildProduct(package: package, target: target)
     }
 }
 
-struct BuildProduct {
+struct BuildProduct: Hashable {
     var package: ResolvedPackage
     var target: ResolvedTarget
 
