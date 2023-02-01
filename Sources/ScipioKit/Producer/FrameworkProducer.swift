@@ -50,7 +50,7 @@ struct FrameworkProducer {
     func produce() async throws {
         let targets = allTargets(for: mode)
         try await processAllTargets(
-            targets: targets.filter { [.library, .binary].contains($0.target.type)  }
+            targets: targets.filter { [.library, .binary].contains($0.target.type) }
         )
     }
 
