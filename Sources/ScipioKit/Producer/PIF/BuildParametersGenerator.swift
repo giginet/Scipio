@@ -27,9 +27,9 @@ struct XCBBuildParameters: Encodable {
 }
 
 struct BuildParametersGenerator {
-    private let fileSystem: any TSCBasic.FileSystem
+    private let fileSystem: any FileSystem
 
-    init(fileSystem: any TSCBasic.FileSystem = TSCBasic.localFileSystem) {
+    init(fileSystem: any FileSystem = TSCBasic.localFileSystem) {
         self.fileSystem = fileSystem
     }
 

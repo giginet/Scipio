@@ -1,6 +1,6 @@
 import Foundation
 import OrderedCollections
-import protocol TSCBasic.FileSystem
+import protocol FileSystem
 import var TSCBasic.localFileSystem
 
 public typealias PlatformMatrix = [String: OrderedSet<SDK>]

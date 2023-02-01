@@ -8,7 +8,7 @@ import TSCBasic
 struct PIFCompiler: Compiler {
     let rootPackage: Package
     private let buildOptions: BuildOptions
-    private let fileSystem: any TSCBasic.FileSystem
+    private let fileSystem: any FileSystem
     private let executor: any Executor
 
     private let buildParametersGenerator: BuildParametersGenerator
@@ -16,7 +16,7 @@ struct PIFCompiler: Compiler {
     init(
         rootPackage: Package,
         buildOptions: BuildOptions,
-        fileSystem: any TSCBasic.FileSystem = TSCBasic.localFileSystem,
+        fileSystem: any FileSystem = TSCBasic.localFileSystem,
         executor: any Executor = ProcessExecutor()
     ) {
         self.rootPackage = rootPackage

@@ -9,13 +9,13 @@ struct PIFGenerator {
     private let package: Package
     private let buildParameters: PIFBuilderParameters
     private let buildOptions: BuildOptions
-    private let fileSystem: any TSCBasic.FileSystem
+    private let fileSystem: any FileSystem
 
     init(
         package: Package,
         buildParameters: BuildParameters,
         buildOptions: BuildOptions,
-        fileSystem: any TSCBasic.FileSystem = TSCBasic.localFileSystem
+        fileSystem: any FileSystem = TSCBasic.localFileSystem
     ) throws {
         self.package = package
         self.buildParameters = PIFBuilderParameters(buildParameters)
