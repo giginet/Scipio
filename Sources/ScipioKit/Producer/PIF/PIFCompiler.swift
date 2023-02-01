@@ -109,8 +109,8 @@ struct PIFCompiler: Compiler {
     }
 
     func clean() async throws {
-        if fileSystem.exists(rootPackage.derivedDataPath) {
-            try fileSystem.removeFileTree(rootPackage.derivedDataPath)
+        if fileSystem.exists(rootPackage.derivedDataPath.absolutePath) {
+            try fileSystem.removeFileTree(rootPackage.derivedDataPath.absolutePath)
         }
     }
 
