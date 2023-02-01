@@ -15,8 +15,20 @@ struct DescriptionPackage {
     let graph: PackageGraph
     let manifest: Manifest
 
+    let buildProducts: [BuildProduct]
+
     enum Error: LocalizedError {
         case packageNotDefined
+        case descriptionTargetNotDefined
+
+        var errorDescription: String? {
+            switch self {
+            case .packageNotDefined:
+                return "Any packages are not defined in this manifest"
+            case .descriptionTargetNotDefined:
+                return "Any targets are not defined in this package manifest"
+            }
+        }
     }
 
     var name: String {
@@ -74,10 +86,12 @@ struct DescriptionPackage {
             )
         }
         self.workspace = workspace
+
+        self.buildProducts = try Self.resolveBuildProducts(mode: mode, graph: graph)
     }
 
-    func recursiveBuildProducts() throws -> [BuildProduct] {
-        switch  mode {
+    private static func resolveBuildProducts(mode: Runner.Mode, graph: PackageGraph) throws -> [BuildProduct] {
+        switch mode {
         case .createPackage:
             return graph.rootPackages
                 .flatMap { package in
@@ -86,7 +100,7 @@ struct DescriptionPackage {
                 }
         case .prepareDependencies:
             guard let descriptionTarget = graph.rootPackages.first?.targets.first else {
-                return []
+                throw Error.descriptionTargetNotDefined
             }
             return try descriptionTarget.recursiveDependencies().compactMap { dependency -> BuildProduct? in
                 guard let target = dependency.target else {

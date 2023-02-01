@@ -48,7 +48,7 @@ struct FrameworkProducer {
     func produce() async throws {
         try await clean()
 
-        let targets = try descriptionPackage.recursiveBuildProducts()
+        let targets = descriptionPackage.buildProducts
         try await processAllTargets(
             targets: targets.filter { [.library, .binary].contains($0.target.type) }
         )
