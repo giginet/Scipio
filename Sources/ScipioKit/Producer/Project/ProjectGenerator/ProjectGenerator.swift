@@ -6,8 +6,8 @@ import struct TSCBasic.AbsolutePath
 import struct TSCBasic.RelativePath
 import var TSCBasic.localFileSystem
 import func TSCBasic.walk
-import struct PackageLoading.ModuleMapGenerator
-import enum PackageLoading.GeneratedModuleMapType
+import protocol FileSystem
+import PackageLoading
 import PackageModel
 import Basics
 import PathKit
@@ -248,7 +248,7 @@ class ProjectGenerator {
         // Generate Info.plist
         let plistPath = package.buildDirectory.appendingPathComponent(target.infoPlistFileName)
         let plistData = InfoPlistGenerator.generate(bundleType: .framework)
-        fileSystem.write(plistData, to: plistPath)
+        try fileSystem.writeFileContents(plistPath.absolutePath, data: plistData)
 
         let buildConfigurationList = addObject(
             XCConfigurationList(buildConfigurations: [
@@ -293,7 +293,7 @@ class ProjectGenerator {
         let additionalFiles: [PBXFileReference]
         if let resourceTarget {
             let bundleAccessorGenerator = BundleAccessorGenerator(package: package)
-            let accessorPath = bundleAccessorGenerator.generate(resourceBundleName: resourceTarget.name)
+            let accessorPath = try bundleAccessorGenerator.generate(resourceBundleName: resourceTarget.name)
             let bundleAccessorReference = addObject(
                 try targetGroup.addFile(at: Path(accessorPath.path), sourceRoot: sourceRoot.toPath())
             )
@@ -325,7 +325,7 @@ class ProjectGenerator {
         sourceRoot: AbsolutePath
     ) throws -> PBXFileReference {
         let bundleAccessorGenerator = BundleAccessorGenerator(package: package)
-        let accessorPath = bundleAccessorGenerator.generate(resourceBundleName: resourceTarget.name)
+        let accessorPath = try bundleAccessorGenerator.generate(resourceBundleName: resourceTarget.name)
         let bundleAccessorReference = addObject(
             try targetGroup.addFile(at: Path(accessorPath.path), sourceRoot: sourceRoot.toPath())
         )
@@ -337,7 +337,7 @@ class ProjectGenerator {
             throw Error.unknownError
         }
 
-        guard fileSystem.exists(target.resourceDir) else {
+        guard fileSystem.exists(target.resourceDir.absolutePath) else {
             return nil
         }
 
@@ -371,7 +371,7 @@ class ProjectGenerator {
         let plistFileName = "\(resourceTargetName)_Info.plist"
         let plistPath = package.buildDirectory.appendingPathComponent(plistFileName)
         let plistData = InfoPlistGenerator.generate(bundleType: .bundle)
-        fileSystem.write(plistData, to: plistPath)
+        try fileSystem.writeFileContents(plistPath.absolutePath, data: plistData)
 
         let builder = ResourceBundleSettingsBuilder()
         let configurations = [.debug, .release].map { (configuration: BuildConfiguration) in

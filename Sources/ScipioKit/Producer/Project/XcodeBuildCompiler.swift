@@ -1,5 +1,6 @@
 import Foundation
 import PackageGraph
+import TSCBasic
 
 struct XcodeBuildCompiler<E: Executor>: Compiler {
     let rootPackage: Package

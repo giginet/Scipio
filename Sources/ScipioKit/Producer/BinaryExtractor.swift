@@ -1,6 +1,7 @@
 import Foundation
 import PackageGraph
 import PackageModel
+import TSCBasic
 
 struct BinaryExtractor {
     var package: Package

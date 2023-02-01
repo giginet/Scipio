@@ -2,6 +2,7 @@ import Foundation
 import PackageGraph
 import PackageModel
 import OrderedCollections
+import TSCBasic
 
 struct FrameworkProducer {
     private let mode: Runner.Mode
@@ -103,7 +104,7 @@ struct FrameworkProducer {
     ) async throws {
         let frameworkName = product.frameworkName
         let outputPath = outputDir.appendingPathComponent(product.frameworkName)
-        let exists = fileSystem.exists(outputPath)
+        let exists = fileSystem.exists(outputPath.absolutePath)
 
         let needToBuild: Bool
         if exists, isCacheEnabled {
