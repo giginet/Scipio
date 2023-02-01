@@ -6,10 +6,6 @@ struct GlobalOptionGroup: ParsableArguments {
     @Flag(name: [.short, .long],
           help: "Provide additional build progress.")
     var verbose: Bool = false
-
-    @Flag(name: [.customLong("skip-project-generation")],
-          help: ArgumentHelp("Skip generate Xcode project phase", shouldDisplay: false))
-    var skipProjectGeneration: Bool = false
 }
 
 struct BuildOptionGroup: ParsableArguments {
