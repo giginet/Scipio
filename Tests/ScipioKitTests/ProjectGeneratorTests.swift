@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 import XcodeProj
+import TSCBasic
 @testable import ScipioKit
 
 private let fixturePath = URL(fileURLWithPath: #file)
@@ -13,7 +14,7 @@ private let resourcePackagePath = fixturePath.appendingPathComponent("ResourcePa
 private let settingsPackagePath = fixturePath.appendingPathComponent("SettingsPackage")
 
 final class ProjectGeneratorTests: XCTestCase {
-    private let fileSystem: some FileSystem = localFileSystem
+    private let fileSystem: any FileSystem = localFileSystem
 
     private func makeGenerator(for package: Package) throws -> ProjectGenerator {
         ProjectGenerator(package: package,
@@ -30,7 +31,7 @@ final class ProjectGeneratorTests: XCTestCase {
         let projectGenerator = try makeGenerator(for: package)
         let projectPath = package.projectPath
         try projectGenerator.generate()
-        XCTAssertTrue(fileSystem.exists(projectPath))
+        XCTAssertTrue(fileSystem.exists(projectPath.absolutePath))
 
         let project = try XcodeProj(pathString: projectPath.path)
 
@@ -94,7 +95,7 @@ final class ProjectGeneratorTests: XCTestCase {
         let projectGenerator = try makeGenerator(for: package)
         let projectPath = package.projectPath
         try projectGenerator.generate()
-        XCTAssertTrue(fileSystem.exists(projectPath))
+        XCTAssertTrue(fileSystem.exists(projectPath.absolutePath))
 
         let project = try XcodeProj(pathString: projectPath.path)
 
@@ -154,7 +155,7 @@ final class ProjectGeneratorTests: XCTestCase {
         let projectGenerator = try makeGenerator(for: package)
         let projectPath = package.projectPath
         try projectGenerator.generate()
-        XCTAssertTrue(fileSystem.exists(projectPath))
+        XCTAssertTrue(fileSystem.exists(projectPath.absolutePath))
 
         let project = try XcodeProj(pathString: projectPath.path)
 
@@ -211,13 +212,12 @@ final class ProjectGeneratorTests: XCTestCase {
         let projectGenerator = try makeGenerator(for: package)
         let projectPath = package.projectPath
         try projectGenerator.generate()
-        XCTAssertTrue(fileSystem.exists(projectPath))
+        XCTAssertTrue(fileSystem.exists(projectPath.absolutePath))
 
         let project = try XcodeProj(pathString: projectPath.path)
         let target = try XCTUnwrap(project.pbxproj.nativeTargets.first)
 
         let configuration = try XCTUnwrap(target.buildConfigurationList?.buildConfigurations.first)
-        print(configuration.buildSettings)
         XCTAssertEqual(
             configuration.buildSettings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] as! [String],
             ["$(inherited)", "MY_FLAG", "ANOTHER_FLAG"]

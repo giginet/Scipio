@@ -1,5 +1,6 @@
 import Foundation
 import PackageGraph
+import TSCBasic
 
 public struct LocalCacheStorage: CacheStorage {
     private let fileSystem: any FileSystem
@@ -27,7 +28,7 @@ public struct LocalCacheStorage: CacheStorage {
             guard let systemCacheDir = fileSystem.cachesDirectory else {
                 throw Error.cacheDirectoryIsNotFound
             }
-            cacheDir = systemCacheDir
+            cacheDir = systemCacheDir.asURL
         case .custom(let customPath):
             cacheDir = customPath
         }
@@ -50,7 +51,7 @@ public struct LocalCacheStorage: CacheStorage {
     public func existsValidCache(for cacheKey: CacheKey) async -> Bool {
         do {
             let xcFrameworkPath = try cacheFrameworkPath(for: cacheKey)
-            return fileSystem.exists(xcFrameworkPath)
+            return fileSystem.exists(xcFrameworkPath.absolutePath)
         } catch {
             return false
         }
@@ -61,8 +62,8 @@ public struct LocalCacheStorage: CacheStorage {
             let destination = try cacheFrameworkPath(for: cacheKey)
             let directoryPath = destination.deletingLastPathComponent()
 
-            try fileSystem.createDirectory(directoryPath, recursive: true)
-            try fileSystem.copy(from: frameworkPath, to: destination)
+            try fileSystem.createDirectory(directoryPath.absolutePath, recursive: true)
+            try fileSystem.copy(from: frameworkPath.absolutePath, to: destination.absolutePath)
         } catch {
             // ignore error
         }
@@ -71,6 +72,6 @@ public struct LocalCacheStorage: CacheStorage {
     public func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: URL) async throws {
         let source = try cacheFrameworkPath(for: cacheKey)
         let destination = destinationDir.appendingPathComponent(xcFrameworkFileName(for: cacheKey))
-        try fileSystem.copy(from: source, to: destination)
+        try fileSystem.copy(from: source.absolutePath, to: destination.absolutePath)
     }
 }

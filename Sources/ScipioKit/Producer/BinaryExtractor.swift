@@ -1,6 +1,7 @@
 import Foundation
 import PackageGraph
 import PackageModel
+import TSCBasic
 
 struct BinaryExtractor {
     var package: Package
@@ -13,11 +14,11 @@ struct BinaryExtractor {
         let frameworkName = "\(binaryTarget.c99name).xcframework"
         let fileName = sourcePath.basename
         let destinationPath = outputDirectory.appendingPathComponent(fileName)
-        if fileSystem.exists(destinationPath) && overwrite {
+        if fileSystem.exists(destinationPath.absolutePath) && overwrite {
             logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(at: destinationPath)
+            try fileSystem.removeFileTree(destinationPath.absolutePath)
         }
-        try fileSystem.copy(from: sourcePath.asURL, to: destinationPath)
+        try fileSystem.copy(from: sourcePath, to: destinationPath.absolutePath)
 
         return destinationPath
     }

@@ -2,6 +2,7 @@ import Foundation
 import PackageGraph
 import PackageModel
 import OrderedCollections
+import TSCBasic
 
 struct FrameworkProducer {
     private let mode: Runner.Mode
@@ -50,7 +51,7 @@ struct FrameworkProducer {
     func produce() async throws {
         let targets = try allTargets(for: mode)
         try await processAllTargets(
-            targets: targets.filter { [.library, .binary].contains($0.target.type)  }
+            targets: targets.filter { [.library, .binary].contains($0.target.type) }
         )
     }
 
@@ -103,7 +104,7 @@ struct FrameworkProducer {
     ) async throws {
         let frameworkName = product.frameworkName
         let outputPath = outputDir.appendingPathComponent(product.frameworkName)
-        let exists = fileSystem.exists(outputPath)
+        let exists = fileSystem.exists(outputPath.absolutePath)
 
         let needToBuild: Bool
         if exists, isCacheEnabled {
@@ -114,7 +115,7 @@ struct FrameworkProducer {
             }
             logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
             logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(at: outputPath)
+            try fileSystem.removeFileTree(outputPath.absolutePath)
             let restored = await cacheSystem.restoreCacheIfPossible(product: product)
             needToBuild = !restored
             if restored {
@@ -127,8 +128,9 @@ struct FrameworkProducer {
         if needToBuild {
             switch product.target.type {
             case .library:
-                let compiler = Compiler(rootPackage: rootPackage, buildOptions: buildOptions)
-                try await compiler.createXCFramework(target: product.target,
+                // let compiler = XcodeBuildCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
+                let compiler = PIFCompiler(rootPackage: rootPackage, buildOptions: buildOptions)
+                try await compiler.createXCFramework(buildProduct: product,
                                                      outputDirectory: outputDir,
                                                      overwrite: overwrite)
             case .binary:

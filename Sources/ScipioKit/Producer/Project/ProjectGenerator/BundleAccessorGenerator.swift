@@ -1,18 +1,19 @@
 import Foundation
+import TSCBasic
 
 struct BundleAccessorGenerator {
     private let package: Package
-    private let fileSystem: FileSystem
+    private let fileSystem: any FileSystem
 
-    init(package: Package, fileSystem: FileSystem = localFileSystem) {
+    init(package: Package, fileSystem: any FileSystem = localFileSystem) {
         self.package = package
         self.fileSystem = fileSystem
     }
 
-    func generate(resourceBundleName: String) -> URL {
+    func generate(resourceBundleName: String) throws -> URL {
         let content = generateAccessorContents(resourceBundleName: resourceBundleName)
         let outputPath = package.buildDirectory.appendingPathComponent("\(resourceBundleName)Accessor-generated.swift")
-        fileSystem.write(content, to: outputPath)
+        try fileSystem.writeFileContents(outputPath.absolutePath, data: content)
         return outputPath
     }
 
