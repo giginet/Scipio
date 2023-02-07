@@ -47,7 +47,7 @@ final class RunnerTests: XCTestCase {
             XCTFail("Build should be succeeded. \(error.localizedDescription)")
         }
 
-        ["ScipioTesting"].forEach { library in
+        for library in ["ScipioTesting"] {
             let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
             let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
             let simulatorFramework = xcFramework.appendingPathComponent("ios-arm64_x86_64-simulator")
@@ -106,7 +106,7 @@ final class RunnerTests: XCTestCase {
             XCTFail("Build should be succeeded. \(error.localizedDescription)")
         }
 
-        ["ScipioTesting"].forEach { library in
+        for library in ["ScipioTesting"] {
             let xcFramework = frameworkOutputDir
                 .appendingPathComponent("\(library).xcframework")
                 .appendingPathComponent("Info.plist")
