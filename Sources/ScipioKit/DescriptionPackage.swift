@@ -17,14 +17,11 @@ struct DescriptionPackage {
 
     enum Error: LocalizedError {
         case packageNotDefined
-        case descriptionTargetNotDefined
 
         var errorDescription: String? {
             switch self {
             case .packageNotDefined:
                 return "Any packages are not defined in this manifest"
-            case .descriptionTargetNotDefined:
-                return "Any targets are not defined in this package manifest"
             }
         }
     }
@@ -87,9 +84,9 @@ struct DescriptionPackage {
     }
 
 
-    func fetchRootPackage() throws -> ResolvedPackage {
+    private func fetchRootPackage() throws -> ResolvedPackage {
         guard let rootPackage = graph.rootPackages.first else {
-            throw Error.descriptionTargetNotDefined
+            throw Error.packageNotDefined
         }
         return rootPackage
     }
