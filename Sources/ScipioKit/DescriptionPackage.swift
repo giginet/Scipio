@@ -15,8 +15,6 @@ struct DescriptionPackage {
     let graph: PackageGraph
     let manifest: Manifest
 
-    let buildProducts: Set<BuildProduct>
-
     enum Error: LocalizedError {
         case packageNotDefined
         case descriptionTargetNotDefined
@@ -86,39 +84,58 @@ struct DescriptionPackage {
             )
         }
         self.workspace = workspace
-
-        self.buildProducts = try Self.resolveBuildProducts(mode: mode, graph: graph)
     }
 
-    private static func resolveBuildProducts(mode: Runner.Mode, graph: PackageGraph) throws -> Set<BuildProduct> {
+
+    func fetchRootPackage() throws -> ResolvedPackage {
+        guard let rootPackage = graph.rootPackages.first else {
+            throw Error.descriptionTargetNotDefined
+        }
+        return rootPackage
+    }
+    
+    func resolveBuildProducts() throws -> Set<BuildProduct> {
+        let targetsToBuild = try targetsToBuild()
+        return Set(try targetsToBuild.flatMap(resolveBuildProduct(from:)))
+    }
+
+    private func targetsToBuild() throws -> Set<ResolvedTarget> {
         switch mode {
         case .createPackage:
-            return Set(try graph.rootPackages
-                .flatMap { package in
-                    try package.products.flatMap { product in
-                        try product.targets.flatMap { target in
-                            try target.recursiveDependencies()
-                                .compactMap { dependency in buildProduct(from: dependency, graph: graph) }
-                        }
-                    }
-                })
+            // In create mode, all products should be built
+            // In future update, users will be enable to specify products want to build
+            let rootPackage = try fetchRootPackage()
+            let productsToBuild = rootPackage.products
+            return Set(productsToBuild.flatMap(\.targets))
         case .prepareDependencies:
-            guard let descriptionTarget = graph.rootPackages.first?.targets.first else {
-                throw Error.descriptionTargetNotDefined
-            }
-            return Set(try descriptionTarget.recursiveDependencies()
-                .compactMap { buildProduct(from: $0, graph: graph) })
+            // In prepare mode, all targets should be built
+            // In future update, users will be enable to specify targets want to build
+            return Set(try fetchRootPackage().targets)
         }
     }
 
-    private static func buildProduct(from dependency: ResolvedTarget.Dependency, graph: PackageGraph) -> BuildProduct? {
-        guard let target = dependency.target else {
-            return nil
+    private func resolveBuildProduct(from rootTarget: ResolvedTarget) throws -> Set<BuildProduct> {
+        let dependencyProducts = Set(try rootTarget.recursiveTargetDependencies().flatMap(buildProducts(from:)))
+
+        switch mode {
+        case .createPackage(_):
+            // In create mode, rootTarget should be built
+            let rootTargetProducts = try buildProducts(from: rootTarget)
+            return rootTargetProducts.union(dependencyProducts)
+        case .prepareDependencies:
+            // In prepare mode, rootTarget is just a container. So it should be skipped.
+            return dependencyProducts
         }
+    }
+
+    private func buildProducts(from target: ResolvedTarget) throws -> Set<BuildProduct> {
         guard let package = graph.package(for: target) else {
-            return nil
+            return []
         }
-        return BuildProduct(package: package, target: target)
+
+        let rootTargetProduct = BuildProduct(package: package, target: target)
+        let dependencyProducts = try target.recursiveDependencies().compactMap(\.target).flatMap(buildProducts(from:))
+        return Set([rootTargetProduct] + dependencyProducts)
     }
 }
 

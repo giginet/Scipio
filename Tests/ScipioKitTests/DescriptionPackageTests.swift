@@ -33,7 +33,7 @@ final class DescriptionPackageTests: XCTestCase {
         XCTAssertEqual(package.name, "IntegrationTestPackage")
 
         XCTAssertEqual(
-            Set(package.buildProducts.map(\.target.name)),
+            Set(try package.resolveBuildProducts().map(\.target.name)),
             ["Logging", "Atomics", "_AtomicsShims", "OrderedCollections"]
         )
     }
@@ -44,7 +44,7 @@ final class DescriptionPackageTests: XCTestCase {
         XCTAssertEqual(package.name, "BinaryPackage")
 
         XCTAssertEqual(
-            Set(package.buildProducts.map(\.target.name)),
+            Set(try package.resolveBuildProducts().map(\.target.name)),
             ["SomeBinary"]
         )
     }

@@ -305,10 +305,10 @@ final class RunnerTests: XCTestCase {
         try await runner.run(packageDirectory: testPackagePath,
                              frameworkOutputDir: .custom(frameworkOutputDir))
 
-        ["ScipioTesting"].forEach { library in
+        for library in ["ScipioTesting"] {
             let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
             let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
-            let contentsOfXCFramework = try! XCTUnwrap(fileManager.contentsOfDirectory(atPath: xcFramework.path))
+            let contentsOfXCFramework = try XCTUnwrap(fileManager.contentsOfDirectory(atPath: xcFramework.path))
             XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
                           "Should create \(library).xcramework")
             XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
