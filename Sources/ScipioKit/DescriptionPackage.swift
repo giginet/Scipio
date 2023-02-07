@@ -83,14 +83,13 @@ struct DescriptionPackage {
         self.workspace = workspace
     }
 
-
     private func fetchRootPackage() throws -> ResolvedPackage {
         guard let rootPackage = graph.rootPackages.first else {
             throw Error.packageNotDefined
         }
         return rootPackage
     }
-    
+
     func resolveBuildProducts() throws -> Set<BuildProduct> {
         let targetsToBuild = try targetsToBuild()
         return Set(try targetsToBuild.flatMap(resolveBuildProduct(from:)))
@@ -115,7 +114,7 @@ struct DescriptionPackage {
         let dependencyProducts = Set(try rootTarget.recursiveTargetDependencies().flatMap(buildProducts(from:)))
 
         switch mode {
-        case .createPackage(_):
+        case .createPackage:
             // In create mode, rootTarget should be built
             let rootTargetProducts = try buildProducts(from: rootTarget)
             return rootTargetProducts.union(dependencyProducts)
