@@ -7,7 +7,7 @@ import XCBuildSupport
 
 struct PIFGenerator {
     private let descriptionPackage: DescriptionPackage
-    private let buildParameters: PIFBuilderParameters
+    private let buildParameters: BuildParameters
     private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem
 
@@ -18,23 +18,23 @@ struct PIFGenerator {
         fileSystem: any FileSystem = TSCBasic.localFileSystem
     ) throws {
         self.descriptionPackage = package
-        self.buildParameters = PIFBuilderParameters(buildParameters)
+        self.buildParameters = buildParameters
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
     }
 
     private func generatePIF() throws -> PIF.TopLevelObject {
-        let pifBuilder = makePIFBuilder()
-        return try pifBuilder.construct()
-    }
-
-    private func makePIFBuilder() -> PIFBuilder {
-        PIFBuilder(
-            graph: descriptionPackage.graph,
-            parameters: buildParameters,
-            fileSystem: fileSystem,
-            observabilityScope: observabilitySystem.topScope
+        // A constructor of PIFBuilder is concealed. So use JSON is only way to get PIF structs.
+        let jsonString = try PIFBuilder.generatePIF(
+            buildParameters: buildParameters,
+            packageGraph: package.graph,
+            fileSystem: localFileSystem,
+            observabilityScope: observabilitySystem.topScope,
+            preservePIFModelStructure: true
         )
+        let data = jsonString.data(using: .utf8)!
+        let jsonDecoder = JSONDecoder.makeWithDefaults()
+        return try jsonDecoder.decode(PIF.TopLevelObject.self, from: data)
     }
 
     func generateJSON(for sdk: SDK) throws -> AbsolutePath {
@@ -71,6 +71,8 @@ struct PIFGenerator {
                         var configuration = original
                         var settings = configuration.buildSettings
 
+                        let toolchainLibDir = (try? buildParameters.toolchain.toolchainLibDir) ?? .root
+
                         if isObjectTarget {
                             settings[.PRODUCT_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
                             settings[.PRODUCT_MODULE_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
@@ -91,7 +93,7 @@ struct PIFGenerator {
                             }
 
                             settings[.LIBRARY_SEARCH_PATHS, default: ["$(inherited)"]]
-                                .append("\(buildParameters.toolchainLibDir.pathString)/swift/\(sdk.settingValue)")
+                                .append("\(toolchainLibDir.pathString)/swift/\(sdk.settingValue)")
 
                             settings[.GENERATE_INFOPLIST_FILE] = "YES"
 
@@ -137,5 +139,12 @@ struct PIFGenerator {
             }
         }
         return pif
+    }
+}
+
+extension PIF.TopLevelObject: Decodable {
+    public init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        self.init(workspace: try container.decode(PIF.Workspace.self))
     }
 }

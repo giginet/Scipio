@@ -17,8 +17,8 @@ let package = Package(
     ],
     dependencies: [
         // https://github.com/apple/swift-package-manager/pull/5748
-        .package(url: "https://github.com/giginet/swift-package-manager.git",
-                 revision: "bdf3780a458af4d14df66c6afc486e737db860b9"),
+        .package(url: "https://github.com/apple/swift-package-manager.git",
+                 revision: "3649109dd7c4e1c5ff90204bc93a0a7332711147"),
         .package(url: "https://github.com/apple/swift-log.git",
                  .upToNextMinor(from: "1.4.2")),
         .package(url: "https://github.com/apple/swift-argument-parser.git", 
