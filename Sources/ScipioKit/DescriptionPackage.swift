@@ -26,6 +26,8 @@ struct DescriptionPackage {
         }
     }
 
+    // MARK: Properties
+
     var name: String {
         manifest.displayName
     }
@@ -49,6 +51,8 @@ struct DescriptionPackage {
     var derivedDataPath: AbsolutePath {
         workspaceDirectory.appending(component: "DerivedData")
     }
+
+    // MARK: Initializer
 
     private static func makeWorkspace(packagePath: AbsolutePath) throws -> Workspace {
         var workspaceConfiguration: WorkspaceConfiguration = .default
@@ -82,7 +86,9 @@ struct DescriptionPackage {
         }
         self.workspace = workspace
     }
+}
 
+extension DescriptionPackage {
     private func fetchRootPackage() throws -> ResolvedPackage {
         guard let rootPackage = graph.rootPackages.first else {
             throw Error.packageNotDefined
