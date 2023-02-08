@@ -1,5 +1,6 @@
 import Foundation
 import OrderedCollections
+import struct TSCBasic.AbsolutePath
 import protocol TSCBasic.FileSystem
 import var TSCBasic.localFileSystem
 
@@ -89,13 +90,13 @@ public struct Runner {
         self.fileSystem = fileSystem
     }
 
-    private func resolveURL(_ fileURL: URL) -> URL {
+    private func resolveURL(_ fileURL: URL) throws -> AbsolutePath {
         if fileURL.path.hasPrefix("/") {
-            return fileURL
+            return try AbsolutePath(validating: fileURL.path)
         } else if let currentDirectory = fileSystem.currentWorkingDirectory {
-            return URL(fileURLWithPath: fileURL.path, relativeTo: currentDirectory.asURL)
+            return AbsolutePath(currentDirectory, fileURL.path)
         } else {
-            return fileURL
+            return try! AbsolutePath(validating: fileURL.path)
         }
     }
 
@@ -114,15 +115,15 @@ public struct Runner {
     }
 
     public func run(packageDirectory: URL, frameworkOutputDir: OutputDirectory) async throws {
-        let packagePath = resolveURL(packageDirectory)
-        let package: Package
+        let packagePath = try resolveURL(packageDirectory)
+        let descriptionPackage: DescriptionPackage
         do {
-            package = try Package(packageDirectory: packagePath)
+            descriptionPackage = try DescriptionPackage(packageDirectory: packagePath, mode: mode)
         } catch {
-            throw Error.invalidPackage(packagePath)
+            throw Error.invalidPackage(packageDirectory)
         }
 
-        let sdks = detectPlatformsToBuild(package: package)
+        let sdks = detectPlatformsToBuild(descriptionPackage: descriptionPackage)
         guard !sdks.isEmpty else {
             throw Error.platformNotSpecified
         }
@@ -132,9 +133,9 @@ public struct Runner {
                                         isDebugSymbolsEmbedded: options.isDebugSymbolsEmbedded,
                                         frameworkType: options.frameworkType,
                                         sdks: sdks)
-        try fileSystem.createDirectory(package.workspaceDirectory.absolutePath, recursive: true)
+        try fileSystem.createDirectory(descriptionPackage.workspaceDirectory, recursive: true)
 
-        let resolver = Resolver(package: package)
+        let resolver = Resolver(package: descriptionPackage)
         try await resolver.resolve()
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
@@ -142,8 +143,7 @@ public struct Runner {
         try fileSystem.createDirectory(outputDir.absolutePath, recursive: true)
 
         let producer = FrameworkProducer(
-            mode: mode,
-            rootPackage: package,
+            descriptionPackage: descriptionPackage,
             buildOptions: buildOptions,
             cacheMode: options.cacheMode,
             platformMatrix: options.platformMatrix,
@@ -163,16 +163,16 @@ public struct Runner {
         }
     }
 
-    private func detectPlatformsToBuild(package: Package) -> OrderedSet<SDK> {
+    private func detectPlatformsToBuild(descriptionPackage: DescriptionPackage) -> OrderedSet<SDK> {
         switch mode {
         case .createPackage(let platforms):
             if let platforms {
                 return OrderedSet(platforms)
             } else {
-                return package.supportedSDKs
+                return descriptionPackage.supportedSDKs
             }
         case .prepareDependencies:
-            return package.supportedSDKs
+            return descriptionPackage.supportedSDKs
         }
     }
 }

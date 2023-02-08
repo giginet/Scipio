@@ -22,7 +22,6 @@ let package = Package(
         .target(
             name: "UsingBinaryPackage",
             dependencies: [
-                .product(name: "ScipioTesting", package: "scipio-testing"),
                 .product(name: "SomeBinary", package: "scipio-testing"),
             ]),
     ]

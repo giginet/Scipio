@@ -5,8 +5,7 @@ import OrderedCollections
 import TSCBasic
 
 struct FrameworkProducer {
-    private let mode: Runner.Mode
-    private let rootPackage: Package
+    private let descriptionPackage: DescriptionPackage
     private let buildOptions: BuildOptions
     private let cacheMode: Runner.Options.CacheMode
     private let platformMatrix: PlatformMatrix
@@ -29,8 +28,7 @@ struct FrameworkProducer {
     }
 
     init(
-        mode: Runner.Mode,
-        rootPackage: Package,
+        descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         cacheMode: Runner.Options.CacheMode,
         platformMatrix: PlatformMatrix,
@@ -38,8 +36,7 @@ struct FrameworkProducer {
         outputDir: URL,
         fileSystem: any FileSystem = localFileSystem
     ) {
-        self.mode = mode
-        self.rootPackage = rootPackage
+        self.descriptionPackage = descriptionPackage
         self.buildOptions = buildOptions
         self.cacheMode = cacheMode
         self.platformMatrix = platformMatrix
@@ -51,15 +48,15 @@ struct FrameworkProducer {
     func produce() async throws {
         try await clean()
 
-        let targets = allTargets(for: mode)
+        let targets = try descriptionPackage.resolveBuildProducts()
         try await processAllTargets(
             targets: targets.filter { [.library, .binary].contains($0.target.type) }
         )
     }
 
     func clean() async throws {
-        if fileSystem.exists(rootPackage.derivedDataPath.absolutePath) {
-            try fileSystem.removeFileTree(rootPackage.derivedDataPath.absolutePath)
+        if fileSystem.exists(descriptionPackage.derivedDataPath) {
+            try fileSystem.removeFileTree(descriptionPackage.derivedDataPath)
         }
     }
 
@@ -72,14 +69,13 @@ struct FrameworkProducer {
             assert([.library, .binary].contains(product.target.type))
             let buildOptionsForProduct = buildOptions.overridingSDKs(for: product, platformMatrix: platformMatrix)
 
-            let cacheSystem = CacheSystem(rootPackage: rootPackage,
+            let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                           buildOptions: buildOptionsForProduct,
                                           outputDirectory: outputDir,
                                           storage: cacheStorage)
 
             try await prepareXCFrameworkIfNeeded(
                 product,
-                mode: mode,
                 buildOptions: buildOptionsForProduct,
                 outputDir: outputDir,
                 cacheSystem: cacheSystem
@@ -89,7 +85,7 @@ struct FrameworkProducer {
                 let outputPath = outputDir.appendingPathComponent(product.frameworkName)
                 try? await cacheSystem.cacheFramework(product, at: outputPath)
 
-                if case .prepareDependencies = mode {
+                if case .prepareDependencies = descriptionPackage.mode {
                     try await generateVersionFile(for: product, using: cacheSystem)
                 }
             }
@@ -98,7 +94,6 @@ struct FrameworkProducer {
 
     private func prepareXCFrameworkIfNeeded(
         _ product: BuildProduct,
-        mode: Runner.Mode,
         buildOptions: BuildOptions,
         outputDir: URL,
         cacheSystem: CacheSystem
@@ -129,7 +124,7 @@ struct FrameworkProducer {
         if needToBuild {
             switch product.target.type {
             case .library:
-                let compiler = PIFCompiler(rootPackage: rootPackage, buildOptions: buildOptions)
+                let compiler = PIFCompiler(descriptionPackage: descriptionPackage, buildOptions: buildOptions)
                 try await compiler.createXCFramework(buildProduct: product,
                                                      outputDirectory: outputDir,
                                                      overwrite: overwrite)
@@ -138,7 +133,7 @@ struct FrameworkProducer {
                     fatalError("Unexpected failure")
                 }
                 let binaryExtractor = BinaryExtractor(
-                    package: rootPackage,
+                    package: descriptionPackage,
                     outputDirectory: outputDir,
                     fileSystem: fileSystem
                 )
@@ -155,31 +150,6 @@ struct FrameworkProducer {
             try await cacheSystem.generateVersionFile(for: product)
         } catch {
             logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
-        }
-    }
-
-    private func allTargets(for mode: Runner.Mode) -> [BuildProduct] {
-        rootPackage.resolveDependenciesPackages(for: mode)
-            .flatMap { package in
-                package.targets
-                    .map { BuildProduct(package: package, target: $0) }
-            }
-    }
-
-    private func dependenciesPackages(for package: Package) -> [ResolvedPackage] {
-        package.graph.packages
-            .filter { $0.manifest.displayName != package.manifest.displayName }
-    }
-}
-
-extension Package {
-    fileprivate func resolveDependenciesPackages(for mode: Runner.Mode) -> [ResolvedPackage] {
-        switch  mode {
-        case .createPackage:
-            return graph.rootPackages
-        case .prepareDependencies:
-            return graph.packages
-             .filter { $0.manifest.displayName != manifest.displayName }
         }
     }
 }

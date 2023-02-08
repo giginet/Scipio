@@ -47,7 +47,7 @@ final class RunnerTests: XCTestCase {
             XCTFail("Build should be succeeded. \(error.localizedDescription)")
         }
 
-        ["ScipioTesting"].forEach { library in
+        for library in ["ScipioTesting"] {
             let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
             let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
             let simulatorFramework = xcFramework.appendingPathComponent("ios-arm64_x86_64-simulator")
@@ -61,8 +61,8 @@ final class RunnerTests: XCTestCase {
     }
 
     func testCacheIsValid() async throws {
-        let rootPackage = try Package(packageDirectory: testPackagePath)
-        let cacheSystem = CacheSystem(rootPackage: rootPackage,
+        let descriptionPackage = try DescriptionPackage(packageDirectory: testPackagePath.absolutePath, mode: .prepareDependencies)
+        let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       buildOptions: .init(buildConfiguration: .release,
                                                           isSimulatorSupported: false,
                                                           isDebugSymbolsEmbedded: false,
@@ -70,8 +70,8 @@ final class RunnerTests: XCTestCase {
                                                           sdks: [.iOS]),
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
-        let packages = rootPackage.graph.packages
-            .filter { $0.manifest.displayName != rootPackage.manifest.displayName }
+        let packages = descriptionPackage.graph.packages
+            .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
 
         let allProducts = packages.flatMap { package in
             package.targets.map { BuildProduct(package: package, target: $0) }
@@ -106,7 +106,7 @@ final class RunnerTests: XCTestCase {
             XCTFail("Build should be succeeded. \(error.localizedDescription)")
         }
 
-        ["ScipioTesting"].forEach { library in
+        for library in ["ScipioTesting"] {
             let xcFramework = frameworkOutputDir
                 .appendingPathComponent("\(library).xcframework")
                 .appendingPathComponent("Info.plist")
@@ -221,8 +221,11 @@ final class RunnerTests: XCTestCase {
 
     func testBinaryHasValidCache() async throws {
         // Generate VersionFile
-        let rootPackage = try Package(packageDirectory: usingBinaryPackagePath)
-        let cacheSystem = CacheSystem(rootPackage: rootPackage,
+        let descriptionPackage = try DescriptionPackage(
+            packageDirectory: usingBinaryPackagePath.absolutePath,
+            mode: .prepareDependencies
+        )
+        let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       buildOptions: .init(buildConfiguration: .release,
                                                           isSimulatorSupported: false,
                                                           isDebugSymbolsEmbedded: false,
@@ -230,8 +233,8 @@ final class RunnerTests: XCTestCase {
                                                           sdks: [.iOS]),
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
-        let packages = rootPackage.graph.packages
-            .filter { $0.manifest.displayName != rootPackage.manifest.displayName }
+        let packages = descriptionPackage.graph.packages
+            .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
 
         let allProducts = packages.flatMap { package in
             package.targets.map { BuildProduct(package: package, target: $0) }
@@ -302,10 +305,10 @@ final class RunnerTests: XCTestCase {
         try await runner.run(packageDirectory: testPackagePath,
                              frameworkOutputDir: .custom(frameworkOutputDir))
 
-        ["ScipioTesting"].forEach { library in
+        for library in ["ScipioTesting"] {
             let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
             let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
-            let contentsOfXCFramework = try! XCTUnwrap(fileManager.contentsOfDirectory(atPath: xcFramework.path))
+            let contentsOfXCFramework = try XCTUnwrap(fileManager.contentsOfDirectory(atPath: xcFramework.path))
             XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
                           "Should create \(library).xcramework")
             XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
