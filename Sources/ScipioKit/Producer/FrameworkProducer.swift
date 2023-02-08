@@ -54,35 +54,10 @@ struct FrameworkProducer {
         )
     }
 
-<<<<<<< HEAD
     private func overriddenBuildOption(for buildProduct: BuildProduct) -> BuildOptions {
         buildOptionsMatrix[buildProduct.target.name] ?? baseBuildOptions
     }
 
-    private func buildAllLibraryTargets(libraryTargets: [BuildProduct]) async throws {
-        guard !libraryTargets.isEmpty else {
-            return
-        }
-
-        let cleaner = Cleaner(rootPackage: rootPackage)
-        do {
-            try await cleaner.clean()
-        } catch {
-            logger.warning("⚠️ Unable to clean project.")
-        }
-
-        for product in libraryTargets {
-            assert(product.target.type == .library)
-
-            let overriddenBuildOption = overriddenBuildOption(for: product)
-
-//            let compiler = XcodeBuildCompiler(rootPackage: rootPackage, buildOptions: buildOptionsForProduct)
-            let compiler = PIFCompiler(rootPackage: rootPackage,
-                                       buildOptions: overriddenBuildOption)
-            
-            let cacheSystem = CacheSystem(rootPackage: rootPackage,
-                                          buildOptions: overriddenBuildOption,
-=======
     func clean() async throws {
         if fileSystem.exists(descriptionPackage.derivedDataPath) {
             try fileSystem.removeFileTree(descriptionPackage.derivedDataPath)
@@ -96,11 +71,10 @@ struct FrameworkProducer {
 
         for product in targets {
             assert([.library, .binary].contains(product.target.type))
-            let buildOptionsForProduct = buildOptions.overridingSDKs(for: product, platformMatrix: platformMatrix)
+            let buildOptionsForProduct = overriddenBuildOption(for: product)
 
             let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                           buildOptions: buildOptionsForProduct,
->>>>>>> main
                                           outputDirectory: outputDir,
                                           storage: cacheStorage)
 
@@ -140,11 +114,7 @@ struct FrameworkProducer {
                 return
             }
             logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
-<<<<<<< HEAD
-            logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
-=======
             logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
->>>>>>> main
             try fileSystem.removeFileTree(outputPath.absolutePath)
             let restored = await cacheSystem.restoreCacheIfPossible(product: product)
             needToBuild = !restored

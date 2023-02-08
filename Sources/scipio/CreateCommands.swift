@@ -41,7 +41,6 @@ extension Scipio {
                                         frameworkType: buildOptions.frameworkType
                                     ),
                                     cacheMode: .disabled,
-                                    skipProjectGeneration: globalOptions.skipProjectGeneration,
                                     overwrite: buildOptions.overwrite,
                                     verbose: globalOptions.verbose
                                 )

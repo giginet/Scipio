@@ -50,12 +50,10 @@ extension Scipio {
                                         frameworkType: buildOptions.frameworkType
                                     ),
                                     cacheMode: runnerCacheMode,
-                                    skipProjectGeneration: globalOptions.skipProjectGeneration,
                                     overwrite: buildOptions.overwrite,
                                     verbose: globalOptions.verbose
                                 )
             )
-
 
             let outputDir: Runner.OutputDirectory
             if let customOutputDir = buildOptions.customOutputDirectory {

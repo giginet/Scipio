@@ -146,12 +146,14 @@ final class RunnerTests: XCTestCase {
 
     func testExtractBinary() async throws {
         let runner = Runner(
-            mode: .createPackage(platforms: nil),
+            mode: .createPackage,
             options: .init(
-                buildConfiguration: .release,
-                isSimulatorSupported: false,
-                isDebugSymbolsEmbedded: false,
-                frameworkType: .dynamic,
+                baseBuildOptions: .init(
+                    buildConfiguration: .release,
+                    isSimulatorSupported: false,
+                    isDebugSymbolsEmbedded: false,
+                    frameworkType: .dynamic
+                ),
                 cacheMode: .project,
                 overwrite: false,
                 verbose: false)
@@ -174,10 +176,12 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildConfiguration: .release,
-                isSimulatorSupported: false,
-                isDebugSymbolsEmbedded: false,
-                frameworkType: .dynamic,
+                baseBuildOptions: .init(
+                    buildConfiguration: .release,
+                    isSimulatorSupported: false,
+                    isDebugSymbolsEmbedded: false,
+                    frameworkType: .dynamic
+                ),
                 cacheMode: .project,
                 overwrite: false,
                 verbose: false)
@@ -210,7 +214,6 @@ final class RunnerTests: XCTestCase {
         )
         let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       buildOptions: .init(buildConfiguration: .release,
-                                                          isSimulatorSupported: false,
                                                           isDebugSymbolsEmbedded: false,
                                                           frameworkType: .dynamic,
                                                           sdks: [.iOS]),
@@ -241,10 +244,12 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildConfiguration: .release,
-                isSimulatorSupported: false,
-                isDebugSymbolsEmbedded: false,
-                frameworkType: .dynamic,
+                baseBuildOptions: .init(
+                    buildConfiguration: .release,
+                    isSimulatorSupported: false,
+                    isDebugSymbolsEmbedded: false,
+                    frameworkType: .dynamic
+                ),
                 cacheMode: .project,
                 overwrite: false,
                 verbose: false)

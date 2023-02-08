@@ -143,11 +143,7 @@ public struct Runner {
         if fileURL.path.hasPrefix("/") {
             return try AbsolutePath(validating: fileURL.path)
         } else if let currentDirectory = fileSystem.currentWorkingDirectory {
-<<<<<<< HEAD
-            return URL(fileURLWithPath: fileURL.path, relativeTo: currentDirectory.asURL)
-=======
             return AbsolutePath(currentDirectory, fileURL.path)
->>>>>>> main
         } else {
             return try! AbsolutePath(validating: fileURL.path)
         }
@@ -176,26 +172,12 @@ public struct Runner {
             throw Error.invalidPackage(packageDirectory)
         }
 
-<<<<<<< HEAD
-        let buildOptions = buildOptions(from: options.baseBuildOptions, package: package)
+        let buildOptions = buildOptions(from: options.baseBuildOptions, package: descriptionPackage)
         guard !buildOptions.sdks.isEmpty else {
             throw Error.platformNotSpecified
         }
 
-        try fileSystem.createDirectory(package.workspaceDirectory.absolutePath, recursive: true)
-=======
-        let sdks = detectPlatformsToBuild(descriptionPackage: descriptionPackage)
-        guard !sdks.isEmpty else {
-            throw Error.platformNotSpecified
-        }
-
-        let buildOptions = BuildOptions(buildConfiguration: options.buildConfiguration,
-                                        isSimulatorSupported: options.isSimulatorSupported,
-                                        isDebugSymbolsEmbedded: options.isDebugSymbolsEmbedded,
-                                        frameworkType: options.frameworkType,
-                                        sdks: sdks)
         try fileSystem.createDirectory(descriptionPackage.workspaceDirectory, recursive: true)
->>>>>>> main
 
         let resolver = Resolver(package: descriptionPackage)
         try await resolver.resolve()
@@ -203,16 +185,13 @@ public struct Runner {
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
 
         try fileSystem.createDirectory(outputDir.absolutePath, recursive: true)
-<<<<<<< HEAD
 
         let buildOptionsMatrix = options.buildOptionMatrix.mapValues { runnerOptions in
             self.buildOptions(
                 from: options.baseBuildOptions.overridden(by: runnerOptions),
-                package: package
+                package: descriptionPackage
             )
         }
-=======
->>>>>>> main
 
         let producer = FrameworkProducer(
             descriptionPackage: descriptionPackage,
@@ -235,10 +214,9 @@ public struct Runner {
         }
     }
 
-<<<<<<< HEAD
     private func buildOptions(
         from runnerOption: Runner.Options.BaseBuildOptions,
-        package: Package
+        package: DescriptionPackage
     ) -> BuildOptions {
         let sdks = detectSDKsToBuild(platforms: runnerOption.platforms, package: package, isSimulatorSupported: runnerOption.isSimulatorSupported)
         return BuildOptions(
@@ -251,7 +229,7 @@ public struct Runner {
 
     private func detectSDKsToBuild(
         platforms: Runner.Options.PlatformSpecifier,
-        package: Package,
+        package: DescriptionPackage,
         isSimulatorSupported: Bool
     ) -> Set<SDK> {
         switch platforms {
@@ -301,18 +279,6 @@ extension Runner.Options.Platform {
             case .tvOS: return [.tvOS]
             case .watchOS: return [.watchOS]
             }
-=======
-    private func detectPlatformsToBuild(descriptionPackage: DescriptionPackage) -> OrderedSet<SDK> {
-        switch mode {
-        case .createPackage(let platforms):
-            if let platforms {
-                return OrderedSet(platforms)
-            } else {
-                return descriptionPackage.supportedSDKs
-            }
-        case .prepareDependencies:
-            return descriptionPackage.supportedSDKs
->>>>>>> main
         }
     }
 }
