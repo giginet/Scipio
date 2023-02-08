@@ -89,13 +89,6 @@ struct DescriptionPackage {
 }
 
 extension DescriptionPackage {
-    private func fetchRootPackage() throws -> ResolvedPackage {
-        guard let rootPackage = graph.rootPackages.first else {
-            throw Error.packageNotDefined
-        }
-        return rootPackage
-    }
-
     func resolveBuildProducts() throws -> Set<BuildProduct> {
         let targetsToBuild = try targetsToBuild()
         return Set(try targetsToBuild.flatMap(resolveBuildProduct(from:)))
@@ -114,6 +107,13 @@ extension DescriptionPackage {
             // In future update, users will be enable to specify targets want to build
             return Set(try fetchRootPackage().targets)
         }
+    }
+
+    private func fetchRootPackage() throws -> ResolvedPackage {
+        guard let rootPackage = graph.rootPackages.first else {
+            throw Error.packageNotDefined
+        }
+        return rootPackage
     }
 
     private func resolveBuildProduct(from rootTarget: ResolvedTarget) throws -> Set<BuildProduct> {
