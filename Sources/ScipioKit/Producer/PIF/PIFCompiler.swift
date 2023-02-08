@@ -6,20 +6,20 @@ import OrderedCollections
 import TSCBasic
 
 struct PIFCompiler: Compiler {
-    let rootPackage: Package
+    let descriptionPackage: DescriptionPackage
     private let buildOptions: BuildOptions
-    private let fileSystem: any TSCBasic.FileSystem
+    private let fileSystem: any FileSystem
     private let executor: any Executor
 
     private let buildParametersGenerator: BuildParametersGenerator
 
     init(
-        rootPackage: Package,
+        descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
-        fileSystem: any TSCBasic.FileSystem = TSCBasic.localFileSystem,
+        fileSystem: any FileSystem = TSCBasic.localFileSystem,
         executor: any Executor = ProcessExecutor()
     ) {
-        self.rootPackage = rootPackage
+        self.descriptionPackage = descriptionPackage
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
         self.executor = executor
@@ -44,10 +44,12 @@ struct PIFCompiler: Compiler {
         let sdks = buildOptions.sdks
         let sdkNames = sdks.map(\.displayName).joined(separator: ", ")
         let target = buildProduct.target
+
+        // Build frameworks for each SDK
         logger.info("📦 Building \(target.name) for \(sdkNames)")
 
         let xcBuildClient: XCBuildClient = .init(
-            package: rootPackage,
+            package: descriptionPackage,
             buildProduct: buildProduct,
             configuration: buildOptions.buildConfiguration
         )
@@ -57,7 +59,7 @@ struct PIFCompiler: Compiler {
             let buildParameters = try makeBuildParameters(toolchain: toolchain)
 
             let generator = try PIFGenerator(
-                package: rootPackage,
+                package: descriptionPackage,
                 buildParameters: buildParameters,
                 buildOptions: buildOptions
             )
@@ -65,7 +67,7 @@ struct PIFCompiler: Compiler {
             let buildParametersPath = try buildParametersGenerator.generate(
                 for: sdk,
                 buildParameters: buildParameters,
-                destinationDir: try AbsolutePath(validating: rootPackage.workspaceDirectory.path)
+                destinationDir: descriptionPackage.workspaceDirectory
             )
 
             do {
@@ -81,7 +83,15 @@ struct PIFCompiler: Compiler {
 
         logger.info("🚀 Combining into XCFramework...")
 
-        let debugSymbolPaths: [URL]?
+        // If there is existing framework, remove it
+        let frameworkName = target.xcFrameworkName
+        let outputXCFrameworkPath = try AbsolutePath(validating: outputDirectory.path).appending(component: frameworkName)
+        if fileSystem.exists(outputXCFrameworkPath) && overwrite {
+            logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
+            try fileSystem.removeFileTree(outputXCFrameworkPath)
+        }
+
+        let debugSymbolPaths: [AbsolutePath]?
         if buildOptions.isDebugSymbolsEmbedded {
             debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
                                                                  buildConfiguration: buildOptions.buildConfiguration,
@@ -90,13 +100,7 @@ struct PIFCompiler: Compiler {
             debugSymbolPaths = nil
         }
 
-        let frameworkName = target.xcFrameworkName
-        let outputXCFrameworkPath = try AbsolutePath(validating: outputDirectory.path).appending(component: frameworkName)
-        if fileSystem.exists(outputXCFrameworkPath) && overwrite {
-            logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(outputXCFrameworkPath)
-        }
-
+        // Combine all frameworks into one XCFramework
         try await xcBuildClient.createXCFramework(
             sdks: Set(buildOptions.sdks),
             debugSymbols: debugSymbolPaths,
@@ -106,7 +110,7 @@ struct PIFCompiler: Compiler {
 
     private func makeBuildParameters(toolchain: UserToolchain) throws -> BuildParameters {
         .init(
-            dataPath: try AbsolutePath(validating: rootPackage.buildDirectory.path),
+            dataPath: descriptionPackage.buildDirectory,
             configuration: buildOptions.buildConfiguration.spmConfiguration,
             toolchain: toolchain,
             destinationTriple: toolchain.triple,

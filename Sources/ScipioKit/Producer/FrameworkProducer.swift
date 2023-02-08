@@ -5,8 +5,7 @@ import OrderedCollections
 import TSCBasic
 
 struct FrameworkProducer {
-    private let mode: Runner.Mode
-    private let rootPackage: Package
+    private let descriptionPackage: DescriptionPackage
     private let baseBuildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
     private let cacheMode: Runner.Options.CacheMode
@@ -29,8 +28,7 @@ struct FrameworkProducer {
     }
 
     init(
-        mode: Runner.Mode,
-        rootPackage: Package,
+        descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
         cacheMode: Runner.Options.CacheMode,
@@ -38,8 +36,7 @@ struct FrameworkProducer {
         outputDir: URL,
         fileSystem: any FileSystem = localFileSystem
     ) {
-        self.mode = mode
-        self.rootPackage = rootPackage
+        self.descriptionPackage = descriptionPackage
         self.baseBuildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
         self.cacheMode = cacheMode
@@ -49,15 +46,15 @@ struct FrameworkProducer {
     }
 
     func produce() async throws {
-        let targets = allTargets(for: mode)
-        try await buildAllLibraryTargets(
-            libraryTargets: targets.filter { $0.target.type == .library }
-        )
+        try await clean()
 
-        let binaryTargets = targets.compactMap(\.binaryTarget)
-        try await extractAllBinaryTarget(binaryTargets: binaryTargets)
+        let targets = try descriptionPackage.resolveBuildProducts()
+        try await processAllTargets(
+            targets: targets.filter { [.library, .binary].contains($0.target.type) }
+        )
     }
 
+<<<<<<< HEAD
     private func overriddenBuildOption(for buildProduct: BuildProduct) -> BuildOptions {
         buildOptionsMatrix[buildProduct.target.name] ?? baseBuildOptions
     }
@@ -85,34 +82,51 @@ struct FrameworkProducer {
             
             let cacheSystem = CacheSystem(rootPackage: rootPackage,
                                           buildOptions: overriddenBuildOption,
+=======
+    func clean() async throws {
+        if fileSystem.exists(descriptionPackage.derivedDataPath) {
+            try fileSystem.removeFileTree(descriptionPackage.derivedDataPath)
+        }
+    }
+
+    private func processAllTargets(targets: [BuildProduct]) async throws {
+        guard !targets.isEmpty else {
+            return
+        }
+
+        for product in targets {
+            assert([.library, .binary].contains(product.target.type))
+            let buildOptionsForProduct = buildOptions.overridingSDKs(for: product, platformMatrix: platformMatrix)
+
+            let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
+                                          buildOptions: buildOptionsForProduct,
+>>>>>>> main
                                           outputDirectory: outputDir,
                                           storage: cacheStorage)
 
-            try await buildXCFrameworkIfNeeded(
+            try await prepareXCFrameworkIfNeeded(
                 product,
-                mode: mode,
+                buildOptions: buildOptionsForProduct,
                 outputDir: outputDir,
-                cacheSystem: cacheSystem,
-                compiler: compiler
+                cacheSystem: cacheSystem
             )
 
             if isCacheEnabled {
                 let outputPath = outputDir.appendingPathComponent(product.frameworkName)
                 try? await cacheSystem.cacheFramework(product, at: outputPath)
 
-                if case .prepareDependencies = mode {
+                if case .prepareDependencies = descriptionPackage.mode {
                     try await generateVersionFile(for: product, using: cacheSystem)
                 }
             }
         }
     }
 
-    private func buildXCFrameworkIfNeeded(
+    private func prepareXCFrameworkIfNeeded(
         _ product: BuildProduct,
-        mode: Runner.Mode,
+        buildOptions: BuildOptions,
         outputDir: URL,
-        cacheSystem: CacheSystem,
-        compiler: any Compiler
+        cacheSystem: CacheSystem
     ) async throws {
         let frameworkName = product.frameworkName
         let outputPath = outputDir.appendingPathComponent(product.frameworkName)
@@ -126,7 +140,11 @@ struct FrameworkProducer {
                 return
             }
             logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
+<<<<<<< HEAD
             logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
+=======
+            logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
+>>>>>>> main
             try fileSystem.removeFileTree(outputPath.absolutePath)
             let restored = await cacheSystem.restoreCacheIfPossible(product: product)
             needToBuild = !restored
@@ -138,20 +156,26 @@ struct FrameworkProducer {
         }
 
         if needToBuild {
-            try await compiler.createXCFramework(buildProduct: product,
-                                                 outputDirectory: outputDir,
-                                                 overwrite: overwrite)
-        }
-    }
-
-    private func extractAllBinaryTarget(binaryTargets: [BinaryTarget]) async throws {
-        for binaryTarget in binaryTargets {
-            let binaryExtractor = BinaryExtractor(
-                package: rootPackage,
-                outputDirectory: outputDir,
-                fileSystem: fileSystem
-            )
-            try binaryExtractor.extract(of: binaryTarget)
+            switch product.target.type {
+            case .library:
+                let compiler = PIFCompiler(descriptionPackage: descriptionPackage, buildOptions: buildOptions)
+                try await compiler.createXCFramework(buildProduct: product,
+                                                     outputDirectory: outputDir,
+                                                     overwrite: overwrite)
+            case .binary:
+                guard let binaryTarget = product.target.underlyingTarget as? BinaryTarget else {
+                    fatalError("Unexpected failure")
+                }
+                let binaryExtractor = BinaryExtractor(
+                    package: descriptionPackage,
+                    outputDirectory: outputDir,
+                    fileSystem: fileSystem
+                )
+                try binaryExtractor.extract(of: binaryTarget, overwrite: overwrite)
+                logger.info("✅ Copy \(binaryTarget.c99name).xcframework", metadata: .color(.green))
+            default:
+                fatalError("Unexpected target type \(product.target.type)")
+            }
         }
     }
 
@@ -160,31 +184,6 @@ struct FrameworkProducer {
             try await cacheSystem.generateVersionFile(for: product)
         } catch {
             logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
-        }
-    }
-
-    private func allTargets(for mode: Runner.Mode) -> [BuildProduct] {
-        rootPackage.resolveDependenciesPackages(for: mode)
-            .flatMap { package in
-                package.targets
-                    .map { BuildProduct(package: package, target: $0) }
-            }
-    }
-
-    private func dependenciesPackages(for package: Package) -> [ResolvedPackage] {
-        package.graph.packages
-            .filter { $0.manifest.displayName != package.manifest.displayName }
-    }
-}
-
-extension Package {
-    fileprivate func resolveDependenciesPackages(for mode: Runner.Mode) -> [ResolvedPackage] {
-        switch  mode {
-        case .createPackage:
-            return graph.rootPackages
-        case .prepareDependencies:
-            return graph.packages
-             .filter { $0.manifest.displayName != manifest.displayName }
         }
     }
 }

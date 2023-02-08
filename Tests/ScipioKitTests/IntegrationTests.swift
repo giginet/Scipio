@@ -54,8 +54,6 @@ final class IntegrationTests: XCTestCase {
 
         let expectedFrameworks = [
             "Atomics",
-            "Collections",
-            "DequeModule",
             "Logging",
             "OrderedCollections",
             "_AtomicsShims",

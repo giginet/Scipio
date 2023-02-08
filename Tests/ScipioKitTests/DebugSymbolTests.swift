@@ -11,7 +11,7 @@ final class DwarfExtractorTests: XCTestCase {
         }
         let extractor = DwarfExtractor(executor: executor)
         let dwarfPath = URL(fileURLWithPath: "/dev/null")
-        let uuids = try await extractor.dump(dwarfPath: dwarfPath)
+        let uuids = try await extractor.dump(dwarfPath: dwarfPath.absolutePath)
 
         let firstArguments = try XCTUnwrap(executor.calledArguments.first)
         XCTAssertEqual(firstArguments, ["/usr/bin/xcrun", "dwarfdump", "--uuid", dwarfPath.path])

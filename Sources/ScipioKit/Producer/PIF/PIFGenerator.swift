@@ -6,18 +6,18 @@ import PackageGraph
 import XCBuildSupport
 
 struct PIFGenerator {
-    private let package: Package
+    private let descriptionPackage: DescriptionPackage
     private let buildParameters: PIFBuilderParameters
     private let buildOptions: BuildOptions
-    private let fileSystem: any TSCBasic.FileSystem
+    private let fileSystem: any FileSystem
 
     init(
-        package: Package,
+        package: DescriptionPackage,
         buildParameters: BuildParameters,
         buildOptions: BuildOptions,
-        fileSystem: any TSCBasic.FileSystem = TSCBasic.localFileSystem
+        fileSystem: any FileSystem = TSCBasic.localFileSystem
     ) throws {
-        self.package = package
+        self.descriptionPackage = package
         self.buildParameters = PIFBuilderParameters(buildParameters)
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
@@ -30,7 +30,7 @@ struct PIFGenerator {
 
     private func makePIFBuilder() -> PIFBuilder {
         PIFBuilder(
-            graph: package.graph,
+            graph: descriptionPackage.graph,
             parameters: buildParameters,
             fileSystem: fileSystem,
             observabilityScope: observabilitySystem.topScope
@@ -45,8 +45,8 @@ struct PIFGenerator {
         encoder.userInfo[.encodeForXCBuild] = true
 
         let newJSONData = try encoder.encode(topLevelObject)
-        let path = try AbsolutePath(validating: package.workspaceDirectory.path)
-            .appending(component: "manifest-\(package.name)-\(sdk.settingValue).pif")
+        let path = descriptionPackage.workspaceDirectory
+            .appending(component: "manifest-\(descriptionPackage.name)-\(sdk.settingValue).pif")
         try fileSystem.writeFileContents(path, data: newJSONData)
         return path
     }

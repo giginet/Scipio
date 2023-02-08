@@ -1,24 +1,6 @@
 {
   "pins" : [
     {
-      "identity" : "aexml",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/tadija/AEXML.git",
-      "state" : {
-        "revision" : "38f7d00b23ecd891e1ee656fa6aeebd6ba04ecc3",
-        "version" : "4.6.1"
-      }
-    },
-    {
-      "identity" : "pathkit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/kylef/PathKit.git",
-      "state" : {
-        "revision" : "3bfd2737b700b9a36565a8c94f4ad2b050a5e574",
-        "version" : "1.0.1"
-      }
-    },
-    {
       "identity" : "rainbow",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/onevcat/Rainbow",
@@ -28,21 +10,12 @@
       }
     },
     {
-      "identity" : "spectre",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/kylef/Spectre.git",
-      "state" : {
-        "revision" : "26cc5e9ae0947092c7139ef7ba612e34646086c7",
-        "version" : "0.10.1"
-      }
-    },
-    {
       "identity" : "swift-argument-parser",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-argument-parser.git",
       "state" : {
-        "revision" : "e394bf350e38cb100b6bc4172834770ede1b7232",
-        "version" : "1.0.3"
+        "revision" : "9f39744e025c7d377987f30b03770805dcb0bcd1",
+        "version" : "1.1.4"
       }
     },
     {
@@ -69,7 +42,7 @@
       "location" : "https://github.com/apple/swift-driver.git",
       "state" : {
         "branch" : "main",
-        "revision" : "21c7b056ba03e532703ead166e8f38195a932628"
+        "revision" : "65e0b285ba6d3dabbaed4a26260e25dae3ae98d1"
       }
     },
     {
@@ -78,7 +51,7 @@
       "location" : "https://github.com/apple/swift-llbuild.git",
       "state" : {
         "branch" : "main",
-        "revision" : "22506fae04b61030d51c8950e059320036978459"
+        "revision" : "0b981fd0b51f9bc470bea46fde565b3a84d08755"
       }
     },
     {
@@ -113,16 +86,7 @@
       "location" : "https://github.com/apple/swift-tools-support-core.git",
       "state" : {
         "branch" : "main",
-        "revision" : "4cac812e26a1c9ec0379de9ec86c7da2f9e87863"
-      }
-    },
-    {
-      "identity" : "xcodeproj",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/tuist/XcodeProj.git",
-      "state" : {
-        "revision" : "b6de1bfe021b861c94e7c83821b595083f74b997",
-        "version" : "8.8.0"
+        "revision" : "cba2779e1850e6e742db447cff7b261c0116f0f0"
       }
     },
     {

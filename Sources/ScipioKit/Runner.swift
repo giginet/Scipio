@@ -1,7 +1,10 @@
 import Foundation
 import OrderedCollections
+import struct TSCBasic.AbsolutePath
 import protocol TSCBasic.FileSystem
 import var TSCBasic.localFileSystem
+
+public typealias PlatformMatrix = [String: OrderedSet<SDK>]
 
 public struct Runner {
     private let options: Options
@@ -136,13 +139,17 @@ public struct Runner {
         self.fileSystem = fileSystem
     }
 
-    private func resolveURL(_ fileURL: URL) -> URL {
+    private func resolveURL(_ fileURL: URL) throws -> AbsolutePath {
         if fileURL.path.hasPrefix("/") {
-            return fileURL
+            return try AbsolutePath(validating: fileURL.path)
         } else if let currentDirectory = fileSystem.currentWorkingDirectory {
+<<<<<<< HEAD
             return URL(fileURLWithPath: fileURL.path, relativeTo: currentDirectory.asURL)
+=======
+            return AbsolutePath(currentDirectory, fileURL.path)
+>>>>>>> main
         } else {
-            return fileURL
+            return try! AbsolutePath(validating: fileURL.path)
         }
     }
 
@@ -161,43 +168,42 @@ public struct Runner {
     }
 
     public func run(packageDirectory: URL, frameworkOutputDir: OutputDirectory) async throws {
-        let packagePath = resolveURL(packageDirectory)
-        let package: Package
+        let packagePath = try resolveURL(packageDirectory)
+        let descriptionPackage: DescriptionPackage
         do {
-            package = try Package(packageDirectory: packagePath)
+            descriptionPackage = try DescriptionPackage(packageDirectory: packagePath, mode: mode)
         } catch {
-            throw Error.invalidPackage(packagePath)
+            throw Error.invalidPackage(packageDirectory)
         }
 
+<<<<<<< HEAD
         let buildOptions = buildOptions(from: options.baseBuildOptions, package: package)
         guard !buildOptions.sdks.isEmpty else {
             throw Error.platformNotSpecified
         }
 
         try fileSystem.createDirectory(package.workspaceDirectory.absolutePath, recursive: true)
-
-        let resolver = Resolver(package: package)
-        try await resolver.resolve()
-
-        if options.skipProjectGeneration {
-            logger.info("Skip Xcode project generation")
-        } else {
-            let generator = ProjectGenerator(package: package,
-                                             buildOptions: buildOptions)
-            do {
-                try generator.generate()
-            } catch let error as LocalizedError {
-                logger.error("""
-                Project generation is failed:
-                \(error.errorDescription ?? "Unknown reason")
-            """)
-                throw error
-            }
+=======
+        let sdks = detectPlatformsToBuild(descriptionPackage: descriptionPackage)
+        guard !sdks.isEmpty else {
+            throw Error.platformNotSpecified
         }
+
+        let buildOptions = BuildOptions(buildConfiguration: options.buildConfiguration,
+                                        isSimulatorSupported: options.isSimulatorSupported,
+                                        isDebugSymbolsEmbedded: options.isDebugSymbolsEmbedded,
+                                        frameworkType: options.frameworkType,
+                                        sdks: sdks)
+        try fileSystem.createDirectory(descriptionPackage.workspaceDirectory, recursive: true)
+>>>>>>> main
+
+        let resolver = Resolver(package: descriptionPackage)
+        try await resolver.resolve()
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
 
         try fileSystem.createDirectory(outputDir.absolutePath, recursive: true)
+<<<<<<< HEAD
 
         let buildOptionsMatrix = options.buildOptionMatrix.mapValues { runnerOptions in
             self.buildOptions(
@@ -205,10 +211,11 @@ public struct Runner {
                 package: package
             )
         }
+=======
+>>>>>>> main
 
         let producer = FrameworkProducer(
-            mode: mode,
-            rootPackage: package,
+            descriptionPackage: descriptionPackage,
             buildOptions: buildOptions,
             buildOptionsMatrix: buildOptionsMatrix,
             cacheMode: options.cacheMode,
@@ -228,6 +235,7 @@ public struct Runner {
         }
     }
 
+<<<<<<< HEAD
     private func buildOptions(
         from runnerOption: Runner.Options.BaseBuildOptions,
         package: Package
@@ -293,6 +301,18 @@ extension Runner.Options.Platform {
             case .tvOS: return [.tvOS]
             case .watchOS: return [.watchOS]
             }
+=======
+    private func detectPlatformsToBuild(descriptionPackage: DescriptionPackage) -> OrderedSet<SDK> {
+        switch mode {
+        case .createPackage(let platforms):
+            if let platforms {
+                return OrderedSet(platforms)
+            } else {
+                return descriptionPackage.supportedSDKs
+            }
+        case .prepareDependencies:
+            return descriptionPackage.supportedSDKs
+>>>>>>> main
         }
     }
 }

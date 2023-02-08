@@ -10,6 +10,7 @@ private let fixturePath = URL(fileURLWithPath: #file)
 private let testPackagePath = fixturePath.appendingPathComponent("E2ETestPackage")
 private let binaryPackagePath = fixturePath.appendingPathComponent("BinaryPackage")
 private let resourcePackagePath = fixturePath.appendingPathComponent("ResourcePackage")
+private let usingBinaryPackagePath = fixturePath.appendingPathComponent("UsingBinaryPackage")
 
 final class RunnerTests: XCTestCase {
     private let fileManager: FileManager = .default
@@ -42,7 +43,7 @@ final class RunnerTests: XCTestCase {
             XCTFail("Build should be succeeded. \(error.localizedDescription)")
         }
 
-        ["ScipioTesting"].forEach { library in
+        for library in ["ScipioTesting"] {
             let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
             let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
             let simulatorFramework = xcFramework.appendingPathComponent("ios-arm64_x86_64-simulator")
@@ -56,16 +57,16 @@ final class RunnerTests: XCTestCase {
     }
 
     func testCacheIsValid() async throws {
-        let rootPackage = try Package(packageDirectory: testPackagePath)
-        let cacheSystem = CacheSystem(rootPackage: rootPackage,
+        let descriptionPackage = try DescriptionPackage(packageDirectory: testPackagePath.absolutePath, mode: .prepareDependencies)
+        let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       buildOptions: .init(buildConfiguration: .release,
                                                           isDebugSymbolsEmbedded: false,
                                                           frameworkType: .dynamic,
                                                           sdks: [.iOS]),
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
-        let packages = rootPackage.graph.packages
-            .filter { $0.manifest.displayName != rootPackage.manifest.displayName }
+        let packages = descriptionPackage.graph.packages
+            .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
 
         let allProducts = packages.flatMap { package in
             package.targets.map { BuildProduct(package: package, target: $0) }
@@ -93,7 +94,7 @@ final class RunnerTests: XCTestCase {
             XCTFail("Build should be succeeded. \(error.localizedDescription)")
         }
 
-        ["ScipioTesting"].forEach { library in
+        for library in ["ScipioTesting"] {
             let xcFramework = frameworkOutputDir
                 .appendingPathComponent("\(library).xcframework")
                 .appendingPathComponent("Info.plist")
@@ -145,14 +146,125 @@ final class RunnerTests: XCTestCase {
 
     func testExtractBinary() async throws {
         let runner = Runner(
-            mode: .createPackage,
-            options: .init(cacheMode: .disabled)
+            mode: .createPackage(platforms: nil),
+            options: .init(
+                buildConfiguration: .release,
+                isSimulatorSupported: false,
+                isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
+                cacheMode: .project,
+                overwrite: false,
+                verbose: false)
         )
 
         try await runner.run(packageDirectory: binaryPackagePath, frameworkOutputDir: .custom(frameworkOutputDir))
 
         let binaryPath = frameworkOutputDir.appendingPathComponent("SomeBinary.xcframework")
-        XCTAssertTrue(fileManager.fileExists(atPath: binaryPath.path))
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: binaryPath.path),
+            "Binary frameworks should be copied."
+        )
+
+        addTeardownBlock {
+            try self.fileManager.removeItem(atPath: binaryPath.path)
+        }
+    }
+
+    func testPrepareBinary() async throws {
+        let runner = Runner(
+            mode: .prepareDependencies,
+            options: .init(
+                buildConfiguration: .release,
+                isSimulatorSupported: false,
+                isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
+                cacheMode: .project,
+                overwrite: false,
+                verbose: false)
+        )
+
+        try await runner.run(packageDirectory: usingBinaryPackagePath, frameworkOutputDir: .custom(frameworkOutputDir))
+
+        let binaryPath = frameworkOutputDir.appendingPathComponent("SomeBinary.xcframework")
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: binaryPath.path),
+            "Binary frameworks should be copied."
+        )
+
+        let versionFilePath = frameworkOutputDir.appendingPathComponent(".SomeBinary.version")
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: versionFilePath.path),
+            "Version files should be created"
+        )
+
+        addTeardownBlock {
+            try self.fileManager.removeItem(atPath: binaryPath.path)
+        }
+    }
+
+    func testBinaryHasValidCache() async throws {
+        // Generate VersionFile
+        let descriptionPackage = try DescriptionPackage(
+            packageDirectory: usingBinaryPackagePath.absolutePath,
+            mode: .prepareDependencies
+        )
+        let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
+                                      buildOptions: .init(buildConfiguration: .release,
+                                                          isSimulatorSupported: false,
+                                                          isDebugSymbolsEmbedded: false,
+                                                          frameworkType: .dynamic,
+                                                          sdks: [.iOS]),
+                                      outputDirectory: frameworkOutputDir,
+                                      storage: nil)
+        let packages = descriptionPackage.graph.packages
+            .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
+
+        let allProducts = packages.flatMap { package in
+            package.targets.map { BuildProduct(package: package, target: $0) }
+        }
+
+        for product in allProducts {
+            try await cacheSystem.generateVersionFile(for: product)
+            // generate dummy directory
+            try fileManager.createDirectory(
+                at: frameworkOutputDir.appendingPathComponent("\(product.target.name).xcframework"),
+                withIntermediateDirectories: true
+            )
+        }
+        let versionFile2 = frameworkOutputDir.appendingPathComponent(".SomeBinary.version")
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: versionFile2.path),
+            "VersionFile should be generated"
+        )
+
+        // Attempt to generate XCFrameworks
+        let runner = Runner(
+            mode: .prepareDependencies,
+            options: .init(
+                buildConfiguration: .release,
+                isSimulatorSupported: false,
+                isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
+                cacheMode: .project,
+                overwrite: false,
+                verbose: false)
+        )
+
+        try await runner.run(packageDirectory: usingBinaryPackagePath, frameworkOutputDir: .custom(frameworkOutputDir))
+
+        let binaryPath = frameworkOutputDir.appendingPathComponent("SomeBinary.xcframework")
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: binaryPath.path),
+            "Binary frameworks should be copied."
+        )
+
+        // We generated an empty XCFramework directory to simulate cache is valid before.
+        // So if runner doesn't create valid XCFrameworks, framework's contents are not exists
+        let infoPlistPath = binaryPath.appendingPathComponent("Info.plist")
+        XCTAssertFalse(
+            fileManager.fileExists(atPath: infoPlistPath.path),
+            "XCFramework should not be updated"
+        )
 
         addTeardownBlock {
             try self.fileManager.removeItem(atPath: binaryPath.path)
