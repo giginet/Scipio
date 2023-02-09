@@ -37,6 +37,11 @@ final class IntegrationTests: XCTestCase {
         return nil
     }
 
+    private enum Destination: String {
+        case iOS = "ios-arm64"
+        case watchOS = "watchos-arm64_arm64_32_armv7k"
+    }
+
     func testMajorPackages() async throws {
         let runner = Runner(
             mode: .prepareDependencies,
@@ -68,29 +73,23 @@ final class IntegrationTests: XCTestCase {
             try self.fileManager.removeItem(atPath: outputDir.path)
         }
 
-        let expectedFrameworks = [
-            "Atomics",
-            "Logging",
-            "OrderedCollections",
-            "_AtomicsShims",
+        let testCase: [(String, FrameworkType, Set<Destination>)] = [
+            ("Atomics", .static, [.iOS]),
+            ("Logging", .dynamic, [.iOS, .watchOS]),
+            ("OrderedCollections", .dynamic, [.iOS]),
+            ("_AtomicsShims", .static, [.iOS]),
         ]
 
         let outputDirContents = try fileManager.contentsOfDirectory(atPath: outputDir.path)
 
-        for frameworkName in expectedFrameworks {
+        for (frameworkName, frameworkType, platforms) in testCase {
             let xcFrameworkName = "\(frameworkName).xcframework"
             XCTAssertTrue(
                 outputDirContents.contains(xcFrameworkName),
                 "\(xcFrameworkName) should be built"
             )
 
-            let expectedDestinations: Set<String>
-
-            if frameworkName == "Logging" {
-                expectedDestinations = ["ios-arm64", "watchos-arm64_arm64_32_armv7k"]
-            } else {
-                expectedDestinations = ["ios-arm64"]
-            }
+            let expectedDestinations = platforms.map(\.rawValue)
 
             let xcFrameworkPath = outputDir
                 .appendingPathComponent(xcFrameworkName)
@@ -132,19 +131,11 @@ final class IntegrationTests: XCTestCase {
                 )
 
                 let actualFrameworkType = try await detectFrameworkType(binaryPath: binaryPath)
-                if ["Atomics", "_AtomicsShims"].contains(frameworkName) { // Static Framework
-                    XCTAssertEqual(
-                        actualFrameworkType,
-                        .static,
-                        "\(xcFrameworkName) must be a static framework"
-                    )
-                } else { // Dynamic Framework
-                    XCTAssertEqual(
-                        actualFrameworkType,
-                        .dynamic,
-                        "\(xcFrameworkName) must be a dynamic framework"
-                    )
-                }
+                XCTAssertEqual(
+                    actualFrameworkType,
+                    frameworkType,
+                    "\(xcFrameworkName) must be a \(frameworkType.rawValue) framework"
+                )
             }
         }
     }

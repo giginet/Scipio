@@ -35,7 +35,7 @@ extension Scipio {
                 commandType: .create(platformSpecifier: platformSpecifier),
                 buildOptions: buildOptions,
                 globalOptions: globalOptions
-            ) 
+            )
 
             let outputDir: Runner.OutputDirectory
             if let customOutputDir = buildOptions.customOutputDirectory {
