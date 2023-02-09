@@ -257,22 +257,17 @@ extension Runner.Options.BaseBuildOptions {
 
 extension Runner.Options.Platform {
     fileprivate func extractSDK(isSimulatorSupported: Bool) -> Set<SDK> {
-        if isSimulatorSupported {
-            switch self {
-            case .macOS: return [.macOS]
-            case .macCatalyst: return [.macCatalyst]
-            case .iOS: return [.iOS, .iOSSimulator]
-            case .tvOS: return [.tvOS, .tvOSSimulator]
-            case .watchOS: return [.watchOS, .watchOSSimulator]
-            }
-        } else {
-            switch self {
-            case .macOS: return [.macOS]
-            case .macCatalyst: return [.macCatalyst]
-            case .iOS: return [.iOS]
-            case .tvOS: return [.tvOS]
-            case .watchOS: return [.watchOS]
-            }
+        switch self {
+        case .macOS:
+            return [.macOS]
+        case .macCatalyst:
+            return [.macCatalyst]
+        case .iOS:
+            return isSimulatorSupported ? [.iOS, .iOSSimulator] : [.iOS]
+        case .tvOS:
+            return isSimulatorSupported ? [.tvOS, .tvOSSimulator] : [.tvOS]
+        case .watchOS:
+            return isSimulatorSupported ? [.watchOS, .watchOSSimulator] : [.watchOS]
         }
     }
 }
