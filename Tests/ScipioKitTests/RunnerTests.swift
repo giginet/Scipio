@@ -282,7 +282,10 @@ final class RunnerTests: XCTestCase {
             options: .init(
                 baseBuildOptions: .init(isSimulatorSupported: true),
                 buildOptionsMatrix:
-                    ["ScipioTesting": .init(platforms: .specific([.iOS, .watchOS]), isSimulatorSupported: true)],
+                    ["ScipioTesting": .init(
+                        platforms: .specific([.iOS, .watchOS]),
+                        isSimulatorSupported: true)
+                    ],
                 cacheMode: .project
             )
         )
