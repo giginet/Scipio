@@ -35,15 +35,19 @@ enum CommandType {
 
 extension Runner {
     init(commandType: CommandType, buildOptions: BuildOptionGroup, globalOptions: GlobalOptionGroup) {
-        let baseBuildOptions = Runner.Options.BaseBuildOptions(
+        let baseBuildOptions = Runner.Options.BuildOptions(
             buildConfiguration: buildOptions.buildConfiguration,
             platforms: commandType.platformSpecifier,
             isSimulatorSupported: buildOptions.supportSimulators,
             isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
             frameworkType: buildOptions.frameworkType
         )
-        let runnerOptions = Runner.Options(
+        let buildOptionsContainer = Runner.Options.BuildOptionsContainer(
             baseBuildOptions: baseBuildOptions,
+            buildOptionsMatrix: [:]
+        )
+        let runnerOptions = Runner.Options(
+            buildOptionsContainer: buildOptionsContainer,
             cacheMode: .disabled,
             overwrite: buildOptions.overwrite,
             verbose: globalOptions.verbose

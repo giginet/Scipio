@@ -46,17 +46,19 @@ final class IntegrationTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                baseBuildOptions: .init(
-                    buildConfiguration: .release,
-                    isSimulatorSupported: false,
-                    isDebugSymbolsEmbedded: false,
-                    frameworkType: .dynamic
+                buildOptionsContainer: .init(
+                    baseBuildOptions: .init(
+                        buildConfiguration: .release,
+                        isSimulatorSupported: false,
+                        isDebugSymbolsEmbedded: false,
+                        frameworkType: .dynamic
+                    ),
+                    buildOptionsMatrix: [
+                        "Atomics": .init(frameworkType: .static),
+                        "_AtomicsShims": .init(frameworkType: .static),
+                        "Logging": .init(platforms: .specific([.iOS, .watchOS])),
+                    ]
                 ),
-                buildOptionsMatrix: [
-                    "Atomics": .init(frameworkType: .static),
-                    "_AtomicsShims": .init(frameworkType: .static),
-                    "Logging": .init(platforms: .specific([.iOS, .watchOS])),
-                ],
                 cacheMode: .disabled,
                 overwrite: true,
                 verbose: false

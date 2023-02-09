@@ -33,7 +33,7 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                baseBuildOptions: .init(isSimulatorSupported: false)
+                buildOptionsContainer: .init(baseBuildOptions: .init(isSimulatorSupported: false))
             )
         )
         do {
@@ -85,7 +85,9 @@ final class RunnerTests: XCTestCase {
 
         let runner = Runner(
             mode: .prepareDependencies,
-            options: .init(cacheMode: .project)
+            options: .init(
+                cacheMode: .project
+            )
         )
         do {
             try await runner.run(packageDirectory: testPackagePath,
@@ -148,11 +150,13 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
-                baseBuildOptions: .init(
-                    buildConfiguration: .release,
-                    isSimulatorSupported: false,
-                    isDebugSymbolsEmbedded: false,
-                    frameworkType: .dynamic
+                buildOptionsContainer: .init(
+                    baseBuildOptions: .init(
+                        buildConfiguration: .release,
+                        isSimulatorSupported: false,
+                        isDebugSymbolsEmbedded: false,
+                        frameworkType: .dynamic
+                    )
                 ),
                 cacheMode: .project,
                 overwrite: false,
@@ -176,11 +180,13 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                baseBuildOptions: .init(
-                    buildConfiguration: .release,
-                    isSimulatorSupported: false,
-                    isDebugSymbolsEmbedded: false,
-                    frameworkType: .dynamic
+                buildOptionsContainer: .init(
+                    baseBuildOptions: .init(
+                        buildConfiguration: .release,
+                        isSimulatorSupported: false,
+                        isDebugSymbolsEmbedded: false,
+                        frameworkType: .dynamic
+                    )
                 ),
                 cacheMode: .project,
                 overwrite: false,
@@ -244,11 +250,13 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                baseBuildOptions: .init(
-                    buildConfiguration: .release,
-                    isSimulatorSupported: false,
-                    isDebugSymbolsEmbedded: false,
-                    frameworkType: .dynamic
+                buildOptionsContainer: .init(
+                    baseBuildOptions: .init(
+                        buildConfiguration: .release,
+                        isSimulatorSupported: false,
+                        isDebugSymbolsEmbedded: false,
+                        frameworkType: .dynamic
+                    )
                 ),
                 cacheMode: .project,
                 overwrite: false,
@@ -280,16 +288,18 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                baseBuildOptions: .init(isSimulatorSupported: true),
-                buildOptionsMatrix:
-                    [
+                buildOptionsContainer: .init(
+                    baseBuildOptions: .init(isSimulatorSupported: true),
+                    buildOptionsMatrix: [
                         "ScipioTesting": .init(
                             platforms: .specific([.iOS, .watchOS]),
                             isSimulatorSupported: true
                         ),
-                    ],
-                cacheMode: .project
-            )
+                    ]
+                ),
+                cacheMode: .project,
+                overwrite: false,
+                verbose: false)
         )
 
         try await runner.run(packageDirectory: testPackagePath,
@@ -320,9 +330,11 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
-                baseBuildOptions: .init(
-                    platforms: .specific([.iOS]),
-                    isSimulatorSupported: true
+                buildOptionsContainer: .init(
+                    baseBuildOptions: .init(
+                        platforms: .specific([.iOS]),
+                        isSimulatorSupported: true
+                    )
                 ),
                 cacheMode: .disabled
             )
