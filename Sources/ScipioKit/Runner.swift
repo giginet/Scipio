@@ -103,7 +103,6 @@ public struct Runner {
         public var buildOptionMatrix: [String: TargetBuildOptions]
         public var outputDirectory: URL?
         public var cacheMode: CacheMode
-        public var skipProjectGeneration: Bool
         public var overwrite: Bool
         public var verbose: Bool
 
@@ -112,7 +111,6 @@ public struct Runner {
             buildOptionsMatrix: [String: TargetBuildOptions] = [:],
             outputDirectory: URL? = nil,
             cacheMode: CacheMode = .project,
-            skipProjectGeneration: Bool = false,
             overwrite: Bool = false,
             verbose: Bool = false
         ) {
@@ -120,7 +118,6 @@ public struct Runner {
             self.buildOptionMatrix = buildOptionsMatrix
             self.outputDirectory = outputDirectory
             self.cacheMode = cacheMode
-            self.skipProjectGeneration = skipProjectGeneration
             self.overwrite = overwrite
             self.verbose = verbose
         }

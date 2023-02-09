@@ -53,7 +53,6 @@ final class IntegrationTests: XCTestCase {
                     "Logging": .init(platforms: .specific([.iOS, .watchOS])),
                 ],
                 cacheMode: .disabled,
-                skipProjectGeneration: false,
                 overwrite: true,
                 verbose: false
             )
