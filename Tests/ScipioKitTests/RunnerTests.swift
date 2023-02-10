@@ -33,7 +33,7 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildOptionsContainer: .init(baseBuildOptions: .init(isSimulatorSupported: false))
+                baseBuildOptions: .init(isSimulatorSupported: false)
             )
         )
         do {
@@ -150,13 +150,11 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
-                buildOptionsContainer: .init(
-                    baseBuildOptions: .init(
-                        buildConfiguration: .release,
-                        isSimulatorSupported: false,
-                        isDebugSymbolsEmbedded: false,
-                        frameworkType: .dynamic
-                    )
+                baseBuildOptions: .init(
+                    buildConfiguration: .release,
+                    isSimulatorSupported: false,
+                    isDebugSymbolsEmbedded: false,
+                    frameworkType: .dynamic
                 ),
                 cacheMode: .project,
                 overwrite: false,
@@ -180,13 +178,11 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildOptionsContainer: .init(
-                    baseBuildOptions: .init(
-                        buildConfiguration: .release,
-                        isSimulatorSupported: false,
-                        isDebugSymbolsEmbedded: false,
-                        frameworkType: .dynamic
-                    )
+                baseBuildOptions: .init(
+                    buildConfiguration: .release,
+                    isSimulatorSupported: false,
+                    isDebugSymbolsEmbedded: false,
+                    frameworkType: .dynamic
                 ),
                 cacheMode: .project,
                 overwrite: false,
@@ -250,13 +246,11 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildOptionsContainer: .init(
-                    baseBuildOptions: .init(
-                        buildConfiguration: .release,
-                        isSimulatorSupported: false,
-                        isDebugSymbolsEmbedded: false,
-                        frameworkType: .dynamic
-                    )
+                baseBuildOptions: .init(
+                    buildConfiguration: .release,
+                    isSimulatorSupported: false,
+                    isDebugSymbolsEmbedded: false,
+                    frameworkType: .dynamic
                 ),
                 cacheMode: .project,
                 overwrite: false,
@@ -288,15 +282,13 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildOptionsContainer: .init(
-                    baseBuildOptions: .init(isSimulatorSupported: true),
-                    buildOptionsMatrix: [
-                        "ScipioTesting": .init(
-                            platforms: .specific([.iOS, .watchOS]),
-                            isSimulatorSupported: true
-                        ),
-                    ]
-                ),
+                baseBuildOptions: .init(isSimulatorSupported: true),
+                buildOptionsMatrix: [
+                    "ScipioTesting": .init(
+                        platforms: .specific([.iOS, .watchOS]),
+                        isSimulatorSupported: true
+                    ),
+                ],
                 cacheMode: .project,
                 overwrite: false,
                 verbose: false)
@@ -330,11 +322,9 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
-                buildOptionsContainer: .init(
-                    baseBuildOptions: .init(
-                        platforms: .specific([.iOS]),
-                        isSimulatorSupported: true
-                    )
+                baseBuildOptions: .init(
+                    platforms: .specific([.iOS]),
+                    isSimulatorSupported: true
                 ),
                 cacheMode: .disabled
             )

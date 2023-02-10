@@ -199,12 +199,16 @@ extension Runner {
         public var verbose: Bool
 
         public init(
-            buildOptionsContainer: BuildOptionsContainer = .init(),
+            baseBuildOptions: BuildOptions = .init(),
+            buildOptionsMatrix: [String: TargetBuildOptions] = [:],
             cacheMode: CacheMode = .project,
             overwrite: Bool = false,
             verbose: Bool = false
         ) {
-            self.buildOptionsContainer = buildOptionsContainer
+            self.buildOptionsContainer = BuildOptionsContainer(
+                baseBuildOptions: baseBuildOptions,
+                buildOptionsMatrix: buildOptionsMatrix
+            )
             self.cacheMode = cacheMode
             self.overwrite = overwrite
             self.verbose = verbose

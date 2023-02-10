@@ -42,12 +42,8 @@ extension Runner {
             isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
             frameworkType: buildOptions.frameworkType
         )
-        let buildOptionsContainer = Runner.Options.BuildOptionsContainer(
-            baseBuildOptions: baseBuildOptions,
-            buildOptionsMatrix: [:]
-        )
         let runnerOptions = Runner.Options(
-            buildOptionsContainer: buildOptionsContainer,
+            baseBuildOptions: baseBuildOptions,
             cacheMode: .disabled,
             overwrite: buildOptions.overwrite,
             verbose: globalOptions.verbose
