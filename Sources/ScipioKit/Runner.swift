@@ -11,13 +11,8 @@ public struct Runner {
     private let fileSystem: any FileSystem
 
     public enum Mode {
-        case createPackage(platforms: Set<SDK>?)
+        case createPackage
         case prepareDependencies
-    }
-
-    public enum CacheStorageKind {
-        case local
-        case custom(any CacheStorage)
     }
 
     public enum Error: Swift.Error, LocalizedError {
@@ -37,45 +32,6 @@ public struct Runner {
         }
     }
 
-    public struct Options {
-        public init(
-            buildConfiguration: BuildConfiguration,
-            isSimulatorSupported: Bool,
-            isDebugSymbolsEmbedded: Bool,
-            frameworkType: FrameworkType,
-            outputDirectory: URL? = nil,
-            cacheMode: CacheMode,
-            platformMatrix: PlatformMatrix = [:],
-            overwrite: Bool,
-            verbose: Bool
-        ) {
-            self.buildConfiguration = buildConfiguration
-            self.isSimulatorSupported = isSimulatorSupported
-            self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
-            self.frameworkType = frameworkType
-            self.outputDirectory = outputDirectory
-            self.cacheMode = cacheMode
-            self.platformMatrix = platformMatrix
-            self.overwrite = overwrite
-            self.verbose = verbose
-        }
-
-        public var buildConfiguration: BuildConfiguration
-        public var isSimulatorSupported: Bool
-        public var isDebugSymbolsEmbedded: Bool
-        public var frameworkType: FrameworkType
-        public var outputDirectory: URL?
-        public var cacheMode: CacheMode
-        public var platformMatrix: PlatformMatrix
-        public var overwrite: Bool
-        public var verbose: Bool
-
-        public enum CacheMode {
-            case disabled
-            case project
-            case storage(any CacheStorage)
-        }
-    }
     private var mode: Mode
 
     public init(mode: Mode, options: Options, fileSystem: (any FileSystem) = localFileSystem) {
@@ -123,16 +79,11 @@ public struct Runner {
             throw Error.invalidPackage(packageDirectory)
         }
 
-        let sdks = detectPlatformsToBuild(descriptionPackage: descriptionPackage)
-        guard !sdks.isEmpty else {
+        let buildOptions = options.buildOptionsContainer.makeBuildOptions(descriptionPackage: descriptionPackage)
+        guard !buildOptions.sdks.isEmpty else {
             throw Error.platformNotSpecified
         }
 
-        let buildOptions = BuildOptions(buildConfiguration: options.buildConfiguration,
-                                        isSimulatorSupported: options.isSimulatorSupported,
-                                        isDebugSymbolsEmbedded: options.isDebugSymbolsEmbedded,
-                                        frameworkType: options.frameworkType,
-                                        sdks: sdks)
         try fileSystem.createDirectory(descriptionPackage.workspaceDirectory, recursive: true)
 
         let resolver = Resolver(package: descriptionPackage)
@@ -142,11 +93,13 @@ public struct Runner {
 
         try fileSystem.createDirectory(outputDir.absolutePath, recursive: true)
 
+        let buildOptionsMatrix = options.buildOptionsContainer.makeBuildOptionsMatrix(descriptionPackage: descriptionPackage)
+
         let producer = FrameworkProducer(
             descriptionPackage: descriptionPackage,
             buildOptions: buildOptions,
+            buildOptionsMatrix: buildOptionsMatrix,
             cacheMode: options.cacheMode,
-            platformMatrix: options.platformMatrix,
             overwrite: options.overwrite,
             outputDir: outputDir
         )
@@ -162,17 +115,180 @@ public struct Runner {
             throw Error.compilerError(error)
         }
     }
+}
 
-    private func detectPlatformsToBuild(descriptionPackage: DescriptionPackage) -> OrderedSet<SDK> {
-        switch mode {
-        case .createPackage(let platforms):
-            if let platforms {
-                return OrderedSet(platforms)
-            } else {
-                return descriptionPackage.supportedSDKs
+extension Runner {
+    public struct Options {
+        public struct BuildOptions {
+            public var buildConfiguration: BuildConfiguration
+            public var platforms: PlatformSpecifier
+            public var isSimulatorSupported: Bool
+            public var isDebugSymbolsEmbedded: Bool
+            public var frameworkType: FrameworkType
+
+            public init(
+                buildConfiguration: BuildConfiguration = .release,
+                platforms: PlatformSpecifier = .manifest,
+                isSimulatorSupported: Bool = false,
+                isDebugSymbolsEmbedded: Bool = false,
+                frameworkType: FrameworkType = .dynamic
+            ) {
+                self.buildConfiguration = buildConfiguration
+                self.platforms = platforms
+                self.isSimulatorSupported = isSimulatorSupported
+                self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
+                self.frameworkType = frameworkType
             }
-        case .prepareDependencies:
-            return descriptionPackage.supportedSDKs
+        }
+        public struct TargetBuildOptions {
+            public var buildConfiguration: BuildConfiguration?
+            public var platforms: PlatformSpecifier?
+            public var isSimulatorSupported: Bool?
+            public var isDebugSymbolsEmbedded: Bool?
+            public var frameworkType: FrameworkType?
+
+            public init(
+                buildConfiguration: BuildConfiguration? = nil,
+                platforms: PlatformSpecifier? = nil,
+                isSimulatorSupported: Bool? = nil,
+                isDebugSymbolsEmbedded: Bool? = nil,
+                frameworkType: FrameworkType? = nil
+            ) {
+                self.buildConfiguration = buildConfiguration
+                self.platforms = platforms
+                self.isSimulatorSupported = isSimulatorSupported
+                self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
+                self.frameworkType = frameworkType
+            }
+        }
+
+        public struct BuildOptionsContainer {
+            public init(
+                baseBuildOptions: BuildOptions = .init(),
+                buildOptionsMatrix: [String: Runner.Options.TargetBuildOptions] = [:]
+            ) {
+                self.baseBuildOptions = baseBuildOptions
+                self.buildOptionsMatrix = buildOptionsMatrix
+            }
+
+            public var baseBuildOptions: BuildOptions
+            public var buildOptionsMatrix: [String: TargetBuildOptions]
+        }
+
+        public enum CacheMode {
+            case disabled
+            case project
+            case storage(any CacheStorage)
+        }
+        public enum PlatformSpecifier: Equatable {
+            case manifest
+            case specific(Set<Platform>)
+        }
+
+        public enum Platform: String, Hashable {
+            case iOS
+            case macOS
+            case macCatalyst
+            case tvOS
+            case watchOS
+        }
+
+        public var buildOptionsContainer: BuildOptionsContainer
+        public var cacheMode: CacheMode
+        public var overwrite: Bool
+        public var verbose: Bool
+
+        public init(
+            baseBuildOptions: BuildOptions = .init(),
+            buildOptionsMatrix: [String: TargetBuildOptions] = [:],
+            cacheMode: CacheMode = .project,
+            overwrite: Bool = false,
+            verbose: Bool = false
+        ) {
+            self.buildOptionsContainer = BuildOptionsContainer(
+                baseBuildOptions: baseBuildOptions,
+                buildOptionsMatrix: buildOptionsMatrix
+            )
+            self.cacheMode = cacheMode
+            self.overwrite = overwrite
+            self.verbose = verbose
+        }
+    }
+}
+
+extension Runner.Options.Platform {
+    fileprivate func extractSDK(isSimulatorSupported: Bool) -> Set<SDK> {
+        switch self {
+        case .macOS:
+            return [.macOS]
+        case .macCatalyst:
+            return [.macCatalyst]
+        case .iOS:
+            return isSimulatorSupported ? [.iOS, .iOSSimulator] : [.iOS]
+        case .tvOS:
+            return isSimulatorSupported ? [.tvOS, .tvOSSimulator] : [.tvOS]
+        case .watchOS:
+            return isSimulatorSupported ? [.watchOS, .watchOSSimulator] : [.watchOS]
+        }
+    }
+}
+
+extension Runner.Options.BuildOptions {
+    fileprivate func makeBuildOptions(descriptionPackage: DescriptionPackage) -> BuildOptions {
+        let sdks = detectSDKsToBuild(
+            platforms: platforms,
+            package: descriptionPackage,
+            isSimulatorSupported: isSimulatorSupported
+        )
+        return BuildOptions(
+            buildConfiguration: buildConfiguration,
+            isDebugSymbolsEmbedded: isDebugSymbolsEmbedded,
+            frameworkType: frameworkType,
+            sdks: OrderedSet(sdks)
+        )
+    }
+
+    private func detectSDKsToBuild(
+        platforms: Runner.Options.PlatformSpecifier,
+        package: DescriptionPackage,
+        isSimulatorSupported: Bool
+    ) -> Set<SDK> {
+        switch platforms {
+        case .manifest:
+            return Set(package.supportedSDKs.reduce([]) { sdks, sdk in
+                sdks + (isSimulatorSupported ? sdk.extractForSimulators() : [sdk])
+            })
+        case .specific(let platforms):
+            return Set(platforms.reduce([]) { sdks, sdk in
+                sdks + sdk.extractSDK(isSimulatorSupported: isSimulatorSupported)
+            })
+        }
+    }
+
+    fileprivate func overridden(by overridingOptions: Runner.Options.TargetBuildOptions) -> Self {
+        func fetch<T>(_ baseKeyPath: KeyPath<Self, T>, by overridingKeyPath: KeyPath<Runner.Options.TargetBuildOptions, T?>) -> T {
+            overridingOptions[keyPath: overridingKeyPath] ?? self[keyPath: baseKeyPath]
+        }
+
+        return .init(
+            buildConfiguration: fetch(\.buildConfiguration, by: \.buildConfiguration),
+            platforms: fetch(\.platforms, by: \.platforms),
+            isSimulatorSupported: fetch(\.isSimulatorSupported, by: \.isSimulatorSupported),
+            isDebugSymbolsEmbedded: fetch(\.isDebugSymbolsEmbedded, by: \.isDebugSymbolsEmbedded),
+            frameworkType: fetch(\.frameworkType, by: \.frameworkType)
+        )
+    }
+}
+
+extension Runner.Options.BuildOptionsContainer {
+    fileprivate func makeBuildOptions(descriptionPackage: DescriptionPackage) -> BuildOptions {
+        baseBuildOptions.makeBuildOptions(descriptionPackage: descriptionPackage)
+    }
+
+    fileprivate func makeBuildOptionsMatrix(descriptionPackage: DescriptionPackage) -> [String: BuildOptions] {
+        buildOptionsMatrix.mapValues { runnerOptions in
+            baseBuildOptions.overridden(by: runnerOptions)
+                .makeBuildOptions(descriptionPackage: descriptionPackage)
         }
     }
 }

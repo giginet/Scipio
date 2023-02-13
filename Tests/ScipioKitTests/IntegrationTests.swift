@@ -25,17 +25,42 @@ final class IntegrationTests: XCTestCase {
         try await super.setUp()
     }
 
+    private func detectFrameworkType(binaryPath: URL) async throws -> FrameworkType? {
+        let executor = ProcessExecutor()
+        let result = try await executor.execute("/usr/bin/file", binaryPath.path)
+        let output = try XCTUnwrap(try result.unwrapOutput())
+        if output.contains("current ar archive") {
+            return .static
+        } else if output.contains("dynamically linked shared library") {
+            return .dynamic
+        }
+        return nil
+    }
+
+    private enum Destination: String {
+        case iOS = "ios-arm64"
+        case watchOS = "watchos-arm64_arm64_32_armv7k"
+    }
+
     func testMajorPackages() async throws {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildConfiguration: .release,
-                isSimulatorSupported: false,
-                isDebugSymbolsEmbedded: false,
-                frameworkType: .static,
+                baseBuildOptions: .init(
+                    buildConfiguration: .release,
+                    isSimulatorSupported: false,
+                    isDebugSymbolsEmbedded: false,
+                    frameworkType: .dynamic
+                ),
+                buildOptionsMatrix: [
+                    "Atomics": .init(frameworkType: .static),
+                    "_AtomicsShims": .init(frameworkType: .static),
+                    "Logging": .init(platforms: .specific([.iOS, .watchOS])),
+                ],
                 cacheMode: .disabled,
                 overwrite: true,
-                verbose: false)
+                verbose: false
+            )
         )
         let outputDir = fileManager.temporaryDirectory
             .appendingPathComponent("Scipio")
@@ -48,60 +73,70 @@ final class IntegrationTests: XCTestCase {
             try self.fileManager.removeItem(atPath: outputDir.path)
         }
 
-        let expectedFrameworks = [
-            "Atomics",
-            "Logging",
-            "OrderedCollections",
-            "_AtomicsShims",
+        let testCase: [(String, FrameworkType, Set<Destination>)] = [
+            ("Atomics", .static, [.iOS]),
+            ("Logging", .dynamic, [.iOS, .watchOS]),
+            ("OrderedCollections", .dynamic, [.iOS]),
+            ("_AtomicsShims", .static, [.iOS]),
         ]
 
-        let destination = "ios-arm64"
         let outputDirContents = try fileManager.contentsOfDirectory(atPath: outputDir.path)
 
-        for frameworkName in expectedFrameworks {
+        for (frameworkName, frameworkType, platforms) in testCase {
             let xcFrameworkName = "\(frameworkName).xcframework"
             XCTAssertTrue(
                 outputDirContents.contains(xcFrameworkName),
                 "\(xcFrameworkName) should be built"
             )
 
-            let frameworkRoot = outputDir
+            let expectedDestinations = platforms.map(\.rawValue)
+
+            let xcFrameworkPath = outputDir
                 .appendingPathComponent(xcFrameworkName)
-                .appendingPathComponent(destination)
-                .appendingPathComponent("\(frameworkName).framework")
 
-            let isPrivateFramework = frameworkName.hasPrefix("_")
+            XCTAssertEqual(
+                Set(try fileManager.contentsOfDirectory(atPath: xcFrameworkPath.path)),
+                Set(["Info.plist"]).union(expectedDestinations),
+                "\(xcFrameworkName) must contains \(expectedDestinations.joined(separator: ", "))"
+            )
 
-            if !isPrivateFramework {
+            for destination in expectedDestinations {
+                let frameworkRoot = xcFrameworkPath
+                    .appendingPathComponent(destination)
+                    .appendingPathComponent("\(frameworkName).framework")
+
+                let isPrivateFramework = frameworkName.hasPrefix("_")
+
+                if !isPrivateFramework {
+                    XCTAssertTrue(
+                        fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Headers/\(frameworkName)-Swift.h").path),
+                        "\(xcFrameworkName) should contain a bridging header"
+                    )
+
+                    XCTAssertTrue(
+                        fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Modules/\(frameworkName).swiftmodule").path),
+                        "\(xcFrameworkName) should contain swiftmodules"
+                    )
+                }
+
                 XCTAssertTrue(
-                    fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Headers/\(frameworkName)-Swift.h").path),
-                    "\(xcFrameworkName) should contain a bridging header"
+                    fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Modules/module.modulemap").path),
+                    "\(xcFrameworkName) should contain a module map"
                 )
 
+                let binaryPath = frameworkRoot.appendingPathComponent(frameworkName)
                 XCTAssertTrue(
-                    fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Modules/\(frameworkName).swiftmodule").path),
-                    "\(xcFrameworkName) should contain swiftmodules"
+                    fileManager.fileExists(atPath: binaryPath.path),
+                    "\(xcFrameworkName) should contain a binary"
+                )
+
+                let actualFrameworkType = try await detectFrameworkType(binaryPath: binaryPath)
+                XCTAssertEqual(
+                    actualFrameworkType,
+                    frameworkType,
+                    "\(xcFrameworkName) must be a \(frameworkType.rawValue) framework"
                 )
             }
-
-            XCTAssertTrue(
-                fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Modules/module.modulemap").path),
-                "\(xcFrameworkName) should contain a module map"
-            )
-
-            let binaryPath = frameworkRoot.appendingPathComponent(frameworkName)
-            XCTAssertTrue(
-                fileManager.fileExists(atPath: binaryPath.path),
-                "\(xcFrameworkName) should contain a binary"
-            )
-
-            let executor = ProcessExecutor()
-            let result = try await executor.execute("/usr/bin/file", binaryPath.path)
-            let output = try XCTUnwrap(try result.unwrapOutput())
-            XCTAssertTrue(
-                output.contains("current ar archive"),
-                "\(xcFrameworkName) must be a static framework"
-            )
         }
     }
 }

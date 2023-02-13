@@ -19,27 +19,22 @@ extension Scipio {
 
         @Option(help: "Platforms to create XCFramework for.(availables: \(availablePlatforms.map(\.rawValue).joined(separator: ", ")))",
                 completion: .list(availablePlatforms.map(\.rawValue)))
-        var platforms: [SDK] = []
+        var platforms: [Runner.Options.Platform] = []
 
         mutating func run() async throws {
             LoggingSystem.bootstrap()
 
-            let platformsToCreate: Set<SDK>?
+            let platformSpecifier: Runner.Options.PlatformSpecifier
             if platforms.isEmpty {
-                platformsToCreate = nil
+                platformSpecifier = .manifest
             } else {
-                platformsToCreate = Set(platforms)
+                platformSpecifier = .specific(Set(platforms))
             }
 
-            let runner = Runner(mode: .createPackage(platforms: platformsToCreate),
-                                options: .init(
-                                    buildConfiguration: buildOptions.buildConfiguration,
-                                    isSimulatorSupported: buildOptions.supportSimulators,
-                                    isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
-                                    frameworkType: buildOptions.frameworkType,
-                                    cacheMode: .disabled,
-                                    overwrite: buildOptions.overwrite,
-                                    verbose: globalOptions.verbose)
+            let runner = Runner(
+                commandType: .create(platformSpecifier: platformSpecifier),
+                buildOptions: buildOptions,
+                globalOptions: globalOptions
             )
 
             let outputDir: Runner.OutputDirectory
@@ -57,12 +52,4 @@ extension Scipio {
 
 private let availablePlatforms: OrderedSet<SDK> = [.iOS, .macOS, .tvOS, .watchOS]
 
-extension SDK: ExpressibleByArgument {
-    public init?(argument: String) {
-        if let initialized = SDK(rawValue: argument) {
-            self = initialized
-        } else {
-            return nil
-        }
-    }
-}
+extension Runner.Options.Platform: ExpressibleByArgument { }

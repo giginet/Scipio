@@ -33,13 +33,9 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildConfiguration: .release,
-                isSimulatorSupported: false,
-                isDebugSymbolsEmbedded: false,
-                frameworkType: .dynamic,
-                cacheMode: .project,
-                overwrite: false,
-                verbose: true))
+                baseBuildOptions: .init(isSimulatorSupported: false)
+            )
+        )
         do {
             try await runner.run(packageDirectory: testPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
@@ -64,7 +60,6 @@ final class RunnerTests: XCTestCase {
         let descriptionPackage = try DescriptionPackage(packageDirectory: testPackagePath.absolutePath, mode: .prepareDependencies)
         let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       buildOptions: .init(buildConfiguration: .release,
-                                                          isSimulatorSupported: false,
                                                           isDebugSymbolsEmbedded: false,
                                                           frameworkType: .dynamic,
                                                           sdks: [.iOS]),
@@ -91,13 +86,8 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildConfiguration: .release,
-                isSimulatorSupported: false,
-                isDebugSymbolsEmbedded: false,
-                frameworkType: .dynamic,
-                cacheMode: .project,
-                overwrite: false,
-                verbose: false)
+                cacheMode: .project
+            )
         )
         do {
             try await runner.run(packageDirectory: testPackagePath,
@@ -125,13 +115,8 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildConfiguration: .release,
-                isSimulatorSupported: false,
-                isDebugSymbolsEmbedded: false,
-                frameworkType: .dynamic,
-                cacheMode: .storage(storage),
-                overwrite: false,
-                verbose: false)
+                cacheMode: .storage(storage)
+            )
         )
         do {
             try await runner.run(packageDirectory: testPackagePath,
@@ -163,12 +148,14 @@ final class RunnerTests: XCTestCase {
 
     func testExtractBinary() async throws {
         let runner = Runner(
-            mode: .createPackage(platforms: nil),
+            mode: .createPackage,
             options: .init(
-                buildConfiguration: .release,
-                isSimulatorSupported: false,
-                isDebugSymbolsEmbedded: false,
-                frameworkType: .dynamic,
+                baseBuildOptions: .init(
+                    buildConfiguration: .release,
+                    isSimulatorSupported: false,
+                    isDebugSymbolsEmbedded: false,
+                    frameworkType: .dynamic
+                ),
                 cacheMode: .project,
                 overwrite: false,
                 verbose: false)
@@ -191,10 +178,12 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildConfiguration: .release,
-                isSimulatorSupported: false,
-                isDebugSymbolsEmbedded: false,
-                frameworkType: .dynamic,
+                baseBuildOptions: .init(
+                    buildConfiguration: .release,
+                    isSimulatorSupported: false,
+                    isDebugSymbolsEmbedded: false,
+                    frameworkType: .dynamic
+                ),
                 cacheMode: .project,
                 overwrite: false,
                 verbose: false)
@@ -227,7 +216,6 @@ final class RunnerTests: XCTestCase {
         )
         let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       buildOptions: .init(buildConfiguration: .release,
-                                                          isSimulatorSupported: false,
                                                           isDebugSymbolsEmbedded: false,
                                                           frameworkType: .dynamic,
                                                           sdks: [.iOS]),
@@ -258,10 +246,12 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildConfiguration: .release,
-                isSimulatorSupported: false,
-                isDebugSymbolsEmbedded: false,
-                frameworkType: .dynamic,
+                baseBuildOptions: .init(
+                    buildConfiguration: .release,
+                    isSimulatorSupported: false,
+                    isDebugSymbolsEmbedded: false,
+                    frameworkType: .dynamic
+                ),
                 cacheMode: .project,
                 overwrite: false,
                 verbose: false)
@@ -292,12 +282,14 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                buildConfiguration: .release,
-                isSimulatorSupported: true,
-                isDebugSymbolsEmbedded: false,
-                frameworkType: .dynamic,
+                baseBuildOptions: .init(isSimulatorSupported: true),
+                buildOptionsMatrix: [
+                    "ScipioTesting": .init(
+                        platforms: .specific([.iOS, .watchOS]),
+                        isSimulatorSupported: true
+                    ),
+                ],
                 cacheMode: .project,
-                platformMatrix: ["ScipioTesting": [.iOS, .watchOS]],
                 overwrite: false,
                 verbose: false)
         )
@@ -328,15 +320,14 @@ final class RunnerTests: XCTestCase {
 
     func testWithResourcePackage() async throws {
         let runner = Runner(
-            mode: .createPackage(platforms: nil),
+            mode: .createPackage,
             options: .init(
-                buildConfiguration: .release,
-                isSimulatorSupported: true,
-                isDebugSymbolsEmbedded: false,
-                frameworkType: .dynamic,
-                cacheMode: .project,
-                overwrite: false,
-                verbose: false)
+                baseBuildOptions: .init(
+                    platforms: .specific([.iOS]),
+                    isSimulatorSupported: true
+                ),
+                cacheMode: .disabled
+            )
         )
 
         try await runner.run(packageDirectory: resourcePackagePath,

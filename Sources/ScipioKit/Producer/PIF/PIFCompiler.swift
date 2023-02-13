@@ -41,7 +41,7 @@ struct PIFCompiler: Compiler {
     }
 
     func createXCFramework(buildProduct: BuildProduct, outputDirectory: URL, overwrite: Bool) async throws {
-        let sdks = sdksToBuild
+        let sdks = buildOptions.sdks
         let sdkNames = sdks.map(\.displayName).joined(separator: ", ")
         let target = buildProduct.target
 
@@ -95,14 +95,14 @@ struct PIFCompiler: Compiler {
         if buildOptions.isDebugSymbolsEmbedded {
             debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
                                                                  buildConfiguration: buildOptions.buildConfiguration,
-                                                                 sdks: sdks)
+                                                                 sdks: Set(sdks))
         } else {
             debugSymbolPaths = nil
         }
 
         // Combine all frameworks into one XCFramework
         try await xcBuildClient.createXCFramework(
-            sdks: sdksToBuild,
+            sdks: Set(buildOptions.sdks),
             debugSymbols: debugSymbolPaths,
             outputPath: outputXCFrameworkPath
         )
@@ -117,14 +117,6 @@ struct PIFCompiler: Compiler {
             flags: .init(),
             isXcodeBuildSystemEnabled: true
         )
-    }
-
-    private var sdksToBuild: Set<SDK> {
-        if buildOptions.isSimulatorSupported {
-            return buildOptions.sdks.reduce([]) { (sdks: Set<SDK>, sdk) in sdks.union(sdk.extractForSimulators()) }
-        } else {
-            return Set(buildOptions.sdks)
-        }
     }
 }
 

@@ -24,7 +24,6 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
         let cacheKey = CacheKey(targetName: "MyTarget",
                                 pin: .revision("111111111"),
                                 buildOptions: .init(buildConfiguration: .release,
-                                                    isSimulatorSupported: false,
                                                     isDebugSymbolsEmbedded: false,
                                                     frameworkType: .dynamic,
                                                     sdks: [.iOS]),
@@ -41,8 +40,7 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
     "frameworkType" : "dynamic",
     "sdks" : [
       "iOS"
-    ],
-    "isSimulatorSupported" : false
+    ]
   },
   "targetName" : "MyTarget",
   "clangVersion" : "clang-1400.0.29.102",

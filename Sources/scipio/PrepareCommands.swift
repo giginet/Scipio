@@ -41,15 +41,9 @@ extension Scipio {
             }
 
             let runner = Runner(
-                mode: .prepareDependencies,
-                options: .init(
-                    buildConfiguration: buildOptions.buildConfiguration,
-                    isSimulatorSupported: buildOptions.supportSimulators,
-                    isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
-                    frameworkType: buildOptions.frameworkType,
-                    cacheMode: runnerCacheMode,
-                    overwrite: buildOptions.overwrite,
-                    verbose: globalOptions.verbose)
+                commandType: .prepare(cacheMode: runnerCacheMode),
+                buildOptions: buildOptions,
+                globalOptions: globalOptions
             )
 
             let outputDir: Runner.OutputDirectory

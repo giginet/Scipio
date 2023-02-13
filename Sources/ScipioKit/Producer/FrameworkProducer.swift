@@ -6,9 +6,9 @@ import TSCBasic
 
 struct FrameworkProducer {
     private let descriptionPackage: DescriptionPackage
-    private let buildOptions: BuildOptions
+    private let baseBuildOptions: BuildOptions
+    private let buildOptionsMatrix: [String: BuildOptions]
     private let cacheMode: Runner.Options.CacheMode
-    private let platformMatrix: PlatformMatrix
     private let overwrite: Bool
     private let outputDir: URL
     private let fileSystem: any FileSystem
@@ -30,16 +30,16 @@ struct FrameworkProducer {
     init(
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
+        buildOptionsMatrix: [String: BuildOptions],
         cacheMode: Runner.Options.CacheMode,
-        platformMatrix: PlatformMatrix,
         overwrite: Bool,
         outputDir: URL,
         fileSystem: any FileSystem = localFileSystem
     ) {
         self.descriptionPackage = descriptionPackage
-        self.buildOptions = buildOptions
+        self.baseBuildOptions = buildOptions
+        self.buildOptionsMatrix = buildOptionsMatrix
         self.cacheMode = cacheMode
-        self.platformMatrix = platformMatrix
         self.overwrite = overwrite
         self.outputDir = outputDir
         self.fileSystem = fileSystem
@@ -52,6 +52,10 @@ struct FrameworkProducer {
         try await processAllTargets(
             targets: targets.filter { [.library, .binary].contains($0.target.type) }
         )
+    }
+
+    private func overriddenBuildOption(for buildProduct: BuildProduct) -> BuildOptions {
+        buildOptionsMatrix[buildProduct.target.name] ?? baseBuildOptions
     }
 
     func clean() async throws {
@@ -67,7 +71,7 @@ struct FrameworkProducer {
 
         for product in targets {
             assert([.library, .binary].contains(product.target.type))
-            let buildOptionsForProduct = buildOptions.overridingSDKs(for: product, platformMatrix: platformMatrix)
+            let buildOptionsForProduct = overriddenBuildOption(for: product)
 
             let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                           buildOptions: buildOptionsForProduct,
@@ -151,16 +155,5 @@ struct FrameworkProducer {
         } catch {
             logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
         }
-    }
-}
-
-extension BuildOptions {
-    fileprivate func overridingSDKs(for product: BuildProduct, platformMatrix: PlatformMatrix) -> BuildOptions {
-        guard let overriddenSDKs = platformMatrix[product.target.name] else {
-            return self
-        }
-        var newBuildOptions = self
-        newBuildOptions.sdks = overriddenSDKs
-        return newBuildOptions
     }
 }
