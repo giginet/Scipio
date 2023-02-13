@@ -9,6 +9,10 @@ protocol Executor {
     func errorOutputStream(_: Data)
 }
 
+protocol ErrorDecoder {
+    func decode(_ result: ExecutorResult) throws -> String?
+}
+
 protocol ExecutorResult {
     var arguments: [String] { get }
     /// The environment with which the process was launched.
@@ -35,20 +39,21 @@ extension Executor {
 
 extension ProcessResult: ExecutorResult { }
 
-struct ProcessExecutor: Executor {
+struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
     enum Error: LocalizedError {
-        case terminated(ExecutorResult)
+        case terminated(errorOutput: String?)
         case signalled(Int32)
         case unknownError(Swift.Error)
 
         var errorDescription: String? {
             switch self {
-            case .terminated(let result):
-                var errors = ["Execution was terminated:"]
-                if let output = try? result.unwrapOutput() {
-                    errors.append(output)
-                }
-                return errors.joined(separator: "\n")
+            case .terminated(let errorOutput):
+                return [
+                    "Execution was terminated:",
+                    errorOutput,
+                ]
+                    .compactMap { $0 }
+                    .joined(separator: "\n")
             case .signalled(let signal):
                 return "Execution was stopped by signal \(signal)"
             case .unknownError(let error):
@@ -58,6 +63,11 @@ Unknown error occurered.
 """
             }
         }
+    }
+
+    private let decoder: Decoder
+    init(decoder: Decoder = StandardErrorOutputDecoder()) {
+        self.decoder = decoder
     }
 
     var outputRedirection: TSCBasic.Process.OutputRedirection = .collect
@@ -87,7 +97,8 @@ Unknown error occurered.
                 case .terminated(let code) where code == 0:
                     continuation.resume(returning: result)
                 case .terminated:
-                    continuation.resume(throwing: Error.terminated(result))
+                    let errorOutput = try? decoder.decode(result)
+                    continuation.resume(throwing: Error.terminated(errorOutput: errorOutput))
                 case .signalled(let signal):
                     continuation.resume(throwing: Error.signalled(signal))
                 }
@@ -115,5 +126,17 @@ extension ExecutorResult {
         case .failure(let error):
             throw error
         }
+    }
+}
+
+struct StandardErrorOutputDecoder: ErrorDecoder {
+    func decode(_ result: ExecutorResult) throws -> String? {
+        try result.unwrapStdErrOutput()
+    }
+}
+
+struct StandardOutputDecoder: ErrorDecoder {
+    func decode(_ result: ExecutorResult) throws -> String? {
+        try result.unwrapOutput()
     }
 }

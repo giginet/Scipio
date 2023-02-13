@@ -8,7 +8,12 @@ struct XCBuildClient {
     private let configuration: BuildConfiguration
     private let executor: any Executor
 
-    init(package: DescriptionPackage, buildProduct: BuildProduct, configuration: BuildConfiguration, executor: any Executor = ProcessExecutor()) {
+    init(
+        package: DescriptionPackage,
+        buildProduct: BuildProduct,
+        configuration: BuildConfiguration,
+        executor: any Executor = ProcessExecutor(decoder: XCBuildOutputDecoder())
+    ) {
         self.descriptionPackage = package
         self.buildProduct = buildProduct
         self.configuration = configuration
@@ -107,4 +112,37 @@ extension DescriptionPackage {
         derivedDataPath
             .appending(components: self.name, target.name)
     }
+}
+
+private struct XCBuildOutputDecoder: ErrorDecoder {
+    private let jsonDecoder = JSONDecoder()
+
+    func decode(_ result: ExecutorResult) throws -> String? {
+        let lines = try result.unwrapOutput().split(separator: "\n")
+            .map(String.init)
+        return lines.compactMap { line -> String? in
+            if !line.isDigit {
+                guard let info = try? jsonDecoder.decode(XCBuildErrorInfo.self, from: line) else {
+                    return nil
+                }
+                return info.message
+            }
+            return nil
+        }
+        .compactMap { $0 }
+        .joined(separator: "\n")
+    }
+}
+
+extension String {
+    fileprivate var isDigit: Bool {
+        allSatisfy({ $0.isNumber })
+    }
+}
+
+private struct XCBuildErrorInfo: Decodable {
+    var kind: String?
+    var result: String?
+    var error: String?
+    var message: String
 }
