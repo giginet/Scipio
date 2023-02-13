@@ -27,7 +27,7 @@ struct PIFGenerator {
         // A constructor of PIFBuilder is concealed. So use JSON is only way to get PIF structs.
         let jsonString = try PIFBuilder.generatePIF(
             buildParameters: buildParameters,
-            packageGraph: package.graph,
+            packageGraph: descriptionPackage.graph,
             fileSystem: localFileSystem,
             observabilityScope: observabilitySystem.topScope,
             preservePIFModelStructure: true
