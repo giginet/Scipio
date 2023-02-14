@@ -6,12 +6,14 @@ struct BuildOptions: Hashable, Codable {
         buildConfiguration: BuildConfiguration,
         isDebugSymbolsEmbedded: Bool,
         frameworkType: FrameworkType,
-        sdks: OrderedSet<SDK>
+        sdks: OrderedSet<SDK>,
+        extraFlags: ExtraFlags?
     ) {
         self.buildConfiguration = buildConfiguration
         self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
         self.frameworkType = frameworkType
         self.sdks = sdks
+        self.extraFlags = extraFlags
     }
 
     var buildConfiguration: BuildConfiguration

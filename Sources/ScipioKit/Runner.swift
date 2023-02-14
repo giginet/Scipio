@@ -250,7 +250,8 @@ extension Runner.Options.BuildOptions {
             buildConfiguration: buildConfiguration,
             isDebugSymbolsEmbedded: isDebugSymbolsEmbedded,
             frameworkType: frameworkType,
-            sdks: OrderedSet(sdks)
+            sdks: OrderedSet(sdks),
+            extraFlags: extraFlags
         )
     }
 
