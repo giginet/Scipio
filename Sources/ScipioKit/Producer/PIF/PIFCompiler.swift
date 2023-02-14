@@ -115,6 +115,7 @@ struct PIFCompiler: Compiler {
             toolchain: toolchain,
             destinationTriple: toolchain.triple,
             flags: .init(),
+            enableParseableModuleInterfaces: true,
             isXcodeBuildSystemEnabled: true
         )
     }
