@@ -79,6 +79,9 @@ struct BuildParametersGenerator {
             "$(BUILT_PRODUCTS_DIR)/PackageFrameworks"
         )
 
+        let additionalSettings = buildOptions.extraBuildParameters ?? [:]
+        settings.merge(additionalSettings, uniquingKeysWith: { $1 })
+
         // Generate the build parameters.
         let params = XCBBuildParameters(
             configurationName: buildParameters.configuration.xcbuildName,

@@ -62,7 +62,9 @@ final class RunnerTests: XCTestCase {
                                       buildOptions: .init(buildConfiguration: .release,
                                                           isDebugSymbolsEmbedded: false,
                                                           frameworkType: .dynamic,
-                                                          sdks: [.iOS]),
+                                                          sdks: [.iOS],
+                                                          extraFlags: nil,
+                                                          extraBuildParameters: nil),
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
         let packages = descriptionPackage.graph.packages
@@ -218,7 +220,9 @@ final class RunnerTests: XCTestCase {
                                       buildOptions: .init(buildConfiguration: .release,
                                                           isDebugSymbolsEmbedded: false,
                                                           frameworkType: .dynamic,
-                                                          sdks: [.iOS]),
+                                                          sdks: [.iOS],
+                                                          extraFlags: nil,
+                                                          extraBuildParameters: nil),
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
         let packages = descriptionPackage.graph.packages
@@ -357,6 +361,39 @@ final class RunnerTests: XCTestCase {
                 Set(contents).isSuperset(of: ["giginet.png", "AvatarView.nib", "Info.plist"]),
                 "The resource bundle should contain expected resources"
             )
+        }
+    }
+
+    func testWithExtraBuildParameters() async throws {
+        let runner = Runner(
+            mode: .prepareDependencies,
+            options: .init(
+                baseBuildOptions: .init(
+                    isSimulatorSupported: false,
+                    extraBuildParameters: [
+                        "SWIFT_OPTIMIZATION_LEVEL": "-Osize"
+                    ]
+                )
+            )
+        )
+
+        do {
+            try await runner.run(packageDirectory: testPackagePath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+        }
+
+        for library in ["ScipioTesting"] {
+            let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
+            let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
+            let simulatorFramework = xcFramework.appendingPathComponent("ios-arm64_x86_64-simulator")
+            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
+                          "Should create \(library).xcramework")
+            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
+                          "Should create .\(library).version")
+            XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.path),
+                           "Should not create Simulator framework")
         }
     }
 

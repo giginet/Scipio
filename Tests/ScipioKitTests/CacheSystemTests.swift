@@ -26,7 +26,9 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
                                 buildOptions: .init(buildConfiguration: .release,
                                                     isDebugSymbolsEmbedded: false,
                                                     frameworkType: .dynamic,
-                                                    sdks: [.iOS]),
+                                                    sdks: [.iOS],
+                                                    extraFlags: .init(swiftFlags: ["-D", "SOME_FLAG"]),
+                                                    extraBuildParameters: ["SWIFT_OPTIMIZATION_LEVEL": "-Osize"]),
                                 clangVersion: "clang-1400.0.29.102")
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
@@ -35,12 +37,21 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
         let expected = """
 {
   "buildOptions" : {
+    "extraFlags" : {
+      "swiftFlags" : [
+        "-D",
+        "SOME_FLAG"
+      ]
+    },
     "buildConfiguration" : "release",
     "isDebugSymbolsEmbedded" : false,
     "frameworkType" : "dynamic",
     "sdks" : [
       "iOS"
-    ]
+    ],
+    "extraBuildParameters" : {
+      "SWIFT_OPTIMIZATION_LEVEL" : "-Osize"
+    }
   },
   "targetName" : "MyTarget",
   "clangVersion" : "clang-1400.0.29.102",

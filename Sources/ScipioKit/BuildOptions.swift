@@ -7,13 +7,15 @@ struct BuildOptions: Hashable, Codable {
         isDebugSymbolsEmbedded: Bool,
         frameworkType: FrameworkType,
         sdks: OrderedSet<SDK>,
-        extraFlags: ExtraFlags?
+        extraFlags: ExtraFlags?,
+        extraBuildParameters: ExtraBuildParameters?
     ) {
         self.buildConfiguration = buildConfiguration
         self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
         self.frameworkType = frameworkType
         self.sdks = sdks
         self.extraFlags = extraFlags
+        self.extraBuildParameters = extraBuildParameters
     }
 
     var buildConfiguration: BuildConfiguration
@@ -21,6 +23,7 @@ struct BuildOptions: Hashable, Codable {
     var frameworkType: FrameworkType
     var sdks: OrderedSet<SDK>
     var extraFlags: ExtraFlags?
+    var extraBuildParameters: ExtraBuildParameters?
 }
 
 public struct ExtraFlags: Hashable, Codable {
@@ -29,6 +32,8 @@ public struct ExtraFlags: Hashable, Codable {
     var swiftFlags: [String]?
     var linkerFlags: [String]?
 }
+
+public typealias ExtraBuildParameters = [String: String]
 
 public enum BuildConfiguration: String, Codable {
     case debug
