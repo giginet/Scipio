@@ -67,7 +67,7 @@ struct PIFGenerator {
                         pifTarget.productName = "\(name).framework"
                     }
 
-                    guard let resolvedTarget = descriptionPackage.graph.reachableTargets.first(where: { $0.name == name }) else {
+                    guard let resolvedTarget = descriptionPackage.graph.reachableTargets.first(where: { $0.c99name == c99Name }) else {
                         continue
                     }
 
