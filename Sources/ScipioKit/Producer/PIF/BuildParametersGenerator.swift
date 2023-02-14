@@ -27,9 +27,11 @@ struct XCBBuildParameters: Encodable {
 }
 
 struct BuildParametersGenerator {
+    private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem
 
-    init(fileSystem: any FileSystem = TSCBasic.localFileSystem) {
+    init(buildOptions: BuildOptions, fileSystem: any FileSystem = TSCBasic.localFileSystem) {
+        self.buildOptions = buildOptions
         self.fileSystem = fileSystem
     }
 
@@ -50,33 +52,32 @@ struct BuildParametersGenerator {
         settings["CC"] = try? buildParameters.toolchain.getClangCompiler().pathString
         // Always specify the path of the effective Swift compiler, which was determined in the same way as for the native build system.
         settings["SWIFT_EXEC"] = buildParameters.toolchain.swiftCompilerPath.pathString
-        settings["LIBRARY_SEARCH_PATHS"] = "$(inherited) \(try buildParameters.toolchain.toolchainLibDir.pathString)"
-        settings["OTHER_CFLAGS"] = (
-            ["$(inherited)"]
-            + buildParameters.toolchain.extraFlags.cCompilerFlags
-            + buildParameters.flags.cCompilerFlags.map { $0.spm_shellEscaped() }
-        ).joined(separator: " ")
-        settings["OTHER_CPLUSPLUSFLAGS"] = (
-            ["$(inherited)"]
-            + buildParameters.toolchain.extraFlags.cxxCompilerFlags
-            + buildParameters.flags.cxxCompilerFlags.map { $0.spm_shellEscaped() }
-        ).joined(separator: " ")
-        settings["OTHER_SWIFT_FLAGS"] = (
-            ["$(inherited)"]
-            + buildParameters.toolchain.extraFlags.swiftCompilerFlags
-            + buildParameters.flags.swiftCompilerFlags.map { $0.spm_shellEscaped() }
-        ).joined(separator: " ")
-        settings["OTHER_LDFLAGS"] = (
-            ["$(inherited)"]
-            + buildParameters.flags.linkerFlags.map { $0.spm_shellEscaped() }
-        ).joined(separator: " ")
+        settings["LIBRARY_SEARCH_PATHS"] = expandFlags(
+            try buildParameters.toolchain.toolchainLibDir.pathString
+        )
+        settings["OTHER_CFLAGS"] = expandFlags(
+            buildParameters.toolchain.extraFlags.cCompilerFlags,
+            buildParameters.flags.cCompilerFlags.map { $0.spm_shellEscaped() },
+            buildOptions.extraFlags?.cFlags
+        )
+        settings["OTHER_CPLUSPLUSFLAGS"] = expandFlags(
+            buildParameters.toolchain.extraFlags.cxxCompilerFlags,
+            buildParameters.flags.cxxCompilerFlags.map { $0.spm_shellEscaped() },
+            buildOptions.extraFlags?.cxxFlags
+        )
+        settings["OTHER_SWIFT_FLAGS"] = expandFlags(
+            buildParameters.toolchain.extraFlags.swiftCompilerFlags,
+            buildParameters.flags.swiftCompilerFlags.map { $0.spm_shellEscaped() },
+            buildOptions.extraFlags?.swiftFlags
+        )
+        settings["OTHER_LDFLAGS"] = expandFlags(
+            buildParameters.flags.linkerFlags.map { $0.spm_shellEscaped() },
+            buildOptions.extraFlags?.linkerFlags
+        )
 
-        settings["FRAMEWORK_SEARCH_PATHS"] = ["$(inherited)", "$(BUILT_PRODUCTS_DIR)/PackageFrameworks"].joined(separator: " ")
-
-        // Optionally also set the list of architectures to build for.
-        if let architectures = buildParameters.architectures, !architectures.isEmpty {
-            settings["ARCHS"] = architectures.joined(separator: " ")
-        }
+        settings["FRAMEWORK_SEARCH_PATHS"] = expandFlags(
+            "$(BUILT_PRODUCTS_DIR)/PackageFrameworks"
+        )
 
         // Generate the build parameters.
         let params = XCBBuildParameters(
@@ -91,5 +92,14 @@ struct BuildParametersGenerator {
         let data = try encoder.encode(params)
         try self.fileSystem.writeFileContents(filePath, bytes: ByteString(data))
         return filePath
+    }
+
+    private func expandFlags(_ extraFlags: [String]?...) -> String {
+        (["$(inherited)"] + extraFlags.compactMap { $0 }.flatMap { $0 })
+            .joined(separator: " ")
+    }
+
+    private func expandFlags(_ extraFlag: String) -> String {
+        expandFlags([extraFlag])
     }
 }
