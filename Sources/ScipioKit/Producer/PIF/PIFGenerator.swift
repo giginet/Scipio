@@ -67,6 +67,10 @@ struct PIFGenerator {
                         pifTarget.productName = "\(name).framework"
                     }
 
+                    guard let resolvedTarget = descriptionPackage.graph.reachableTargets.first(where: { $0.name == name }) else {
+                        continue
+                    }
+
                     let newConfigurations = pifTarget.buildConfigurations.map { original in
                         var configuration = original
                         var settings = configuration.buildSettings
@@ -110,15 +114,44 @@ struct PIFGenerator {
 
                             pifTarget.impartedBuildProperties.buildSettings[.OTHER_CFLAGS] = ["$(inherited)"]
 
-                            // Add auto-generated modulemap
-                            settings[.MODULEMAP_PATH] = nil
-                            // Generate modulemap supporting Framework
-                            settings[.MODULEMAP_FILE_CONTENTS] = """
-                framework module \(c99Name) {
-                    header "\(name)-Swift.h"
-                    export *
-                }
-                """
+                            if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
+//                                print("ClangTarget \(name) \(clangTarget.moduleMapType)")
+                                switch clangTarget.moduleMapType {
+                                case .custom(let moduleMapPath):
+                                    settings[.MODULEMAP_PATH] = nil
+                                    settings[.MODULEMAP_FILE] = moduleMapPath.moduleEscapedPathString
+                                    settings[.MODULEMAP_FILE_CONTENTS] = nil
+                                case .umbrellaHeader(let headerPath):
+                                    settings[.MODULEMAP_PATH] = nil
+                                    settings[.MODULEMAP_FILE_CONTENTS] = """
+                                        framework module \(c99Name) {
+                                            umbrella header "\(headerPath.moduleEscapedPathString)"
+                                            export *
+                                            module * { export * }
+                                        }
+                                    """
+                                case .umbrellaDirectory(let directoryPath):
+                                    settings[.MODULEMAP_PATH] = nil
+                                    settings[.MODULEMAP_FILE_CONTENTS] = """
+                                        framework module \(c99Name) {
+                                            umbrella "\(directoryPath.moduleEscapedPathString)"
+                                            export *
+                                            module * { export * }
+                                        }
+                                    """
+                                case .none:
+                                    settings[.MODULEMAP_PATH] = nil
+                                    break
+                                }
+                            } else {
+                                settings[.MODULEMAP_PATH] = nil
+                               settings[.MODULEMAP_FILE_CONTENTS] = """
+                                    framework module \(c99Name) {
+                                        header "\(name)-Swift.h"
+                                        export *
+                                    }
+                                """
+                            }
                         }
 
                         // If the built framework is named same as one of the target in the package, it can be picked up
@@ -143,5 +176,11 @@ extension PIF.TopLevelObject: Decodable {
     public init(from decoder: Decoder) throws {
         var container = try decoder.unkeyedContainer()
         self.init(workspace: try container.decode(PIF.Workspace.self))
+    }
+}
+
+extension AbsolutePath {
+    fileprivate var moduleEscapedPathString: String {
+        return self.pathString.replacingOccurrences(of: "\\", with: "\\\\")
     }
 }
