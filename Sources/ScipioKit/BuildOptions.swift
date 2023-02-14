@@ -2,13 +2,6 @@ import Foundation
 import OrderedCollections
 
 struct BuildOptions: Hashable, Codable {
-    struct ExtraFlags: Hashable, Codable {
-        var cFlags: [String]?
-        var cxxFlags: [String]?
-        var swiftFlags: [String]?
-        var linkerFlags: [String]?
-    }
-
     init(
         buildConfiguration: BuildConfiguration,
         isDebugSymbolsEmbedded: Bool,
@@ -26,6 +19,13 @@ struct BuildOptions: Hashable, Codable {
     var frameworkType: FrameworkType
     var sdks: OrderedSet<SDK>
     var extraFlags: ExtraFlags?
+}
+
+public struct ExtraFlags: Hashable, Codable {
+    var cFlags: [String]?
+    var cxxFlags: [String]?
+    var swiftFlags: [String]?
+    var linkerFlags: [String]?
 }
 
 public enum BuildConfiguration: String, Codable {
