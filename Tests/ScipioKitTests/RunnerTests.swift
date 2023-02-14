@@ -11,6 +11,7 @@ private let testPackagePath = fixturePath.appendingPathComponent("E2ETestPackage
 private let binaryPackagePath = fixturePath.appendingPathComponent("BinaryPackage")
 private let resourcePackagePath = fixturePath.appendingPathComponent("ResourcePackage")
 private let usingBinaryPackagePath = fixturePath.appendingPathComponent("UsingBinaryPackage")
+private let clangPackagePath = fixturePath.appendingPathComponent("ClangPackage")
 
 final class RunnerTests: XCTestCase {
     private let fileManager: FileManager = .default
@@ -65,12 +66,45 @@ final class RunnerTests: XCTestCase {
                 "Should exist a swiftinterface"
             )
 
-            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
-                          "Should create \(library).xcramework")
-            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
-                          "Should create .\(library).version")
             XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.path),
                            "Should not create Simulator framework")
+        }
+    }
+
+    func testBuildClangPackage() async throws {
+        let runner = Runner(
+            mode: .createPackage,
+            options: .init(
+                baseBuildOptions: .init(isSimulatorSupported: false)
+            )
+        )
+        do {
+            try await runner.run(packageDirectory: clangPackagePath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+        }
+
+        for library in ["some_lib"] {
+            let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
+            let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
+            let framework = xcFramework.appendingPathComponent("ios-arm64")
+                .appendingPathComponent("\(library).framework")
+
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/some_lib.h").path),
+                "Should exist an umbrella header"
+            )
+
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: framework.appendingPathComponent("Modules/module.modulemap").path),
+                "Should exist a modulemap"
+            )
+
+            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
+                          "Should create \(library).xcframework")
+            XCTAssertFalse(fileManager.fileExists(atPath: versionFile.path),
+                           "Should not create .\(library).version in create mode")
         }
     }
 
