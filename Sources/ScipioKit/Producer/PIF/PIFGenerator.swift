@@ -138,7 +138,7 @@ struct PIFGenerator {
             // Generating modulemap to default location
             // Location set by the original PIFBuilder may not be work
             settings[.MODULEMAP_PATH] = nil
-
+            // Removing `-fmodule-map-file` flag set on the original PIFBuilder
             pifTarget.impartedBuildProperties.buildSettings[.OTHER_CFLAGS] = ["$(inherited)"]
             pifTarget.impartedBuildProperties.buildSettings[.OTHER_SWIFT_FLAGS] = ["$(inherited)"]
 
