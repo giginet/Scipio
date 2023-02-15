@@ -90,7 +90,7 @@ struct PIFGenerator {
         pifTarget.productType = .framework
         pifTarget.productName = "\(name).framework"
 
-        guard let resolvedTarget = descriptionPackage.graph.reachableTargets.first(where: { $0.c99name == c99Name }) else {
+        guard let resolvedTarget = descriptionPackage.graph.allTargets.first(where: { $0.c99name == c99Name }) else {
             fatalError("Resolved Target named \(c99Name) is not found.")
         }
 
@@ -138,6 +138,9 @@ struct PIFGenerator {
             // Generating modulemap to default location
             // Location set by the original PIFBuilder may not be work
             settings[.MODULEMAP_PATH] = nil
+
+            pifTarget.impartedBuildProperties.buildSettings[.OTHER_CFLAGS] = ["$(inherited)"]
+            pifTarget.impartedBuildProperties.buildSettings[.OTHER_SWIFT_FLAGS] = ["$(inherited)"]
 
             if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
                 switch clangTarget.moduleMapType {

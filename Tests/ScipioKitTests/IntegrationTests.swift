@@ -50,7 +50,7 @@ final class IntegrationTests: XCTestCase {
                     buildConfiguration: .release,
                     isSimulatorSupported: false,
                     isDebugSymbolsEmbedded: false,
-                    frameworkType: .dynamic
+                    frameworkType: .static
                 ),
                 buildOptionsMatrix: [
                     "Atomics": .init(frameworkType: .static),
@@ -73,16 +73,24 @@ final class IntegrationTests: XCTestCase {
             try self.fileManager.removeItem(atPath: outputDir.path)
         }
 
-        let testCase: [(String, FrameworkType, Set<Destination>)] = [
-            ("Atomics", .static, [.iOS]),
-            ("Logging", .dynamic, [.iOS, .watchOS]),
-            ("OrderedCollections", .dynamic, [.iOS]),
-            ("_AtomicsShims", .static, [.iOS]),
+        let testCase: [(String, FrameworkType, Set<Destination>, Bool)] = [
+            ("Atomics", .static, [.iOS], false),
+            ("Logging", .static, [.iOS, .watchOS], false),
+            ("OrderedCollections", .static, [.iOS], false),
+            ("_AtomicsShims", .static, [.iOS], true),
+            ("SDWebImage", .static, [.iOS], true),
+            ("SDWebImageMapKit", .static, [.iOS], true),
         ]
 
         let outputDirContents = try fileManager.contentsOfDirectory(atPath: outputDir.path)
+        let allExpectedFrameworkNames = testCase.map { "\($0.0).xcframework" }
+        XCTAssertEqual(
+            Set(outputDirContents),
+            Set(allExpectedFrameworkNames),
+            "Expected frameworks should be generated"
+        )
 
-        for (frameworkName, frameworkType, platforms) in testCase {
+        for (frameworkName, frameworkType, platforms, isClangFramework) in testCase {
             let xcFrameworkName = "\(frameworkName).xcframework"
             XCTAssertTrue(
                 outputDirContents.contains(xcFrameworkName),
@@ -105,9 +113,12 @@ final class IntegrationTests: XCTestCase {
                     .appendingPathComponent(destination)
                     .appendingPathComponent("\(frameworkName).framework")
 
-                let isPrivateFramework = frameworkName.hasPrefix("_")
-
-                if !isPrivateFramework {
+                if isClangFramework {
+                    XCTAssertTrue(
+                        fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Headers/\(frameworkName).h").path),
+                        "\(xcFrameworkName) should contain an umbrella header"
+                    )
+                } else {
                     XCTAssertTrue(
                         fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Headers/\(frameworkName)-Swift.h").path),
                         "\(xcFrameworkName) should contain a bridging header"
