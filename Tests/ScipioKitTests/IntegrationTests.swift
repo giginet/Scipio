@@ -50,7 +50,8 @@ final class IntegrationTests: XCTestCase {
                     buildConfiguration: .release,
                     isSimulatorSupported: false,
                     isDebugSymbolsEmbedded: false,
-                    frameworkType: .static
+                    frameworkType: .static,
+                    enableLibraryEvolution: false
                 ),
                 buildOptionsMatrix: [
                     "Atomics": .init(frameworkType: .static),
@@ -80,6 +81,13 @@ final class IntegrationTests: XCTestCase {
             ("_AtomicsShims", .static, [.iOS], true),
             ("SDWebImage", .static, [.iOS], true),
             ("SDWebImageMapKit", .static, [.iOS], true),
+            ("NIO", .static, [.iOS], false),
+            ("NIOPriorityQueue", .static, [.iOS], false),
+            ("NIOConcurrencyHelpers", .static, [.iOS], false),
+            ("CNIOSHA1", .static, [.iOS], true),
+            ("CNIOAtomics", .static, [.iOS], true),
+            ("CNIOLinux", .static, [.iOS], true),
+            ("CNIODarwin", .static, [.iOS], true),
         ]
 
         let outputDirContents = try fileManager.contentsOfDirectory(atPath: outputDir.path)
