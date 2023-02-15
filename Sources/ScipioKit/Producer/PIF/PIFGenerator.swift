@@ -97,18 +97,15 @@ struct PIFGenerator {
 
                             settings[.GENERATE_INFOPLIST_FILE] = "YES"
 
-                            // Set the project and marketing version for the framework because the app store requires these to be
-                            // present. The AppStore requires bumping the project version when ingesting new builds but that's for
-                            // top-level apps and not frameworks embedded inside it.
                             settings[.MARKETING_VERSION] = "1.0" // Version
                             settings[.CURRENT_PROJECT_VERSION] = "1" // Build
 
-                            // Enable `-enable-library-evolution` to emit swiftinterface
-                            settings[.OTHER_SWIFT_FLAGS, default: ["$(inherited)"]]
-                                .append("-enable-library-evolution")
-
-                            settings[.SWIFT_EMIT_MODULE_INTERFACE] = "YES"
-                            // Add Bridging Headers to frameworks
+                            // Enable to emit swiftinterface
+                            if buildOptions.enableLibraryEvolution {
+                                settings[.OTHER_SWIFT_FLAGS, default: ["$(inherited)"]]
+                                    .append("-enable-library-evolution")
+                                settings[.SWIFT_EMIT_MODULE_INTERFACE] = "YES"
+                            }
                             settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
                             pifTarget.impartedBuildProperties.buildSettings[.OTHER_CFLAGS] = ["$(inherited)"]

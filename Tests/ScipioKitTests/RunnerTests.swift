@@ -64,7 +64,8 @@ final class RunnerTests: XCTestCase {
                                                           frameworkType: .dynamic,
                                                           sdks: [.iOS],
                                                           extraFlags: nil,
-                                                          extraBuildParameters: nil),
+                                                          extraBuildParameters: nil,
+                                                          enableLibraryEvolution: true),
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
         let packages = descriptionPackage.graph.packages
@@ -222,7 +223,8 @@ final class RunnerTests: XCTestCase {
                                                           frameworkType: .dynamic,
                                                           sdks: [.iOS],
                                                           extraFlags: nil,
-                                                          extraBuildParameters: nil),
+                                                          extraBuildParameters: nil,
+                                                          enableLibraryEvolution: true),
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
         let packages = descriptionPackage.graph.packages

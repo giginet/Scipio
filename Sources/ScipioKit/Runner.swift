@@ -127,6 +127,7 @@ extension Runner {
             public var frameworkType: FrameworkType
             public var extraFlags: ExtraFlags?
             public var extraBuildParameters: [String: String]?
+            public var enableLibraryEvolution: Bool
 
             public init(
                 buildConfiguration: BuildConfiguration = .release,
@@ -135,7 +136,8 @@ extension Runner {
                 isDebugSymbolsEmbedded: Bool = false,
                 frameworkType: FrameworkType = .dynamic,
                 extraFlags: ExtraFlags? = nil,
-                extraBuildParameters: [String: String]? = nil
+                extraBuildParameters: [String: String]? = nil,
+                enableLibraryEvolution: Bool = true
             ) {
                 self.buildConfiguration = buildConfiguration
                 self.platforms = platforms
@@ -144,6 +146,7 @@ extension Runner {
                 self.frameworkType = frameworkType
                 self.extraFlags = extraFlags
                 self.extraBuildParameters = extraBuildParameters
+                self.enableLibraryEvolution = enableLibraryEvolution
             }
         }
         public struct TargetBuildOptions {
@@ -154,6 +157,7 @@ extension Runner {
             public var frameworkType: FrameworkType?
             public var extraFlags: ExtraFlags?
             public var extraBuildParameters: [String: String]?
+            public var enableLibraryEvolution: Bool?
 
             public init(
                 buildConfiguration: BuildConfiguration? = nil,
@@ -162,7 +166,8 @@ extension Runner {
                 isDebugSymbolsEmbedded: Bool? = nil,
                 frameworkType: FrameworkType? = nil,
                 extraFlags: ExtraFlags? = nil,
-                extraBuildParameters: [String: String]? = nil
+                extraBuildParameters: [String: String]? = nil,
+                enableLibraryEvolution: Bool? = false
             ) {
                 self.buildConfiguration = buildConfiguration
                 self.platforms = platforms
@@ -170,6 +175,7 @@ extension Runner {
                 self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
                 self.frameworkType = frameworkType
                 self.extraFlags = extraFlags
+                self.enableLibraryEvolution = enableLibraryEvolution
             }
         }
 
@@ -257,7 +263,8 @@ extension Runner.Options.BuildOptions {
             frameworkType: frameworkType,
             sdks: OrderedSet(sdks),
             extraFlags: extraFlags,
-            extraBuildParameters: extraBuildParameters
+            extraBuildParameters: extraBuildParameters,
+            enableLibraryEvolution: enableLibraryEvolution
         )
     }
 
@@ -290,7 +297,8 @@ extension Runner.Options.BuildOptions {
             isDebugSymbolsEmbedded: fetch(\.isDebugSymbolsEmbedded, by: \.isDebugSymbolsEmbedded),
             frameworkType: fetch(\.frameworkType, by: \.frameworkType),
             extraFlags: overridingOptions.extraFlags ?? extraFlags,
-            extraBuildParameters: overridingOptions.extraBuildParameters ?? extraBuildParameters
+            extraBuildParameters: overridingOptions.extraBuildParameters ?? extraBuildParameters,
+            enableLibraryEvolution: fetch(\.enableLibraryEvolution, by: \.enableLibraryEvolution)
         )
     }
 }
