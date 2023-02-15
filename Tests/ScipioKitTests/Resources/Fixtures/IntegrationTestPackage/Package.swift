@@ -16,7 +16,7 @@ let package = Package(
         // .package(url: "https://github.com/apple/swift-nio.git", from: "2.47.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.2"),
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.4"),
-//        .package(url: "https://github.com/SDWebImage/SDWebImage.git", from: "5.15.0"),
+        .package(url: "https://github.com/SDWebImage/SDWebImage.git", from: "5.15.0"),
     ],
     targets: [
         .target(
@@ -26,7 +26,7 @@ let package = Package(
                 // .product(name: "NIO", package: "swift-nio"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "OrderedCollections", package: "swift-collections"),
-//                .product(name: "SDWebImageMapKit", package: "SDWebImage"),
+                .product(name: "SDWebImageMapKit", package: "SDWebImage"),
             ]),
     ]
 )
