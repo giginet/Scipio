@@ -4,6 +4,7 @@ import PackageGraph
 
 struct XCBuildClient {
     private let descriptionPackage: DescriptionPackage
+    private let buildOptions: BuildOptions
     private let buildProduct: BuildProduct
     private let configuration: BuildConfiguration
     private let executor: any Executor
@@ -12,12 +13,14 @@ struct XCBuildClient {
     init(
         package: DescriptionPackage,
         buildProduct: BuildProduct,
+        buildOptions: BuildOptions,
         configuration: BuildConfiguration,
         executor: any Executor = ProcessExecutor(decoder: StandardOutputDecoder()),
         xcBuildExecutor: any Executor = ProcessExecutor(decoder: XCBuildOutputDecoder())
     ) {
         self.descriptionPackage = package
         self.buildProduct = buildProduct
+        self.buildOptions = buildOptions
         self.configuration = configuration
         self.executor = executor
         self.buildExecutor = xcBuildExecutor
@@ -106,7 +109,9 @@ struct XCBuildClient {
 
         let outputPathArguments: [String] = ["-output", outputPath.pathString]
 
-        return frameworksArguments + debugSymbolsArguments + outputPathArguments
+        // Default behavior, this command requires swiftinterface. If they don't exist, `-allow-internal-distribution` must be required.
+        let additionalFlags = buildOptions.enableLibraryEvolution ? [] : ["-allow-internal-distribution"]
+        return frameworksArguments + debugSymbolsArguments + outputPathArguments + additionalFlags
     }
 }
 

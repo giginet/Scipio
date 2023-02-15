@@ -28,7 +28,8 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
                                                     frameworkType: .dynamic,
                                                     sdks: [.iOS],
                                                     extraFlags: .init(swiftFlags: ["-D", "SOME_FLAG"]),
-                                                    extraBuildParameters: ["SWIFT_OPTIMIZATION_LEVEL": "-Osize"]),
+                                                    extraBuildParameters: ["SWIFT_OPTIMIZATION_LEVEL": "-Osize"],
+                                                    enableLibraryEvolution: true),
                                 clangVersion: "clang-1400.0.29.102")
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted

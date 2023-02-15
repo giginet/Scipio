@@ -51,6 +51,7 @@ struct PIFCompiler: Compiler {
         let xcBuildClient: XCBuildClient = .init(
             package: descriptionPackage,
             buildProduct: buildProduct,
+            buildOptions: buildOptions,
             configuration: buildOptions.buildConfiguration
         )
 
@@ -115,7 +116,7 @@ struct PIFCompiler: Compiler {
             toolchain: toolchain,
             destinationTriple: toolchain.triple,
             flags: .init(),
-            enableParseableModuleInterfaces: true,
+            enableParseableModuleInterfaces: buildOptions.enableLibraryEvolution,
             isXcodeBuildSystemEnabled: true
         )
     }

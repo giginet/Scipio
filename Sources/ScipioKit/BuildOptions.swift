@@ -8,7 +8,8 @@ struct BuildOptions: Hashable, Codable {
         frameworkType: FrameworkType,
         sdks: OrderedSet<SDK>,
         extraFlags: ExtraFlags?,
-        extraBuildParameters: ExtraBuildParameters?
+        extraBuildParameters: ExtraBuildParameters?,
+        enableLibraryEvolution: Bool
     ) {
         self.buildConfiguration = buildConfiguration
         self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
@@ -16,6 +17,7 @@ struct BuildOptions: Hashable, Codable {
         self.sdks = sdks
         self.extraFlags = extraFlags
         self.extraBuildParameters = extraBuildParameters
+        self.enableLibraryEvolution = enableLibraryEvolution
     }
 
     var buildConfiguration: BuildConfiguration
@@ -24,6 +26,7 @@ struct BuildOptions: Hashable, Codable {
     var sdks: OrderedSet<SDK>
     var extraFlags: ExtraFlags?
     var extraBuildParameters: ExtraBuildParameters?
+    var enableLibraryEvolution: Bool
 }
 
 public struct ExtraFlags: Hashable, Codable {
