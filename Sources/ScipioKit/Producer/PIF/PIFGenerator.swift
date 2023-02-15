@@ -135,16 +135,16 @@ struct PIFGenerator {
             }
             settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
-            pifTarget.impartedBuildProperties.buildSettings[.OTHER_CFLAGS] = ["$(inherited)"]
+            // Generating modulemap to default location
+            // Location set by the original PIFBuilder may not be work
+            settings[.MODULEMAP_PATH] = nil
 
             if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
                 switch clangTarget.moduleMapType {
                 case .custom(let moduleMapPath):
-                    settings[.MODULEMAP_PATH] = nil
                     settings[.MODULEMAP_FILE] = moduleMapPath.moduleEscapedPathString
                     settings[.MODULEMAP_FILE_CONTENTS] = nil
                 case .umbrellaHeader(let headerPath):
-                    settings[.MODULEMAP_PATH] = nil
                     settings[.MODULEMAP_FILE_CONTENTS] = """
                         framework module \(c99Name) {
                             umbrella header "\(headerPath.moduleEscapedPathString)"
@@ -153,7 +153,6 @@ struct PIFGenerator {
                         }
                     """
                 case .umbrellaDirectory(let directoryPath):
-                    settings[.MODULEMAP_PATH] = nil
                     settings[.MODULEMAP_FILE_CONTENTS] = """
                         framework module \(c99Name) {
                             umbrella "\(directoryPath.moduleEscapedPathString)"
@@ -162,15 +161,15 @@ struct PIFGenerator {
                         }
                     """
                 case .none:
-                    settings[.MODULEMAP_PATH] = nil
-                    break
+                    settings[.MODULEMAP_FILE_CONTENTS] = nil
                 }
             } else {
-                settings[.MODULEMAP_PATH] = nil
-               settings[.MODULEMAP_FILE_CONTENTS] = """
+                let bridgingHeaderName = settings[.SWIFT_OBJC_INTERFACE_HEADER_NAME] ?? "\(name)-Swift.h"
+                settings[.MODULEMAP_FILE_CONTENTS] = """
                     framework module \(c99Name) {
-                        header "\(name)-Swift.h"
+                        header "\(bridgingHeaderName)"
                         export *
+                        module * { export * }
                     }
                 """
             }
