@@ -40,7 +40,8 @@ extension Runner {
             platforms: commandType.platformSpecifier,
             isSimulatorSupported: buildOptions.supportSimulators,
             isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
-            frameworkType: buildOptions.frameworkType
+            frameworkType: buildOptions.frameworkType,
+            enableLibraryEvolution: buildOptions.shouldEnableLibraryEvolution
         )
         let runnerOptions = Runner.Options(
             baseBuildOptions: baseBuildOptions,
