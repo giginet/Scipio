@@ -46,7 +46,25 @@ final class RunnerTests: XCTestCase {
         for library in ["ScipioTesting"] {
             let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
             let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
-            let simulatorFramework = xcFramework.appendingPathComponent("ios-arm64_x86_64-simulator")
+            let simulatorFramework = xcFramework.appendingPathComponent("ios-arm64_x86_64-simulator/\(library).framework")
+            let deviceFramework = xcFramework.appendingPathComponent("ios-arm64/\(library).framework")
+
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: deviceFramework.appendingPathComponent("Headers/\(library)-Swift.h").path),
+                "Should exist a bridging header"
+            )
+
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: deviceFramework.appendingPathComponent("Modules/module.modulemap").path),
+                "Should exist a modulemap"
+            )
+
+            let expectedSwiftInterface = deviceFramework.appendingPathComponent("Modules/\(library).swiftmodule/arm64-apple-ios.swiftinterface")
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: expectedSwiftInterface.path),
+                "Should exist a swiftinterface"
+            )
+
             XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
                           "Should create \(library).xcramework")
             XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
@@ -390,6 +408,54 @@ final class RunnerTests: XCTestCase {
             let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
             let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
             let simulatorFramework = xcFramework.appendingPathComponent("ios-arm64_x86_64-simulator")
+            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
+                          "Should create \(library).xcramework")
+            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
+                          "Should create .\(library).version")
+            XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.path),
+                           "Should not create Simulator framework")
+        }
+    }
+
+    func testBuildXCFrameworkWithNoLibraryEvolution() async throws {
+        let runner = Runner(
+            mode: .prepareDependencies,
+            options: .init(
+                baseBuildOptions: .init(
+                    isSimulatorSupported: false,
+                    enableLibraryEvolution: false
+                )
+            )
+        )
+        do {
+            try await runner.run(packageDirectory: testPackagePath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+        }
+
+        for library in ["ScipioTesting"] {
+            let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
+            let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
+            let simulatorFramework = xcFramework.appendingPathComponent("ios-arm64_x86_64-simulator/\(library).framework")
+            let deviceFramework = xcFramework.appendingPathComponent("ios-arm64/\(library).framework")
+
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: deviceFramework.appendingPathComponent("Headers/\(library)-Swift.h").path),
+                "Should exist a bridging header"
+            )
+
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: deviceFramework.appendingPathComponent("Modules/module.modulemap").path),
+                "Should exist a modulemap"
+            )
+
+            let expectedSwiftInterface = deviceFramework.appendingPathComponent("Modules/\(library).swiftmodule/arm64-apple-ios.swiftinterface")
+            XCTAssertFalse(
+                fileManager.fileExists(atPath: expectedSwiftInterface.path),
+                "Should not exist a swiftinterface because emission is disabled"
+            )
+
             XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
                           "Should create \(library).xcramework")
             XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
