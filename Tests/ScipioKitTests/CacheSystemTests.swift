@@ -44,15 +44,16 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
         "SOME_FLAG"
       ]
     },
-    "buildConfiguration" : "release",
     "isDebugSymbolsEmbedded" : false,
+    "extraBuildParameters" : {
+      "SWIFT_OPTIMIZATION_LEVEL" : "-Osize"
+    },
+    "enableLibraryEvolution" : true,
     "frameworkType" : "dynamic",
     "sdks" : [
       "iOS"
     ],
-    "extraBuildParameters" : {
-      "SWIFT_OPTIMIZATION_LEVEL" : "-Osize"
-    }
+    "buildConfiguration" : "release"
   },
   "targetName" : "MyTarget",
   "clangVersion" : "clang-1400.0.29.102",
