@@ -152,3 +152,18 @@ public enum SDK: String, Codable {
         }
     }
 }
+
+extension ExtraFlags {
+    func concatenating(_ otherExtraFlags: Self?) -> Self {
+        func concatenating(_ key: KeyPath<Self, [String]?>) -> [String]? {
+            return (self[keyPath: key] ?? []) + (otherExtraFlags?[keyPath: key] ?? [])
+        }
+
+        return .init(
+            cFlags: concatenating(\.cFlags),
+            cxxFlags: concatenating(\.cxxFlags),
+            swiftFlags: concatenating(\.swiftFlags),
+            linkerFlags: concatenating(\.linkerFlags)
+        )
+    }
+}
