@@ -61,7 +61,7 @@ struct PIFGenerator {
             project.targets = project.targets
                 .compactMap { $0 as? PIF.Target }
                 .compactMap { target in
-                    guard let targetType = detectSupportedType(of: target) else { return nil }
+                    guard let targetType = detectSupportedType(of: target) else { return target }
                     updateCommonSettings(of: target, for: sdk)
 
                     if case .library = targetType {
@@ -182,9 +182,11 @@ struct PIFGenerator {
         }
 
         pifTarget.buildConfigurations = newConfigurations
+
+        addLinkSettings(of: pifTarget)
     }
 
-    func updateCommonSettings(of pifTarget: PIF.Target, for sdk: SDK) {
+    private func updateCommonSettings(of pifTarget: PIF.Target, for sdk: SDK) {
         let newConfigurations = pifTarget.buildConfigurations.map { original in
             var configuration = original
             var settings = configuration.buildSettings
@@ -200,6 +202,25 @@ struct PIFGenerator {
         }
 
         pifTarget.buildConfigurations = newConfigurations
+    }
+
+    private func addLinkSettings(of pifTarget: PIF.Target) {
+        let buildFiles = pifTarget.dependencies.enumerated().map { (index, dependency) in
+            return PIF.BuildFile(guid: "GUID::SCIPIO::BUILD_FILE_\(index)",
+                                 targetGUID: dependency.targetGUID,
+                                 platformFilters: dependency.platformFilters)
+        }
+
+
+        if let existingBuildPhase = pifTarget.buildPhases.compactMap({ $0 as? PIF.FrameworksBuildPhase }).first {
+            existingBuildPhase.buildFiles.append(contentsOf: buildFiles)
+        } else {
+            let newBuildPhase = PIF.FrameworksBuildPhase(
+                guid: "GUID::SCIPIO::FRAMEWORK_BUILD_PHASE",
+                buildFiles: buildFiles
+            )
+            pifTarget.buildPhases.append(newBuildPhase)
+        }
     }
 }
 
