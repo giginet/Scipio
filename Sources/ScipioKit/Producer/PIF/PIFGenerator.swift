@@ -88,7 +88,7 @@ struct PIFGenerator {
         let name = pifTarget.name
         let c99Name = pifTarget.name.spm_mangledToC99ExtendedIdentifier()
         pifTarget.productType = .framework
-        pifTarget.productName = "\(name).framework"
+        pifTarget.productName = "\(c99Name).framework"
 
         guard let resolvedTarget = descriptionPackage.graph.allTargets.first(where: { $0.c99name == c99Name }) else {
             fatalError("Resolved Target named \(c99Name) is not found.")
