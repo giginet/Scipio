@@ -283,14 +283,43 @@ extension Runner.Options.BuildOptions {
             overridingOptions[keyPath: overridingKeyPath] ?? self[keyPath: baseKeyPath]
         }
 
+        let mergedExtraBuildParameters = extraBuildParameters?
+            .merging(
+                overridingOptions.extraBuildParameters ?? [:],
+                uniquingKeysWith: { $1 }
+            )
+
         return .init(
             buildConfiguration: fetch(\.buildConfiguration, by: \.buildConfiguration),
             platforms: fetch(\.platforms, by: \.platforms),
             isSimulatorSupported: fetch(\.isSimulatorSupported, by: \.isSimulatorSupported),
             isDebugSymbolsEmbedded: fetch(\.isDebugSymbolsEmbedded, by: \.isDebugSymbolsEmbedded),
             frameworkType: fetch(\.frameworkType, by: \.frameworkType),
-            extraFlags: overridingOptions.extraFlags ?? extraFlags,
-            extraBuildParameters: overridingOptions.extraBuildParameters ?? extraBuildParameters
+            extraFlags: extraFlags?.concatenating(overridingOptions.extraFlags),
+            extraBuildParameters: mergedExtraBuildParameters
+        )
+    }
+}
+
+extension ExtraFlags {
+    fileprivate func concatenating(_ otherExtraFlags: Self?) -> Self {
+        func concatenating(_ key: KeyPath<Self, [String]?>) -> [String]? {
+            guard let baseFlags = self[keyPath: key] else {
+                return nil
+            }
+
+            guard let otherExtraFlags else {
+                return baseFlags
+            }
+
+            return baseFlags + (otherExtraFlags[keyPath: key] ?? [])
+        }
+
+        return .init(
+            cFlags: concatenating(\.cFlags),
+            cxxFlags: concatenating(\.cxxFlags),
+            swiftFlags: concatenating(\.swiftFlags),
+            linkerFlags: concatenating(\.linkerFlags)
         )
     }
 }
