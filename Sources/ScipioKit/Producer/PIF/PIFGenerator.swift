@@ -85,7 +85,6 @@ struct PIFGenerator {
     }
 
     private func updateLibraryTargetSettings(of pifTarget: PIF.Target, project: PIF.Project, for sdk: SDK) {
-        let name = pifTarget.name
         let c99Name = pifTarget.name.spm_mangledToC99ExtendedIdentifier()
         pifTarget.productType = .framework
         pifTarget.productName = "\(c99Name).framework"
@@ -94,88 +93,8 @@ struct PIFGenerator {
             fatalError("Resolved Target named \(c99Name) is not found.")
         }
 
-        let newConfigurations = pifTarget.buildConfigurations.map { original in
-            var configuration = original
-            var settings = configuration.buildSettings
-
-            let toolchainLibDir = (try? buildParameters.toolchain.toolchainLibDir) ?? .root
-
-            settings[.PRODUCT_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
-            settings[.PRODUCT_MODULE_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
-            settings[.EXECUTABLE_NAME] = c99Name
-            settings[.TARGET_NAME] = name
-            settings[.PRODUCT_BUNDLE_IDENTIFIER] = name.spm_mangledToBundleIdentifier()
-            settings[.CLANG_ENABLE_MODULES] = "YES"
-            settings[.DEFINES_MODULE] = "YES"
-            settings[.SKIP_INSTALL] = "NO"
-            settings[.INSTALL_PATH] = "/usr/local/lib"
-            settings[.ONLY_ACTIVE_ARCH] = "NO"
-
-            // Set framework type
-            switch buildOptions.frameworkType {
-            case .dynamic:
-                settings[.MACH_O_TYPE] = "mh_dylib"
-            case .static:
-                settings[.MACH_O_TYPE] = "staticlib"
-            }
-
-            settings[.LIBRARY_SEARCH_PATHS, default: ["$(inherited)"]]
-                .append("\(toolchainLibDir.pathString)/swift/\(sdk.settingValue)")
-
-            settings[.GENERATE_INFOPLIST_FILE] = "YES"
-
-            settings[.MARKETING_VERSION] = "1.0" // Version
-            settings[.CURRENT_PROJECT_VERSION] = "1" // Build
-
-            // Enable to emit swiftinterface
-            if buildOptions.enableLibraryEvolution {
-                settings[.OTHER_SWIFT_FLAGS, default: ["$(inherited)"]]
-                    .append("-enable-library-evolution")
-                settings[.SWIFT_EMIT_MODULE_INTERFACE] = "YES"
-            }
-            settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
-
-            // Generating modulemap to default location
-            // Location set by the original PIFBuilder may not be work
-            settings[.MODULEMAP_PATH] = nil
-            // Removing `-fmodule-map-file` flag set on the original PIFBuilder
-            pifTarget.impartedBuildProperties.buildSettings[.OTHER_CFLAGS] = ["$(inherited)"]
-            pifTarget.impartedBuildProperties.buildSettings[.OTHER_SWIFT_FLAGS] = ["$(inherited)"]
-
-            if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
-                switch clangTarget.moduleMapType {
-                case .custom(let moduleMapPath):
-                    settings[.MODULEMAP_FILE] = moduleMapPath.moduleEscapedPathString
-                    settings[.MODULEMAP_FILE_CONTENTS] = nil
-                case .umbrellaHeader(let headerPath):
-                    settings[.MODULEMAP_FILE_CONTENTS] = """
-                        framework module \(c99Name) {
-                            umbrella header "\(headerPath.moduleEscapedPathString)"
-                            export *
-                        }
-                    """
-                case .umbrellaDirectory(let directoryPath):
-                    settings[.MODULEMAP_FILE_CONTENTS] = """
-                        framework module \(c99Name) {
-                            umbrella "\(directoryPath.moduleEscapedPathString)"
-                            export *
-                        }
-                    """
-                case .none:
-                    settings[.MODULEMAP_FILE_CONTENTS] = nil
-                }
-            } else {
-                let bridgingHeaderName = settings[.SWIFT_OBJC_INTERFACE_HEADER_NAME] ?? "\(name)-Swift.h"
-                settings[.MODULEMAP_FILE_CONTENTS] = """
-                    framework module \(c99Name) {
-                        header "\(bridgingHeaderName)"
-                        export *
-                    }
-                """
-            }
-
-            configuration.buildSettings = settings
-            return configuration
+        let newConfigurations = pifTarget.buildConfigurations.map { configuration in
+            updateBuildConfiguration(configuration, pifTarget: pifTarget, sdk: sdk)
         }
 
         pifTarget.buildConfigurations = newConfigurations
@@ -186,6 +105,96 @@ struct PIFGenerator {
         }
 
         addLinkSettings(of: pifTarget)
+    }
+
+    private func updateBuildConfiguration(_ original: PIF.BuildConfiguration, pifTarget: PIF.Target, sdk: SDK) -> PIF.BuildConfiguration {
+        var configuration = original
+        var settings = configuration.buildSettings
+        let name = pifTarget.name
+        let c99Name = name.spm_mangledToC99ExtendedIdentifier()
+
+        guard let resolvedTarget = descriptionPackage.graph.allTargets.first(where: { $0.c99name == c99Name }) else {
+            fatalError("Resolved Target named \(c99Name) is not found.")
+        }
+
+        let toolchainLibDir = (try? buildParameters.toolchain.toolchainLibDir) ?? .root
+
+        settings[.PRODUCT_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
+        settings[.PRODUCT_MODULE_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
+        settings[.EXECUTABLE_NAME] = c99Name
+        settings[.TARGET_NAME] = name
+        settings[.PRODUCT_BUNDLE_IDENTIFIER] = name.spm_mangledToBundleIdentifier()
+        settings[.CLANG_ENABLE_MODULES] = "YES"
+        settings[.DEFINES_MODULE] = "YES"
+        settings[.SKIP_INSTALL] = "NO"
+        settings[.INSTALL_PATH] = "/usr/local/lib"
+        settings[.ONLY_ACTIVE_ARCH] = "NO"
+
+        // Set framework type
+        switch buildOptions.frameworkType {
+        case .dynamic:
+            settings[.MACH_O_TYPE] = "mh_dylib"
+        case .static:
+            settings[.MACH_O_TYPE] = "staticlib"
+        }
+
+        settings[.LIBRARY_SEARCH_PATHS, default: ["$(inherited)"]]
+            .append("\(toolchainLibDir.pathString)/swift/\(sdk.settingValue)")
+
+        settings[.GENERATE_INFOPLIST_FILE] = "YES"
+
+        settings[.MARKETING_VERSION] = "1.0" // Version
+        settings[.CURRENT_PROJECT_VERSION] = "1" // Build
+
+        // Enable to emit swiftinterface
+        if buildOptions.enableLibraryEvolution {
+            settings[.OTHER_SWIFT_FLAGS, default: ["$(inherited)"]]
+                .append("-enable-library-evolution")
+            settings[.SWIFT_EMIT_MODULE_INTERFACE] = "YES"
+        }
+        settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
+
+        // Generating modulemap to default location
+        // Location set by the original PIFBuilder may not be work
+        settings[.MODULEMAP_PATH] = nil
+        // Removing `-fmodule-map-file` flag set on the original PIFBuilder
+        pifTarget.impartedBuildProperties.buildSettings[.OTHER_CFLAGS] = ["$(inherited)"]
+        pifTarget.impartedBuildProperties.buildSettings[.OTHER_SWIFT_FLAGS] = ["$(inherited)"]
+
+        if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
+            switch clangTarget.moduleMapType {
+            case .custom(let moduleMapPath):
+                settings[.MODULEMAP_FILE] = moduleMapPath.moduleEscapedPathString
+                settings[.MODULEMAP_FILE_CONTENTS] = nil
+            case .umbrellaHeader(let headerPath):
+                settings[.MODULEMAP_FILE_CONTENTS] = """
+                    framework module \(c99Name) {
+                        umbrella header "\(headerPath.moduleEscapedPathString)"
+                        export *
+                    }
+                """
+            case .umbrellaDirectory(let directoryPath):
+                settings[.MODULEMAP_FILE_CONTENTS] = """
+                    framework module \(c99Name) {
+                        umbrella "\(directoryPath.moduleEscapedPathString)"
+                        export *
+                    }
+                """
+            case .none:
+                settings[.MODULEMAP_FILE_CONTENTS] = nil
+            }
+        } else {
+            let bridgingHeaderName = settings[.SWIFT_OBJC_INTERFACE_HEADER_NAME] ?? "\(name)-Swift.h"
+            settings[.MODULEMAP_FILE_CONTENTS] = """
+                framework module \(c99Name) {
+                    header "\(bridgingHeaderName)"
+                    export *
+                }
+            """
+        }
+
+        configuration.buildSettings = settings
+        return configuration
     }
 
     private func updateCommonSettings(of pifTarget: PIF.Target, for sdk: SDK) {
