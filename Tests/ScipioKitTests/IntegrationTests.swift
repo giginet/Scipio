@@ -25,18 +25,6 @@ final class IntegrationTests: XCTestCase {
         try await super.setUp()
     }
 
-    private func detectFrameworkType(binaryPath: URL) async throws -> FrameworkType? {
-        let executor = ProcessExecutor()
-        let result = try await executor.execute("/usr/bin/file", binaryPath.path)
-        let output = try XCTUnwrap(try result.unwrapOutput())
-        if output.contains("current ar archive") {
-            return .static
-        } else if output.contains("dynamically linked shared library") {
-            return .dynamic
-        }
-        return nil
-    }
-
     private enum Destination: String {
         case iOS = "ios-arm64"
         case watchOS = "watchos-arm64_arm64_32_armv7k"
@@ -153,7 +141,7 @@ final class IntegrationTests: XCTestCase {
                     "\(xcFrameworkName) should contain a binary"
                 )
 
-                let actualFrameworkType = try await detectFrameworkType(binaryPath: binaryPath)
+                let actualFrameworkType = try await detectFrameworkType(of: binaryPath)
                 XCTAssertEqual(
                     actualFrameworkType,
                     frameworkType,

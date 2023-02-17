@@ -46,7 +46,6 @@ final class RunnerTests: XCTestCase {
 
         for library in ["ScipioTesting"] {
             let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
-            let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
             let simulatorFramework = xcFramework.appendingPathComponent("ios-arm64_x86_64-simulator/\(library).framework")
             let deviceFramework = xcFramework.appendingPathComponent("ios-arm64/\(library).framework")
 
@@ -64,6 +63,13 @@ final class RunnerTests: XCTestCase {
             XCTAssertTrue(
                 fileManager.fileExists(atPath: expectedSwiftInterface.path),
                 "Should exist a swiftinterface"
+            )
+
+            let frameworkType = try await detectFrameworkType(of: deviceFramework.appendingPathComponent(library))
+            XCTAssertEqual(
+                frameworkType,
+                .dynamic,
+                "Binary should be a dynamic library"
             )
 
             XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.path),
