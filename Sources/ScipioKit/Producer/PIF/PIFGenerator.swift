@@ -184,7 +184,8 @@ struct PIFGenerator {
         pifTarget.buildConfigurations = newConfigurations
 
         if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
-            addPublicHeaders(of: pifTarget, project: project, clangTarget: clangTarget)
+            let package = descriptionPackage.graph.package(for: resolvedTarget)!
+            addPublicHeaders(of: pifTarget, project: project, package: package, clangTarget: clangTarget)
         }
 
         addLinkSettings(of: pifTarget)
@@ -209,24 +210,40 @@ struct PIFGenerator {
     }
 
     private func collectPublicHeaders(of clangTarget: ClangTarget) -> [AbsolutePath] {
-        clangTarget.headers
+        clangTarget.headers.filter { $0.isDescendant(of: clangTarget.includeDir) }
     }
 
-    private func addPublicHeaders(of pifTarget: PIF.Target, project: PIF.Project, clangTarget: ClangTarget) {
+    private func addPublicHeaders(of pifTarget: PIF.Target, project: PIF.Project, package: ResolvedPackage, clangTarget: ClangTarget) {
+        let packageRootDir = package.path
+        let targetRootDir = clangTarget.path
+        let name = targetRootDir.relative(to: packageRootDir).pathString
+        let includeDir = clangTarget.includeDir
+        let targetGroup = project.groupTree.children
+            .compactMap { $0 as? PIF.Group }
+            .first { $0.name == name }
+        let publicHeadersGroup = PIF.Group(
+            guid: "GUID::SCIPIO::\(clangTarget.name)::GROUP::HEADERS",
+            path: includeDir.relative(to: targetRootDir).pathString,
+            sourceTree: .group,
+            children: []
+        )
+        targetGroup!.children.append(publicHeadersGroup)
+
         let headers = collectPublicHeaders(of: clangTarget)
-        let fileReference = headers.enumerated().map { (index, header) in
-            PIF.FileReference(
-                guid: "GUID::SCIPIO::HEADER_FILE_REFERENCE_\(index)",
-                path: header.pathString,
-                sourceTree: .absolute
+        let fileReference = headers.enumerated().map { (index, headerPath) in
+            let relativePath = headerPath.relative(to: includeDir)
+            return PIF.FileReference(
+                guid: "GUID::SCIPIO::\(clangTarget.name)::HEADER_FILE_REFERENCE_\(index)",
+                path: relativePath.pathString,
+                sourceTree: .group
             )
         }
 
-        fileReference.forEach { project.groupTree.children.append($0) }
+        fileReference.forEach { publicHeadersGroup.children.append($0) }
 
         let buildFiles = fileReference.enumerated().map { (index, reference) in
             PIF.BuildFile(
-                guid: "GUID::SCIPIO::HEADER_BUILD_FILE_\(index)",
+                guid: "GUID::SCIPIO::\(clangTarget.name)::HEADER_BUILD_FILE_\(index)",
                 file: reference,
                 platformFilters: [],
                 headerVisibility: .public
@@ -236,8 +253,8 @@ struct PIFGenerator {
         if let existingBuildPhase = pifTarget.buildPhases.compactMap({ $0 as? PIF.HeadersBuildPhase }).first {
             existingBuildPhase.buildFiles.append(contentsOf: buildFiles)
         } else {
-            let newHeadersPhase = PIF.FrameworksBuildPhase(
-                guid: "GUID::SCIPIO::HEADERS_BUILD_PHASE",
+            let newHeadersPhase = PIF.HeadersBuildPhase(
+                guid: "GUID::SCIPIO::\(clangTarget.name)::HEADERS_BUILD_PHASE",
                 buildFiles: buildFiles
             )
             pifTarget.buildPhases.append(newHeadersPhase)
@@ -246,7 +263,7 @@ struct PIFGenerator {
 
     private func addLinkSettings(of pifTarget: PIF.Target) {
         let buildFiles = pifTarget.dependencies.enumerated().map { (index, dependency) in
-            PIF.BuildFile(guid: "GUID::SCIPIO::BUILD_FILE_\(index)",
+            PIF.BuildFile(guid: "GUID::SCIPIO::\(pifTarget.name)::BUILD_FILE_\(index)",
                           targetGUID: dependency.targetGUID,
                           platformFilters: dependency.platformFilters)
         }
@@ -255,7 +272,7 @@ struct PIFGenerator {
             existingBuildPhase.buildFiles.append(contentsOf: buildFiles)
         } else {
             let newBuildPhase = PIF.FrameworksBuildPhase(
-                guid: "GUID::SCIPIO::FRAMEWORK_BUILD_PHASE",
+                guid: "GUID::SCIPIO::\(pifTarget.name)::FRAMEWORK_BUILD_PHASE",
                 buildFiles: buildFiles
             )
             pifTarget.buildPhases.append(newBuildPhase)

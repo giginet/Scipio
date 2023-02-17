@@ -78,16 +78,20 @@ final class IntegrationTests: XCTestCase {
             ("Atomics", .static, [.iOS], false),
             ("Logging", .static, [.iOS, .watchOS], false),
             ("OrderedCollections", .static, [.iOS], false),
+            ("DequeModule", .static, [.iOS], false),
             ("_AtomicsShims", .static, [.iOS], true),
             ("SDWebImage", .static, [.iOS], true),
             ("SDWebImageMapKit", .static, [.iOS], true),
             ("NIO", .static, [.iOS], false),
-            ("NIOPriorityQueue", .static, [.iOS], false),
+            ("NIOEmbedded", .static, [.iOS], false),
+            ("NIOPosix", .static, [.iOS], false),
+            ("NIOCore", .static, [.iOS], false),
             ("NIOConcurrencyHelpers", .static, [.iOS], false),
-            ("CNIOSHA1", .static, [.iOS], true),
+            ("_NIODataStructures", .static, [.iOS], false),
             ("CNIOAtomics", .static, [.iOS], true),
             ("CNIOLinux", .static, [.iOS], true),
             ("CNIODarwin", .static, [.iOS], true),
+            ("CNIOWindows", .static, [.iOS], true),
         ]
 
         let outputDirContents = try fileManager.contentsOfDirectory(atPath: outputDir.path)
