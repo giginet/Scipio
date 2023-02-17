@@ -39,7 +39,7 @@ final class DescriptionPackageTests: XCTestCase {
                 "NIO", "CNIOAtomics", "Logging", "NIOEmbedded", "Atomics",
                 "DequeModule", "_AtomicsShims", "NIOPosix", "_NIODataStructures",
                 "SDWebImageMapKit", "NIOCore", "CNIOLinux",
-                "OrderedCollections", "SDWebImage", "CNIODarwin"
+                "OrderedCollections", "SDWebImage", "CNIODarwin",
             ]
         )
     }
