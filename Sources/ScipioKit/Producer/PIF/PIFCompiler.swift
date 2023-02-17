@@ -23,7 +23,7 @@ struct PIFCompiler: Compiler {
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
         self.executor = executor
-        self.buildParametersGenerator = .init(fileSystem: fileSystem)
+        self.buildParametersGenerator = .init(buildOptions: buildOptions, fileSystem: fileSystem)
     }
 
     private func fetchDefaultToolchainBinPath() async throws -> AbsolutePath {
@@ -115,6 +115,7 @@ struct PIFCompiler: Compiler {
             toolchain: toolchain,
             destinationTriple: toolchain.triple,
             flags: .init(),
+            enableParseableModuleInterfaces: true,
             isXcodeBuildSystemEnabled: true
         )
     }

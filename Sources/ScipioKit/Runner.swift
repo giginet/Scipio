@@ -125,19 +125,25 @@ extension Runner {
             public var isSimulatorSupported: Bool
             public var isDebugSymbolsEmbedded: Bool
             public var frameworkType: FrameworkType
+            public var extraFlags: ExtraFlags?
+            public var extraBuildParameters: [String: String]?
 
             public init(
                 buildConfiguration: BuildConfiguration = .release,
                 platforms: PlatformSpecifier = .manifest,
                 isSimulatorSupported: Bool = false,
                 isDebugSymbolsEmbedded: Bool = false,
-                frameworkType: FrameworkType = .dynamic
+                frameworkType: FrameworkType = .dynamic,
+                extraFlags: ExtraFlags? = nil,
+                extraBuildParameters: [String: String]? = nil
             ) {
                 self.buildConfiguration = buildConfiguration
                 self.platforms = platforms
                 self.isSimulatorSupported = isSimulatorSupported
                 self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
                 self.frameworkType = frameworkType
+                self.extraFlags = extraFlags
+                self.extraBuildParameters = extraBuildParameters
             }
         }
         public struct TargetBuildOptions {
@@ -146,19 +152,24 @@ extension Runner {
             public var isSimulatorSupported: Bool?
             public var isDebugSymbolsEmbedded: Bool?
             public var frameworkType: FrameworkType?
+            public var extraFlags: ExtraFlags?
+            public var extraBuildParameters: [String: String]?
 
             public init(
                 buildConfiguration: BuildConfiguration? = nil,
                 platforms: PlatformSpecifier? = nil,
                 isSimulatorSupported: Bool? = nil,
                 isDebugSymbolsEmbedded: Bool? = nil,
-                frameworkType: FrameworkType? = nil
+                frameworkType: FrameworkType? = nil,
+                extraFlags: ExtraFlags? = nil,
+                extraBuildParameters: [String: String]? = nil
             ) {
                 self.buildConfiguration = buildConfiguration
                 self.platforms = platforms
                 self.isSimulatorSupported = isSimulatorSupported
                 self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
                 self.frameworkType = frameworkType
+                self.extraFlags = extraFlags
             }
         }
 
@@ -244,7 +255,9 @@ extension Runner.Options.BuildOptions {
             buildConfiguration: buildConfiguration,
             isDebugSymbolsEmbedded: isDebugSymbolsEmbedded,
             frameworkType: frameworkType,
-            sdks: OrderedSet(sdks)
+            sdks: OrderedSet(sdks),
+            extraFlags: extraFlags,
+            extraBuildParameters: extraBuildParameters
         )
     }
 
@@ -270,12 +283,23 @@ extension Runner.Options.BuildOptions {
             overridingOptions[keyPath: overridingKeyPath] ?? self[keyPath: baseKeyPath]
         }
 
+        let mergedExtraBuildParameters = extraBuildParameters?
+            .merging(
+                overridingOptions.extraBuildParameters ?? [:],
+                uniquingKeysWith: { $1 }
+            ) ?? overridingOptions.extraBuildParameters
+
+        let mergedExtraFlags = extraFlags?
+            .concatenating(overridingOptions.extraFlags) ?? overridingOptions.extraFlags
+
         return .init(
             buildConfiguration: fetch(\.buildConfiguration, by: \.buildConfiguration),
             platforms: fetch(\.platforms, by: \.platforms),
             isSimulatorSupported: fetch(\.isSimulatorSupported, by: \.isSimulatorSupported),
             isDebugSymbolsEmbedded: fetch(\.isDebugSymbolsEmbedded, by: \.isDebugSymbolsEmbedded),
-            frameworkType: fetch(\.frameworkType, by: \.frameworkType)
+            frameworkType: fetch(\.frameworkType, by: \.frameworkType),
+            extraFlags: mergedExtraFlags,
+            extraBuildParameters: mergedExtraBuildParameters
         )
     }
 }

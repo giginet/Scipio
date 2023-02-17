@@ -7,17 +7,20 @@ struct XCBuildClient {
     private let buildProduct: BuildProduct
     private let configuration: BuildConfiguration
     private let executor: any Executor
+    private let buildExecutor: any Executor
 
     init(
         package: DescriptionPackage,
         buildProduct: BuildProduct,
         configuration: BuildConfiguration,
-        executor: any Executor = ProcessExecutor(decoder: XCBuildOutputDecoder())
+        executor: any Executor = ProcessExecutor(decoder: StandardOutputDecoder()),
+        xcBuildExecutor: any Executor = ProcessExecutor(decoder: XCBuildOutputDecoder())
     ) {
         self.descriptionPackage = package
         self.buildProduct = buildProduct
         self.configuration = configuration
         self.executor = executor
+        self.buildExecutor = xcBuildExecutor
     }
 
     private func fetchXCBuildPath() async throws -> AbsolutePath {
@@ -45,7 +48,7 @@ struct XCBuildClient {
         buildParametersPath: AbsolutePath
     ) async throws {
         let xcbuildPath = try await fetchXCBuildPath()
-        try await executor.execute(
+        try await buildExecutor.execute(
             xcbuildPath.pathString,
             "build",
             pifPath.pathString,

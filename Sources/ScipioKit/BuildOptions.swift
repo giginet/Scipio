@@ -6,19 +6,34 @@ struct BuildOptions: Hashable, Codable {
         buildConfiguration: BuildConfiguration,
         isDebugSymbolsEmbedded: Bool,
         frameworkType: FrameworkType,
-        sdks: OrderedSet<SDK>
+        sdks: OrderedSet<SDK>,
+        extraFlags: ExtraFlags?,
+        extraBuildParameters: ExtraBuildParameters?
     ) {
         self.buildConfiguration = buildConfiguration
         self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
         self.frameworkType = frameworkType
         self.sdks = sdks
+        self.extraFlags = extraFlags
+        self.extraBuildParameters = extraBuildParameters
     }
 
     var buildConfiguration: BuildConfiguration
     var isDebugSymbolsEmbedded: Bool
     var frameworkType: FrameworkType
     var sdks: OrderedSet<SDK>
+    var extraFlags: ExtraFlags?
+    var extraBuildParameters: ExtraBuildParameters?
 }
+
+public struct ExtraFlags: Hashable, Codable {
+    var cFlags: [String]?
+    var cxxFlags: [String]?
+    var swiftFlags: [String]?
+    var linkerFlags: [String]?
+}
+
+public typealias ExtraBuildParameters = [String: String]
 
 public enum BuildConfiguration: String, Codable {
     case debug
@@ -135,5 +150,20 @@ public enum SDK: String, Codable {
         case .watchOSSimulator:
             return "generic/platform=watchOS Simulator"
         }
+    }
+}
+
+extension ExtraFlags {
+    func concatenating(_ otherExtraFlags: Self?) -> Self {
+        func concatenating(_ key: KeyPath<Self, [String]?>) -> [String]? {
+            return (self[keyPath: key] ?? []) + (otherExtraFlags?[keyPath: key] ?? [])
+        }
+
+        return .init(
+            cFlags: concatenating(\.cFlags),
+            cxxFlags: concatenating(\.cxxFlags),
+            swiftFlags: concatenating(\.swiftFlags),
+            linkerFlags: concatenating(\.linkerFlags)
+        )
     }
 }
