@@ -74,25 +74,51 @@ struct PIFGenerator {
             project.targets = project.targets
                 .compactMap { $0 as? PIF.Target }
                 .compactMap { target in
-                    guard target.supportedType != nil else { return target }
-                    let modifier = PIFTargetModifier(
-                        descriptionPackage: descriptionPackage,
-                        buildParameters: buildParameters,
-                        buildOptions: buildOptions,
-                        fileSystem: fileSystem,
-                        project: project,
-                        pifTarget: target,
-                        sdk: sdk
-                    )
+                    guard let supportedType = target.supportedType else { return target }
 
-                    return modifier.modify()
+                    updateCommonSettings(of: target)
+
+                    switch supportedType {
+                    case .library:
+                        let modifier = PIFLibraryTargetModifier(
+                            descriptionPackage: descriptionPackage,
+                            buildParameters: buildParameters,
+                            buildOptions: buildOptions,
+                            fileSystem: fileSystem,
+                            project: project,
+                            pifTarget: target,
+                            sdk: sdk
+                        )
+
+                        return modifier.modify()
+                    case .resourceBundle:
+                        return target
+                    }
                 }
         }
         return pif
     }
+
+    private func updateCommonSettings(of pifTarget: PIF.Target) {
+        let newConfigurations = pifTarget.buildConfigurations.map { original in
+            var configuration = original
+            var settings = configuration.buildSettings
+
+            // If the built framework is named same as one of the target in the package, it can be picked up
+            // automatically during indexing since the build system always adds a -F flag to the built products dir.
+            // To avoid this problem, we build all package frameworks in a subdirectory.
+            settings[.BUILT_PRODUCTS_DIR] = "$(BUILT_PRODUCTS_DIR)/PackageFrameworks"
+            settings[.TARGET_BUILD_DIR] = "$(TARGET_BUILD_DIR)/PackageFrameworks"
+
+            configuration.buildSettings = settings
+            return configuration
+        }
+
+        pifTarget.buildConfigurations = newConfigurations
+    }
 }
 
-private struct PIFTargetModifier {
+private struct PIFLibraryTargetModifier {
     private let descriptionPackage: DescriptionPackage
     private let buildParameters: BuildParameters
     private let buildOptions: BuildOptions
@@ -114,6 +140,8 @@ private struct PIFTargetModifier {
         pifTarget: PIF.Target,
         sdk: SDK
     ) {
+        precondition(pifTarget.supportedType == .library, "PIFLibraryTargetModifier must be for library targets")
+
         self.descriptionPackage = descriptionPackage
         self.buildParameters = buildParameters
         self.buildOptions = buildOptions
@@ -141,11 +169,8 @@ private struct PIFTargetModifier {
     }
 
     func modify() -> PIF.Target {
-        updateCommonSettings()
+        updateLibraryTargetSettings()
 
-        if case .library = pifTarget.supportedType {
-            updateLibraryTargetSettings()
-        }
         return pifTarget
     }
 
@@ -248,24 +273,6 @@ private struct PIFTargetModifier {
 
         configuration.buildSettings = settings
         return configuration
-    }
-
-    private func updateCommonSettings() {
-        let newConfigurations = pifTarget.buildConfigurations.map { original in
-            var configuration = original
-            var settings = configuration.buildSettings
-
-            // If the built framework is named same as one of the target in the package, it can be picked up
-            // automatically during indexing since the build system always adds a -F flag to the built products dir.
-            // To avoid this problem, we build all package frameworks in a subdirectory.
-            settings[.BUILT_PRODUCTS_DIR] = "$(BUILT_PRODUCTS_DIR)/PackageFrameworks"
-            settings[.TARGET_BUILD_DIR] = "$(TARGET_BUILD_DIR)/PackageFrameworks"
-
-            configuration.buildSettings = settings
-            return configuration
-        }
-
-        pifTarget.buildConfigurations = newConfigurations
     }
 
     private func collectPublicHeaders(of clangTarget: ClangTarget) -> Set<AbsolutePath> {
