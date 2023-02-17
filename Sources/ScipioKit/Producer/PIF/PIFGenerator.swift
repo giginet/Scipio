@@ -280,7 +280,7 @@ private struct PIFLibraryTargetModifier {
             .headers
             .filter { $0.isDescendant(of: clangTarget.includeDir) }
         let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0) }
-        let symlinks = publicHeaders.filter { !fileSystem.isSymlink($0) }
+        let symlinks = publicHeaders.filter { fileSystem.isSymlink($0) }
 
         // Sometimes, public headers include a file and its symlink both.
         // This situation raises a duplication error
@@ -336,11 +336,15 @@ private struct PIFLibraryTargetModifier {
             )
         }
 
-        let buildPhase = fetchBuildPhase(of: PIF.HeadersBuildPhase.self, in: pifTarget) ?? PIF.HeadersBuildPhase(
-            guid: guid("HEADERS_BUILD_PHASE"),
-            buildFiles: []
-        )
-        buildPhase.buildFiles.append(contentsOf: buildFiles)
+        if let buildPhase = fetchBuildPhase(of: PIF.HeadersBuildPhase.self, in: pifTarget) {
+            buildPhase.buildFiles.append(contentsOf: buildFiles)
+        } else {
+            let buildPhase = PIF.HeadersBuildPhase(
+               guid: guid("HEADERS_BUILD_PHASE"),
+               buildFiles: buildFiles
+            )
+            pifTarget.buildPhases.append(buildPhase)
+        }
     }
 
     private func addLinkSettings(of pifTarget: PIF.Target) {
@@ -350,11 +354,15 @@ private struct PIFLibraryTargetModifier {
                           platformFilters: dependency.platformFilters)
         }
 
-        let buildPhase = fetchBuildPhase(of: PIF.FrameworksBuildPhase.self, in: pifTarget) ?? PIF.FrameworksBuildPhase(
-            guid: guid("FRAMEWORKS_BUILD_PHASE"),
-            buildFiles: []
-        )
-        buildPhase.buildFiles.append(contentsOf: buildFiles)
+        if let buildPhase = fetchBuildPhase(of: PIF.FrameworksBuildPhase.self, in: pifTarget) {
+            buildPhase.buildFiles.append(contentsOf: buildFiles)
+        } else {
+            let buildPhase = PIF.FrameworksBuildPhase(
+               guid: guid("FRAMEWORKS_BUILD_PHASE"),
+               buildFiles: buildFiles
+            )
+            pifTarget.buildPhases.append(buildPhase)
+        }
     }
 
     private func fetchBuildPhase<BuildPhase: PIF.BuildPhase>(of buildPhasesType: BuildPhase.Type, in pifTarget: PIF.Target) -> BuildPhase? {
