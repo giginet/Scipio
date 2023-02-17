@@ -152,7 +152,6 @@ struct PIFGenerator {
                         framework module \(c99Name) {
                             umbrella header "\(headerPath.moduleEscapedPathString)"
                             export *
-                            module * { export * }
                         }
                     """
                 case .umbrellaDirectory(let directoryPath):
@@ -160,7 +159,6 @@ struct PIFGenerator {
                         framework module \(c99Name) {
                             umbrella "\(directoryPath.moduleEscapedPathString)"
                             export *
-                            module * { export * }
                         }
                     """
                 case .none:
@@ -172,7 +170,6 @@ struct PIFGenerator {
                     framework module \(c99Name) {
                         header "\(bridgingHeaderName)"
                         export *
-                        module * { export * }
                     }
                 """
             }
@@ -209,31 +206,51 @@ struct PIFGenerator {
         pifTarget.buildConfigurations = newConfigurations
     }
 
-    private func collectPublicHeaders(of clangTarget: ClangTarget) -> [AbsolutePath] {
-        clangTarget.headers.filter { $0.isDescendant(of: clangTarget.includeDir) }
+    private func collectPublicHeaders(of clangTarget: ClangTarget) -> Set<AbsolutePath> {
+        let publicHeaders = clangTarget
+            .headers
+            .filter { $0.isDescendant(of: clangTarget.includeDir) }
+        let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0) }
+        let symlinks = publicHeaders.filter { !fileSystem.isSymlink($0) }
+
+        // Sometimes, public headers include a file and its symlink both.
+        // This situation raises a duplication error
+        // So duplicated symlinks have to be omitted
+        let notDuplicatedSymlinks = symlinks.filter { path in
+            notSymlinks.allSatisfy { FileManager.default.contentsEqual(atPath: path.pathString, andPath: $0.pathString) }
+        }
+
+        return Set(notSymlinks + notDuplicatedSymlinks)
+    }
+
+    private func guid(for pifTarget: PIF.Target, _ suffixes: String...) -> String {
+        "GUID::SCIPIO::\(pifTarget.name)::" + suffixes.joined(separator: "::")
     }
 
     private func addPublicHeaders(of pifTarget: PIF.Target, project: PIF.Project, package: ResolvedPackage, clangTarget: ClangTarget) {
         let packageRootDir = package.path
         let targetRootDir = clangTarget.path
-        let name = targetRootDir.relative(to: packageRootDir).pathString
+        let targetGroupName = targetRootDir.relative(to: packageRootDir).pathString
         let includeDir = clangTarget.includeDir
         let targetGroup = project.groupTree.children
             .compactMap { $0 as? PIF.Group }
-            .first { $0.name == name }
+            .first { $0.name == targetGroupName }
+        guard let targetGroup else {
+            fatalError("Groups \(targetGroupName) not found")
+        }
         let publicHeadersGroup = PIF.Group(
-            guid: "GUID::SCIPIO::\(clangTarget.name)::GROUP::HEADERS",
+            guid: guid(for: pifTarget, "GROUPS", "HEADERS"),
             path: includeDir.relative(to: targetRootDir).pathString,
             sourceTree: .group,
             children: []
         )
-        targetGroup!.children.append(publicHeadersGroup)
+        targetGroup.children.append(publicHeadersGroup)
 
         let headers = collectPublicHeaders(of: clangTarget)
         let fileReference = headers.enumerated().map { (index, headerPath) in
             let relativePath = headerPath.relative(to: includeDir)
             return PIF.FileReference(
-                guid: "GUID::SCIPIO::\(clangTarget.name)::HEADER_FILE_REFERENCE_\(index)",
+                guid: guid(for: pifTarget, "HEADERS_FILE_REFERENCE_\(index)"),
                 path: relativePath.pathString,
                 sourceTree: .group
             )
@@ -243,40 +260,36 @@ struct PIFGenerator {
 
         let buildFiles = fileReference.enumerated().map { (index, reference) in
             PIF.BuildFile(
-                guid: "GUID::SCIPIO::\(clangTarget.name)::HEADER_BUILD_FILE_\(index)",
+                guid: guid(for: pifTarget, "HEADERS_BUILD_FILE_\(index)"),
                 file: reference,
                 platformFilters: [],
                 headerVisibility: .public
             )
         }
 
-        if let existingBuildPhase = pifTarget.buildPhases.compactMap({ $0 as? PIF.HeadersBuildPhase }).first {
-            existingBuildPhase.buildFiles.append(contentsOf: buildFiles)
-        } else {
-            let newHeadersPhase = PIF.HeadersBuildPhase(
-                guid: "GUID::SCIPIO::\(clangTarget.name)::HEADERS_BUILD_PHASE",
-                buildFiles: buildFiles
-            )
-            pifTarget.buildPhases.append(newHeadersPhase)
-        }
+        let buildPhase = fetchBuildPhase(of: PIF.HeadersBuildPhase.self, in: pifTarget) ?? PIF.HeadersBuildPhase(
+            guid: guid(for: pifTarget, "HEADERS_BUILD_PHASE"),
+            buildFiles: []
+        )
+        buildPhase.buildFiles.append(contentsOf: buildFiles)
     }
 
     private func addLinkSettings(of pifTarget: PIF.Target) {
         let buildFiles = pifTarget.dependencies.enumerated().map { (index, dependency) in
-            PIF.BuildFile(guid: "GUID::SCIPIO::\(pifTarget.name)::BUILD_FILE_\(index)",
+            PIF.BuildFile(guid: guid(for: pifTarget, "FRAMEWORKS_BUILD_FILE_\(index)"),
                           targetGUID: dependency.targetGUID,
                           platformFilters: dependency.platformFilters)
         }
 
-        if let existingBuildPhase = pifTarget.buildPhases.compactMap({ $0 as? PIF.FrameworksBuildPhase }).first {
-            existingBuildPhase.buildFiles.append(contentsOf: buildFiles)
-        } else {
-            let newBuildPhase = PIF.FrameworksBuildPhase(
-                guid: "GUID::SCIPIO::\(pifTarget.name)::FRAMEWORK_BUILD_PHASE",
-                buildFiles: buildFiles
-            )
-            pifTarget.buildPhases.append(newBuildPhase)
-        }
+        let buildPhase = fetchBuildPhase(of: PIF.FrameworksBuildPhase.self, in: pifTarget) ?? PIF.FrameworksBuildPhase(
+            guid: guid(for: pifTarget, "FRAMEWORKS_BUILD_PHASE"),
+            buildFiles: []
+        )
+        buildPhase.buildFiles.append(contentsOf: buildFiles)
+    }
+
+    private func fetchBuildPhase<BuildPhase: PIF.BuildPhase>(of buildPhasesType: BuildPhase.Type, in pifTarget: PIF.Target) -> BuildPhase? {
+        pifTarget.buildPhases.compactMap({ $0 as? BuildPhase }).first
     }
 }
 
