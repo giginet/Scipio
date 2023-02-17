@@ -86,9 +86,20 @@ All XCFrameworks are generated into `MyAppDependencies/XCFramework` in default.
 |-\-static|Whether generated frameworks are Static Frameworks or not|-|
 |-\-support-simulators|Whether also building for simulators of each SDKs or not|-|
 |-\-cache-policy|How to reuse built frameworks|project|
+|-\-disable-library-evolution|Whether to enable Library Evolution feature or not|-|
 
 
 See `--help` for details.
+
+#### Library Evolution support
+
+Scipio automatically enables [Library Evolution](https://www.swift.org/blog/library-evolution/) feature in default.
+
+It means built frameworks always keep compatibility even if linked from products built in other Swift versions. (ABI stability)
+
+However, as known, some packages doesn't support Library Evolution or there are issues to generate swiftinterface. (https://developer.apple.com/forums/thread/123253)
+
+You can disable Library Evolution with `-disable-library-evolution` flag if you need.
 
 #### Build cache
 
