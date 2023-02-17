@@ -130,11 +130,11 @@ private struct XCBuildOutputDecoder: ErrorDecoder {
         let lines = try result.unwrapOutput().split(separator: "\n")
             .map(String.init)
         return lines.compactMap { line -> String? in
-            if !line.isDigit {
-                guard let info = try? jsonDecoder.decode(XCBuildErrorInfo.self, from: line) else {
-                    return nil
+            if !line.isProgressOutput {
+                if let info = try? jsonDecoder.decode(XCBuildErrorInfo.self, from: line) {
+                    return info.message
                 }
-                return info.message
+                return line
             }
             return nil
         }
@@ -144,8 +144,8 @@ private struct XCBuildOutputDecoder: ErrorDecoder {
 }
 
 extension String {
-    fileprivate var isDigit: Bool {
-        allSatisfy({ $0.isNumber })
+    fileprivate var isProgressOutput: Bool {
+        allSatisfy({ $0.isNumber || $0.isWhitespace || ["/"].contains($0) })
     }
 }
 
@@ -153,5 +153,5 @@ private struct XCBuildErrorInfo: Decodable {
     var kind: String?
     var result: String?
     var error: String?
-    var message: String
+    var message: String?
 }
