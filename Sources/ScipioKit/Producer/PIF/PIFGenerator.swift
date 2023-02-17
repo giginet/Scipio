@@ -5,16 +5,29 @@ import PackageModel
 import PackageGraph
 import XCBuildSupport
 
+extension PIF.Target {
+    fileprivate enum TargetType {
+        case library
+        case resourceBundle
+    }
+
+    fileprivate var supportedType: TargetType? {
+        switch productType {
+        case .objectFile:
+            return .library
+        case .bundle:
+            return .resourceBundle
+        default: // unsupported types
+            return nil
+        }
+    }
+}
+
 struct PIFGenerator {
     private let descriptionPackage: DescriptionPackage
     private let buildParameters: BuildParameters
     private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem
-
-    private enum TargetType {
-        case library
-        case resourceBundle
-    }
 
     init(
         package: DescriptionPackage,
@@ -61,61 +74,101 @@ struct PIFGenerator {
             project.targets = project.targets
                 .compactMap { $0 as? PIF.Target }
                 .compactMap { target in
-                    guard let targetType = detectSupportedType(of: target) else { return target }
-                    updateCommonSettings(of: target, for: sdk)
+                    guard target.supportedType != nil else { return target }
+                    let modifier = PIFTargetModifier(
+                        descriptionPackage: descriptionPackage,
+                        buildParameters: buildParameters,
+                        buildOptions: buildOptions,
+                        fileSystem: fileSystem,
+                        project: project,
+                        pifTarget: target,
+                        sdk: sdk
+                    )
 
-                    if case .library = targetType {
-                        updateLibraryTargetSettings(of: target, project: project, for: sdk)
-                    }
-                    return target
-            }
+                    return modifier.modify()
+                }
         }
         return pif
     }
+}
 
-    private func detectSupportedType(of pifTarget: PIF.Target) -> TargetType? {
-        switch pifTarget.productType {
-        case .objectFile:
-            return .library
-        case .bundle:
-            return .resourceBundle
-        default: // unsupported types
-            return nil
-        }
-    }
+private struct PIFTargetModifier {
+    private let descriptionPackage: DescriptionPackage
+    private let buildParameters: BuildParameters
+    private let buildOptions: BuildOptions
+    private let fileSystem: any FileSystem
 
-    private func updateLibraryTargetSettings(of pifTarget: PIF.Target, project: PIF.Project, for sdk: SDK) {
+    private let project: PIF.Project
+    private let pifTarget: PIF.Target
+    private let sdk: SDK
+
+    private let resolvedPackage: ResolvedPackage
+    private let resolvedTarget: ResolvedTarget
+
+    init(
+        descriptionPackage: DescriptionPackage,
+        buildParameters: BuildParameters,
+        buildOptions: BuildOptions,
+        fileSystem: any FileSystem,
+        project: PIF.Project,
+        pifTarget: PIF.Target,
+        sdk: SDK
+    ) {
+        self.descriptionPackage = descriptionPackage
+        self.buildParameters = buildParameters
+        self.buildOptions = buildOptions
+        self.fileSystem = fileSystem
+        self.project = project
+        self.pifTarget = pifTarget
+        self.sdk = sdk
+
         let c99Name = pifTarget.name.spm_mangledToC99ExtendedIdentifier()
-        pifTarget.productType = .framework
-        pifTarget.productName = "\(c99Name).framework"
 
         guard let resolvedTarget = descriptionPackage.graph.allTargets.first(where: { $0.c99name == c99Name }) else {
             fatalError("Resolved Target named \(c99Name) is not found.")
         }
 
-        let newConfigurations = pifTarget.buildConfigurations.map { configuration in
-            updateBuildConfiguration(configuration, pifTarget: pifTarget, sdk: sdk)
+        guard let resolvedPackage = descriptionPackage.graph.package(for: resolvedTarget) else {
+            fatalError("Could not find a package")
         }
+
+        self.resolvedTarget = resolvedTarget
+        self.resolvedPackage = resolvedPackage
+    }
+
+    private var c99Name: String {
+        resolvedTarget.c99name
+    }
+
+    func modify() -> PIF.Target {
+        updateCommonSettings()
+
+        if case .library = pifTarget.supportedType {
+            updateLibraryTargetSettings()
+        }
+        return pifTarget
+    }
+
+    private func updateLibraryTargetSettings() {
+        pifTarget.productType = .framework
+        pifTarget.productName = "\(c99Name).framework"
+
+        let newConfigurations = pifTarget.buildConfigurations.map(updateBuildConfiguration)
 
         pifTarget.buildConfigurations = newConfigurations
 
         if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
-            let package = descriptionPackage.graph.package(for: resolvedTarget)!
-            addPublicHeaders(of: pifTarget, project: project, package: package, clangTarget: clangTarget)
+            addPublicHeaders(clangTarget: clangTarget)
         }
 
         addLinkSettings(of: pifTarget)
     }
 
-    private func updateBuildConfiguration(_ original: PIF.BuildConfiguration, pifTarget: PIF.Target, sdk: SDK) -> PIF.BuildConfiguration {
+    private func updateBuildConfiguration(_ original: PIF.BuildConfiguration) -> PIF.BuildConfiguration {
         var configuration = original
         var settings = configuration.buildSettings
         let name = pifTarget.name
         let c99Name = name.spm_mangledToC99ExtendedIdentifier()
-
-        guard let resolvedTarget = descriptionPackage.graph.allTargets.first(where: { $0.c99name == c99Name }) else {
-            fatalError("Resolved Target named \(c99Name) is not found.")
-        }
 
         let toolchainLibDir = (try? buildParameters.toolchain.toolchainLibDir) ?? .root
 
@@ -197,7 +250,7 @@ struct PIFGenerator {
         return configuration
     }
 
-    private func updateCommonSettings(of pifTarget: PIF.Target, for sdk: SDK) {
+    private func updateCommonSettings() {
         let newConfigurations = pifTarget.buildConfigurations.map { original in
             var configuration = original
             var settings = configuration.buildSettings
@@ -232,12 +285,12 @@ struct PIFGenerator {
         return Set(notSymlinks + notDuplicatedSymlinks)
     }
 
-    private func guid(for pifTarget: PIF.Target, _ suffixes: String...) -> String {
+    private func guid(_ suffixes: String...) -> String {
         "GUID::SCIPIO::\(pifTarget.name)::" + suffixes.joined(separator: "::")
     }
 
-    private func addPublicHeaders(of pifTarget: PIF.Target, project: PIF.Project, package: ResolvedPackage, clangTarget: ClangTarget) {
-        let packageRootDir = package.path
+    private func addPublicHeaders(clangTarget: ClangTarget) {
+        let packageRootDir = resolvedPackage.path
         let targetRootDir = clangTarget.path
         let targetGroupName = targetRootDir.relative(to: packageRootDir).pathString
         let includeDir = clangTarget.includeDir
@@ -248,7 +301,7 @@ struct PIFGenerator {
             fatalError("Groups \(targetGroupName) not found")
         }
         let publicHeadersGroup = PIF.Group(
-            guid: guid(for: pifTarget, "GROUPS", "HEADERS"),
+            guid: guid("GROUPS", "HEADERS"),
             path: includeDir.relative(to: targetRootDir).pathString,
             sourceTree: .group,
             children: []
@@ -259,7 +312,7 @@ struct PIFGenerator {
         let fileReference = headers.enumerated().map { (index, headerPath) in
             let relativePath = headerPath.relative(to: includeDir)
             return PIF.FileReference(
-                guid: guid(for: pifTarget, "HEADERS_FILE_REFERENCE_\(index)"),
+                guid: guid("HEADERS_FILE_REFERENCE_\(index)"),
                 path: relativePath.pathString,
                 sourceTree: .group
             )
@@ -269,7 +322,7 @@ struct PIFGenerator {
 
         let buildFiles = fileReference.enumerated().map { (index, reference) in
             PIF.BuildFile(
-                guid: guid(for: pifTarget, "HEADERS_BUILD_FILE_\(index)"),
+                guid: guid("HEADERS_BUILD_FILE_\(index)"),
                 file: reference,
                 platformFilters: [],
                 headerVisibility: .public
@@ -277,7 +330,7 @@ struct PIFGenerator {
         }
 
         let buildPhase = fetchBuildPhase(of: PIF.HeadersBuildPhase.self, in: pifTarget) ?? PIF.HeadersBuildPhase(
-            guid: guid(for: pifTarget, "HEADERS_BUILD_PHASE"),
+            guid: guid("HEADERS_BUILD_PHASE"),
             buildFiles: []
         )
         buildPhase.buildFiles.append(contentsOf: buildFiles)
@@ -285,13 +338,13 @@ struct PIFGenerator {
 
     private func addLinkSettings(of pifTarget: PIF.Target) {
         let buildFiles = pifTarget.dependencies.enumerated().map { (index, dependency) in
-            PIF.BuildFile(guid: guid(for: pifTarget, "FRAMEWORKS_BUILD_FILE_\(index)"),
+            PIF.BuildFile(guid: guid("FRAMEWORKS_BUILD_FILE_\(index)"),
                           targetGUID: dependency.targetGUID,
                           platformFilters: dependency.platformFilters)
         }
 
         let buildPhase = fetchBuildPhase(of: PIF.FrameworksBuildPhase.self, in: pifTarget) ?? PIF.FrameworksBuildPhase(
-            guid: guid(for: pifTarget, "FRAMEWORKS_BUILD_PHASE"),
+            guid: guid("FRAMEWORKS_BUILD_PHASE"),
             buildFiles: []
         )
         buildPhase.buildFiles.append(contentsOf: buildFiles)
