@@ -65,7 +65,7 @@ struct PIFGenerator {
                     updateCommonSettings(of: target, for: sdk)
 
                     if case .library = targetType {
-                        updateLibraryTargetSettings(of: target, for: sdk)
+                        updateLibraryTargetSettings(of: target, project: project, for: sdk)
                     }
                     return target
             }
@@ -84,7 +84,7 @@ struct PIFGenerator {
         }
     }
 
-    private func updateLibraryTargetSettings(of pifTarget: PIF.Target, for sdk: SDK) {
+    private func updateLibraryTargetSettings(of pifTarget: PIF.Target, project: PIF.Project, for sdk: SDK) {
         let name = pifTarget.name
         let c99Name = pifTarget.name.spm_mangledToC99ExtendedIdentifier()
         pifTarget.productType = .framework
@@ -183,6 +183,10 @@ struct PIFGenerator {
 
         pifTarget.buildConfigurations = newConfigurations
 
+        if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
+            addPublicHeaders(of: pifTarget, project: project, clangTarget: clangTarget)
+        }
+
         addLinkSettings(of: pifTarget)
     }
 
@@ -204,13 +208,48 @@ struct PIFGenerator {
         pifTarget.buildConfigurations = newConfigurations
     }
 
-    private func addLinkSettings(of pifTarget: PIF.Target) {
-        let buildFiles = pifTarget.dependencies.enumerated().map { (index, dependency) in
-            return PIF.BuildFile(guid: "GUID::SCIPIO::BUILD_FILE_\(index)",
-                                 targetGUID: dependency.targetGUID,
-                                 platformFilters: dependency.platformFilters)
+    private func collectPublicHeaders(of clangTarget: ClangTarget) -> [AbsolutePath] {
+        clangTarget.headers
+    }
+
+    private func addPublicHeaders(of pifTarget: PIF.Target, project: PIF.Project, clangTarget: ClangTarget) {
+        let headers = collectPublicHeaders(of: clangTarget)
+        let fileReference = headers.enumerated().map { (index, header) in
+            PIF.FileReference(
+                guid: "GUID::SCIPIO::HEADER_FILE_REFERENCE_\(index)",
+                path: header.pathString,
+                sourceTree: .absolute
+            )
         }
 
+        fileReference.forEach { project.groupTree.children.append($0) }
+
+        let buildFiles = fileReference.enumerated().map { (index, reference) in
+            PIF.BuildFile(
+                guid: "GUID::SCIPIO::HEADER_BUILD_FILE_\(index)",
+                file: reference,
+                platformFilters: [],
+                headerVisibility: .public
+            )
+        }
+
+        if let existingBuildPhase = pifTarget.buildPhases.compactMap({ $0 as? PIF.HeadersBuildPhase }).first {
+            existingBuildPhase.buildFiles.append(contentsOf: buildFiles)
+        } else {
+            let newHeadersPhase = PIF.FrameworksBuildPhase(
+                guid: "GUID::SCIPIO::HEADERS_BUILD_PHASE",
+                buildFiles: buildFiles
+            )
+            pifTarget.buildPhases.append(newHeadersPhase)
+        }
+    }
+
+    private func addLinkSettings(of pifTarget: PIF.Target) {
+        let buildFiles = pifTarget.dependencies.enumerated().map { (index, dependency) in
+            PIF.BuildFile(guid: "GUID::SCIPIO::BUILD_FILE_\(index)",
+                          targetGUID: dependency.targetGUID,
+                          platformFilters: dependency.platformFilters)
+        }
 
         if let existingBuildPhase = pifTarget.buildPhases.compactMap({ $0 as? PIF.FrameworksBuildPhase }).first {
             existingBuildPhase.buildFiles.append(contentsOf: buildFiles)
