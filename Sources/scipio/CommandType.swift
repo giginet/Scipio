@@ -50,7 +50,7 @@ extension Runner {
         )
         self.init(mode: commandType.mode, options: runnerOptions)
     }
-    
+
     private static func cacheMode(from commandType: CommandType) -> Runner.Options.CacheMode {
         switch commandType {
         case .create:
