@@ -44,10 +44,20 @@ extension Runner {
         )
         let runnerOptions = Runner.Options(
             baseBuildOptions: baseBuildOptions,
-            cacheMode: .disabled,
+            cacheMode: Self.cacheMode(from: commandType),
             overwrite: buildOptions.overwrite,
             verbose: globalOptions.verbose
         )
         self.init(mode: commandType.mode, options: runnerOptions)
     }
+    
+    private static func cacheMode(from commandType: CommandType) -> Runner.Options.CacheMode {
+        switch commandType {
+        case .create:
+            return .disabled
+        case .prepare(let cacheMode):
+            return cacheMode
+        }
+    }
+
 }
