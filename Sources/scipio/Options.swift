@@ -29,6 +29,11 @@ struct BuildOptionGroup: ParsableArguments {
           help: "Whether generated frameworks are Static Frameworks or not")
     var shouldBuildStaticFramework = false
 
+    @Flag(name: [.customLong("library-evolution")],
+          inversion: .prefixedEnableDisable,
+          help: "Whether to enable Library Evolution feature or not")
+    var shouldEnableLibraryEvolution = true
+
     @Flag(name: [.customShort("f", allowingJoined: false), .long],
           help: "Whether overwrite generated frameworks or not")
     var overwrite: Bool = false
