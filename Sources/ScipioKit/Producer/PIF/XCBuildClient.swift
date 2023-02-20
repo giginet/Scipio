@@ -94,7 +94,6 @@ struct XCBuildClient {
             "createXCFramework",
         ]
         + additionalArguments
-        + ["-allow-internal-distribution"]
         try await executor.execute(arguments)
     }
 
