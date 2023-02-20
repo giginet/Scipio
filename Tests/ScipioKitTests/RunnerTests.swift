@@ -371,7 +371,7 @@ final class RunnerTests: XCTestCase {
                 baseBuildOptions: .init(
                     isSimulatorSupported: false,
                     extraBuildParameters: [
-                        "SWIFT_OPTIMIZATION_LEVEL": "-Osize"
+                        "SWIFT_OPTIMIZATION_LEVEL": "-Osize",
                     ]
                 )
             )
