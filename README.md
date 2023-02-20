@@ -99,7 +99,7 @@ It means built frameworks always keep compatibility even if linked from products
 
 However, as known, some packages doesn't support Library Evolution or there are issues to generate swiftinterface. (https://developer.apple.com/forums/thread/123253)
 
-You can disable Library Evolution with `-disable-library-evolution` flag if you need.
+You can disable Library Evolution with `--disable-library-evolution` flag if you need.
 
 #### Build cache
 
