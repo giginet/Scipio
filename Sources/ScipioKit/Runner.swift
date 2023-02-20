@@ -167,7 +167,7 @@ extension Runner {
                 frameworkType: FrameworkType? = nil,
                 extraFlags: ExtraFlags? = nil,
                 extraBuildParameters: [String: String]? = nil,
-                enableLibraryEvolution: Bool? = false
+                enableLibraryEvolution: Bool? = nil
             ) {
                 self.buildConfiguration = buildConfiguration
                 self.platforms = platforms
