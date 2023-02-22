@@ -218,7 +218,7 @@ struct CacheSystem {
 }
 
 extension CacheKey {
-    func calculateChecksum() throws -> String {
+    public func calculateChecksum() throws -> String {
         let data = try jsonEncoder.encode(self)
         return SHA256().hash(ByteString(data)).hexadecimalRepresentation
     }
