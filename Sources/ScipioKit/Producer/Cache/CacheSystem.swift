@@ -86,10 +86,10 @@ extension PinsStore.PinState: Hashable {
 }
 
 public struct CacheKey: Hashable, Codable, Equatable {
-    var targetName: String
-    var pin: PinsStore.PinState
+    public var targetName: String
+    public var pin: PinsStore.PinState
     var buildOptions: BuildOptions
-    var clangVersion: String
+    public var clangVersion: String
 }
 
 public protocol CacheStorage {
