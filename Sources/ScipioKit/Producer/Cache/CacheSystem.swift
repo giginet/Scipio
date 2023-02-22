@@ -93,9 +93,9 @@ public struct CacheKey: Hashable, Codable, Equatable {
 }
 
 public protocol CacheStorage {
-    func existsValidCache(for cacheKey: CacheKey) async -> Bool
+    func existsValidCache(for cacheKey: CacheKey) async throws -> Bool
     func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: URL) async throws
-    func cacheFramework(_ frameworkPath: URL, for cacheKey: CacheKey) async
+    func cacheFramework(_ frameworkPath: URL, for cacheKey: CacheKey) async throws
 }
 
 struct CacheSystem {
@@ -139,7 +139,7 @@ struct CacheSystem {
     func cacheFramework(_ product: BuildProduct, at frameworkPath: URL) async throws {
         let cacheKey = try await calculateCacheKey(of: product)
 
-        await storage?.cacheFramework(frameworkPath, for: cacheKey)
+        try await storage?.cacheFramework(frameworkPath, for: cacheKey)
     }
 
     func generateVersionFile(for product: BuildProduct) async throws {
@@ -170,7 +170,7 @@ struct CacheSystem {
         guard let storage = storage else { return false }
         do {
             let cacheKey = try await calculateCacheKey(of: product)
-            if await storage.existsValidCache(for: cacheKey) {
+            if try await storage.existsValidCache(for: cacheKey) {
                 try await storage.fetchArtifacts(for: cacheKey, to: outputDirectory)
                 return true
             } else {
