@@ -4,8 +4,6 @@ import struct TSCBasic.AbsolutePath
 import protocol TSCBasic.FileSystem
 import var TSCBasic.localFileSystem
 
-public typealias PlatformMatrix = [String: OrderedSet<SDK>]
-
 public struct Runner {
     private let options: Options
     private let fileSystem: any FileSystem

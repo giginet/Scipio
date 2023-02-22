@@ -30,10 +30,22 @@ struct BuildOptions: Hashable, Codable {
 }
 
 public struct ExtraFlags: Hashable, Codable {
-    var cFlags: [String]?
-    var cxxFlags: [String]?
-    var swiftFlags: [String]?
-    var linkerFlags: [String]?
+    public var cFlags: [String]?
+    public var cxxFlags: [String]?
+    public var swiftFlags: [String]?
+    public var linkerFlags: [String]?
+
+    public init(
+        cFlags: [String]? = nil,
+        cxxFlags: [String]? = nil,
+        swiftFlags: [String]? = nil,
+        linkerFlags: [String]? = nil
+    ) {
+        self.cFlags = cFlags
+        self.cxxFlags = cxxFlags
+        self.swiftFlags = swiftFlags
+        self.linkerFlags = linkerFlags
+    }
 }
 
 public typealias ExtraBuildParameters = [String: String]
@@ -55,7 +67,7 @@ public enum FrameworkType: String, Codable {
     case `static`
 }
 
-public enum SDK: String, Codable {
+enum SDK: String, Codable {
     case macOS
     case macCatalyst
     case iOS

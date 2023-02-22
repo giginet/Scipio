@@ -50,6 +50,6 @@ extension Scipio {
     }
 }
 
-private let availablePlatforms: OrderedSet<SDK> = [.iOS, .macOS, .tvOS, .watchOS]
+private let availablePlatforms: OrderedSet<Runner.Options.Platform> = [.iOS, .macOS, .tvOS, .watchOS]
 
 extension Runner.Options.Platform: ExpressibleByArgument { }
