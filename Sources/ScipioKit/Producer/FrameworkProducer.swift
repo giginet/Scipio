@@ -20,10 +20,21 @@ struct FrameworkProducer {
         }
     }
 
-    private var isCacheEnabled: Bool {
+    private var isConsumingCacheEnabled: Bool {
         switch cacheMode {
         case .disabled: return false
-        case .project, .storage: return true
+        case .project: return true
+        case .storage(_, let actors):
+            return actors.contains(.consumer)
+        }
+    }
+
+    private var isProducingCacheEnabled: Bool {
+        switch cacheMode {
+        case .disabled: return false
+        case .project: return true
+        case .storage(_, let actors):
+            return actors.contains(.producer)
         }
     }
 
@@ -85,7 +96,7 @@ struct FrameworkProducer {
                 cacheSystem: cacheSystem
             )
 
-            if isCacheEnabled {
+            if isProducingCacheEnabled {
                 let outputPath = outputDir.appendingPathComponent(product.frameworkName)
                 try? await cacheSystem.cacheFramework(product, at: outputPath)
 
@@ -107,7 +118,7 @@ struct FrameworkProducer {
         let exists = fileSystem.exists(outputPath.absolutePath)
 
         let needToBuild: Bool
-        if exists, isCacheEnabled {
+        if exists, isConsumingCacheEnabled {
             let isValidCache = await cacheSystem.existsValidCache(product: product)
             if isValidCache {
                 logger.info("✅ Valid \(product.target.name).xcframework is exists. Skip building.", metadata: .color(.green))
