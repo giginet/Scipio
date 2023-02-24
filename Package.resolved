@@ -10,12 +10,21 @@
       }
     },
     {
+      "identity" : "swift-algorithms",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-algorithms.git",
+      "state" : {
+        "revision" : "b14b7f4c528c942f121c8b860b9410b2bf57825e",
+        "version" : "1.0.0"
+      }
+    },
+    {
       "identity" : "swift-argument-parser",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-argument-parser.git",
       "state" : {
-        "revision" : "9f39744e025c7d377987f30b03770805dcb0bcd1",
-        "version" : "1.1.4"
+        "revision" : "fee6933f37fde9a5e12a1e4aeaa93fe60116ff2a",
+        "version" : "1.2.2"
       }
     },
     {
@@ -42,7 +51,7 @@
       "location" : "https://github.com/apple/swift-driver.git",
       "state" : {
         "branch" : "main",
-        "revision" : "b3e522d44677dd560bd445eb41881c44a98b1c6d"
+        "revision" : "0100f8da690f587beac79900bd8fab4c092c62ca"
       }
     },
     {
@@ -51,7 +60,7 @@
       "location" : "https://github.com/apple/swift-llbuild.git",
       "state" : {
         "branch" : "main",
-        "revision" : "524fa08b14170a6a79d1242229d9abff84a0e49c"
+        "revision" : "8d49bd3c84e74bb74ab59fca77282d923f3be520"
       }
     },
     {
@@ -61,6 +70,15 @@
       "state" : {
         "revision" : "6fe203dc33195667ce1759bf0182975e4653ba1c",
         "version" : "1.4.4"
+      }
+    },
+    {
+      "identity" : "swift-numerics",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-numerics",
+      "state" : {
+        "revision" : "0a5bc04095a675662cf24757cc0640aa2204253b",
+        "version" : "1.0.2"
       }
     },
     {
@@ -86,7 +104,7 @@
       "location" : "https://github.com/apple/swift-tools-support-core.git",
       "state" : {
         "branch" : "main",
-        "revision" : "52a962f926b86496f1108f5f83e6dc9fd8a966c2"
+        "revision" : "3b9d232d49082d9285018010d587765e85fbc052"
       }
     },
     {

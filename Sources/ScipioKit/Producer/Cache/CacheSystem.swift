@@ -2,6 +2,7 @@ import Foundation
 import TSCBasic
 import struct TSCUtility.Version
 import PackageGraph
+import Algorithms
 
 private let jsonEncoder = {
     let encoder = JSONEncoder()
@@ -138,13 +139,30 @@ struct CacheSystem {
         self.fileSystem = fileSystem
     }
 
-    func cacheFramework(_ target: CacheTarget, at frameworkPath: URL) async throws {
+    func cacheFrameworks(_ targets: Set<CacheTarget>) async throws {
+        let chunked = targets.chunks(ofCount: 4)
+
+        for chunk in chunked {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                for target in chunk {
+                    group.addTask {
+                        let frameworkPath = outputDirectory.appendingPathComponent(target.buildProduct.frameworkName)
+                        try await cacheFramework(target, at: frameworkPath)
+                        try await generateVersionFile(for: target)
+                    }
+                }
+                try await group.waitForAll()
+            }
+        }
+    }
+
+    private func cacheFramework(_ target: CacheTarget, at frameworkPath: URL) async throws {
         let cacheKey = try await calculateCacheKey(of: target)
 
         try await storage?.cacheFramework(frameworkPath, for: cacheKey)
     }
 
-    func generateVersionFile(for target: CacheTarget) async throws {
+    private func generateVersionFile(for target: CacheTarget) async throws {
         let cacheKey = try await calculateCacheKey(of: target)
 
         let data = try jsonEncoder.encode(cacheKey)

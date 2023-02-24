@@ -112,7 +112,7 @@ struct FrameworkProducer {
         }
 
         if isProducingCacheEnabled {
-            try await produceCaches(targets: targetsToBuild)
+            try await produceCaches(targets: targetsToBuild, cacheSystem: cacheSystem)
         }
     }
 
@@ -174,15 +174,14 @@ struct FrameworkProducer {
         return []
     }
 
-    private func produceCaches(targets: Set<CacheSystem.CacheTarget>) async throws {
-
+    private func produceCaches(targets: Set<CacheSystem.CacheTarget>, cacheSystem: CacheSystem) async throws {
     }
 
-    private func generateVersionFile(for target: CacheSystem.CacheTarget, using cacheSystem: CacheSystem) async throws {
-        do {
-            try await cacheSystem.generateVersionFile(for: target)
-        } catch {
-            logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
-        }
-    }
+//    private func generateVersionFile(for target: CacheSystem.CacheTarget, using cacheSystem: CacheSystem) async throws {
+//        do {
+//            try await cacheSystem.generateVersionFile(for: target)
+//        } catch {
+//            logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
+//        }
+//    }
 }
