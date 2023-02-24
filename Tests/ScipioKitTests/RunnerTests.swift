@@ -136,7 +136,7 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                cacheMode: .storage(storage)
+                cacheMode: .storage(storage, [.consumer, .producer])
             )
         )
         do {

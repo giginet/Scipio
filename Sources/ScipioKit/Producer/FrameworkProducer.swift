@@ -16,7 +16,7 @@ struct FrameworkProducer {
     private var cacheStorage: (any CacheStorage)? {
         switch cacheMode {
         case .disabled, .project: return nil
-        case .storage(let storage): return storage
+        case .storage(let storage, _): return storage
         }
     }
 

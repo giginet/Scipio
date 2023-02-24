@@ -193,10 +193,18 @@ extension Runner {
         }
 
         public enum CacheMode {
+            public enum CacheActor {
+                // Save built product to cacheStorage
+                case producer
+                // Consume stored caches
+                case consumer
+            }
+
             case disabled
             case project
-            case storage(any CacheStorage)
+            case storage(any CacheStorage, Set<CacheActor>)
         }
+
         public enum PlatformSpecifier: Equatable {
             case manifest
             case specific(Set<Platform>)
