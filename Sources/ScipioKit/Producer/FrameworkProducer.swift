@@ -61,7 +61,7 @@ struct FrameworkProducer {
 
         let targets = try descriptionPackage.resolveBuildProducts()
         try await processAllTargets(
-            targets: targets.filter { [.library, .binary].contains($0.target.type) }
+            buildProducts: targets.filter { [.library, .binary].contains($0.target.type) }
         )
     }
 
@@ -75,94 +75,112 @@ struct FrameworkProducer {
         }
     }
 
-    private func processAllTargets(targets: [BuildProduct]) async throws {
-        guard !targets.isEmpty else {
+    private func processAllTargets(buildProducts: [BuildProduct]) async throws {
+        guard !buildProducts.isEmpty else {
             return
         }
 
-        for product in targets {
-            assert([.library, .binary].contains(product.target.type))
-            let buildOptionsForProduct = overriddenBuildOption(for: product)
+        let allTargets = Set(buildProducts.compactMap { buildProduct -> CacheSystem.CacheTarget? in
+            guard [.library, .binary].contains(buildProduct.target.type) else {
+                assertionFailure("Invalid target type")
+                return nil
+            }
+            let buildOptionsForProduct = overriddenBuildOption(for: buildProduct)
+            return CacheSystem.CacheTarget(
+                buildProduct: buildProduct,
+                buildOptions: buildOptionsForProduct
+            )
+        })
+        let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
+                                      outputDirectory: outputDir,
+                                      storage: cacheStorage)
+        let cacheEnabledTargets: Set<CacheSystem.CacheTarget>
+        if isConsumingCacheEnabled {
+            cacheEnabledTargets = try await downloadAllAvailableCaches(targets: allTargets)
+        } else {
+            cacheEnabledTargets = []
+        }
 
-            let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
-                                          buildOptions: buildOptionsForProduct,
-                                          outputDirectory: outputDir,
-                                          storage: cacheStorage)
+        let targetsToBuild = allTargets.subtracting(cacheEnabledTargets)
 
-            try await prepareXCFrameworkIfNeeded(
-                product,
-                buildOptions: buildOptionsForProduct,
+        for target in targetsToBuild {
+            try await buildXCFrameworks(
+                target,
                 outputDir: outputDir,
                 cacheSystem: cacheSystem
             )
+        }
 
-            if isProducingCacheEnabled {
-                let outputPath = outputDir.appendingPathComponent(product.frameworkName)
-                try? await cacheSystem.cacheFramework(product, at: outputPath)
-
-                if case .prepareDependencies = descriptionPackage.mode {
-                    try await generateVersionFile(for: product, using: cacheSystem)
-                }
-            }
+        if isProducingCacheEnabled {
+            try await produceCaches(targets: targetsToBuild)
         }
     }
 
-    private func prepareXCFrameworkIfNeeded(
-        _ product: BuildProduct,
-        buildOptions: BuildOptions,
+    private func downloadAllAvailableCaches(targets: Set<CacheSystem.CacheTarget>) async throws -> Set<CacheSystem.CacheTarget>  {
+//        if exists, isConsumingCacheEnabled {
+//            let isValidCache = await cacheSystem.existsValidCache(product: product)
+//            if isValidCache {
+//                logger.info("✅ Valid \(product.target.name).xcframework is exists. Skip building.", metadata: .color(.green))
+//                return
+//            }
+//            logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
+//            logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
+//            try fileSystem.removeFileTree(outputPath.absolutePath)
+//            let restored = await cacheSystem.restoreCacheIfPossible(product: product)
+//            needToBuild = !restored
+//            if restored {
+//                logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
+//            }
+//        } else {
+//            needToBuild = true
+//        }
+        return []
+    }
+
+    @discardableResult
+    private func buildXCFrameworks(
+        _ target: CacheSystem.CacheTarget,
         outputDir: URL,
         cacheSystem: CacheSystem
-    ) async throws {
+    ) async throws -> Set<CacheSystem.CacheTarget> {
+        let product = target.buildProduct
+        let buildOptions = target.buildOptions
+
         let frameworkName = product.frameworkName
         let outputPath = outputDir.appendingPathComponent(product.frameworkName)
         let exists = fileSystem.exists(outputPath.absolutePath)
 
-        let needToBuild: Bool
-        if exists, isConsumingCacheEnabled {
-            let isValidCache = await cacheSystem.existsValidCache(product: product)
-            if isValidCache {
-                logger.info("✅ Valid \(product.target.name).xcframework is exists. Skip building.", metadata: .color(.green))
-                return
+        switch product.target.type {
+        case .library:
+            let compiler = PIFCompiler(descriptionPackage: descriptionPackage, buildOptions: buildOptions)
+            try await compiler.createXCFramework(buildProduct: product,
+                                                 outputDirectory: outputDir,
+                                                 overwrite: overwrite)
+        case .binary:
+            guard let binaryTarget = product.target.underlyingTarget as? BinaryTarget else {
+                fatalError("Unexpected failure")
             }
-            logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
-            logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(outputPath.absolutePath)
-            let restored = await cacheSystem.restoreCacheIfPossible(product: product)
-            needToBuild = !restored
-            if restored {
-                logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
-            }
-        } else {
-            needToBuild = true
+            let binaryExtractor = BinaryExtractor(
+                package: descriptionPackage,
+                outputDirectory: outputDir,
+                fileSystem: fileSystem
+            )
+            try binaryExtractor.extract(of: binaryTarget, overwrite: overwrite)
+            logger.info("✅ Copy \(binaryTarget.c99name).xcframework", metadata: .color(.green))
+        default:
+            fatalError("Unexpected target type \(product.target.type)")
         }
 
-        if needToBuild {
-            switch product.target.type {
-            case .library:
-                let compiler = PIFCompiler(descriptionPackage: descriptionPackage, buildOptions: buildOptions)
-                try await compiler.createXCFramework(buildProduct: product,
-                                                     outputDirectory: outputDir,
-                                                     overwrite: overwrite)
-            case .binary:
-                guard let binaryTarget = product.target.underlyingTarget as? BinaryTarget else {
-                    fatalError("Unexpected failure")
-                }
-                let binaryExtractor = BinaryExtractor(
-                    package: descriptionPackage,
-                    outputDirectory: outputDir,
-                    fileSystem: fileSystem
-                )
-                try binaryExtractor.extract(of: binaryTarget, overwrite: overwrite)
-                logger.info("✅ Copy \(binaryTarget.c99name).xcframework", metadata: .color(.green))
-            default:
-                fatalError("Unexpected target type \(product.target.type)")
-            }
-        }
+        return []
     }
 
-    private func generateVersionFile(for product: BuildProduct, using cacheSystem: CacheSystem) async throws {
+    private func produceCaches(targets: Set<CacheSystem.CacheTarget>) async throws {
+
+    }
+
+    private func generateVersionFile(for target: CacheSystem.CacheTarget, using cacheSystem: CacheSystem) async throws {
         do {
-            try await cacheSystem.generateVersionFile(for: product)
+            try await cacheSystem.generateVersionFile(for: target)
         } catch {
             logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
         }

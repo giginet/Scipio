@@ -100,10 +100,14 @@ public protocol CacheStorage {
 
 struct CacheSystem {
     private let descriptionPackage: DescriptionPackage
-    private let buildOptions: BuildOptions
     private let outputDirectory: URL
     private let storage: (any CacheStorage)?
     private let fileSystem: any FileSystem
+
+    struct CacheTarget: Hashable {
+        var buildProduct: BuildProduct
+        var buildOptions: BuildOptions
+    }
 
     enum Error: LocalizedError {
         case revisionNotDetected(String)
@@ -124,35 +128,33 @@ struct CacheSystem {
 
     init(
         descriptionPackage: DescriptionPackage,
-        buildOptions: BuildOptions,
         outputDirectory: URL,
         storage: (any CacheStorage)?,
         fileSystem: any FileSystem = localFileSystem
     ) {
         self.descriptionPackage = descriptionPackage
-        self.buildOptions = buildOptions
         self.outputDirectory = outputDirectory
         self.storage = storage
         self.fileSystem = fileSystem
     }
 
-    func cacheFramework(_ product: BuildProduct, at frameworkPath: URL) async throws {
-        let cacheKey = try await calculateCacheKey(of: product)
+    func cacheFramework(_ target: CacheTarget, at frameworkPath: URL) async throws {
+        let cacheKey = try await calculateCacheKey(of: target)
 
         try await storage?.cacheFramework(frameworkPath, for: cacheKey)
     }
 
-    func generateVersionFile(for product: BuildProduct) async throws {
-        let cacheKey = try await calculateCacheKey(of: product)
+    func generateVersionFile(for target: CacheTarget) async throws {
+        let cacheKey = try await calculateCacheKey(of: target)
 
         let data = try jsonEncoder.encode(cacheKey)
-        let versionFilePath = outputDirectory.appendingPathComponent(versionFileName(for: product.target.name))
+        let versionFilePath = outputDirectory.appendingPathComponent(versionFileName(for: target.buildProduct.target.name))
         try fileSystem.writeFileContents(versionFilePath.absolutePath, data: data)
     }
 
-    func existsValidCache(product: BuildProduct) async -> Bool {
+    func existsValidCache(target: CacheTarget) async -> Bool {
         do {
-            let cacheKey = try await calculateCacheKey(of: product)
+            let cacheKey = try await calculateCacheKey(of: target)
             let versionFilePath = versionFilePath(for: cacheKey.targetName)
             guard fileSystem.exists(versionFilePath.absolutePath) else { return false }
             let decoder = JSONDecoder()
@@ -166,10 +168,10 @@ struct CacheSystem {
         }
     }
 
-    func restoreCacheIfPossible(product: BuildProduct) async -> Bool {
+    func restoreCacheIfPossible(target: CacheTarget) async -> Bool {
         guard let storage = storage else { return false }
         do {
-            let cacheKey = try await calculateCacheKey(of: product)
+            let cacheKey = try await calculateCacheKey(of: target)
             if try await storage.existsValidCache(for: cacheKey) {
                 try await storage.fetchArtifacts(for: cacheKey, to: outputDirectory)
                 return true
@@ -181,16 +183,16 @@ struct CacheSystem {
         }
     }
 
-    private func fetchArtifacts(product: BuildProduct, to destination: URL) async throws {
+    private func fetchArtifacts(target: CacheTarget, to destination: URL) async throws {
         guard let storage = storage else { return }
-        let cacheKey = try await calculateCacheKey(of: product)
+        let cacheKey = try await calculateCacheKey(of: target)
         try await storage.fetchArtifacts(for: cacheKey, to: destination)
     }
 
-    private func calculateCacheKey(of product: BuildProduct) async throws -> CacheKey {
-        let targetName = product.target.name
-        let pin = try retrievePin(product: product)
-        let buildOptions = buildOptions
+    private func calculateCacheKey(of target: CacheTarget) async throws -> CacheKey {
+        let targetName = target.buildProduct.target.name
+        let pin = try retrievePin(product: target.buildProduct)
+        let buildOptions = target.buildOptions
         guard let clangVersion = try await ClangChecker().fetchClangVersion() else { throw Error.compilerVersionNotDetected } // TODO DI
         return CacheKey(
             targetName: targetName,
