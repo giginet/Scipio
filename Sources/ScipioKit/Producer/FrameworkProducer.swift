@@ -116,12 +116,12 @@ struct FrameworkProducer {
         }
 
         if isProducingCacheEnabled {
-            try await cacheSystem.cacheFrameworks(targetsToBuild)
+            await cacheSystem.cacheFrameworks(targetsToBuild)
         }
     }
 
     private func restoreAllAvailableCaches(availableTargets: Set<CacheSystem.CacheTarget>, cacheSystem: CacheSystem) async -> Set<CacheSystem.CacheTarget> {
-        let chunked = availableTargets.chunks(ofCount: 4)
+        let chunked = availableTargets.chunks(ofCount: cacheStorage?.taskConcurrency ?? CacheSystem.defaultTaskConcurrency)
 
         var restored: Set<CacheSystem.CacheTarget> = []
         for chunk in chunked {
