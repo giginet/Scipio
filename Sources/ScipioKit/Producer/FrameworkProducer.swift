@@ -112,7 +112,7 @@ struct FrameworkProducer {
                 outputDir: outputDir,
                 cacheSystem: cacheSystem
             )
-            try await generateVersionFile(for: target, using: cacheSystem)
+            await generateVersionFile(for: target, using: cacheSystem)
         }
 
         if isProducingCacheEnabled {
@@ -201,7 +201,7 @@ struct FrameworkProducer {
         return []
     }
 
-    private func generateVersionFile(for target: CacheSystem.CacheTarget, using cacheSystem: CacheSystem) async throws {
+    private func generateVersionFile(for target: CacheSystem.CacheTarget, using cacheSystem: CacheSystem) async {
         do {
             try await cacheSystem.generateVersionFile(for: target)
         } catch {

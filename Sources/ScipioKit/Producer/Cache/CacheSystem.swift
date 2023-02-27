@@ -139,18 +139,22 @@ struct CacheSystem {
         self.fileSystem = fileSystem
     }
 
-    func cacheFrameworks(_ targets: Set<CacheTarget>) async throws {
+    func cacheFrameworks(_ targets: Set<CacheTarget>) async {
         let chunked = targets.chunks(ofCount: 4)
 
         for chunk in chunked {
-            try await withThrowingTaskGroup(of: Void.self) { group in
+            await withTaskGroup(of: Void.self) { group in
                 for target in chunk {
                     group.addTask {
                         let frameworkPath = outputDirectory.appendingPathComponent(target.buildProduct.frameworkName)
-                        try await cacheFramework(target, at: frameworkPath)
+                        do {
+                            try await cacheFramework(target, at: frameworkPath)
+                        } catch {
+                            logger.warning("⚠️ Can't create caches for \(frameworkPath.path)")
+                        }
                     }
                 }
-                try await group.waitForAll()
+                await group.waitForAll()
             }
         }
     }
