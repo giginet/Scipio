@@ -148,7 +148,6 @@ struct CacheSystem {
                     group.addTask {
                         let frameworkPath = outputDirectory.appendingPathComponent(target.buildProduct.frameworkName)
                         try await cacheFramework(target, at: frameworkPath)
-                        try await generateVersionFile(for: target)
                     }
                 }
                 try await group.waitForAll()
@@ -162,7 +161,7 @@ struct CacheSystem {
         try await storage?.cacheFramework(frameworkPath, for: cacheKey)
     }
 
-    private func generateVersionFile(for target: CacheTarget) async throws {
+    func generateVersionFile(for target: CacheTarget) async throws {
         let cacheKey = try await calculateCacheKey(of: target)
 
         let data = try jsonEncoder.encode(cacheKey)
