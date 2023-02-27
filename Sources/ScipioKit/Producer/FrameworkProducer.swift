@@ -96,7 +96,10 @@ struct FrameworkProducer {
                                       storage: cacheStorage)
         let cacheEnabledTargets: Set<CacheSystem.CacheTarget>
         if isConsumingCacheEnabled {
-            cacheEnabledTargets = try await downloadAllAvailableCaches(targets: allTargets)
+            cacheEnabledTargets = await restoreAllAvailableCaches(
+                availableTargets: allTargets,
+                cacheSystem: cacheSystem
+            )
         } else {
             cacheEnabledTargets = []
         }
@@ -116,25 +119,52 @@ struct FrameworkProducer {
         }
     }
 
-    private func downloadAllAvailableCaches(targets: Set<CacheSystem.CacheTarget>) async throws -> Set<CacheSystem.CacheTarget>  {
-//        if exists, isConsumingCacheEnabled {
-//            let isValidCache = await cacheSystem.existsValidCache(product: product)
-//            if isValidCache {
-//                logger.info("✅ Valid \(product.target.name).xcframework is exists. Skip building.", metadata: .color(.green))
-//                return
-//            }
-//            logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
-//            logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-//            try fileSystem.removeFileTree(outputPath.absolutePath)
-//            let restored = await cacheSystem.restoreCacheIfPossible(product: product)
-//            needToBuild = !restored
-//            if restored {
-//                logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
-//            }
-//        } else {
-//            needToBuild = true
-//        }
-        return []
+    private func restoreAllAvailableCaches(availableTargets: Set<CacheSystem.CacheTarget>, cacheSystem: CacheSystem) async -> Set<CacheSystem.CacheTarget> {
+        let chunked = availableTargets.chunks(ofCount: 4)
+
+        var restored: Set<CacheSystem.CacheTarget> = []
+        for chunk in chunked {
+            await withTaskGroup(of: CacheSystem.CacheTarget?.self) { group in
+                for target in chunk {
+                    group.addTask {
+                        do {
+                            let restored = try await restore(target: target, cacheSystem: cacheSystem)
+                            return restored ? target : nil
+                        } catch {
+                            return nil
+                        }
+                    }
+                }
+                for await target in group.compactMap({ $0 }) {
+                    restored.insert(target)
+                }
+            }
+        }
+        return restored
+    }
+
+    private func restore(target: CacheSystem.CacheTarget, cacheSystem: CacheSystem) async throws -> Bool {
+        let product = target.buildProduct
+        let frameworkName = product.frameworkName
+        let outputPath = outputDir.appendingPathComponent(product.frameworkName)
+        let exists = fileSystem.exists(outputPath.absolutePath)
+
+        if exists, isConsumingCacheEnabled {
+            let isValidCache = await cacheSystem.existsValidCache(target: target)
+            if isValidCache {
+                logger.info("✅ Valid \(product.target.name).xcframework is exists. Skip building.", metadata: .color(.green))
+                return true
+            }
+            logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
+            logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
+            try fileSystem.removeFileTree(outputPath.absolutePath)
+            let restored = await cacheSystem.restoreCacheIfPossible(target: target)
+            if restored {
+                logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
+                return true
+            }
+        }
+        return false
     }
 
     @discardableResult
@@ -145,10 +175,6 @@ struct FrameworkProducer {
     ) async throws -> Set<CacheSystem.CacheTarget> {
         let product = target.buildProduct
         let buildOptions = target.buildOptions
-
-        let frameworkName = product.frameworkName
-        let outputPath = outputDir.appendingPathComponent(product.frameworkName)
-        let exists = fileSystem.exists(outputPath.absolutePath)
 
         switch product.target.type {
         case .library:
