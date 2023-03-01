@@ -25,18 +25,6 @@ final class IntegrationTests: XCTestCase {
         try await super.setUp()
     }
 
-    private func detectFrameworkType(binaryPath: URL) async throws -> FrameworkType? {
-        let executor = ProcessExecutor()
-        let result = try await executor.execute("/usr/bin/file", binaryPath.path)
-        let output = try XCTUnwrap(try result.unwrapOutput())
-        if output.contains("current ar archive") {
-            return .static
-        } else if output.contains("dynamically linked shared library") {
-            return .dynamic
-        }
-        return nil
-    }
-
     private enum Destination: String {
         case iOS = "ios-arm64"
         case watchOS = "watchos-arm64_arm64_32_armv7k"
@@ -50,7 +38,8 @@ final class IntegrationTests: XCTestCase {
                     buildConfiguration: .release,
                     isSimulatorSupported: false,
                     isDebugSymbolsEmbedded: false,
-                    frameworkType: .dynamic
+                    frameworkType: .static,
+                    enableLibraryEvolution: false
                 ),
                 buildOptionsMatrix: [
                     "Atomics": .init(frameworkType: .static),
@@ -73,16 +62,35 @@ final class IntegrationTests: XCTestCase {
             try self.fileManager.removeItem(atPath: outputDir.path)
         }
 
-        let testCase: [(String, FrameworkType, Set<Destination>)] = [
-            ("Atomics", .static, [.iOS]),
-            ("Logging", .dynamic, [.iOS, .watchOS]),
-            ("OrderedCollections", .dynamic, [.iOS]),
-            ("_AtomicsShims", .static, [.iOS]),
+        let testCase: [(String, FrameworkType, Set<Destination>, Bool)] = [
+            ("Atomics", .static, [.iOS], false),
+            ("Logging", .static, [.iOS, .watchOS], false),
+            ("OrderedCollections", .static, [.iOS], false),
+            ("DequeModule", .static, [.iOS], false),
+            ("_AtomicsShims", .static, [.iOS], true),
+            ("SDWebImage", .static, [.iOS], true),
+            ("SDWebImageMapKit", .static, [.iOS], true),
+            ("NIO", .static, [.iOS], false),
+            ("NIOEmbedded", .static, [.iOS], false),
+            ("NIOPosix", .static, [.iOS], false),
+            ("NIOCore", .static, [.iOS], false),
+            ("NIOConcurrencyHelpers", .static, [.iOS], false),
+            ("_NIODataStructures", .static, [.iOS], false),
+            ("CNIOAtomics", .static, [.iOS], true),
+            ("CNIOLinux", .static, [.iOS], true),
+            ("CNIODarwin", .static, [.iOS], true),
+            ("CNIOWindows", .static, [.iOS], true),
         ]
 
         let outputDirContents = try fileManager.contentsOfDirectory(atPath: outputDir.path)
+        let allExpectedFrameworkNames = testCase.map { "\($0.0).xcframework" }
+        XCTAssertEqual(
+            Set(outputDirContents),
+            Set(allExpectedFrameworkNames),
+            "Expected frameworks should be generated"
+        )
 
-        for (frameworkName, frameworkType, platforms) in testCase {
+        for (frameworkName, frameworkType, platforms, isClangFramework) in testCase {
             let xcFrameworkName = "\(frameworkName).xcframework"
             XCTAssertTrue(
                 outputDirContents.contains(xcFrameworkName),
@@ -105,9 +113,12 @@ final class IntegrationTests: XCTestCase {
                     .appendingPathComponent(destination)
                     .appendingPathComponent("\(frameworkName).framework")
 
-                let isPrivateFramework = frameworkName.hasPrefix("_")
-
-                if !isPrivateFramework {
+                if isClangFramework {
+                    XCTAssertTrue(
+                        fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Headers/\(frameworkName).h").path),
+                        "\(xcFrameworkName) should contain an umbrella header"
+                    )
+                } else {
                     XCTAssertTrue(
                         fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Headers/\(frameworkName)-Swift.h").path),
                         "\(xcFrameworkName) should contain a bridging header"
@@ -130,7 +141,7 @@ final class IntegrationTests: XCTestCase {
                     "\(xcFrameworkName) should contain a binary"
                 )
 
-                let actualFrameworkType = try await detectFrameworkType(binaryPath: binaryPath)
+                let actualFrameworkType = try await detectFrameworkType(of: binaryPath)
                 XCTAssertEqual(
                     actualFrameworkType,
                     frameworkType,

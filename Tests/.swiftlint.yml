@@ -2,3 +2,4 @@ disabled_rules:
   - function_body_length
   - force_cast
   - large_tuple
+  - type_body_length

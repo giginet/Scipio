@@ -34,7 +34,13 @@ final class DescriptionPackageTests: XCTestCase {
 
         XCTAssertEqual(
             Set(try package.resolveBuildProducts().map(\.target.name)),
-            ["Logging", "Atomics", "_AtomicsShims", "OrderedCollections"]
+            [
+                "CNIOWindows", "NIOConcurrencyHelpers",
+                "NIO", "CNIOAtomics", "Logging", "NIOEmbedded", "Atomics",
+                "DequeModule", "_AtomicsShims", "NIOPosix", "_NIODataStructures",
+                "SDWebImageMapKit", "NIOCore", "CNIOLinux",
+                "OrderedCollections", "SDWebImage", "CNIODarwin",
+            ]
         )
     }
 
