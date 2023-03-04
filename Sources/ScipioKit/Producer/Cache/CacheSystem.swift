@@ -86,16 +86,16 @@ extension PinsStore.PinState: Hashable {
 }
 
 public struct CacheKey: Hashable, Codable, Equatable {
-    var targetName: String
-    var pin: PinsStore.PinState
+    public var targetName: String
+    public var pin: PinsStore.PinState
     var buildOptions: BuildOptions
-    var clangVersion: String
+    public var clangVersion: String
 }
 
 public protocol CacheStorage {
-    func existsValidCache(for cacheKey: CacheKey) async -> Bool
+    func existsValidCache(for cacheKey: CacheKey) async throws -> Bool
     func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: URL) async throws
-    func cacheFramework(_ frameworkPath: URL, for cacheKey: CacheKey) async
+    func cacheFramework(_ frameworkPath: URL, for cacheKey: CacheKey) async throws
 }
 
 struct CacheSystem {
@@ -139,7 +139,7 @@ struct CacheSystem {
     func cacheFramework(_ product: BuildProduct, at frameworkPath: URL) async throws {
         let cacheKey = try await calculateCacheKey(of: product)
 
-        await storage?.cacheFramework(frameworkPath, for: cacheKey)
+        try await storage?.cacheFramework(frameworkPath, for: cacheKey)
     }
 
     func generateVersionFile(for product: BuildProduct) async throws {
@@ -170,7 +170,7 @@ struct CacheSystem {
         guard let storage = storage else { return false }
         do {
             let cacheKey = try await calculateCacheKey(of: product)
-            if await storage.existsValidCache(for: cacheKey) {
+            if try await storage.existsValidCache(for: cacheKey) {
                 try await storage.fetchArtifacts(for: cacheKey, to: outputDirectory)
                 return true
             } else {
@@ -218,7 +218,7 @@ struct CacheSystem {
 }
 
 extension CacheKey {
-    func calculateChecksum() throws -> String {
+    public func calculateChecksum() throws -> String {
         let data = try jsonEncoder.encode(self)
         return SHA256().hash(ByteString(data)).hexadecimalRepresentation
     }
