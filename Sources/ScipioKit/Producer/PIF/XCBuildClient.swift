@@ -58,7 +58,7 @@ struct XCBuildClient {
             "--configuration",
             configuration.settingsValue,
             "--derivedDataPath",
-            descriptionPackage.derivedDataPath(for: buildProduct.target).pathString,
+            descriptionPackage.derivedDataPath.pathString,
             "--buildParametersFile",
             buildParametersPath.pathString,
             "--target",
@@ -69,7 +69,7 @@ struct XCBuildClient {
     private func frameworkPath(target: ResolvedTarget, of sdk: SDK) throws -> AbsolutePath {
         let frameworkPath = try RelativePath(validating: "./Products/\(productDirectoryName(sdk: sdk))/PackageFrameworks")
             .appending(component: "\(buildProduct.target.c99name).framework")
-        return descriptionPackage.derivedDataPath(for: target).appending(frameworkPath)
+        return descriptionPackage.derivedDataPath.appending(frameworkPath)
     }
 
     private func productDirectoryName(sdk: SDK) -> String {
@@ -112,13 +112,6 @@ struct XCBuildClient {
         // Default behavior, this command requires swiftinterface. If they don't exist, `-allow-internal-distribution` must be required.
         let additionalFlags = buildOptions.enableLibraryEvolution ? [] : ["-allow-internal-distribution"]
         return frameworksArguments + debugSymbolsArguments + outputPathArguments + additionalFlags
-    }
-}
-
-extension DescriptionPackage {
-    fileprivate func derivedDataPath(for target: ResolvedTarget) -> AbsolutePath {
-        derivedDataPath
-            .appending(components: self.name, target.name)
     }
 }
 
