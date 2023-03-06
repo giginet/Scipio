@@ -115,13 +115,6 @@ struct XCBuildClient {
     }
 }
 
-extension DescriptionPackage {
-    fileprivate func derivedDataPath(for target: ResolvedTarget) -> AbsolutePath {
-        derivedDataPath
-            .appending(components: self.name, target.name)
-    }
-}
-
 private struct XCBuildOutputDecoder: ErrorDecoder {
     private let jsonDecoder = JSONDecoder()
 

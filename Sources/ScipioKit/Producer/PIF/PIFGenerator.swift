@@ -232,43 +232,15 @@ private struct PIFLibraryTargetModifier {
         }
         settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
-        // Generating modulemap to default location
-        // Location set by the original PIFBuilder may not be work
-        settings[.MODULEMAP_PATH] = nil
-        // Removing `-fmodule-map-file` flag set on the original PIFBuilder
-        pifTarget.impartedBuildProperties.buildSettings[.OTHER_CFLAGS] = ["$(inherited)"]
-        pifTarget.impartedBuildProperties.buildSettings[.OTHER_SWIFT_FLAGS] = ["$(inherited)"]
-
-        if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
-            switch clangTarget.moduleMapType {
-            case .custom(let moduleMapPath):
-                settings[.MODULEMAP_FILE] = moduleMapPath.moduleEscapedPathString
-                settings[.MODULEMAP_FILE_CONTENTS] = nil
-            case .umbrellaHeader(let headerPath):
-                settings[.MODULEMAP_FILE_CONTENTS] = """
-                    framework module \(c99Name) {
-                        umbrella header "\(headerPath.moduleEscapedPathString)"
-                        export *
-                    }
-                """
-            case .umbrellaDirectory(let directoryPath):
-                settings[.MODULEMAP_FILE_CONTENTS] = """
-                    framework module \(c99Name) {
-                        umbrella "\(directoryPath.moduleEscapedPathString)"
-                        export *
-                    }
-                """
-            case .none:
-                settings[.MODULEMAP_FILE_CONTENTS] = nil
-            }
-        } else {
-            let bridgingHeaderName = settings[.SWIFT_OBJC_INTERFACE_HEADER_NAME] ?? "\(name)-Swift.h"
-            settings[.MODULEMAP_FILE_CONTENTS] = """
-                framework module \(c99Name) {
-                    header "\(bridgingHeaderName)"
-                    export *
-                }
-            """
+        let generator = ModuleMapGenerator(
+            descriptionPackage: descriptionPackage,
+            sdk: sdk,
+            configuration: buildOptions.buildConfiguration,
+            resolvedTarget: resolvedTarget,
+            fileSystem: fileSystem
+        )
+        if let result = try? generator.generate() {
+            settings[.MODULEMAP_PATH] = result.moduleMapPath.pathString
         }
 
         configuration.buildSettings = settings
@@ -380,5 +352,97 @@ extension PIF.TopLevelObject: Decodable {
 extension AbsolutePath {
     fileprivate var moduleEscapedPathString: String {
         return self.pathString.replacingOccurrences(of: "\\", with: "\\\\")
+    }
+}
+
+struct ModuleMapGenerator {
+    struct ModuleMapResult {
+        var moduleMapPath: AbsolutePath
+        var isGenerated: Bool
+    }
+
+    private var descriptionPackage: DescriptionPackage
+    private var sdk: SDK
+    private var configuration: BuildConfiguration
+    private var resolvedTarget: ResolvedTarget
+    private var fileSystem: any FileSystem
+
+    init(descriptionPackage: DescriptionPackage, sdk: SDK, configuration: BuildConfiguration, resolvedTarget: ResolvedTarget, fileSystem: any FileSystem) {
+        self.descriptionPackage = descriptionPackage
+        self.sdk = sdk
+        self.configuration = configuration
+        self.resolvedTarget = resolvedTarget
+        self.fileSystem = fileSystem
+    }
+
+    private func makeModuleMapContents() -> String {
+        if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
+            switch clangTarget.moduleMapType {
+            case .custom, .none:
+                fatalError("Unsupported moduleMapType")
+            case .umbrellaHeader(let headerPath):
+                return """
+                framework module \(resolvedTarget.c99name) {
+                    umbrella header "\(headerPath.moduleEscapedPathString)"
+                    export *
+                }
+                """
+                    .trimmingCharacters(in: .whitespaces)
+            case .umbrellaDirectory(let directoryPath):
+                return """
+                framework module \(resolvedTarget.c99name) {
+                    umbrella "\(directoryPath.moduleEscapedPathString)"
+                    export *
+                }
+                """
+                    .trimmingCharacters(in: .whitespaces)
+            }
+        } else {
+            // "settings[.SWIFT_OBJC_INTERFACE_HEADER_NAME]"
+            let bridgingHeaderName = nil ?? "\(resolvedTarget.name)-Swift.h"
+            return """
+                framework module \(resolvedTarget.c99name) {
+                    header "\(bridgingHeaderName)"
+                    export *
+                }
+            """
+                .trimmingCharacters(in: .whitespaces)
+        }
+    }
+
+    private func generateModuleMapFile(outputPath: AbsolutePath) throws {
+        let dirPath = outputPath.parentDirectory
+        try fileSystem.createDirectory(dirPath, recursive: true)
+
+        let contents = makeModuleMapContents()
+        try fileSystem.writeFileContents(outputPath, string: contents)
+    }
+
+    private func constructGeneratedModuleMapPath() throws -> AbsolutePath {
+        // .build/scipio/DerivedData/swift-nio/CNIOAtomics/Intermediates.noindex/GeneratedModuleMaps/iphoneos
+        // $(OBJROOT)/GeneratedModuleMaps/$(PLATFORM_NAME)
+        let moduleMapPath = try RelativePath(validating: "./Intermediates.noindex/GeneratedModuleMaps/\(sdk.settingValue)/\(resolvedTarget.name).modulemap")
+        return descriptionPackage.derivedDataPath(for: resolvedTarget)
+            .appending(moduleMapPath)
+    }
+
+    func generate() throws -> ModuleMapResult? {
+        if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
+            switch clangTarget.moduleMapType {
+            case .custom(let moduleMapPath):
+                let path = try AbsolutePath(validating: moduleMapPath.moduleEscapedPathString)
+                return .init(moduleMapPath: path, isGenerated: true)
+            case .umbrellaHeader, .umbrellaDirectory:
+                let path = try constructGeneratedModuleMapPath()
+                try generateModuleMapFile(outputPath: path)
+                return .init(moduleMapPath: path, isGenerated: true)
+            case .none:
+                return .none
+            }
+        } else {
+            let path = try constructGeneratedModuleMapPath()
+            try generateModuleMapFile(outputPath: path)
+            return .init(moduleMapPath: path, isGenerated: true)
+        }
     }
 }

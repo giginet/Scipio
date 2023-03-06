@@ -52,6 +52,11 @@ struct DescriptionPackage {
         workspaceDirectory.appending(component: "DerivedData")
     }
 
+    func derivedDataPath(for target: ResolvedTarget) -> AbsolutePath {
+        derivedDataPath
+            .appending(components: self.name, target.name)
+    }
+
     // MARK: Initializer
 
     private static func makeWorkspace(packagePath: AbsolutePath) throws -> Workspace {

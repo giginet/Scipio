@@ -79,6 +79,10 @@ struct BuildParametersGenerator {
             "$(BUILT_PRODUCTS_DIR)/PackageFrameworks"
         )
 
+        settings["USER_HEADER_SEARCH_PATHS"] = expandFlags(
+            "$(OBJROOT)/GeneratedModuleMaps/$(PLATFORM_NAME)"
+        )
+
         let additionalSettings = buildOptions.extraBuildParameters ?? [:]
         settings.merge(additionalSettings, uniquingKeysWith: { $1 })
 
