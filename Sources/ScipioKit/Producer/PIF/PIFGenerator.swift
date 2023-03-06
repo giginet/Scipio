@@ -239,10 +239,12 @@ private struct PIFLibraryTargetModifier {
             resolvedTarget: resolvedTarget,
             fileSystem: fileSystem
         )
-        if let result = try? generator.generate() {
-            settings[.MODULEMAP_PATH] = result.moduleMapPath.pathString
-        }
 
+        if let result = try? generator.generate() {
+            print("generatedModuleMap", result.moduleMapPath.pathString)
+            settings[.MODULEMAP_FILE] = result.moduleMapPath.pathString
+        }
+        
         configuration.buildSettings = settings
         return configuration
     }

@@ -54,7 +54,7 @@ struct DescriptionPackage {
 
     func derivedDataPath(for target: ResolvedTarget) -> AbsolutePath {
         derivedDataPath
-            .appending(components: self.name, target.name)
+            .appending(components: self.name)
     }
 
     // MARK: Initializer
