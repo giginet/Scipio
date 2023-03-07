@@ -232,13 +232,6 @@ private struct PIFLibraryTargetModifier {
         }
         settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
-//        // Generating modulemap to default location
-//        // Location set by the original PIFBuilder may not be work
-//        settings[.MODULEMAP_PATH] = nil
-//        // Removing `-fmodule-map-file` flag set on the original PIFBuilder
-//        pifTarget.impartedBuildProperties.buildSettings[.OTHER_CFLAGS] = ["$(inherited)"]
-//        pifTarget.impartedBuildProperties.buildSettings[.OTHER_SWIFT_FLAGS] = ["$(inherited)"]
-
         if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
             switch clangTarget.moduleMapType {
             case .custom(let moduleMapPath):

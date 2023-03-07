@@ -73,6 +73,7 @@ struct PIFCompiler: Compiler {
 
             do {
                 try await xcBuildClient.buildFramework(
+                    sdk: sdk,
                     pifPath: pifPath,
                     buildParametersPath: buildParametersPath
                 )

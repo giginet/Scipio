@@ -7,6 +7,7 @@ struct XCBuildClient {
     private let buildOptions: BuildOptions
     private let buildProduct: BuildProduct
     private let configuration: BuildConfiguration
+    private let fileSystem: any FileSystem
     private let executor: any Executor
     private let buildExecutor: any Executor
 
@@ -15,6 +16,7 @@ struct XCBuildClient {
         buildProduct: BuildProduct,
         buildOptions: BuildOptions,
         configuration: BuildConfiguration,
+        fileSystem: any FileSystem = localFileSystem,
         executor: any Executor = ProcessExecutor(decoder: StandardOutputDecoder()),
         xcBuildExecutor: any Executor = ProcessExecutor(decoder: XCBuildOutputDecoder())
     ) {
@@ -22,6 +24,7 @@ struct XCBuildClient {
         self.buildProduct = buildProduct
         self.buildOptions = buildOptions
         self.configuration = configuration
+        self.fileSystem = fileSystem
         self.executor = executor
         self.buildExecutor = xcBuildExecutor
     }
@@ -47,6 +50,7 @@ struct XCBuildClient {
     }
 
     func buildFramework(
+        sdk: SDK,
         pifPath: AbsolutePath,
         buildParametersPath: AbsolutePath
     ) async throws {
@@ -64,12 +68,41 @@ struct XCBuildClient {
             "--target",
             buildProduct.target.name
         )
+
+        // Copy modulemap to outputFramework
+        // xcbuild generates modulemap for each frameworks
+        // However, these are not includes in Frameworks
+        // So they should be copied into frameworks manually.
+        try copyModulemap(for: sdk)
+    }
+
+    private func copyModulemap(for sdk: SDK) throws {
+        let destinationFrameworkPath = try frameworkPath(target: buildProduct.target, of: sdk)
+        let modulesDir = destinationFrameworkPath.appending(component: "Modules")
+        if !fileSystem.exists(modulesDir) {
+            try fileSystem.createDirectory(modulesDir)
+        }
+
+        let generatedModuleMapPath = try generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
+        if fileSystem.exists(generatedModuleMapPath) {
+            try fileSystem.copy(
+                from: generatedModuleMapPath,
+                to: modulesDir.appending(component: "module.modulemap")
+            )
+        }
     }
 
     private func frameworkPath(target: ResolvedTarget, of sdk: SDK) throws -> AbsolutePath {
         let frameworkPath = try RelativePath(validating: "./Products/\(productDirectoryName(sdk: sdk))/PackageFrameworks")
             .appending(component: "\(buildProduct.target.c99name).framework")
         return descriptionPackage.derivedDataPath.appending(frameworkPath)
+    }
+
+    private func generatedModuleMapPath(of target: ResolvedTarget, sdk: SDK) throws -> AbsolutePath {
+        let relativePath = try RelativePath(validating: "Intermediates.noindex/GeneratedModuleMaps/\(sdk.settingValue)")
+        return descriptionPackage.derivedDataPath
+            .appending(relativePath)
+            .appending(component: target.modulemapName)
     }
 
     private func productDirectoryName(sdk: SDK) -> String {
