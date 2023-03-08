@@ -237,31 +237,9 @@ private struct PIFLibraryTargetModifier {
             case .custom(let moduleMapPath):
                 settings[.MODULEMAP_FILE] = moduleMapPath.moduleEscapedPathString
                 settings[.MODULEMAP_FILE_CONTENTS] = nil
-            case .umbrellaHeader(let headerPath):
-                settings[.MODULEMAP_FILE_CONTENTS] = """
-                    framework module \(c99Name) {
-                        umbrella header "\(headerPath.moduleEscapedPathString)"
-                        export *
-                    }
-                """
-            case .umbrellaDirectory(let directoryPath):
-                settings[.MODULEMAP_FILE_CONTENTS] = """
-                    framework module \(c99Name) {
-                        umbrella "\(directoryPath.moduleEscapedPathString)"
-                        export *
-                    }
-                """
-            case .none:
-                settings[.MODULEMAP_FILE_CONTENTS] = nil
+            case .umbrellaHeader, .umbrellaDirectory, .none:
+                break
             }
-        } else {
-            let bridgingHeaderName = settings[.SWIFT_OBJC_INTERFACE_HEADER_NAME] ?? "\(name)-Swift.h"
-            settings[.MODULEMAP_FILE_CONTENTS] = """
-                framework module \(c99Name) {
-                    header "\(bridgingHeaderName)"
-                    export *
-                }
-            """
         }
 
         configuration.buildSettings = settings
