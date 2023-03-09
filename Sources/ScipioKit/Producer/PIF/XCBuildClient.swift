@@ -55,15 +55,15 @@ struct XCBuildClient {
         pifPath: AbsolutePath,
         buildParametersPath: AbsolutePath
     ) async throws {
-
         let modulemapGenerator = ModuleMapGenerator(
             descriptionPackage: descriptionPackage,
-            sdk: sdk,
-            configuration: configuration,
-            resolvedTarget: buildProduct.target,
             fileSystem: fileSystem
         )
-        try modulemapGenerator.generate()
+        try modulemapGenerator.generate(
+            resolvedTarget: buildProduct.target,
+            sdk: sdk,
+            buildConfiguration: buildOptions.buildConfiguration
+        )
 
         let xcbuildPath = try await fetchXCBuildPath()
         try await buildExecutor.execute(
@@ -94,7 +94,7 @@ struct XCBuildClient {
             try fileSystem.createDirectory(modulesDir)
         }
 
-        let generatedModuleMapPath = try generatedModuleMapPath(of: buildProduct.target, sdk: sdk, workspaceDirectory: descriptionPackage.workspaceDirectory)
+        let generatedModuleMapPath = try descriptionPackage.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
         if fileSystem.exists(generatedModuleMapPath) {
             try fileSystem.copy(
                 from: generatedModuleMapPath,
@@ -184,100 +184,4 @@ private struct XCBuildErrorInfo: Decodable {
         }
         return false
     }
-}
-
-struct ModuleMapGenerator {
-    struct ModuleMapResult {
-        var moduleMapPath: AbsolutePath
-        var isGenerated: Bool
-    }
-
-    private var descriptionPackage: DescriptionPackage
-    private var sdk: SDK
-    private var configuration: BuildConfiguration
-    private var resolvedTarget: ResolvedTarget
-    private var fileSystem: any FileSystem
-
-    init(descriptionPackage: DescriptionPackage, sdk: SDK, configuration: BuildConfiguration, resolvedTarget: ResolvedTarget, fileSystem: any FileSystem) {
-        self.descriptionPackage = descriptionPackage
-        self.sdk = sdk
-        self.configuration = configuration
-        self.resolvedTarget = resolvedTarget
-        self.fileSystem = fileSystem
-    }
-
-    private func makeModuleMapContents() -> String {
-        if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
-            switch clangTarget.moduleMapType {
-            case .custom, .none:
-                fatalError("Unsupported moduleMapType")
-            case .umbrellaHeader(let headerPath):
-                return """
-                framework module \(resolvedTarget.c99name) {
-                    umbrella header "\(headerPath.basename)"
-                    export *
-                }
-                """
-                    .trimmingCharacters(in: .whitespaces)
-            case .umbrellaDirectory(let directoryPath):
-                return """
-                framework module \(resolvedTarget.c99name) {
-                    umbrella "\(directoryPath.basename)"
-                    export *
-                }
-                """
-                    .trimmingCharacters(in: .whitespaces)
-            }
-        } else {
-            // "settings[.SWIFT_OBJC_INTERFACE_HEADER_NAME]"
-            let bridgingHeaderName = nil ?? "\(resolvedTarget.name)-Swift.h"
-            return """
-                framework module \(resolvedTarget.c99name) {
-                    header "\(bridgingHeaderName)"
-                    export *
-                }
-            """
-                .trimmingCharacters(in: .whitespaces)
-        }
-    }
-
-    private func generateModuleMapFile(outputPath: AbsolutePath) throws {
-        let dirPath = outputPath.parentDirectory
-        try fileSystem.createDirectory(dirPath, recursive: true)
-
-        let contents = makeModuleMapContents()
-        try fileSystem.writeFileContents(outputPath, string: contents)
-    }
-
-    private func constructGeneratedModuleMapPath() throws -> AbsolutePath {
-        let generatedModuleMapPath = try generatedModuleMapPath(of: resolvedTarget, sdk: sdk, workspaceDirectory: descriptionPackage.workspaceDirectory)
-        return generatedModuleMapPath
-    }
-
-    func generate() throws -> ModuleMapResult? {
-        if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
-            switch clangTarget.moduleMapType {
-            case .custom(let moduleMapPath):
-                let path = try AbsolutePath(validating: moduleMapPath.pathString)
-                return .init(moduleMapPath: path, isGenerated: true)
-            case .umbrellaHeader, .umbrellaDirectory:
-                let path = try constructGeneratedModuleMapPath()
-                try generateModuleMapFile(outputPath: path)
-                return .init(moduleMapPath: path, isGenerated: true)
-            case .none:
-                return .none
-            }
-        } else {
-            let path = try constructGeneratedModuleMapPath()
-            try generateModuleMapFile(outputPath: path)
-            return .init(moduleMapPath: path, isGenerated: true)
-        }
-    }
-}
-
-private func generatedModuleMapPath(of target: ResolvedTarget, sdk: SDK, workspaceDirectory: AbsolutePath) throws -> AbsolutePath {
-    let relativePath = try RelativePath(validating: "GeneratedModuleMaps/\(sdk.settingValue)")
-    return workspaceDirectory
-        .appending(relativePath)
-        .appending(component: target.modulemapName)
 }
