@@ -54,6 +54,7 @@ struct ModuleMapGenerator {
             switch clangTarget.moduleMapType {
             case .custom(let customModuleMap):
                 return try convertCustomModuleMapForFramework(customModuleMap)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
             case .umbrellaHeader(let headerPath):
                 return """
                 framework module \(context.resolvedTarget.c99name) {

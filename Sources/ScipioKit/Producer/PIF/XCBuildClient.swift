@@ -96,11 +96,16 @@ struct XCBuildClient {
 
         let generatedModuleMapPath = try descriptionPackage.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
         if fileSystem.exists(generatedModuleMapPath) {
+            let destination = modulesDir.appending(component: "module.modulemap")
+            if fileSystem.exists(destination) {
+                try fileSystem.removeFileTree(destination)
+            }
             try fileSystem.copy(
                 from: generatedModuleMapPath,
-                to: modulesDir.appending(component: "module.modulemap")
+                to: destination
             )
         }
+        print(modulesDir.appending(component: "module.modulemap"))
     }
 
     private func frameworkPath(target: ResolvedTarget, of sdk: SDK) throws -> AbsolutePath {
