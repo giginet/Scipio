@@ -59,6 +59,9 @@ struct XCBuildClient {
             descriptionPackage: descriptionPackage,
             fileSystem: fileSystem
         )
+        // xcbuild automatically generates modulemaps. However, these are not for frameworks.
+        // Therefore, it's difficult to contain to final XCFrameworks.
+        // So generate modulemap for frameworks manually
         try modulemapGenerator.generate(
             resolvedTarget: buildProduct.target,
             sdk: sdk,
@@ -80,7 +83,7 @@ struct XCBuildClient {
             buildProduct.target.name
         )
 
-        // Copy modulemap to outputFramework
+        // Copy modulemap to built frameworks
         // xcbuild generates modulemap for each frameworks
         // However, these are not includes in Frameworks
         // So they should be copied into frameworks manually.
