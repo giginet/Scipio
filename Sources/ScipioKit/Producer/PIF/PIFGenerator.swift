@@ -5,6 +5,24 @@ import PackageModel
 import PackageGraph
 import XCBuildSupport
 
+extension PIF.Target {
+    fileprivate enum TargetType {
+        case library
+        case resourceBundle
+    }
+
+    fileprivate var supportedType: TargetType? {
+        switch productType {
+        case .objectFile:
+            return .library
+        case .bundle:
+            return .resourceBundle
+        default: // unsupported types
+            return nil
+        }
+    }
+}
+
 struct PIFGenerator {
     private let descriptionPackage: DescriptionPackage
     private let buildParameters: BuildParameters
@@ -53,89 +71,302 @@ struct PIFGenerator {
 
     private func modify(_ pif: PIF.TopLevelObject, for sdk: SDK) -> PIF.TopLevelObject {
         for project in pif.workspace.projects {
-            for baseTarget in project.targets {
-                if let pifTarget = baseTarget as? PIF.Target {
-                    let isObjectTarget = pifTarget.productType == .objectFile
+            project.targets = project.targets
+                .compactMap { $0 as? PIF.Target }
+                .compactMap { target in
+                    guard let supportedType = target.supportedType else { return target }
 
-                    guard [.objectFile, .bundle].contains(pifTarget.productType) else { continue }
+                    updateCommonSettings(of: target)
 
-                    let name = pifTarget.name
-                    let c99Name = pifTarget.name.spm_mangledToC99ExtendedIdentifier()
+                    switch supportedType {
+                    case .library:
+                        let modifier = PIFLibraryTargetModifier(
+                            descriptionPackage: descriptionPackage,
+                            buildParameters: buildParameters,
+                            buildOptions: buildOptions,
+                            fileSystem: fileSystem,
+                            project: project,
+                            pifTarget: target,
+                            sdk: sdk
+                        )
 
-                    if isObjectTarget {
-                        pifTarget.productType = .framework
-                        pifTarget.productName = "\(name).framework"
+                        return modifier.modify()
+                    case .resourceBundle:
+                        return target
                     }
-
-                    let newConfigurations = pifTarget.buildConfigurations.map { original in
-                        var configuration = original
-                        var settings = configuration.buildSettings
-
-                        let toolchainLibDir = (try? buildParameters.toolchain.toolchainLibDir) ?? .root
-
-                        if isObjectTarget {
-                            settings[.PRODUCT_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
-                            settings[.PRODUCT_MODULE_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
-                            settings[.EXECUTABLE_NAME] = c99Name
-                            settings[.TARGET_NAME] = name
-                            settings[.PRODUCT_BUNDLE_IDENTIFIER] = name.spm_mangledToBundleIdentifier()
-                            settings[.CLANG_ENABLE_MODULES] = "YES"
-                            settings[.DEFINES_MODULE] = "YES"
-                            settings[.SKIP_INSTALL] = "NO"
-                            settings[.INSTALL_PATH] = "/usr/local/lib"
-                            settings[.ONLY_ACTIVE_ARCH] = "NO"
-
-                            switch buildOptions.frameworkType {
-                            case .dynamic:
-                                settings[.MACH_O_TYPE] = "mh_dylib"
-                            case .static:
-                                settings[.MACH_O_TYPE] = "staticlib"
-                            }
-
-                            settings[.LIBRARY_SEARCH_PATHS, default: ["$(inherited)"]]
-                                .append("\(toolchainLibDir.pathString)/swift/\(sdk.settingValue)")
-
-                            settings[.GENERATE_INFOPLIST_FILE] = "YES"
-
-                            settings[.MARKETING_VERSION] = "1.0" // Version
-                            settings[.CURRENT_PROJECT_VERSION] = "1" // Build
-
-                            // Enable to emit swiftinterface
-                            if buildOptions.enableLibraryEvolution {
-                                settings[.OTHER_SWIFT_FLAGS, default: ["$(inherited)"]]
-                                    .append("-enable-library-evolution")
-                                settings[.SWIFT_EMIT_MODULE_INTERFACE] = "YES"
-                            }
-                            settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
-
-                            pifTarget.impartedBuildProperties.buildSettings[.OTHER_CFLAGS] = ["$(inherited)"]
-
-                            // Add auto-generated modulemap
-                            settings[.MODULEMAP_PATH] = nil
-                            // Generate modulemap supporting Framework
-                            settings[.MODULEMAP_FILE_CONTENTS] = """
-                framework module \(c99Name) {
-                    header "\(name)-Swift.h"
-                    export *
                 }
-                """
-                        }
-
-                        // If the built framework is named same as one of the target in the package, it can be picked up
-                        // automatically during indexing since the build system always adds a -F flag to the built products dir.
-                        // To avoid this problem, we build all package frameworks in a subdirectory.
-                        settings[.BUILT_PRODUCTS_DIR] = "$(BUILT_PRODUCTS_DIR)/PackageFrameworks"
-                        settings[.TARGET_BUILD_DIR] = "$(TARGET_BUILD_DIR)/PackageFrameworks"
-
-                        configuration.buildSettings = settings
-                        return configuration
-                    }
-
-                    pifTarget.buildConfigurations = newConfigurations
-                }
-            }
         }
         return pif
+    }
+
+    private func updateCommonSettings(of pifTarget: PIF.Target) {
+        let newConfigurations = pifTarget.buildConfigurations.map { original in
+            var configuration = original
+            var settings = configuration.buildSettings
+
+            // If the built framework is named same as one of the target in the package, it can be picked up
+            // automatically during indexing since the build system always adds a -F flag to the built products dir.
+            // To avoid this problem, we build all package frameworks in a subdirectory.
+            settings[.BUILT_PRODUCTS_DIR] = "$(BUILT_PRODUCTS_DIR)/PackageFrameworks"
+            settings[.TARGET_BUILD_DIR] = "$(TARGET_BUILD_DIR)/PackageFrameworks"
+
+            configuration.buildSettings = settings
+            return configuration
+        }
+
+        pifTarget.buildConfigurations = newConfigurations
+    }
+}
+
+private struct PIFLibraryTargetModifier {
+    private let descriptionPackage: DescriptionPackage
+    private let buildParameters: BuildParameters
+    private let buildOptions: BuildOptions
+    private let fileSystem: any FileSystem
+
+    private let project: PIF.Project
+    private let pifTarget: PIF.Target
+    private let sdk: SDK
+
+    private let resolvedPackage: ResolvedPackage
+    private let resolvedTarget: ResolvedTarget
+
+    init(
+        descriptionPackage: DescriptionPackage,
+        buildParameters: BuildParameters,
+        buildOptions: BuildOptions,
+        fileSystem: any FileSystem,
+        project: PIF.Project,
+        pifTarget: PIF.Target,
+        sdk: SDK
+    ) {
+        precondition(pifTarget.supportedType == .library, "PIFLibraryTargetModifier must be for library targets")
+
+        self.descriptionPackage = descriptionPackage
+        self.buildParameters = buildParameters
+        self.buildOptions = buildOptions
+        self.fileSystem = fileSystem
+        self.project = project
+        self.pifTarget = pifTarget
+        self.sdk = sdk
+
+        let c99Name = pifTarget.name.spm_mangledToC99ExtendedIdentifier()
+
+        guard let resolvedTarget = descriptionPackage.graph.allTargets.first(where: { $0.c99name == c99Name }) else {
+            fatalError("Resolved Target named \(c99Name) is not found.")
+        }
+
+        guard let resolvedPackage = descriptionPackage.graph.package(for: resolvedTarget) else {
+            fatalError("Could not find a package")
+        }
+
+        self.resolvedTarget = resolvedTarget
+        self.resolvedPackage = resolvedPackage
+    }
+
+    private var c99Name: String {
+        resolvedTarget.c99name
+    }
+
+    func modify() -> PIF.Target {
+        updateLibraryTargetSettings()
+
+        return pifTarget
+    }
+
+    private func updateLibraryTargetSettings() {
+        pifTarget.productType = .framework
+        pifTarget.productName = "\(c99Name).framework"
+
+        let newConfigurations = pifTarget.buildConfigurations.map(updateBuildConfiguration)
+
+        pifTarget.buildConfigurations = newConfigurations
+
+        if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
+            addPublicHeaders(clangTarget: clangTarget)
+        }
+
+        addLinkSettings(of: pifTarget)
+    }
+
+    private func updateBuildConfiguration(_ original: PIF.BuildConfiguration) -> PIF.BuildConfiguration {
+        var configuration = original
+        var settings = configuration.buildSettings
+        let name = pifTarget.name
+        let c99Name = name.spm_mangledToC99ExtendedIdentifier()
+
+        let toolchainLibDir = (try? buildParameters.toolchain.toolchainLibDir) ?? .root
+
+        settings[.PRODUCT_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
+        settings[.PRODUCT_MODULE_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
+        settings[.EXECUTABLE_NAME] = c99Name
+        settings[.TARGET_NAME] = name
+        settings[.PRODUCT_BUNDLE_IDENTIFIER] = name.spm_mangledToBundleIdentifier()
+        settings[.CLANG_ENABLE_MODULES] = "YES"
+        settings[.DEFINES_MODULE] = "YES"
+        settings[.SKIP_INSTALL] = "NO"
+        settings[.INSTALL_PATH] = "/usr/local/lib"
+        settings[.ONLY_ACTIVE_ARCH] = "NO"
+
+        // Set framework type
+        switch buildOptions.frameworkType {
+        case .dynamic:
+            settings[.MACH_O_TYPE] = "mh_dylib"
+        case .static:
+            settings[.MACH_O_TYPE] = "staticlib"
+        }
+
+        settings[.LIBRARY_SEARCH_PATHS, default: ["$(inherited)"]]
+            .append("\(toolchainLibDir.pathString)/swift/\(sdk.settingValue)")
+
+        settings[.GENERATE_INFOPLIST_FILE] = "YES"
+
+        settings[.MARKETING_VERSION] = "1.0" // Version
+        settings[.CURRENT_PROJECT_VERSION] = "1" // Build
+
+        // Enable to emit swiftinterface
+        if buildOptions.enableLibraryEvolution {
+            settings[.OTHER_SWIFT_FLAGS, default: ["$(inherited)"]]
+                .append("-enable-library-evolution")
+            settings[.SWIFT_EMIT_MODULE_INTERFACE] = "YES"
+        }
+        settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
+
+        // Generating modulemap to default location
+        // Location set by the original PIFBuilder may not be work
+        settings[.MODULEMAP_PATH] = nil
+        // Removing `-fmodule-map-file` flag set on the original PIFBuilder
+        pifTarget.impartedBuildProperties.buildSettings[.OTHER_CFLAGS] = ["$(inherited)"]
+        pifTarget.impartedBuildProperties.buildSettings[.OTHER_SWIFT_FLAGS] = ["$(inherited)"]
+
+        if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
+            switch clangTarget.moduleMapType {
+            case .custom(let moduleMapPath):
+                settings[.MODULEMAP_FILE] = moduleMapPath.moduleEscapedPathString
+                settings[.MODULEMAP_FILE_CONTENTS] = nil
+            case .umbrellaHeader(let headerPath):
+                settings[.MODULEMAP_FILE_CONTENTS] = """
+                    framework module \(c99Name) {
+                        umbrella header "\(headerPath.moduleEscapedPathString)"
+                        export *
+                    }
+                """
+            case .umbrellaDirectory(let directoryPath):
+                settings[.MODULEMAP_FILE_CONTENTS] = """
+                    framework module \(c99Name) {
+                        umbrella "\(directoryPath.moduleEscapedPathString)"
+                        export *
+                    }
+                """
+            case .none:
+                settings[.MODULEMAP_FILE_CONTENTS] = nil
+            }
+        } else {
+            let bridgingHeaderName = settings[.SWIFT_OBJC_INTERFACE_HEADER_NAME] ?? "\(name)-Swift.h"
+            settings[.MODULEMAP_FILE_CONTENTS] = """
+                framework module \(c99Name) {
+                    header "\(bridgingHeaderName)"
+                    export *
+                }
+            """
+        }
+
+        configuration.buildSettings = settings
+        return configuration
+    }
+
+    private func collectPublicHeaders(of clangTarget: ClangTarget) -> Set<AbsolutePath> {
+        let publicHeaders = clangTarget
+            .headers
+            .filter { $0.isDescendant(of: clangTarget.includeDir) }
+        let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0) }
+        let symlinks = publicHeaders.filter { fileSystem.isSymlink($0) }
+
+        // Sometimes, public headers include a file and its symlink both.
+        // This situation raises a duplication error
+        // So duplicated symlinks have to be omitted
+        let notDuplicatedSymlinks = symlinks.filter { path in
+            notSymlinks.allSatisfy { FileManager.default.contentsEqual(atPath: path.pathString, andPath: $0.pathString) }
+        }
+
+        return Set(notSymlinks + notDuplicatedSymlinks)
+    }
+
+    private func guid(_ suffixes: String...) -> String {
+        "GUID::SCIPIO::\(pifTarget.name)::" + suffixes.joined(separator: "::")
+    }
+
+    private func addPublicHeaders(clangTarget: ClangTarget) {
+        let packageRootDir = resolvedPackage.path
+        let targetRootDir = clangTarget.path
+        let targetGroupName = targetRootDir.relative(to: packageRootDir).pathString
+        let includeDir = clangTarget.includeDir
+        let targetGroup = project.groupTree.children
+            .compactMap { $0 as? PIF.Group }
+            .first { $0.name == targetGroupName }
+        guard let targetGroup else {
+            fatalError("Groups \(targetGroupName) not found")
+        }
+        let publicHeadersGroup = PIF.Group(
+            guid: guid("GROUPS", "HEADERS"),
+            path: includeDir.relative(to: targetRootDir).pathString,
+            sourceTree: .group,
+            children: []
+        )
+        targetGroup.children.append(publicHeadersGroup)
+
+        let headers = collectPublicHeaders(of: clangTarget)
+        let fileReference = headers.enumerated().map { (index, headerPath) in
+            let relativePath = headerPath.relative(to: includeDir)
+            return PIF.FileReference(
+                guid: guid("HEADERS_FILE_REFERENCE_\(index)"),
+                path: relativePath.pathString,
+                sourceTree: .group
+            )
+        }
+
+        fileReference.forEach { publicHeadersGroup.children.append($0) }
+
+        let buildFiles = fileReference.enumerated().map { (index, reference) in
+            PIF.BuildFile(
+                guid: guid("HEADERS_BUILD_FILE_\(index)"),
+                file: reference,
+                platformFilters: [],
+                headerVisibility: .public
+            )
+        }
+
+        if let buildPhase = fetchBuildPhase(of: PIF.HeadersBuildPhase.self, in: pifTarget) {
+            buildPhase.buildFiles.append(contentsOf: buildFiles)
+        } else {
+            let buildPhase = PIF.HeadersBuildPhase(
+               guid: guid("HEADERS_BUILD_PHASE"),
+               buildFiles: buildFiles
+            )
+            pifTarget.buildPhases.append(buildPhase)
+        }
+    }
+
+    private func addLinkSettings(of pifTarget: PIF.Target) {
+        let buildFiles = pifTarget.dependencies.enumerated().map { (index, dependency) in
+            PIF.BuildFile(guid: guid("FRAMEWORKS_BUILD_FILE_\(index)"),
+                          targetGUID: dependency.targetGUID,
+                          platformFilters: dependency.platformFilters)
+        }
+
+        if let buildPhase = fetchBuildPhase(of: PIF.FrameworksBuildPhase.self, in: pifTarget) {
+            buildPhase.buildFiles.append(contentsOf: buildFiles)
+        } else {
+            let buildPhase = PIF.FrameworksBuildPhase(
+               guid: guid("FRAMEWORKS_BUILD_PHASE"),
+               buildFiles: buildFiles
+            )
+            pifTarget.buildPhases.append(buildPhase)
+        }
+    }
+
+    private func fetchBuildPhase<BuildPhase: PIF.BuildPhase>(of buildPhasesType: BuildPhase.Type, in pifTarget: PIF.Target) -> BuildPhase? {
+        pifTarget.buildPhases.compactMap({ $0 as? BuildPhase }).first
     }
 }
 
@@ -143,5 +374,11 @@ extension PIF.TopLevelObject: Decodable {
     public init(from decoder: Decoder) throws {
         var container = try decoder.unkeyedContainer()
         self.init(workspace: try container.decode(PIF.Workspace.self))
+    }
+}
+
+extension AbsolutePath {
+    fileprivate var moduleEscapedPathString: String {
+        return self.pathString.replacingOccurrences(of: "\\", with: "\\\\")
     }
 }
