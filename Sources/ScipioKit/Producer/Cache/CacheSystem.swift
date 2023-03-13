@@ -6,7 +6,7 @@ import Algorithms
 
 private let jsonEncoder = {
     let encoder = JSONEncoder()
-    encoder.outputFormatting = .prettyPrinted
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     return encoder
 }()
 
