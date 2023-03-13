@@ -86,8 +86,8 @@ public struct Runner {
 
         try fileSystem.createDirectory(descriptionPackage.workspaceDirectory, recursive: true)
 
-        let resolver = Resolver(package: descriptionPackage)
-        try await resolver.resolve()
+//        let resolver = Resolver(package: descriptionPackage)
+//        try await resolver.resolve()
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
 

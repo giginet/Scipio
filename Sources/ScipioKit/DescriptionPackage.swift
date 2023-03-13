@@ -54,7 +54,7 @@ struct DescriptionPackage {
 
     // MARK: Initializer
 
-    private static func makeWorkspace(packagePath: AbsolutePath) throws -> Workspace {
+    private static func makeWorkspace(hostToolchain: UserToolchain, packagePath: AbsolutePath) throws -> Workspace {
         var workspaceConfiguration: WorkspaceConfiguration = .default
         // override default configuration to treat XIB files
         workspaceConfiguration.additionalFileRules = FileRuleDescription.xcbuildFileTypes
@@ -63,7 +63,8 @@ struct DescriptionPackage {
         let workspace = try Workspace(
             fileSystem: fileSystem,
             location: Workspace.Location(forRootPackage: packagePath, fileSystem: fileSystem),
-            configuration: workspaceConfiguration
+            configuration: workspaceConfiguration,
+            customHostToolchain: hostToolchain
         )
         return workspace
     }
@@ -72,9 +73,24 @@ struct DescriptionPackage {
         self.packageDirectory = packageDirectory
         self.mode = mode
 
-        self.toolchain = try UserToolchain(destination: try .hostDestination())
+        let buildArtifactDirectory = packageDirectory.appending(components: ".build", "debug")
 
-        let workspace = try Self.makeWorkspace(packagePath: packageDirectory)
+        let manifestLibraryPath = buildArtifactDirectory
+
+        // Currently, we don't use `libPackagePlugin`
+        let pluginLibraryPath = buildArtifactDirectory
+
+        self.toolchain = try UserToolchain(
+            destination: try .hostDestination(),
+            // In recent changes, SwiftPM requires latest PackageDescription
+            // So we need to pass a directory contains a built PackageDescription library
+            customLibrariesLocation: .init(
+                manifestLibraryPath: manifestLibraryPath,
+                pluginLibraryPath: pluginLibraryPath
+            )
+        )
+
+        let workspace = try Self.makeWorkspace(hostToolchain: self.toolchain, packagePath: packageDirectory)
         self.graph = try workspace.loadPackageGraph(rootPath: packageDirectory, observabilityScope: observabilitySystem.topScope)
         let scope = observabilitySystem.topScope
         self.manifest = try tsc_await {

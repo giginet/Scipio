@@ -16,8 +16,8 @@ let package = Package(
             targets: ["ScipioKit"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/giginet/swift-package-manager.git",
-                 revision: "11c88e87e6874a570711d18462ca0ea43ff7ff5e"),
+        .package(url: "https://github.com/apple/swift-package-manager.git",
+                 revision: "50f7b54b6cbd05d7b4d73a6f127da49fb93c3349"),
         .package(url: "https://github.com/apple/swift-log.git",
                  .upToNextMinor(from: "1.4.2")),
         .package(url: "https://github.com/apple/swift-argument-parser.git", 
