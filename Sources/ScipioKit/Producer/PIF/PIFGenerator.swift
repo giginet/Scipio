@@ -232,43 +232,14 @@ private struct PIFLibraryTargetModifier {
         }
         settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
-        // Generating modulemap to default location
-        // Location set by the original PIFBuilder may not be work
-        settings[.MODULEMAP_PATH] = nil
-        // Removing `-fmodule-map-file` flag set on the original PIFBuilder
-        pifTarget.impartedBuildProperties.buildSettings[.OTHER_CFLAGS] = ["$(inherited)"]
-        pifTarget.impartedBuildProperties.buildSettings[.OTHER_SWIFT_FLAGS] = ["$(inherited)"]
-
         if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
             switch clangTarget.moduleMapType {
             case .custom(let moduleMapPath):
                 settings[.MODULEMAP_FILE] = moduleMapPath.moduleEscapedPathString
                 settings[.MODULEMAP_FILE_CONTENTS] = nil
-            case .umbrellaHeader(let headerPath):
-                settings[.MODULEMAP_FILE_CONTENTS] = """
-                    framework module \(c99Name) {
-                        umbrella header "\(headerPath.moduleEscapedPathString)"
-                        export *
-                    }
-                """
-            case .umbrellaDirectory(let directoryPath):
-                settings[.MODULEMAP_FILE_CONTENTS] = """
-                    framework module \(c99Name) {
-                        umbrella "\(directoryPath.moduleEscapedPathString)"
-                        export *
-                    }
-                """
-            case .none:
-                settings[.MODULEMAP_FILE_CONTENTS] = nil
+            case .umbrellaHeader, .umbrellaDirectory, .none:
+                break
             }
-        } else {
-            let bridgingHeaderName = settings[.SWIFT_OBJC_INTERFACE_HEADER_NAME] ?? "\(name)-Swift.h"
-            settings[.MODULEMAP_FILE_CONTENTS] = """
-                framework module \(c99Name) {
-                    header "\(bridgingHeaderName)"
-                    export *
-                }
-            """
         }
 
         configuration.buildSettings = settings
