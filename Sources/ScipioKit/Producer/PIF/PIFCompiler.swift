@@ -2,7 +2,6 @@ import Foundation
 import PackageModel
 import SPMBuildCore
 import PackageGraph
-import OrderedCollections
 import TSCBasic
 
 struct PIFCompiler: Compiler {

@@ -1,10 +1,9 @@
 import Foundation
-import OrderedCollections
 import struct TSCBasic.AbsolutePath
 import protocol TSCBasic.FileSystem
 import var TSCBasic.localFileSystem
 
-public typealias PlatformMatrix = [String: OrderedSet<SDK>]
+public typealias PlatformMatrix = [String: Set<SDK>]
 
 public struct Runner {
     private let options: Options
@@ -269,7 +268,7 @@ extension Runner.Options.BuildOptions {
             buildConfiguration: buildConfiguration,
             isDebugSymbolsEmbedded: isDebugSymbolsEmbedded,
             frameworkType: frameworkType,
-            sdks: OrderedSet(sdks),
+            sdks: Set(sdks),
             extraFlags: extraFlags,
             extraBuildParameters: extraBuildParameters,
             enableLibraryEvolution: enableLibraryEvolution
