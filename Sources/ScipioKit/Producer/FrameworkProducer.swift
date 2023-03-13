@@ -111,10 +111,12 @@ struct FrameworkProducer {
                 outputDir: outputDir,
                 cacheSystem: cacheSystem
             )
-            await generateVersionFile(for: target, using: cacheSystem)
         }
 
         if isProducingCacheEnabled {
+            for target in targetsToBuild {
+                await generateVersionFile(for: target, using: cacheSystem)
+            }
             await cacheSystem.cacheFrameworks(targetsToBuild)
         }
     }
