@@ -12,6 +12,7 @@ private let binaryPackagePath = fixturePath.appendingPathComponent("BinaryPackag
 private let resourcePackagePath = fixturePath.appendingPathComponent("ResourcePackage")
 private let usingBinaryPackagePath = fixturePath.appendingPathComponent("UsingBinaryPackage")
 private let clangPackagePath = fixturePath.appendingPathComponent("ClangPackage")
+private let clangPackageWithCustomModuleMapPath = fixturePath.appendingPathComponent("ClangPackageWithCustomModuleMap")
 
 final class RunnerTests: XCTestCase {
     private let fileManager: FileManager = .default
@@ -102,9 +103,69 @@ final class RunnerTests: XCTestCase {
                 "Should exist an umbrella header"
             )
 
+            let moduleMapPath = framework.appendingPathComponent("Modules/module.modulemap").path
             XCTAssertTrue(
-                fileManager.fileExists(atPath: framework.appendingPathComponent("Modules/module.modulemap").path),
+                fileManager.fileExists(atPath: moduleMapPath),
                 "Should exist a modulemap"
+            )
+            let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(data: $0, encoding: .utf8) })
+            XCTAssertEqual(
+                moduleMapContents,
+                """
+                framework module some_lib {
+                    umbrella header "some_lib.h"
+                    export *
+                }
+                """,
+                "modulemap should be generated"
+            )
+
+            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
+                          "Should create \(library).xcframework")
+            XCTAssertFalse(fileManager.fileExists(atPath: versionFile.path),
+                           "Should not create .\(library).version in create mode")
+        }
+    }
+
+    func testBuildClangPackageWithCustomModuleMap() async throws {
+        let runner = Runner(
+            mode: .createPackage,
+            options: .init(
+                baseBuildOptions: .init(isSimulatorSupported: false)
+            )
+        )
+        do {
+            try await runner.run(packageDirectory: clangPackageWithCustomModuleMapPath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+        }
+
+        for library in ["ClangPackageWithCustomModuleMap"] {
+            let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
+            let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
+            let framework = xcFramework.appendingPathComponent("ios-arm64")
+                .appendingPathComponent("\(library).framework")
+
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/mycalc.h").path),
+                "Should exist an umbrella header"
+            )
+
+            let moduleMapPath = framework.appendingPathComponent("Modules/module.modulemap").path
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: moduleMapPath),
+                "Should exist a modulemap"
+            )
+            let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(data: $0, encoding: .utf8) })
+            XCTAssertEqual(
+                moduleMapContents,
+                """
+                framework module ClangPackageWithCustomModuleMap {
+                  header "mycalc.h"
+                }
+                """,
+                "modulemap should be converted for frameworks"
             )
 
             XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
