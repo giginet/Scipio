@@ -5,7 +5,6 @@ import PackageModel
 import PackageLoading
 import PackageGraph
 import Basics
-import OrderedCollections
 
 struct DescriptionPackage {
     let mode: Runner.Mode
@@ -44,8 +43,8 @@ struct DescriptionPackage {
         buildDirectory.appending(component: "\(name).xcodeproj")
     }
 
-    var supportedSDKs: OrderedCollections.OrderedSet<SDK> {
-        OrderedSet(manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:)))
+    var supportedSDKs: Set<SDK> {
+        Set(manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:)))
     }
 
     var derivedDataPath: AbsolutePath {

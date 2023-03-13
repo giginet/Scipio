@@ -1,7 +1,6 @@
 import Foundation
 import PackageGraph
 import PackageModel
-import OrderedCollections
 import TSCBasic
 
 struct FrameworkProducer {
