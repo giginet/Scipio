@@ -37,6 +37,13 @@ struct FrameworkProducer {
         }
     }
 
+    private var shouldGenerateVersionFile: Bool {
+        if case .prepareDependencies = descriptionPackage.mode {
+            return true
+        }
+        return false
+    }
+
     init(
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
@@ -114,10 +121,14 @@ struct FrameworkProducer {
         }
 
         if isProducingCacheEnabled {
-            for target in targetsToBuild {
+            await cacheSystem.cacheFrameworks(targetsToBuild)
+        }
+
+        if shouldGenerateVersionFile {
+            // Versionfiles should be generate for all targets
+            for target in allTargets {
                 await generateVersionFile(for: target, using: cacheSystem)
             }
-            await cacheSystem.cacheFrameworks(targetsToBuild)
         }
     }
 
