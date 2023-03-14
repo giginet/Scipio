@@ -41,7 +41,7 @@ struct FrameworkProducer {
         if case .disabled = cacheMode {
             return false
         }
-        
+
         if case .prepareDependencies = descriptionPackage.mode {
             return true
         }
