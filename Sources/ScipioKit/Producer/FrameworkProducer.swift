@@ -163,6 +163,7 @@ struct FrameworkProducer {
         return restored
     }
 
+    // Return true if pre-built artifact is available (already existing or restored from cache)
     private func restore(target: CacheSystem.CacheTarget, cacheSystem: CacheSystem) async throws -> Bool {
         let product = target.buildProduct
         let frameworkName = product.frameworkName
@@ -173,14 +174,20 @@ struct FrameworkProducer {
             if isValidCache {
                 logger.info("✅ Valid \(product.target.name).xcframework is exists. Skip building.", metadata: .color(.green))
                 return true
-            }
-            logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
-            logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(outputPath.absolutePath)
-            let restored = await cacheSystem.restoreCacheIfPossible(target: target)
-            if restored {
-                logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
-                return true
+            } else {
+                let existsLocalFramework = fileSystem.exists(outputPath.absolutePath)
+                if existsLocalFramework {
+                    logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
+                    logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
+                    try fileSystem.removeFileTree(outputPath.absolutePath)
+                }
+                let restored = await cacheSystem.restoreCacheIfPossible(target: target)
+                if restored {
+                    logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
+                    return true
+                } else {
+                    logger.warning("⚠️ Restoring \(frameworkName) is failed", metadata: .color(.yellow))
+                }
             }
         }
         return false
