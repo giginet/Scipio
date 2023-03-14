@@ -38,6 +38,10 @@ struct FrameworkProducer {
     }
 
     private var shouldGenerateVersionFile: Bool {
+        if case .disabled = cacheMode {
+            return false
+        }
+        
         if case .prepareDependencies = descriptionPackage.mode {
             return true
         }
