@@ -74,7 +74,7 @@ struct DescriptionPackage {
     init(packageDirectory: AbsolutePath, mode: Runner.Mode) throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
- 
+
         let toolchain = try UserToolchain(destination: try .hostDestination())
         self.toolchain = toolchain
 
