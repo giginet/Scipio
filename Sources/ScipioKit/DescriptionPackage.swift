@@ -39,10 +39,6 @@ struct DescriptionPackage {
         buildDirectory.appending(component: "scipio")
     }
 
-    var projectPath: AbsolutePath {
-        buildDirectory.appending(component: "\(name).xcodeproj")
-    }
-
     var supportedSDKs: Set<SDK> {
         Set(manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:)))
     }
@@ -60,7 +56,7 @@ struct DescriptionPackage {
 
     // MARK: Initializer
 
-    private static func makeWorkspace(packagePath: AbsolutePath) throws -> Workspace {
+    private static func makeWorkspace(toolchain: UserToolchain, packagePath: AbsolutePath) throws -> Workspace {
         var workspaceConfiguration: WorkspaceConfiguration = .default
         // override default configuration to treat XIB files
         workspaceConfiguration.additionalFileRules = FileRuleDescription.xcbuildFileTypes
@@ -69,7 +65,8 @@ struct DescriptionPackage {
         let workspace = try Workspace(
             fileSystem: fileSystem,
             location: Workspace.Location(forRootPackage: packagePath, fileSystem: fileSystem),
-            configuration: workspaceConfiguration
+            configuration: workspaceConfiguration,
+            customHostToolchain: toolchain
         )
         return workspace
     }
@@ -77,10 +74,11 @@ struct DescriptionPackage {
     init(packageDirectory: AbsolutePath, mode: Runner.Mode) throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
+ 
+        let toolchain = try UserToolchain(destination: try .hostDestination())
+        self.toolchain = toolchain
 
-        self.toolchain = try UserToolchain(destination: try .hostDestination())
-
-        let workspace = try Self.makeWorkspace(packagePath: packageDirectory)
+        let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
         self.graph = try workspace.loadPackageGraph(rootPath: packageDirectory, observabilityScope: observabilitySystem.topScope)
         let scope = observabilitySystem.topScope
         self.manifest = try tsc_await {
