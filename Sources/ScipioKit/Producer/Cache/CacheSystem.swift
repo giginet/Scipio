@@ -156,6 +156,10 @@ struct CacheSystem {
                     group.addTask {
                         let frameworkPath = outputDirectory.appendingPathComponent(target.buildProduct.frameworkName)
                         do {
+                            logger.info(
+                                "🚀 Cache \(target.buildProduct.frameworkName) to cache storage",
+                                metadata: .color(.green)
+                            )
                             try await cacheFramework(target, at: frameworkPath)
                         } catch {
                             logger.warning("⚠️ Can't create caches for \(frameworkPath.path)")
