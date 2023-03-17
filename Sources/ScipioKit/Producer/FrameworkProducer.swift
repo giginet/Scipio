@@ -169,15 +169,15 @@ struct FrameworkProducer {
         let product = target.buildProduct
         let frameworkName = product.frameworkName
         let outputPath = outputDir.appendingPathComponent(product.frameworkName)
+        let exists = fileSystem.exists(outputPath.absolutePath)
 
         if isConsumingCacheEnabled {
             let isValidCache = await cacheSystem.existsValidCache(target: target)
-            if isValidCache {
+            if isValidCache && exists {
                 logger.info("✅ Valid \(product.target.name).xcframework is exists. Skip building.", metadata: .color(.green))
                 return true
             } else {
-                let existsLocalFramework = fileSystem.exists(outputPath.absolutePath)
-                if existsLocalFramework {
+                if exists {
                     logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
                     logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
                     try fileSystem.removeFileTree(outputPath.absolutePath)
