@@ -140,7 +140,7 @@ struct FrameworkProducer {
         availableTargets: Set<CacheSystem.CacheTarget>,
         cacheSystem: CacheSystem
     ) async -> Set<CacheSystem.CacheTarget> {
-        let chunked = availableTargets.chunks(ofCount: cacheStorage?.taskConcurrency ?? CacheSystem.defaultTaskConcurrency)
+        let chunked = availableTargets.chunks(ofCount: cacheStorage?.paralellNumber ?? CacheSystem.defaultParalellNumber)
 
         var restored: Set<CacheSystem.CacheTarget> = []
         for chunk in chunked {

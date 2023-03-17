@@ -97,17 +97,17 @@ public protocol CacheStorage {
     func existsValidCache(for cacheKey: CacheKey) async throws -> Bool
     func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: URL) async throws
     func cacheFramework(_ frameworkPath: URL, for cacheKey: CacheKey) async throws
-    var taskConcurrency: Int? { get }
+    var paralellNumber: Int? { get }
 }
 
 extension CacheStorage {
-    public var taskConcurrency: Int? {
+    public var paralellNumber: Int? {
         nil
     }
 }
 
 struct CacheSystem {
-    static let defaultTaskConcurrency = 8
+    static let defaultParalellNumber = 8
     private let descriptionPackage: DescriptionPackage
     private let outputDirectory: URL
     private let storage: (any CacheStorage)?
@@ -148,7 +148,7 @@ struct CacheSystem {
     }
 
     func cacheFrameworks(_ targets: Set<CacheTarget>) async {
-        let chunked = targets.chunks(ofCount: storage?.taskConcurrency ?? CacheSystem.defaultTaskConcurrency)
+        let chunked = targets.chunks(ofCount: storage?.paralellNumber ?? CacheSystem.defaultParalellNumber)
 
         for chunk in chunked {
             await withTaskGroup(of: Void.self) { group in
