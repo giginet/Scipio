@@ -197,18 +197,23 @@ struct CacheSystem {
         }
     }
 
-    func restoreCacheIfPossible(target: CacheTarget) async -> Bool {
-        guard let storage = storage else { return false }
+    enum RestoreResult {
+        case succeeded
+        case failed(Swift.Error)
+        case noCache
+    }
+    func restoreCacheIfPossible(target: CacheTarget) async -> RestoreResult {
+        guard let storage = storage else { return .noCache }
         do {
             let cacheKey = try await calculateCacheKey(of: target)
             if try await storage.existsValidCache(for: cacheKey) {
                 try await storage.fetchArtifacts(for: cacheKey, to: outputDirectory)
-                return true
+                return .succeeded
             } else {
-                return false
+                return .noCache
             }
         } catch {
-            return false
+            return .failed(error)
         }
     }
 

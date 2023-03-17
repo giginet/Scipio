@@ -182,12 +182,16 @@ struct FrameworkProducer {
                     logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
                     try fileSystem.removeFileTree(outputPath.absolutePath)
                 }
-                let restored = await cacheSystem.restoreCacheIfPossible(target: target)
-                if restored {
+                let restoreResult = await cacheSystem.restoreCacheIfPossible(target: target)
+                switch restoreResult {
+                case .succeeded:
                     logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
                     return true
-                } else {
+                case .failed:
                     logger.warning("⚠️ Restoring \(frameworkName) is failed", metadata: .color(.yellow))
+                    return false
+                case .noCache:
+                    return false
                 }
             }
         }
