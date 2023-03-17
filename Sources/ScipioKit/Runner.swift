@@ -72,6 +72,8 @@ public struct Runner {
     public func run(packageDirectory: URL, frameworkOutputDir: OutputDirectory) async throws {
         let packagePath = try resolveURL(packageDirectory)
         let descriptionPackage: DescriptionPackage
+
+        logger.info("🔁 Resolving Dependencies...")
         do {
             descriptionPackage = try DescriptionPackage(packageDirectory: packagePath, mode: mode)
         } catch {
@@ -84,9 +86,6 @@ public struct Runner {
         }
 
         try fileSystem.createDirectory(descriptionPackage.workspaceDirectory, recursive: true)
-
-        let resolver = Resolver(package: descriptionPackage)
-        try await resolver.resolve()
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
 
