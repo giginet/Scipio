@@ -121,8 +121,7 @@ struct FrameworkProducer {
         for target in targetsToBuild {
             try await buildXCFrameworks(
                 target,
-                outputDir: outputDir,
-                cacheSystem: cacheSystem
+                outputDir: outputDir
             )
         }
 
@@ -198,8 +197,7 @@ struct FrameworkProducer {
     @discardableResult
     private func buildXCFrameworks(
         _ target: CacheSystem.CacheTarget,
-        outputDir: URL,
-        cacheSystem: CacheSystem
+        outputDir: URL
     ) async throws -> Set<CacheSystem.CacheTarget> {
         let product = target.buildProduct
         let buildOptions = target.buildOptions
