@@ -203,7 +203,7 @@ struct CacheSystem {
 
     enum RestoreResult {
         case succeeded
-        case failed(Swift.Error)
+        case failed(LocalizedError?)
         case noCache
     }
     func restoreCacheIfPossible(target: CacheTarget) async -> RestoreResult {
@@ -217,7 +217,7 @@ struct CacheSystem {
                 return .noCache
             }
         } catch {
-            return .failed(error)
+            return .failed(error as? LocalizedError)
         }
     }
 

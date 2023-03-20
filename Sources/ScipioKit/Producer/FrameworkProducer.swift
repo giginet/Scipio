@@ -187,8 +187,11 @@ struct FrameworkProducer {
                 case .succeeded:
                     logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
                     return true
-                case .failed:
+                case .failed(let error):
                     logger.warning("⚠️ Restoring \(frameworkName) is failed", metadata: .color(.yellow))
+                    if let description = error?.errorDescription {
+                        logger.warning("\(description)", metadata: .color(.yellow))
+                    }
                     return false
                 case .noCache:
                     return false
