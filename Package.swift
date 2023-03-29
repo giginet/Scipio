@@ -22,6 +22,8 @@ let package = Package(
                  .upToNextMinor(from: "1.4.2")),
         .package(url: "https://github.com/apple/swift-argument-parser.git", 
                  from: "1.1.0"),
+        .package(url: "https://github.com/apple/swift-algorithms.git", 
+                 from: "1.0.0"),
         .package(url: "https://github.com/onevcat/Rainbow",
                  .upToNextMinor(from: "4.0.1")),
     ],
@@ -37,6 +39,7 @@ let package = Package(
                 .product(name: "SwiftPMDataModel-auto", package: "swift-package-manager"),
                 .product(name: "XCBuildSupport", package: "swift-package-manager"),
                 .product(name: "Logging", package: "swift-log"),
+                .product(name: "Algorithms", package: "swift-algorithms"),
                 .product(name: "Rainbow", package: "Rainbow"),
             ]),
         .testTarget(

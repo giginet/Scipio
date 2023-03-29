@@ -178,27 +178,24 @@ final class RunnerTests: XCTestCase {
     func testCacheIsValid() async throws {
         let descriptionPackage = try DescriptionPackage(packageDirectory: testPackagePath.absolutePath, mode: .prepareDependencies)
         let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
-                                      buildOptions: .init(buildConfiguration: .release,
-                                                          isDebugSymbolsEmbedded: false,
-                                                          frameworkType: .dynamic,
-                                                          sdks: [.iOS],
-                                                          extraFlags: nil,
-                                                          extraBuildParameters: nil,
-                                                          enableLibraryEvolution: true),
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
         let packages = descriptionPackage.graph.packages
             .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
 
-        let allProducts = packages.flatMap { package in
-            package.targets.map { BuildProduct(package: package, target: $0) }
-        }
+        let allTargets = packages
+            .flatMap { package in
+                package.targets.map { BuildProduct(package: package, target: $0) }
+            }
+            .map {
+                CacheSystem.CacheTarget(buildProduct: $0, buildOptions: .default)
+            }
 
-        for product in allProducts {
+        for product in allTargets {
             try await cacheSystem.generateVersionFile(for: product)
             // generate dummy directory
             try fileManager.createDirectory(
-                at: frameworkOutputDir.appendingPathComponent("\(product.target.name).xcframework"),
+                at: frameworkOutputDir.appendingPathComponent(product.buildProduct.frameworkName),
                 withIntermediateDirectories: true
             )
         }
@@ -337,27 +334,24 @@ final class RunnerTests: XCTestCase {
             mode: .prepareDependencies
         )
         let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
-                                      buildOptions: .init(buildConfiguration: .release,
-                                                          isDebugSymbolsEmbedded: false,
-                                                          frameworkType: .dynamic,
-                                                          sdks: [.iOS],
-                                                          extraFlags: nil,
-                                                          extraBuildParameters: nil,
-                                                          enableLibraryEvolution: true),
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
         let packages = descriptionPackage.graph.packages
             .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
 
-        let allProducts = packages.flatMap { package in
-            package.targets.map { BuildProduct(package: package, target: $0) }
-        }
+        let allTargets = packages
+            .flatMap { package in
+                package.targets.map { BuildProduct(package: package, target: $0) }
+            }
+            .map {
+                CacheSystem.CacheTarget(buildProduct: $0, buildOptions: .default)
+            }
 
-        for product in allProducts {
+        for product in allTargets {
             try await cacheSystem.generateVersionFile(for: product)
             // generate dummy directory
             try fileManager.createDirectory(
-                at: frameworkOutputDir.appendingPathComponent("\(product.target.name).xcframework"),
+                at: frameworkOutputDir.appendingPathComponent(product.buildProduct.frameworkName),
                 withIntermediateDirectories: true
             )
         }
@@ -577,4 +571,16 @@ final class RunnerTests: XCTestCase {
             try self.fileManager.removeItem(at: path)
         }
     }
+}
+
+extension BuildOptions {
+    fileprivate static let `default`: Self = .init(
+        buildConfiguration: .release,
+        isDebugSymbolsEmbedded: false,
+        frameworkType: .dynamic,
+        sdks: [.iOS],
+        extraFlags: nil,
+        extraBuildParameters: nil,
+        enableLibraryEvolution: true
+    )
 }
