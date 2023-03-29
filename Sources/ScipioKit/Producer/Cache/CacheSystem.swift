@@ -93,6 +93,12 @@ public struct CacheKey: Hashable, Codable, Equatable {
     public var clangVersion: String
 }
 
+extension CacheKey {
+    public var frameworkName: String {
+        "\(targetName.packageNamed()).xcframework"
+    }
+}
+
 public protocol CacheStorage {
     func existsValidCache(for cacheKey: CacheKey) async throws -> Bool
     func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: URL) async throws
