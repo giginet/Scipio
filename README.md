@@ -10,7 +10,7 @@ This product is highly inspired by [Carthage](https://github.com/Carthage/Cartha
 
 ## Abstract
 
-SwiftPM is the best way to integrate dependencies into your app. 
+SwiftPM is the best way to integrate dependencies into your app.
 However, build artifacts built by Xcode are difficult to cache.
 
 On the other hand, [XCFramework](https://developer.apple.com/videos/play/wwdc2019/416/) is a good way to keep binaries portable.
@@ -66,7 +66,7 @@ let package = Package(
 ```
 $ scipio prepare path/to/MyAppDependencies
 > 🔁 Resolving Dependencies...
-> 🗑️ Cleanin gMyAppEDependencies...
+> 🗑️ Cleaning MyAppDependencies...
 > 📦 Building APNGKit for iOS
 > 🚀 Combining into XCFramework...
 > 📦 Building Delegate for iOS
@@ -174,7 +174,7 @@ Scipio also can generate XCFrameworks from a specific Swift Package. This featur
 ```
 $ scipio create path/to/MyPackage
 > 🔁 Resolving Dependencies...
-> 🗑️ CleaningMyPackage...
+> 🗑️ Cleaning MyPackage...
 > 📦 Building MyPackage for iOS
 > 🚀 Combining into XCFramework...
 > ❇️ Succeeded.
