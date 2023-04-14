@@ -92,11 +92,41 @@ struct PIFGenerator {
 
                         return modifier.modify()
                     case .resourceBundle:
+                        generateInfoPlistForResource(for: target)
                         return target
                     }
                 }
         }
         return pif
+    }
+
+    private func generateInfoPlistForResource(for pifTarget: PIF.Target) {
+        assert(pifTarget.supportedType == .resourceBundle, "This method must be called for Resource bundles")
+
+        let infoPlistGenerator = InfoPlistGenerator(fileSystem: fileSystem)
+        let infoPlistPath = descriptionPackage.workspaceDirectory.appending(component: "Info-\(pifTarget.productName).plist")
+        do {
+            try infoPlistGenerator.generateForResourceBundle(at: infoPlistPath)
+        } catch {
+            fatalError("Could not generate Info.plist file")
+        }
+
+        let newConfigurations = pifTarget.buildConfigurations.map { original in
+            var configuration = original
+            var settings = configuration.buildSettings
+
+            // For resource bundle targets, generating Info.plist automatically in default.
+            // However, generated Info.plist causes code signing issue when submitting to AppStore.
+            // `CFBundleExecutable` is not allowed for Info.plist contains in resource bundles.
+            // So generating a Info.plist and set this
+            settings[.GENERATE_INFOPLIST_FILE] = "NO"
+            settings[.INFOPLIST_FILE] = infoPlistPath.pathString
+
+            configuration.buildSettings = settings
+            return configuration
+        }
+
+        pifTarget.buildConfigurations = newConfigurations
     }
 
     private func updateCommonSettings(of pifTarget: PIF.Target) {
