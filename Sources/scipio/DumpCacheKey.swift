@@ -1,7 +1,6 @@
 import Foundation
 import ScipioKit
 import ArgumentParser
-import Logging
 
 extension Scipio {
     struct DumpCacheKey: AsyncParsableCommand {
