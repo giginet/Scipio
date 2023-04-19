@@ -10,6 +10,11 @@ private let jsonEncoder = {
     return encoder
 }()
 
+private let jsonDecoder = {
+    let decoder = JSONDecoder()
+    return decoder
+}()
+
 struct ClangChecker<E: Executor> {
     private let executor: E
 
@@ -267,5 +272,21 @@ extension CacheKey {
     public func calculateChecksum() throws -> String {
         let data = try jsonEncoder.encode(self)
         return SHA256().hash(ByteString(data)).hexadecimalRepresentation
+    }
+}
+
+public struct VersionFileDecoder {
+    private let fileSystem: any FileSystem
+
+    public init(fileSystem: any FileSystem = localFileSystem) {
+        self.fileSystem = fileSystem
+    }
+
+    public func decode(versionFile: URL) throws -> CacheKey {
+        try jsonDecoder.decode(
+            path: versionFile.absolutePath,
+            fileSystem: fileSystem,
+            as: CacheKey.self
+        )
     }
 }
