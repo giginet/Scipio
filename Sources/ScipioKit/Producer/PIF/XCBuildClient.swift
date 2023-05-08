@@ -108,6 +108,7 @@ struct XCBuildClient {
                 to: destination
             )
         }
+        print(modulesDir.appending(component: "module.modulemap"))
     }
 
     private func frameworkPath(target: ResolvedTarget, of sdk: SDK) throws -> AbsolutePath {
