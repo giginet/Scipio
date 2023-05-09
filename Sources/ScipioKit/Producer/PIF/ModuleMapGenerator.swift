@@ -63,8 +63,7 @@ struct ModuleMapGenerator {
                 ]
                 + generateLinkSection(context: context)
                 + ["}"])
-                    .joined(separator: "\n")
-                    .trimmingCharacters(in: .whitespaces)
+                .joined()
             case .umbrellaDirectory(let directoryPath):
                 return ([
                     "framework module \(context.resolvedTarget.c99name) {",
@@ -73,8 +72,7 @@ struct ModuleMapGenerator {
                 ]
                 + generateLinkSection(context: context)
                 + ["}"])
-                    .joined(separator: "\n")
-                    .trimmingCharacters(in: .whitespaces)
+                .joined()
             case .none:
                 fatalError("Unsupported moduleMapType")
             }
@@ -87,15 +85,14 @@ struct ModuleMapGenerator {
                 ]
                 + generateLinkSection(context: context)
                 + ["}"])
-                .joined(separator: "\n")
-                .trimmingCharacters(in: .whitespaces)
+                .joined()
         }
     }
 
     private func generateLinkSection(context: Context) -> [String] {
         context.resolvedTarget.dependencies
             .compactMap(\.target?.c99name)
-            .map { "link \($0)" }
+            .map { "    link \($0)" }
     }
 
     private func generateModuleMapFile(context: Context, outputPath: AbsolutePath) throws {
@@ -126,5 +123,12 @@ struct ModuleMapGenerator {
                                                       range: NSRange(location: 0, length: contents.utf16.count),
                                                       withTemplate: "framework module")
         return replaced
+    }
+}
+
+extension [String] {
+    fileprivate func joined() -> String {
+        joined(separator: "\n")
+            .trimmingCharacters(in: .whitespaces)
     }
 }
