@@ -18,8 +18,6 @@ struct GenerateScipioVersion: BuildToolPlugin {
             fileContents = #"let currentScipioVersion: String? = nil"#
         }
 
-        print("Current scipio version is \(revision ?? "unknown")")
-
         FileManager.default.createFile(
             atPath: generatedSourcePath.string,
             contents: fileContents.data(using: .utf8)

@@ -43,10 +43,10 @@ let package = Package(
                 .product(name: "Rainbow", package: "Rainbow"),
             ],
             plugins: [
-                .plugin(name: "RevisionFetcher")
+                .plugin(name: "GenerateScipioVersion")
             ]
         ),
-        .plugin(name: "RevisionFetcher", capability: .buildTool()),
+        .plugin(name: "GenerateScipioVersion", capability: .buildTool()),
         .testTarget(
             name: "ScipioKitTests",
             dependencies: [
