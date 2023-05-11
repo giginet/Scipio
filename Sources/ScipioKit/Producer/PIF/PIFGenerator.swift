@@ -215,8 +215,6 @@ private struct PIFLibraryTargetModifier {
         if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
             addPublicHeaders(clangTarget: clangTarget)
         }
-
-        addLinkSettings(of: pifTarget)
     }
 
     private func updateBuildConfiguration(_ original: PIF.BuildConfiguration) -> PIF.BuildConfiguration {
@@ -262,18 +260,30 @@ private struct PIFLibraryTargetModifier {
         }
         settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
-        if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
-            switch clangTarget.moduleMapType {
-            case .custom(let moduleMapPath):
-                settings[.MODULEMAP_FILE] = moduleMapPath.moduleEscapedPathString
-                settings[.MODULEMAP_FILE_CONTENTS] = nil
-            case .umbrellaHeader, .umbrellaDirectory, .none:
-                break
-            }
-        }
+        importBinaryDependencies(settings: &settings)
 
         configuration.buildSettings = settings
         return configuration
+    }
+
+    /// Add build settings to import external XCFramework
+    private func importBinaryDependencies(settings: inout PIF.BuildSettings) {
+        let allBinaryTargets: [BinaryTarget] = resolvedTarget.dependencies.reduce([]) { (binaryTargets, dependency) in
+            if let product = dependency.product {
+                return binaryTargets + product.targets.map(\.underlyingTarget).compactMap { $0 as? BinaryTarget }
+            } else if let target = dependency.target, let binaryTarget = target.underlyingTarget as? BinaryTarget {
+                return binaryTargets + [binaryTarget]
+            }
+            return binaryTargets
+        }
+
+        let ldFlags = allBinaryTargets.flatMap { ["-l", "-framework", $0.c99name] }
+        settings[.OTHER_LDFLAGS, default: ["$(inherited)"]]
+            .append(contentsOf: ldFlags)
+
+        let frameworkSearchPaths = allBinaryTargets.map { $0.artifactPath.appending(component: "**") }
+        settings[.FRAMEWORK_SEARCH_PATHS, default: ["$(inherited)"]]
+            .append(contentsOf: frameworkSearchPaths.map(\.pathString))
     }
 
     private func collectPublicHeaders(of clangTarget: ClangTarget) -> Set<AbsolutePath> {
@@ -342,24 +352,6 @@ private struct PIFLibraryTargetModifier {
         } else {
             let buildPhase = PIF.HeadersBuildPhase(
                guid: guid("HEADERS_BUILD_PHASE"),
-               buildFiles: buildFiles
-            )
-            pifTarget.buildPhases.append(buildPhase)
-        }
-    }
-
-    private func addLinkSettings(of pifTarget: PIF.Target) {
-        let buildFiles = pifTarget.dependencies.enumerated().map { (index, dependency) in
-            PIF.BuildFile(guid: guid("FRAMEWORKS_BUILD_FILE_\(index)"),
-                          targetGUID: dependency.targetGUID,
-                          platformFilters: dependency.platformFilters)
-        }
-
-        if let buildPhase = fetchBuildPhase(of: PIF.FrameworksBuildPhase.self, in: pifTarget) {
-            buildPhase.buildFiles.append(contentsOf: buildFiles)
-        } else {
-            let buildPhase = PIF.FrameworksBuildPhase(
-               guid: guid("FRAMEWORKS_BUILD_PHASE"),
                buildFiles: buildFiles
             )
             pifTarget.buildPhases.append(buildPhase)
