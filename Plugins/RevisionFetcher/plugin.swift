@@ -2,13 +2,19 @@ import Foundation
 import PackagePlugin
 
 @main
-struct PrepareMilepost: BuildToolPlugin {
+struct GenerateScipioVersion: BuildToolPlugin {
     func createBuildCommands(context: PluginContext, target: Target) async throws -> [Command] {
         let zshPath = Path("/bin/zsh") // execute dummy command
         let generatedSourceDir = context.pluginWorkDirectory
         let generatedSourcePath = generatedSourceDir
             .appending(subpath: "ScipioVersion.generated.swift")
-        let versionName = versionName(of: context.package.origin)
+
+        let versionName: String?
+        if let scipioPackage = context.package.dependencies.first(where: { $0.package.displayName.lowercased() == "scipio" })?.package {
+            versionName = fetchVersionName(of: scipioPackage.origin)
+        } else {
+            versionName = nil
+        }
 
         let fileContents: String
         if let versionName {
@@ -35,7 +41,7 @@ struct PrepareMilepost: BuildToolPlugin {
         ]
     }
 
-    private func versionName(of packageOrigin: PackageOrigin) -> String? {
+    private func fetchVersionName(of packageOrigin: PackageOrigin) -> String? {
         switch packageOrigin {
         case .root:
             return "root"
