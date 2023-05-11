@@ -41,7 +41,12 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Algorithms", package: "swift-algorithms"),
                 .product(name: "Rainbow", package: "Rainbow"),
-            ]),
+            ],
+            plugins: [
+                .plugin(name: "RevisionFetcher")
+            ]
+        ),
+        .plugin(name: "RevisionFetcher", capability: .buildTool()),
         .testTarget(
             name: "ScipioKitTests",
             dependencies: [
