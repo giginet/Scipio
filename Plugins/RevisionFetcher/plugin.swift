@@ -4,7 +4,7 @@ import PackagePlugin
 @main
 struct PrepareMilepost: BuildToolPlugin {
     func createBuildCommands(context: PluginContext, target: Target) async throws -> [Command] {
-        let zshPath = try context.tool(named: "zsh") // execute dummy command
+        let zshPath = Path("/bin/zsh") // execute dummy command
         let generatedSourceDir = context.pluginWorkDirectory
         let generatedSourcePath = generatedSourceDir
             .appending(subpath: "ScipioVersion.generated.swift")
@@ -25,7 +25,7 @@ struct PrepareMilepost: BuildToolPlugin {
         return [
             .prebuildCommand(
                 displayName: "Generate Scipio Version",
-                executable: zshPath.path,
+                executable: zshPath,
                 arguments: [],
                 outputFilesDirectory: generatedSourceDir
             ),
