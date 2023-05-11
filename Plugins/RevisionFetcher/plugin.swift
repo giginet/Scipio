@@ -17,6 +17,7 @@ struct PrepareMilepost: BuildToolPlugin {
             fileContents = #"let currentScipioVersion: String? = nil"#
         }
 
+        print(context.package.origin)
         print("Current scipio version is \(versionName ?? "unknown")")
 
         FileManager.default.createFile(
@@ -37,9 +38,9 @@ struct PrepareMilepost: BuildToolPlugin {
     private func versionName(of packageOrigin: PackageOrigin) -> String? {
         switch packageOrigin {
         case .root:
-            return nil
+            return "root"
         case .local(_):
-            return nil
+            return "local"
         case .repository(_, _, let scmRevision):
             return scmRevision
         case .registry(_, let displayVersion):
