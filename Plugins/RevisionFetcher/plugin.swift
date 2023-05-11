@@ -17,6 +17,8 @@ struct PrepareMilepost: BuildToolPlugin {
             fileContents = #"let currentScipioVersion: String? = nil"#
         }
 
+        print("Current scipio version is \(versionName ?? "unknown")")
+
         FileManager.default.createFile(
             atPath: generatedSourcePath.string,
             contents: fileContents.data(using: .utf8)
