@@ -10,7 +10,9 @@ struct GenerateScipioVersion: BuildToolPlugin {
             .appending(subpath: "ScipioVersion.generated.swift")
 
         let versionName: String?
+        print(context.package.dependencies.map(\.package.displayName))
         if let scipioPackage = context.package.dependencies.first(where: { $0.package.displayName.lowercased() == "scipio" })?.package {
+            print(scipioPackage.origin)
             versionName = fetchVersionName(of: scipioPackage.origin)
         } else {
             versionName = nil
@@ -23,7 +25,6 @@ struct GenerateScipioVersion: BuildToolPlugin {
             fileContents = #"let currentScipioVersion: String? = nil"#
         }
 
-        print(context.package.origin)
         print("Current scipio version is \(versionName ?? "unknown")")
 
         FileManager.default.createFile(
