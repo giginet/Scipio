@@ -96,6 +96,7 @@ public struct CacheKey: Hashable, Codable, Equatable {
     public var pin: PinsStore.PinState
     var buildOptions: BuildOptions
     public var clangVersion: String
+    public var scipioVersion: String?
 }
 
 extension CacheKey {
@@ -247,7 +248,8 @@ struct CacheSystem {
             targetName: targetName,
             pin: pin.state,
             buildOptions: buildOptions,
-            clangVersion: clangVersion
+            clangVersion: clangVersion,
+            scipioVersion: currentScipioVersion
         )
     }
 

@@ -48,7 +48,15 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Algorithms", package: "swift-algorithms"),
                 .product(name: "Rainbow", package: "Rainbow"),
-            ]),
+            ],
+            plugins: [
+                .plugin(name: "GenerateScipioVersion")
+            ]
+        ),
+        .plugin(
+            name: "GenerateScipioVersion", 
+            capability: .buildTool()
+        ),
         .target(
             name: "ScipioS3Storage",
             dependencies: [
