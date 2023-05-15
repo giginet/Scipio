@@ -14,6 +14,9 @@ let package = Package(
         .library(
             name: "ScipioKit",
             targets: ["ScipioKit"]),
+        .library(
+            name: "ScipioS3Storage",
+            targets: ["ScipioS3Storage"]),
     ],
     dependencies: [
         .package(url: "https://github.com/giginet/swift-package-manager.git",

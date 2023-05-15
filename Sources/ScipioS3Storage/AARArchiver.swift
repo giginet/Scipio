@@ -3,11 +3,12 @@ import System
 import Compression
 import AppleArchive
 
-struct Compressor {
+/// Compress binaries into Apple Archive(AAR)
+struct AARArchiver {
     private let fileManager: FileManager = .default
 
-    init() {
-        try? fileManager.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+    init() throws {
+        try fileManager.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
     }
 
     func compress(_ directoryPath: URL) throws -> Data {

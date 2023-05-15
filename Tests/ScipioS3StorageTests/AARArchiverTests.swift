@@ -1,7 +1,7 @@
 import XCTest
 @testable import ScipioS3Storage
 
-final class CompressorTests: XCTestCase {
+final class AARArchiverTests: XCTestCase {
     private let fileManager = FileManager.default
     private var workspacePath: URL!
 
@@ -27,12 +27,12 @@ final class CompressorTests: XCTestCase {
             contents: fileBody.data(using: .utf8)
         )
 
-        let compressor = Compressor()
-        let compressed = try XCTUnwrap(compressor.compress(xcframeworkPath))
+        let archiver = try AARArchiver()
+        let compressed = try XCTUnwrap(archiver.compress(xcframeworkPath))
         XCTAssertFalse(compressed.isEmpty, "Compression should be succeed")
 
         let extractedPath = workspacePath.appendingPathComponent("\(UUID().uuidString).xcframework")
-        try compressor.extract(compressed, to: extractedPath)
+        try archiver.extract(compressed, to: extractedPath)
 
         let fileContents = try XCTUnwrap(
             fileManager.contents(atPath: extractedPath.appendingPathComponent(fileName).path)

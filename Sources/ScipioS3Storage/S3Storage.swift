@@ -40,11 +40,12 @@ public struct S3StorageConfig {
 public struct S3Storage: CacheStorage {
     private let storagePrefix: String?
     private let storageClient: any ObjectStorageClient
-    private let compressor = Compressor()
+    private let archiver: AARArchiver
 
     public init(config: S3StorageConfig, storagePrefix: String? = nil) throws {
         self.storageClient = try config.objectStorageClientType.init(storageConfig: config)
         self.storagePrefix = storagePrefix
+        self.archiver = try AARArchiver()
     }
 
     public func existsValidCache(for cacheKey: ScipioKit.CacheKey) async throws -> Bool {
@@ -60,11 +61,11 @@ public struct S3Storage: CacheStorage {
         let objectStorageKey = try constructObjectStorageKey(from: cacheKey)
         let archiveData = try await storageClient.fetchObject(at: objectStorageKey)
         let destinationPath = destinationDir.appendingPathComponent(cacheKey.frameworkName)
-        try compressor.extract(archiveData, to: destinationPath)
+        try archiver.extract(archiveData, to: destinationPath)
     }
 
     public func cacheFramework(_ frameworkPath: URL, for cacheKey: ScipioKit.CacheKey) async throws {
-        let data = try compressor.compress(frameworkPath)
+        let data = try archiver.compress(frameworkPath)
         let objectStorageKey = try constructObjectStorageKey(from: cacheKey)
         try await storageClient.putObject(data, at: objectStorageKey)
     }
