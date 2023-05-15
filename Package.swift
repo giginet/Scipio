@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "Scipio",
     platforms: [
-        .macOS(.v11),
+        .macOS(.v12),
     ],
     products: [
         .executable(name: "scipio",
@@ -14,6 +14,9 @@ let package = Package(
         .library(
             name: "ScipioKit",
             targets: ["ScipioKit"]),
+        .library(
+            name: "ScipioS3Storage",
+            targets: ["ScipioS3Storage"]),
     ],
     dependencies: [
         .package(url: "https://github.com/giginet/swift-package-manager.git",
@@ -26,6 +29,10 @@ let package = Package(
                  from: "1.0.0"),
         .package(url: "https://github.com/onevcat/Rainbow",
                  .upToNextMinor(from: "4.0.1")),
+        .package(url: "https://github.com/soto-project/soto-codegenerator", 
+                 from: "0.6.0"),
+        .package(url: "https://github.com/soto-project/soto-core.git", 
+                 from: "6.4.0"),
     ],
     targets: [
         .executableTarget(name: "scipio",
@@ -46,7 +53,16 @@ let package = Package(
                 .plugin(name: "GenerateScipioVersion")
             ]
         ),
-        .plugin(name: "GenerateScipioVersion", capability: .buildTool()),
+        .target(
+            name: "ScipioS3Storage",
+            dependencies: [
+                .target(name: "ScipioKit"),
+                .product(name: "SotoCore", package: "soto-core"),
+            ],
+            plugins: [
+                .plugin(name: "SotoCodeGeneratorPlugin", package: "soto-codegenerator"),
+            ]
+        ),
         .testTarget(
             name: "ScipioKitTests",
             dependencies: [
@@ -54,5 +70,8 @@ let package = Package(
             ],
             exclude: ["Resources/Fixtures/"],
             resources: [.copy("Resources/Fixtures")]),
+        .testTarget(
+            name: "ScipioS3StorageTests",
+            dependencies: ["ScipioS3Storage"]),
     ]
 )
