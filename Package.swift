@@ -53,6 +53,10 @@ let package = Package(
                 .plugin(name: "GenerateScipioVersion")
             ]
         ),
+        .plugin(
+            name: "GenerateScipioVersion", 
+            capability: .buildTool()
+        ),
         .target(
             name: "ScipioS3Storage",
             dependencies: [
