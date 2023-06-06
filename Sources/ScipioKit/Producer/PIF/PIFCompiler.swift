@@ -110,7 +110,7 @@ struct PIFCompiler: Compiler {
     }
 
     private func makeBuildParameters(toolchain: UserToolchain) throws -> BuildParameters {
-        .init(
+        try .init(
             dataPath: descriptionPackage.buildDirectory,
             configuration: buildOptions.buildConfiguration.spmConfiguration,
             toolchain: toolchain,
