@@ -19,8 +19,8 @@ let package = Package(
             targets: ["ScipioS3Storage"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-package-manager.git",
-                 revision: "0872d6fcdeba6539fa836a23db6986d7342f568a"),
+        .package(url: "https://github.com/giginet/swift-package-manager.git",
+                 branch: "swift-5.9-DEVELOPMENT-SNAPSHOT-2023-06-05-a-patched"),
         .package(url: "https://github.com/apple/swift-log.git",
                  .upToNextMinor(from: "1.4.2")),
         .package(url: "https://github.com/apple/swift-collections",
