@@ -215,6 +215,10 @@ private struct PIFLibraryTargetModifier {
         if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
             addPublicHeaders(clangTarget: clangTarget)
         }
+
+        if buildOptions.frameworkType == .dynamic {
+            addLinkSettings(of: pifTarget)
+        }
     }
 
     private func updateBuildConfiguration(_ original: PIF.BuildConfiguration) -> PIF.BuildConfiguration {
@@ -352,6 +356,24 @@ private struct PIFLibraryTargetModifier {
         } else {
             let buildPhase = PIF.HeadersBuildPhase(
                guid: guid("HEADERS_BUILD_PHASE"),
+               buildFiles: buildFiles
+            )
+            pifTarget.buildPhases.append(buildPhase)
+        }
+    }
+
+    private func addLinkSettings(of pifTarget: PIF.Target) {
+        let buildFiles = pifTarget.dependencies.enumerated().map { (index, dependency) in
+            PIF.BuildFile(guid: guid("FRAMEWORKS_BUILD_FILE_\(index)"),
+                          targetGUID: dependency.targetGUID,
+                          platformFilters: dependency.platformFilters)
+        }
+
+        if let buildPhase = fetchBuildPhase(of: PIF.FrameworksBuildPhase.self, in: pifTarget) {
+            buildPhase.buildFiles.append(contentsOf: buildFiles)
+        } else {
+            let buildPhase = PIF.FrameworksBuildPhase(
+               guid: guid("FRAMEWORKS_BUILD_PHASE"),
                buildFiles: buildFiles
             )
             pifTarget.buildPhases.append(buildPhase)
