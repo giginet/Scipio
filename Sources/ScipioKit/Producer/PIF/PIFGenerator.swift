@@ -281,10 +281,6 @@ private struct PIFLibraryTargetModifier {
             return binaryTargets
         }
 
-        let ldFlags = allBinaryTargets.flatMap { ["-l", "-framework", $0.c99name] }
-        settings[.OTHER_LDFLAGS, default: ["$(inherited)"]]
-            .append(contentsOf: ldFlags)
-
         let frameworkSearchPaths = allBinaryTargets.map { $0.artifactPath.appending(component: "**") }
         settings[.FRAMEWORK_SEARCH_PATHS, default: ["$(inherited)"]]
             .append(contentsOf: frameworkSearchPaths.map(\.pathString))
