@@ -92,7 +92,7 @@ struct ModuleMapGenerator {
     private func generateLinkSection(context: Context) -> [String] {
         context.resolvedTarget.dependencies
             .compactMap(\.target?.c99name)
-            .map { "    link framework \($0)" }
+            .map { "    link framework \"\($0)\"" }
     }
 
     private func generateModuleMapFile(context: Context, outputPath: AbsolutePath) throws {
