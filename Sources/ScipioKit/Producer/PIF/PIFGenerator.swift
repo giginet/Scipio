@@ -216,9 +216,7 @@ private struct PIFLibraryTargetModifier {
             addPublicHeaders(clangTarget: clangTarget)
         }
 
-        if buildOptions.frameworkType == .dynamic {
-            addLinkSettings(of: pifTarget)
-        }
+        addLinkSettings(of: pifTarget)
     }
 
     private func updateBuildConfiguration(_ original: PIF.BuildConfiguration) -> PIF.BuildConfiguration {
@@ -264,26 +262,8 @@ private struct PIFLibraryTargetModifier {
         }
         settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
-        importBinaryDependencies(settings: &settings)
-
         configuration.buildSettings = settings
         return configuration
-    }
-
-    /// Add build settings to import external XCFramework
-    private func importBinaryDependencies(settings: inout PIF.BuildSettings) {
-        let allBinaryTargets: [BinaryTarget] = resolvedTarget.dependencies.reduce([]) { (binaryTargets, dependency) in
-            if let product = dependency.product {
-                return binaryTargets + product.targets.map(\.underlyingTarget).compactMap { $0 as? BinaryTarget }
-            } else if let target = dependency.target, let binaryTarget = target.underlyingTarget as? BinaryTarget {
-                return binaryTargets + [binaryTarget]
-            }
-            return binaryTargets
-        }
-
-        let frameworkSearchPaths = allBinaryTargets.map { $0.artifactPath.appending(component: "**") }
-        settings[.FRAMEWORK_SEARCH_PATHS, default: ["$(inherited)"]]
-            .append(contentsOf: frameworkSearchPaths.map(\.pathString))
     }
 
     private func collectPublicHeaders(of clangTarget: ClangTarget) -> Set<AbsolutePath> {
@@ -359,6 +339,30 @@ private struct PIFLibraryTargetModifier {
     }
 
     private func addLinkSettings(of pifTarget: PIF.Target) {
+        let allBinaryTargets: [BinaryTarget] = resolvedTarget.dependencies.reduce([]) { (binaryTargets, dependency) in
+            if let product = dependency.product {
+                return binaryTargets + product.targets.map(\.underlyingTarget).compactMap { $0 as? BinaryTarget }
+            } else if let target = dependency.target, let binaryTarget = target.underlyingTarget as? BinaryTarget {
+                return binaryTargets + [binaryTarget]
+            }
+            return binaryTargets
+        }
+
+        func shouldLink(_ dependency: PIF.TargetDependency) -> Bool {
+            switch buildOptions.frameworkType {
+            case .dynamic:
+                // For dynamic frameworks, all dependencies should be linked
+                return true
+            case .static:
+                // For static frameworks,  only binaryTargets should be linked
+                // targetGUID should be `PACKAGE-PRODUCT:<target_name>`
+                guard let targetName = dependency.targetGUID.split(separator: ":").last else { return false }
+                return allBinaryTargets.contains { $0.name == targetName }
+            }
+        }
+
+        let linkingDependencies = pifTarget.dependencies.filter(shouldLink(_:))
+
         let buildFiles = pifTarget.dependencies.enumerated().map { (index, dependency) in
             PIF.BuildFile(guid: guid("FRAMEWORKS_BUILD_FILE_\(index)"),
                           targetGUID: dependency.targetGUID,
