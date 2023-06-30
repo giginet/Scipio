@@ -338,6 +338,9 @@ private struct PIFLibraryTargetModifier {
         }
     }
 
+    // Add dependencies to "Link Binary with Libraries" phase
+    // PIFBuilder of SwiftPM links dependencies only to PackageProduct
+    // This method will link all dependencies to library targets
     private func addLinkSettings(of pifTarget: PIF.Target) {
         let allBinaryTargets: [BinaryTarget] = resolvedTarget.dependencies.reduce([]) { (binaryTargets, dependency) in
             if let product = dependency.product {
@@ -354,7 +357,7 @@ private struct PIFLibraryTargetModifier {
                 // For dynamic frameworks, all dependencies should be linked
                 return true
             case .static:
-                // For static frameworks,  only binaryTargets should be linked
+                // For static frameworks, only binaryTargets should be linked avoiding to symbol duplication
                 // targetGUID should be `PACKAGE-PRODUCT:<target_name>`
                 guard let targetName = dependency.targetGUID.split(separator: ":").last else { return false }
                 return allBinaryTargets.contains { $0.name == targetName }
