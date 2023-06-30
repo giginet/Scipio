@@ -38,8 +38,6 @@ struct ScipioLogHandler: LogHandler {
         }
     }
 
-    init() { }
-
     func log(level: Logger.Level,
              message: Logger.Message,
              metadata: Logger.Metadata?,
