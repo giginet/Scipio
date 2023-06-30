@@ -363,7 +363,7 @@ private struct PIFLibraryTargetModifier {
 
         let linkingDependencies = pifTarget.dependencies.filter(shouldLink(_:))
 
-        let buildFiles = pifTarget.dependencies.enumerated().map { (index, dependency) in
+        let buildFiles = linkingDependencies.enumerated().map { (index, dependency) in
             PIF.BuildFile(guid: guid("FRAMEWORKS_BUILD_FILE_\(index)"),
                           targetGUID: dependency.targetGUID,
                           platformFilters: dependency.platformFilters)
