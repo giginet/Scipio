@@ -176,7 +176,9 @@ struct FrameworkProducer {
             let isValidCache = await cacheSystem.existsValidCache(cacheKey: expectedCacheKey)
             let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
             if isValidCache && exists {
-                logger.info("✅ Valid \(product.target.name).xcframework (\(expectedCacheKeyHash)) is exists. Skip building.", metadata: .color(.green))
+                logger.info(
+                    "✅ Valid \(product.target.name).xcframework (\(expectedCacheKeyHash)) is exists. Skip building.", metadata: .color(.green)
+                )
                 return true
             } else {
                 if exists {
