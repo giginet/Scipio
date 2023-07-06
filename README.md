@@ -74,7 +74,7 @@ $ scipio prepare path/to/MyAppDependencies
 > ❇️ Succeeded.
 ```
 
-All XCFrameworks are generated into `MyAppDependencies/XCFramework` in default.
+All XCFrameworks are generated into `MyAppDependencies/XCFramework` by default.
 
 #### Options
 
@@ -93,7 +93,7 @@ See `--help` for details.
 
 #### Library Evolution support
 
-Scipio automatically enables [Library Evolution](https://www.swift.org/blog/library-evolution/) feature in default.
+Scipio enables [Library Evolution](https://www.swift.org/blog/library-evolution/) feature by default.
 
 It means built frameworks always keep compatibility even if linked from products built in other Swift versions. (ABI stability)
 
@@ -103,7 +103,7 @@ You can disable Library Evolution with `--disable-library-evolution` flag if you
 
 #### Build cache
 
-In default, Scipio checks whether re-building is required or not for existing XCFrameworks.
+By default, Scipio checks whether re-building is required or not for existing XCFrameworks.
 
 ```
 $ swift run scipio prepare --cache-policy project path/to/MyAppDependencies

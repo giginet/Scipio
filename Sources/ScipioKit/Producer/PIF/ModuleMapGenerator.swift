@@ -56,34 +56,43 @@ struct ModuleMapGenerator {
                 return try convertCustomModuleMapForFramework(customModuleMap)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
             case .umbrellaHeader(let headerPath):
-                return """
-                framework module \(context.resolvedTarget.c99name) {
-                    umbrella header "\(headerPath.basename)"
-                    export *
-                }
-                """
-                    .trimmingCharacters(in: .whitespaces)
+                return ([
+                    "framework module \(context.resolvedTarget.c99name) {",
+                    "    umbrella header \"\(headerPath.basename)\"",
+                    "    export *",
+                ]
+                + generateLinkSection(context: context)
+                + ["}"])
+                .joined()
             case .umbrellaDirectory(let directoryPath):
-                return """
-                framework module \(context.resolvedTarget.c99name) {
-                    umbrella "\(directoryPath.basename)"
-                    export *
-                }
-                """
-                    .trimmingCharacters(in: .whitespaces)
+                return ([
+                    "framework module \(context.resolvedTarget.c99name) {",
+                    "    umbrella \"\(directoryPath.basename)\"",
+                    "    export *",
+                ]
+                + generateLinkSection(context: context)
+                + ["}"])
+                .joined()
             case .none:
                 fatalError("Unsupported moduleMapType")
             }
         } else {
             let bridgingHeaderName = "\(context.resolvedTarget.name)-Swift.h"
-            return """
-                framework module \(context.resolvedTarget.c99name) {
-                    header "\(bridgingHeaderName)"
-                    export *
-                }
-            """
-                .trimmingCharacters(in: .whitespaces)
+            return ([
+                "framework module \(context.resolvedTarget.c99name) {",
+                "    header \"\(bridgingHeaderName)\"",
+                "    export *",
+                ]
+                + generateLinkSection(context: context)
+                + ["}"])
+                .joined()
         }
+    }
+
+    private func generateLinkSection(context: Context) -> [String] {
+        context.resolvedTarget.dependencies
+            .compactMap(\.target?.c99name)
+            .map { "    link framework \"\($0)\"" }
     }
 
     private func generateModuleMapFile(context: Context, outputPath: AbsolutePath) throws {
@@ -114,5 +123,12 @@ struct ModuleMapGenerator {
                                                       range: NSRange(location: 0, length: contents.utf16.count),
                                                       withTemplate: "framework module")
         return replaced
+    }
+}
+
+extension [String] {
+    fileprivate func joined() -> String {
+        joined(separator: "\n")
+            .trimmingCharacters(in: .whitespaces)
     }
 }
