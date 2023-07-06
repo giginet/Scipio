@@ -219,10 +219,10 @@
     {
       "identity" : "swift-package-manager",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/giginet/swift-package-manager.git",
+      "location" : "https://github.com/apple/swift-package-manager.git",
       "state" : {
-        "branch" : "swift-5.9-DEVELOPMENT-SNAPSHOT-2023-06-05-a-patched",
-        "revision" : "ec29660315c996c96ed42e78b97f9c99839b9b04"
+        "branch" : "swift-5.9-DEVELOPMENT-SNAPSHOT-2023-07-05-a",
+        "revision" : "f45e0be4020f9a97ce250847020e37be51819492"
       }
     },
     {
