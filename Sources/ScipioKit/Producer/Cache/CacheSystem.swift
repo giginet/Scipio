@@ -197,9 +197,8 @@ struct CacheSystem {
         try fileSystem.writeFileContents(versionFilePath.absolutePath, data: data)
     }
 
-    func existsValidCache(target: CacheTarget) async -> Bool {
+    func existsValidCache(cacheKey: CacheKey) async -> Bool {
         do {
-            let cacheKey = try await calculateCacheKey(of: target)
             let versionFilePath = versionFilePath(for: cacheKey.targetName)
             guard fileSystem.exists(versionFilePath.absolutePath) else { return false }
             let decoder = JSONDecoder()
@@ -239,7 +238,7 @@ struct CacheSystem {
         try await storage.fetchArtifacts(for: cacheKey, to: destination)
     }
 
-    private func calculateCacheKey(of target: CacheTarget) async throws -> CacheKey {
+    func calculateCacheKey(of target: CacheTarget) async throws -> CacheKey {
         let targetName = target.buildProduct.target.name
         let pin = try retrievePin(product: target.buildProduct)
         let buildOptions = target.buildOptions
