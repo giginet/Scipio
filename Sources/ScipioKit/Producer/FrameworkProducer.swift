@@ -172,9 +172,13 @@ struct FrameworkProducer {
         let exists = fileSystem.exists(outputPath.absolutePath)
 
         if isConsumingCacheEnabled {
-            let isValidCache = await cacheSystem.existsValidCache(target: target)
+            let expectedCacheKey = try await cacheSystem.calculateCacheKey(of: target)
+            let isValidCache = await cacheSystem.existsValidCache(cacheKey: expectedCacheKey)
+            let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
             if isValidCache && exists {
-                logger.info("✅ Valid \(product.target.name).xcframework is exists. Skip building.", metadata: .color(.green))
+                logger.info(
+                    "✅ Valid \(product.target.name).xcframework (\(expectedCacheKeyHash)) is exists. Skip building.", metadata: .color(.green)
+                )
                 return true
             } else {
                 if exists {
@@ -185,10 +189,10 @@ struct FrameworkProducer {
                 let restoreResult = await cacheSystem.restoreCacheIfPossible(target: target)
                 switch restoreResult {
                 case .succeeded:
-                    logger.info("✅ Restore \(frameworkName) from cache storage", metadata: .color(.green))
+                    logger.info("✅ Restore \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
                     return true
                 case .failed(let error):
-                    logger.warning("⚠️ Restoring \(frameworkName) is failed", metadata: .color(.yellow))
+                    logger.warning("⚠️ Restoring \(frameworkName) (\(expectedCacheKeyHash)) is failed", metadata: .color(.yellow))
                     if let description = error?.errorDescription {
                         logger.warning("\(description)", metadata: .color(.yellow))
                     }
