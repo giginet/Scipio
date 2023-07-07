@@ -82,6 +82,8 @@ struct DescriptionPackage {
         let scope = observabilitySystem.topScope
         self.graph = try workspace.loadPackageGraph(
             rootInput: PackageGraphRootInput(packages: [packageDirectory]),
+            // This option is same with resolver option `--disable-automatic-resolution`
+            // Never update Package.resolved of the package
             forceResolvedVersions: true,
             observabilityScope: scope
         )
