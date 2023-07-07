@@ -79,8 +79,12 @@ struct DescriptionPackage {
         self.toolchain = toolchain
 
         let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
-        self.graph = try workspace.loadPackageGraph(rootPath: packageDirectory, observabilityScope: observabilitySystem.topScope)
         let scope = observabilitySystem.topScope
+        self.graph = try workspace.loadPackageGraph(
+            rootInput: PackageGraphRootInput(packages: [packageDirectory]),
+            forceResolvedVersions: true,
+            observabilityScope: scope
+        )
         self.manifest = try tsc_await {
             workspace.loadRootManifest(
                 at: packageDirectory,
