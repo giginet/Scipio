@@ -84,7 +84,7 @@ struct DescriptionPackage {
             rootInput: PackageGraphRootInput(packages: [packageDirectory]),
             // This option is same with resolver option `--disable-automatic-resolution`
             // Never update Package.resolved of the package
-            forceResolvedVersions: false,
+            forceResolvedVersions: true,
             observabilityScope: scope
         )
         self.manifest = try tsc_await {
