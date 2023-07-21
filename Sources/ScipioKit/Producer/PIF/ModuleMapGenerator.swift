@@ -65,11 +65,14 @@ struct ModuleMapGenerator {
                 + ["}"])
                 .joined()
             case .umbrellaDirectory(let directoryPath):
+                let headers = try walkDirectoryContents(of: directoryPath)
+                let declarations = headers.map { "    header \"\($0)\"" }
+
                 return ([
                     "framework module \(context.resolvedTarget.c99name) {",
-                    "    umbrella \"\(directoryPath.basename)\"",
-                    "    export *",
                 ]
+                + Array(declarations).sorted()
+                + ["    export *"]
                 + generateLinkSection(context: context)
                 + ["}"])
                 .joined()
@@ -86,6 +89,17 @@ struct ModuleMapGenerator {
                 + generateLinkSection(context: context)
                 + ["}"])
                 .joined()
+        }
+    }
+
+    private func walkDirectoryContents(of directoryPath: AbsolutePath) throws -> Set<String> {
+        try fileSystem.getDirectoryContents(directoryPath).reduce(into: Set()) { headers, file in
+            let path = directoryPath.appending(component: file)
+            if fileSystem.isDirectory(path) {
+                headers.formUnion(try walkDirectoryContents(of: path))
+            } else if file.hasSuffix(".h") {
+                headers.insert(file)
+            }
         }
     }
 
