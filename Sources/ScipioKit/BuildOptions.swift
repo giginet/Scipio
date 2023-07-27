@@ -76,6 +76,8 @@ public enum SDK: String, Codable {
     case tvOSSimulator
     case watchOS
     case watchOSSimulator
+    case visionOS
+    case visionOSSimulator
 
     init?(platformName: String) {
         switch platformName {
@@ -89,6 +91,8 @@ public enum SDK: String, Codable {
             self = .tvOS
         case "watchos":
             self = .watchOS
+        case "visionos":
+            self = .visionOS
         default:
             return nil
         }
@@ -100,6 +104,7 @@ public enum SDK: String, Codable {
         case .iOS: return [.iOS, .iOSSimulator]
         case .tvOS: return [.tvOS, .tvOSSimulator]
         case .watchOS: return [.watchOS, .watchOSSimulator]
+        case .visionOS: return [.visionOS, .visionOSSimulator]
         default: return [self]
         }
     }
@@ -122,6 +127,10 @@ public enum SDK: String, Codable {
             return "tvOS"
         case .tvOSSimulator:
             return "TV Simulator"
+        case .visionOS:
+            return "visionOS"
+        case .visionOSSimulator:
+            return "visionOS Simulator"
         }
     }
 
@@ -143,27 +152,10 @@ public enum SDK: String, Codable {
             return "watchos"
         case .watchOSSimulator:
             return "watchsimulator"
-        }
-    }
-
-    var destination: String {
-        switch self {
-        case .macOS:
-            return "generic/platform=macOS,name=Any Mac"
-        case .macCatalyst:
-            return "generic/platform=macOS,variant=Mac Catalyst"
-        case .iOS:
-            return "generic/platform=iOS"
-        case .iOSSimulator:
-            return "generic/platform=iOS Simulator"
-        case .tvOS:
-            return "generic/platform=tvOS"
-        case .tvOSSimulator:
-            return "generic/platform=tvOS Simulator"
-        case .watchOS:
-            return "generic/platform=watchOS"
-        case .watchOSSimulator:
-            return "generic/platform=watchOS Simulator"
+        case .visionOS:
+            return "xros"
+        case .visionOSSimulator:
+            return "xrsimulator"
         }
     }
 }
