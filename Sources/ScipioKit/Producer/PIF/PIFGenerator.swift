@@ -287,8 +287,7 @@ private struct PIFLibraryTargetModifier {
             while index < flags.count {
                 if flags[index] == "-Xcc",
                    index + 1 < flags.count,
-                   flags[index + 1].hasPrefix("-fmodule-map-file")
-                {
+                   flags[index + 1].hasPrefix("-fmodule-map-file") {
                     index += 2
                 } else {
                     newFlags.append(flags[index])
