@@ -5,8 +5,6 @@ import struct TSCBasic.ProcessResult
 protocol Executor {
     @discardableResult
     func execute(_ arguments: [String]) async throws -> ExecutorResult
-    func outputStream(_: Data)
-    func errorOutputStream(_: Data)
 }
 
 protocol ErrorDecoder {
@@ -34,6 +32,28 @@ extension Executor {
     @discardableResult
     func execute(_ arguments: String...) async throws -> ExecutorResult {
         try await execute(arguments)
+    }
+}
+
+extension ProcessResult {
+    mutating func setOutput(_ newValue: Result<[UInt8], Swift.Error>) {
+        self = ProcessResult(
+            arguments: arguments,
+            environment: environment,
+            exitStatus: exitStatus,
+            output: newValue,
+            stderrOutput: stderrOutput
+        )
+    }
+
+    mutating func setStderrOutput(_ newValue: Result<[UInt8], Swift.Error>) {
+        self = ProcessResult(
+            arguments: arguments,
+            environment: environment,
+            exitStatus: exitStatus,
+            output: output,
+            stderrOutput: newValue
+        )
     }
 }
 
@@ -70,41 +90,55 @@ Unknown error occurered.
         self.decoder = decoder
     }
 
-    var outputRedirection: TSCBasic.Process.OutputRedirection = .collect
-
-    func outputStream(_ data: Data) {
-        logger.trace("\(String(data: data, encoding: .utf8)!)")
-    }
-
-    func errorOutputStream(_ data: Data) {
-        logger.trace("\(String(data: data, encoding: .utf8)!)")
-    }
+    var streamOutput: (([UInt8]) -> Void)?
+    var collectsOutput: Bool = true
 
     func execute(_ arguments: [String]) async throws -> ExecutorResult {
         logger.debug("\(arguments.joined(separator: " "))")
-        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Swift.Error>) in
-            let process = Process(
-                arguments: arguments,
-                outputRedirection: outputRedirection)
 
-//                .stream(stdout: { self.outputStream(Data($0)) },
-//                        stderr: { self.errorOutputStream(Data($0)) })
+        var outputBuffer: [UInt8] = []
+        var errorBuffer: [UInt8] = []
 
-            do {
-                try process.launch()
-                let result = try process.waitUntilExit()
-                switch result.exitStatus {
-                case .terminated(let code) where code == 0:
-                    continuation.resume(returning: result)
-                case .terminated:
-                    let errorOutput = try? decoder.decode(result)
-                    continuation.resume(throwing: Error.terminated(errorOutput: errorOutput))
-                case .signalled(let signal):
-                    continuation.resume(throwing: Error.signalled(signal))
+        let outputRedirection: Process.OutputRedirection = .stream(
+            stdout: { (bytes) in
+                if let streamOutput {
+                    streamOutput(bytes)
                 }
-            } catch {
-                continuation.resume(with: .failure(Error.unknownError(error)))
+
+                if collectsOutput {
+                    outputBuffer += bytes
+                }
+            },
+            stderr: { (bytes) in
+                errorBuffer += bytes
             }
+        )
+
+        let process = Process(
+            arguments: arguments,
+            outputRedirection: outputRedirection
+        )
+
+        var result: ProcessResult
+        do {
+            try process.launch()
+            result = try await process.waitUntilExit()
+        } catch {
+            throw Error.unknownError(error)
+        }
+
+        // respects failure state
+        result.setOutput(result.output.map { (_) in outputBuffer })
+        result.setStderrOutput(result.stderrOutput.map { (_) in errorBuffer })
+
+        switch result.exitStatus {
+        case .terminated(let code) where code == 0:
+            return result
+        case .terminated:
+            let errorOutput = try? decoder.decode(result)
+            throw Error.terminated(errorOutput: errorOutput)
+        case .signalled(let signal):
+            throw Error.signalled(signal)
         }
     }
 }
