@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "scipio-testing",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/giginet/scipio-testing.git",
+      "state" : {
+        "revision" : "88188847e047db6d49767b881eadced45a1bdbce",
+        "version" : "2.0.0"
+      }
+    }
+  ],
+  "version" : 2
+}
