@@ -23,6 +23,17 @@ extension PIF.Target {
     }
 }
 
+extension PIF.BuildConfiguration {
+    mutating func setImpartedBuildProperties(_ newValue: PIF.ImpartedBuildProperties) {
+        self = PIF.BuildConfiguration(
+            guid: guid,
+            name: name,
+            buildSettings: buildSettings,
+            impartedBuildProperties: newValue
+        )
+    }
+}
+
 struct PIFGenerator {
     private let descriptionPackage: DescriptionPackage
     private let buildParameters: BuildParameters
@@ -263,6 +274,32 @@ private struct PIFLibraryTargetModifier {
         settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
         configuration.buildSettings = settings
+
+        var impartedBuildProperties = configuration.impartedBuildProperties
+        var imparted = impartedBuildProperties.buildSettings
+        if var flags = imparted[.OTHER_CFLAGS] {
+            flags.removeAll { $0.hasPrefix("-fmodule-map-file") }
+            imparted[.OTHER_CFLAGS] = flags
+        }
+        if let flags = imparted[.OTHER_SWIFT_FLAGS] {
+            var newFlags: [String] = []
+            var index = 0
+            while index < flags.count {
+                if flags[index] == "-Xcc",
+                   index + 1 < flags.count,
+                   flags[index + 1].hasPrefix("-fmodule-map-file")
+                {
+                    index += 2
+                } else {
+                    newFlags.append(flags[index])
+                    index += 1
+                }
+            }
+            imparted[.OTHER_SWIFT_FLAGS] = newFlags
+        }
+        impartedBuildProperties.buildSettings = imparted
+        configuration.setImpartedBuildProperties(impartedBuildProperties)
+
         return configuration
     }
 

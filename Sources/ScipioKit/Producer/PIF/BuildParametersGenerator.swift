@@ -75,10 +75,6 @@ struct BuildParametersGenerator {
             buildOptions.extraFlags?.linkerFlags
         )
 
-        settings["FRAMEWORK_SEARCH_PATHS"] = expandFlags(
-            "$(BUILT_PRODUCTS_DIR)/PackageFrameworks"
-        )
-
         let additionalSettings = buildOptions.extraBuildParameters ?? [:]
         settings.merge(additionalSettings, uniquingKeysWith: { $1 })
 
