@@ -1,7 +1,9 @@
 import Foundation
 import PackageGraph
 import PackageModel
-import TSCBasic
+import Collections
+import protocol TSCBasic.FileSystem
+import var TSCBasic.localFileSystem
 
 struct FrameworkProducer {
     private let descriptionPackage: DescriptionPackage
@@ -92,7 +94,7 @@ struct FrameworkProducer {
             return
         }
 
-        let allTargets = Set(buildProducts.compactMap { buildProduct -> CacheSystem.CacheTarget? in
+        let allTargets = OrderedSet(buildProducts.compactMap { buildProduct -> CacheSystem.CacheTarget? in
             guard [.library, .binary].contains(buildProduct.target.type) else {
                 assertionFailure("Invalid target type")
                 return nil
@@ -109,7 +111,7 @@ struct FrameworkProducer {
         let cacheEnabledTargets: Set<CacheSystem.CacheTarget>
         if isConsumingCacheEnabled {
             cacheEnabledTargets = await restoreAllAvailableCaches(
-                availableTargets: allTargets,
+                availableTargets: Set(allTargets),
                 cacheSystem: cacheSystem
             )
         } else {
@@ -126,7 +128,7 @@ struct FrameworkProducer {
         }
 
         if isProducingCacheEnabled {
-            await cacheSystem.cacheFrameworks(targetsToBuild)
+            await cacheSystem.cacheFrameworks(Set(targetsToBuild))
         }
 
         if shouldGenerateVersionFile {
