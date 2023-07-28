@@ -9,11 +9,11 @@ on:
       - '*'
 jobs:
   Tests:
-    runs-on: macos-12
+    runs-on: macos-13
     steps:
     - uses: actions/checkout@v2
     - name: Select Xcode version
-      run: sudo xcode-select -s '/Applications/Xcode_14.0.app/Contents/Developer'
+      run: sudo xcode-select -s '/Applications/Xcode_14.3.1.app/Contents/Developer'
     - name: SwiftLint
       run: swiftlint --strict
     - name: Run Tests
