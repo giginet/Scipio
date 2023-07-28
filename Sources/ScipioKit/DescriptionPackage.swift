@@ -96,7 +96,7 @@ struct DescriptionPackage {
 }
 
 extension DescriptionPackage {
-    func resolveBuildProducts() throws -> Set<BuildProduct> {
+    func resolveBuildProducts() throws -> [BuildProduct] {
         let targetsToBuild = try targetsToBuild()
         var products = try targetsToBuild.flatMap(resolveBuildProduct(from:))
 
