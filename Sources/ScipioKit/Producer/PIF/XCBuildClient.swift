@@ -10,7 +10,7 @@ struct XCBuildClient {
     private let configuration: BuildConfiguration
     private let fileSystem: any FileSystem
     private let executor: any Executor
-    private let buildExecutor: any Executor
+    private let buildExecutor: ProcessExecutor<XCBuildOutputDecoder>
 
     init(
         package: DescriptionPackage,
@@ -18,8 +18,7 @@ struct XCBuildClient {
         buildOptions: BuildOptions,
         configuration: BuildConfiguration,
         fileSystem: any FileSystem = localFileSystem,
-        executor: any Executor = ProcessExecutor(decoder: StandardOutputDecoder()),
-        xcBuildExecutor: any Executor = ProcessExecutor(decoder: XCBuildOutputDecoder())
+        executor: any Executor = ProcessExecutor(decoder: StandardOutputDecoder())
     ) {
         self.descriptionPackage = package
         self.buildProduct = buildProduct
@@ -27,7 +26,7 @@ struct XCBuildClient {
         self.configuration = configuration
         self.fileSystem = fileSystem
         self.executor = executor
-        self.buildExecutor = xcBuildExecutor
+        self.buildExecutor = ProcessExecutor(decoder: XCBuildOutputDecoder())
     }
 
     private func fetchXCBuildPath() async throws -> AbsolutePath {
@@ -69,6 +68,14 @@ struct XCBuildClient {
         )
 
         let xcbuildPath = try await fetchXCBuildPath()
+
+        var buildExecutor = self.buildExecutor
+
+        buildExecutor.streamOutput = { (bytes) in
+            let string = String(decoding: bytes, as: UTF8.self)
+            logger.trace("\(string)")
+        }
+
         try await buildExecutor.execute(
             xcbuildPath.pathString,
             "build",
