@@ -17,11 +17,16 @@ extension Logger.Metadata {
 
 extension Logger {
     func error(_ error: Error) {
+        let string = Logger.message(of: error)
+        self.error("⚠️ \(string)", metadata: .color(.red))
+    }
+
+    private static func message(of error: Error) -> String {
         if let error = error as? LocalizedError, let description = error.errorDescription {
-            self.error("⚠️ \(description)", metadata: .color(.red))
-        } else {
-            self.error("⚠️ \(error.localizedDescription)", metadata: .color(.red))
+            return description
         }
+
+        return error.localizedDescription
     }
 }
 
