@@ -277,10 +277,8 @@ private struct PIFLibraryTargetModifier {
 
         var impartedBuildProperties = configuration.impartedBuildProperties
         var imparted = impartedBuildProperties.buildSettings
-        if var flags = imparted[.OTHER_CFLAGS] {
-            flags.removeAll { $0.hasPrefix("-fmodule-map-file") }
-            imparted[.OTHER_CFLAGS] = flags
-        }
+        // Remove all `-fmodule-map-file` settings
+        imparted[.OTHER_CFLAGS] = imparted[.OTHER_CFLAGS]?.filter { !$0.hasPrefix("-fmodule-map-file") }
         if let flags = imparted[.OTHER_SWIFT_FLAGS] {
             var newFlags: [String] = []
             var index = 0
