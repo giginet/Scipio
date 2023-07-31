@@ -128,7 +128,7 @@ Unknown error occurered.
         }
 
         // respects failure state
-        result.setOutput(result.output.map { (_) in outputBuffer })
+        result.setOutput(result.output.map { _ in outputBuffer })
         result.setStderrOutput(result.stderrOutput.map { (_) in errorBuffer })
 
         switch result.exitStatus {
