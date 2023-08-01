@@ -101,9 +101,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
 
         let outputRedirection: Process.OutputRedirection = .stream(
             stdout: { bytes in
-                if let streamOutput {
-                    streamOutput(bytes)
-                }
+                streamOutput?(bytes)
 
                 if collectsOutput {
                     outputBuffer += bytes
