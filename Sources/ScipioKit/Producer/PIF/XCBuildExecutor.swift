@@ -189,7 +189,7 @@ private final class _Executor {
     ) {
         let labelContent: String = [
             target,
-            task.map { "#" + $0.description }
+            task.map { "#" + $0.description },
         ].compacted().joined()
 
         let label: String?
@@ -201,7 +201,7 @@ private final class _Executor {
 
         let message = [
             label,
-            message
+            message,
         ].compacted().joined(separator: " ")
 
         allMessages.append(message)
