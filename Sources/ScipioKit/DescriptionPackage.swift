@@ -108,7 +108,10 @@ extension DescriptionPackage {
 
         let productMap: [String: BuildProduct] = Dictionary(products.map { ($0.target.name, $0) }) { $1 }
         func resolvedTargetToBuildProduct(_ target: ResolvedTarget) -> BuildProduct {
-            productMap[target.name]!
+            guard let product = productMap[target.name] else {
+                preconditionFailure("The dependency target (\(target.name)) was not found in the build target list")
+            }
+            return product
         }
 
         do {
