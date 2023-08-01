@@ -200,26 +200,25 @@ private final class _Executor {
         task: Int? = nil,
         _ message: String
     ) {
-        let label: String? = {
-            var str = ""
-            if let target {
-                str += target
-            }
-            if let task {
-                str += "#" + task.description
-            }
-            if str.isEmpty { return nil }
-            return "[" + str + "]"
-        }()
-
-        var str = ""
-        if let label {
-            str += label + " "
+        let labelContent: String = [
+            target,
+            task.map { "#" + $0.description }
+        ].compacted().joined()
+        
+        let label: String?
+        if labelContent.isEmpty {
+            label = nil
+        } else {
+            label = "[" + labelContent + "]"
         }
-        str += message
 
-        allMessages.append(str)
-        logger.log(level: level, "\(str)")
+        let message = [
+            label,
+            message
+        ].compacted().joined(separator: " ")
+
+        allMessages.append(message)
+        logger.log(level: level, "\(message)")
     }
 }
 
