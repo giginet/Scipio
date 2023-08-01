@@ -73,6 +73,12 @@ private final class _Executor {
     var tasks: [Int: XCBuildMessage.TaskStartedInfo] = [:]
 
     func run() async throws {
+        precondition(
+            allMessages.isEmpty &&
+            targets.isEmpty,
+            "this method can only be called once"
+        )
+
         do {
             _ = try await executor.execute(args)
         } catch let error as ProcessExecutorError {
