@@ -581,6 +581,8 @@ final class RunnerTests: XCTestCase {
         let moduleMapPath = deviceFramework
             .appendingPathComponent("Modules")
             .appendingPathComponent("module.modulemap")
+        let headersDirPath = deviceFramework
+            .appendingPathComponent("Headers")
 
         XCTAssertTrue(fileManager.fileExists(atPath: moduleMapPath.path))
 
@@ -592,12 +594,22 @@ framework module MyTarget {
     header "a.h"
     header "add.h"
     header "b.h"
+    header "c.h"
     header "my_target.h"
     export *
 }
 """
 
-        XCTAssertEqual(generatedModuleMapContents, expectedModuleMap)
+        XCTAssertEqual(generatedModuleMapContents, expectedModuleMap, "A framework has a valid modulemap")
+
+        let headers = try fileManager.contentsOfDirectory(atPath: headersDirPath.path)
+        XCTAssertEqual(headers, [
+            "a.h",
+            "b.h",
+            "add.h",
+            "c.h",
+            "my_target.h",
+        ], "A framework contains all headers")
     }
 
     override func tearDownWithError() throws {
