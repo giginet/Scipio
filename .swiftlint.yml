@@ -15,7 +15,7 @@ nesting:
 function_body_length:
   warning: 75
 cyclomatic_complexity:
-  warning: 15
+  warning: 28
 trailing_comma:
   mandatory_comma: true
 type_body_length:

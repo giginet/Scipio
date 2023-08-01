@@ -95,96 +95,56 @@ private final class _Executor {
         switch message {
         case .buildStarted: break
         case .buildDiagnostic(let info):
-            handleBuildDiagnostic(info: info)
+            log(info.message)
         case .buildOutput(let info):
-            handleBuildOutput(info: info)
+            log(info.data)
         case .buildCompleted(let info):
-            handleBuildCompleted(info: info)
+            switch info.result {
+            case .ok: log("build completed")
+            case .failed: log(level: .error, "build failed")
+            case .cancelled: log(level: .error, "build cancelled")
+            case .aborted: log(level: .error, "build aborted")
+            }
         case .preparationComplete: break
         case .didUpdateProgress: break
         case .targetUpToDate: break
         case .targetStarted(let info):
-            handleTargetStarted(info: info)
+            targets[info.targetID] = info
+            log(target: info.targetName, "started")
         case .targetDiagnostic(let info):
-            handleTargetDiagnostic(info: info)
+            guard let target = targets[info.targetID] else { return }
+            log(target: target.targetName, info.message)
         case .targetComplete(let info):
-            handleTargetComplete(info: info)
+            guard let target = targets[info.targetID] else { return }
+            log(target: target.targetName, "completed")
         case .taskUpToDate: break
         case .taskStarted(let info):
-            handleTaskStarted(info: info)
+            tasks[info.taskID] = info
+            let target = info.targetID.flatMap { targets[$0] }
+
+            log(target: target?.targetName, task: info.taskID, info.executionDescription)
+            if let commandLine = info.commandLineDisplayString {
+                log(commandLine)
+            }
         case .taskDiagnostic(let info):
-            handleTaskDiagnostic(info: info)
+            guard let task = tasks[info.taskID] else { return }
+            let target = task.targetID.flatMap { targets[$0] }?.targetName
+            log(target: target, task: task.taskID, info.message)
         case .taskOutput(let info):
-            handleTaskOutput(info: info)
+            guard let task = tasks[info.taskID] else { return }
+            let target = task.targetID.flatMap { targets[$0] }?.targetName
+            log(target: target, task: task.taskID, info.data)
         case .taskComplete(let info):
-            handleTaskComplete(info: info)
-        }
-    }
+            guard let task = tasks[info.taskID] else { return }
+            let target = task.targetID.flatMap { targets[$0] }?.targetName
 
-    private func handleBuildDiagnostic(info: XCBuildMessage.BuildDiagnosticInfo) {
-        log(info.message)
-    }
-
-    private func handleBuildOutput(info: XCBuildMessage.BuildOutputInfo) {
-        log(info.data)
-    }
-
-    private func handleBuildCompleted(info: XCBuildMessage.BuildCompletedInfo) {
-        switch info.result {
-        case .ok: log("build completed")
-        case .failed: log(level: .error, "build failed")
-        case .cancelled: log(level: .error, "build cancelled")
-        case .aborted: log(level: .error, "build aborted")
-        }
-    }
-
-    private func handleTargetStarted(info: XCBuildMessage.TargetStartedInfo) {
-        targets[info.targetID] = info
-        log(target: info.targetName, "started")
-    }
-
-    private func handleTargetDiagnostic(info: XCBuildMessage.TargetDiagnosticInfo) {
-        guard let target = targets[info.targetID] else { return }
-        log(target: target.targetName, info.message)
-    }
-
-    private func handleTargetComplete(info: XCBuildMessage.TargetCompleteInfo) {
-        guard let target = targets[info.targetID] else { return }
-        log(target: target.targetName, "completed")
-    }
-
-    private func handleTaskStarted(info: XCBuildMessage.TaskStartedInfo) {
-        tasks[info.taskID] = info
-        let target = info.targetID.flatMap { targets[$0] }
-
-        log(target: target?.targetName, task: info.taskID, info.executionDescription)
-        if let commandLine = info.commandLineDisplayString {
-            log(commandLine)
-        }
-    }
-
-    private func handleTaskDiagnostic(info: XCBuildMessage.TaskDiagnosticInfo) {
-        guard let task = tasks[info.taskID] else { return }
-        let target = task.targetID.flatMap { targets[$0] }?.targetName
-        log(target: target, task: task.taskID, info.message)
-    }
-
-    private func handleTaskOutput(info: XCBuildMessage.TaskOutputInfo) {
-        guard let task = tasks[info.taskID] else { return }
-        let target = task.targetID.flatMap { targets[$0] }?.targetName
-        log(target: target, task: task.taskID, info.data)
-    }
-
-    private func handleTaskComplete(info: XCBuildMessage.TaskCompleteInfo) {
-        guard let task = tasks[info.taskID] else { return }
-        let target = task.targetID.flatMap { targets[$0] }?.targetName
-
-        switch info.result {
-        case .success: break
-        case .failed:
-            log(level: .error, target: target, task: task.taskID, "failed")
-        case .cancelled:
-            log(level: .error, target: target, task: task.taskID, "canceleld")
+            switch info.result {
+            case .success: break
+            case .failed:
+                log(level: .error, target: target, task: task.taskID, "failed")
+            case .cancelled:
+                log(level: .error, target: target, task: task.taskID, "cancelled")
+            }
         }
     }
 
