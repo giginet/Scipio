@@ -59,32 +59,32 @@ extension ProcessResult {
 
 extension ProcessResult: ExecutorResult { }
 
-struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
-    enum Error: LocalizedError {
-        case terminated(errorOutput: String?)
-        case signalled(Int32)
-        case unknownError(Swift.Error)
+enum ProcessExecutorError: LocalizedError {
+    case terminated(errorOutput: String?)
+    case signalled(Int32)
+    case unknownError(Swift.Error)
 
-        var errorDescription: String? {
-            switch self {
-            case .terminated(let errorOutput):
-                return [
-                    "Execution was terminated:",
-                    errorOutput,
-                ]
-                    .compactMap { $0 }
-                    .joined(separator: "\n")
-            case .signalled(let signal):
-                return "Execution was stopped by signal \(signal)"
-            case .unknownError(let error):
-                return """
+    var errorDescription: String? {
+        switch self {
+        case .terminated(let errorOutput):
+            return [
+                "Execution was terminated:",
+                errorOutput,
+            ]
+                .compactMap { $0 }
+                .joined(separator: "\n")
+        case .signalled(let signal):
+            return "Execution was stopped by signal \(signal)"
+        case .unknownError(let error):
+            return """
 Unknown error occurered.
 \(error.localizedDescription)
 """
-            }
         }
     }
+}
 
+struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
     private let decoder: Decoder
     init(decoder: Decoder = StandardErrorOutputDecoder()) {
         self.decoder = decoder
@@ -100,10 +100,8 @@ Unknown error occurered.
         var errorBuffer: [UInt8] = []
 
         let outputRedirection: Process.OutputRedirection = .stream(
-            stdout: { (bytes) in
-                if let streamOutput {
-                    streamOutput(bytes)
-                }
+            stdout: { bytes in
+                streamOutput?(bytes)
 
                 if collectsOutput {
                     outputBuffer += bytes
@@ -124,7 +122,7 @@ Unknown error occurered.
             try process.launch()
             result = try await process.waitUntilExit()
         } catch {
-            throw Error.unknownError(error)
+            throw ProcessExecutorError.unknownError(error)
         }
 
         // respects failure state
@@ -136,9 +134,9 @@ Unknown error occurered.
             return result
         case .terminated:
             let errorOutput = try? decoder.decode(result)
-            throw Error.terminated(errorOutput: errorOutput)
+            throw ProcessExecutorError.terminated(errorOutput: errorOutput)
         case .signalled(let signal):
-            throw Error.signalled(signal)
+            throw ProcessExecutorError.signalled(signal)
         }
     }
 }
