@@ -182,7 +182,7 @@ private final class _Executor {
     }
 
     private func log(
-        level: Logger.Level = .info,
+        level: Logger.Level = .trace,
         target: String? = nil,
         task: Int? = nil,
         _ message: String
