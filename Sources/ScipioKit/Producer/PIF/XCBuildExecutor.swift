@@ -35,32 +35,19 @@ private final class _Executor {
     init(args: [String]) {
         self.args = args
 
-        let parserDelegate = ParserDelegate()
-
-        self.parser = XCBuildOutputParser(delegate: parserDelegate)
-        self.parserDelegate = parserDelegate
-
         self.executor = ProcessExecutor<StandardErrorOutputDecoder>()
+
+        self.parser = XCBuildOutputParser(delegate: self)
 
         executor.streamOutput = { [weak self] (bytes) in
             self?.parser.parse(bytes: bytes)
         }
         executor.collectsOutput = false
-
-        parserDelegate.didParse = { [weak self] (message) in
-            self?.handle(message: message)
-        }
-        parserDelegate.didFail = { [weak self] (error) in
-            self?.parseError = error
-            logger.error("xcbuild output parse failed", metadata: .color(.red))
-            logger.error(error)
-        }
     }
 
     let args: [String]
 
-    let parser: XCBuildOutputParser
-    let parserDelegate: ParserDelegate
+    lazy var parser: XCBuildOutputParser = { preconditionFailure("uninitialized") }()
     var executor: ProcessExecutor<StandardErrorOutputDecoder>
 
     // FIXME: store log on file
@@ -204,7 +191,7 @@ private final class _Executor {
             target,
             task.map { "#" + $0.description }
         ].compacted().joined()
-        
+
         let label: String?
         if labelContent.isEmpty {
             label = nil
@@ -222,15 +209,14 @@ private final class _Executor {
     }
 }
 
-private final class ParserDelegate: XCBuildOutputParserDelegate {
-    var didParse: ((XCBuildMessage) -> Void)?
-    var didFail: ((Error) -> Void)?
-
+extension _Executor: XCBuildOutputParserDelegate {
     func xcBuildOutputParser(_ parser: XCBuildOutputParser, didParse message: XCBuildMessage) {
-        didParse?(message)
+        handle(message: message)
     }
 
     func xcBuildOutputParser(_ parser: XCBuildOutputParser, didFailWith error: Error) {
-        didFail?(error)
+        self.parseError = error
+        logger.error("xcbuild output parse failed", metadata: .color(.red))
+        logger.error(error)
     }
 }
