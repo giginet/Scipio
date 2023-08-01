@@ -135,7 +135,7 @@ extension Runner {
                 frameworkType: FrameworkType = .dynamic,
                 extraFlags: ExtraFlags? = nil,
                 extraBuildParameters: [String: String]? = nil,
-                enableLibraryEvolution: Bool = true
+                enableLibraryEvolution: Bool = false
             ) {
                 self.buildConfiguration = buildConfiguration
                 self.platforms = platforms

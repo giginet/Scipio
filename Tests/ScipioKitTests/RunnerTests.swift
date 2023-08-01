@@ -35,7 +35,7 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                baseBuildOptions: .init(isSimulatorSupported: false)
+                baseBuildOptions: .init(isSimulatorSupported: false, enableLibraryEvolution: true)
             )
         )
         do {
@@ -205,6 +205,7 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
+                baseBuildOptions: .init(enableLibraryEvolution: true),
                 cacheMode: .project
             )
         )
@@ -369,7 +370,8 @@ final class RunnerTests: XCTestCase {
                     buildConfiguration: .release,
                     isSimulatorSupported: false,
                     isDebugSymbolsEmbedded: false,
-                    frameworkType: .dynamic
+                    frameworkType: .dynamic,
+                    enableLibraryEvolution: true
                 ),
                 cacheMode: .project,
                 overwrite: false,
