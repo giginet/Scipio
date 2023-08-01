@@ -86,20 +86,22 @@ All XCFrameworks are generated into `MyAppDependencies/XCFramework` by default.
 |-\-static|Whether generated frameworks are Static Frameworks or not|-|
 |-\-support-simulators|Whether also building for simulators of each SDKs or not|-|
 |-\-cache-policy|How to reuse built frameworks|project|
-|-\-disable-library-evolution|Whether to enable Library Evolution feature or not|-|
+|-\-enable-library-evolution|Whether to enable Library Evolution feature or not|-|
 
 
 See `--help` for details.
 
 #### Library Evolution support
 
-Scipio enables [Library Evolution](https://www.swift.org/blog/library-evolution/) feature by default.
+Scipio disables to support [Library Evolution](https://www.swift.org/blog/library-evolution/) feature by default.
 
-It means built frameworks always keep compatibility even if linked from products built in other Swift versions. (ABI stability)
+It means built frameworks can be used only from products built with the same Swift version.
 
-However, as known, some packages doesn't support Library Evolution or there are issues to generate swiftinterface. (https://developer.apple.com/forums/thread/123253)
+The primary reason why is Library Evolution limitation. 
+In fact, some packages can't build with enabling Library Evolution. (https://developer.apple.com/forums/thread/123253, https://github.com/apple/swift-collections/issues/94, https://github.com/apple/swift-nio/issues/1257)
 
-You can disable Library Evolution with `--disable-library-evolution` flag if you need.
+If you want to distribute generated XCFrameworks, it's recommended to enable Library Evolution. Pass `--enable-library-evolution` flag if you need.
+However, it means some packages can't be built.
 
 #### Build cache
 

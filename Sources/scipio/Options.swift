@@ -32,7 +32,7 @@ struct BuildOptionGroup: ParsableArguments {
     @Flag(name: [.customLong("library-evolution")],
           inversion: .prefixedEnableDisable,
           help: "Whether to enable Library Evolution feature or not")
-    var shouldEnableLibraryEvolution = true
+    var shouldEnableLibraryEvolution = false
 
     @Flag(name: [.customShort("f", allowingJoined: false), .long],
           help: "Whether overwrite generated frameworks or not")
