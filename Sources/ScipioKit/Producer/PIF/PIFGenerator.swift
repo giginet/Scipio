@@ -278,26 +278,36 @@ private struct PIFLibraryTargetModifier {
         var impartedBuildProperties = configuration.impartedBuildProperties
         var imparted = impartedBuildProperties.buildSettings
         // Remove all `-fmodule-map-file` settings
-        imparted[.OTHER_CFLAGS] = imparted[.OTHER_CFLAGS]?.filter { !$0.hasPrefix("-fmodule-map-file") }
-        if let flags = imparted[.OTHER_SWIFT_FLAGS] {
-            var newFlags: [String] = []
-            var index = 0
-            while index < flags.count {
-                if flags[index] == "-Xcc",
-                   index + 1 < flags.count,
-                   flags[index + 1].hasPrefix("-fmodule-map-file") {
-                    index += 2
-                } else {
-                    newFlags.append(flags[index])
-                    index += 1
-                }
-            }
-            imparted[.OTHER_SWIFT_FLAGS] = newFlags
+        imparted[.OTHER_CFLAGS] = imparted[.OTHER_CFLAGS].map {
+            Self.removeModuleMapFile(fromCFlags: $0)
+        }
+        imparted[.OTHER_SWIFT_FLAGS] = imparted[.OTHER_SWIFT_FLAGS].map {
+            Self.removeModuleMapFile(fromSwiftFlags: $0)
         }
         impartedBuildProperties.buildSettings = imparted
         configuration.setImpartedBuildProperties(impartedBuildProperties)
 
         return configuration
+    }
+
+    private static func removeModuleMapFile(fromCFlags flags: [String]) -> [String] {
+        flags.filter { !$0.hasPrefix("-fmodule-map-file") }
+    }
+
+    private static func removeModuleMapFile(fromSwiftFlags flags: [String]) -> [String] {
+        var newFlags: [String] = []
+        var index = 0
+        while index < flags.count {
+            if flags[index] == "-Xcc",
+               index + 1 < flags.count,
+               flags[index + 1].hasPrefix("-fmodule-map-file") {
+                index += 2
+            } else {
+                newFlags.append(flags[index])
+                index += 1
+            }
+        }
+        return newFlags
     }
 
     private func collectPublicHeaders(of clangTarget: ClangTarget) -> Set<AbsolutePath> {
