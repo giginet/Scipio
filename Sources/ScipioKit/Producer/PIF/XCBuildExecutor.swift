@@ -51,13 +51,13 @@ private final class _Executor {
     var executor: ProcessExecutor<StandardErrorOutputDecoder>
 
     // FIXME: store log on file
-    var allMessages: [String] = []
+    private var allMessages: [String] = []
 
-    var parseError: Error?
-    var executeError: Error?
+    private var parseError: Error?
+    private var executeError: Error?
 
-    var targets: [Int: XCBuildMessage.TargetStartedInfo] = [:]
-    var tasks: [Int: XCBuildMessage.TaskStartedInfo] = [:]
+    private var targets: [Int: XCBuildMessage.TargetStartedInfo] = [:]
+    private var tasks: [Int: XCBuildMessage.TaskStartedInfo] = [:]
 
     func run() async throws {
         precondition(
