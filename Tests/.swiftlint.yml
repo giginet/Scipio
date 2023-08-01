@@ -3,3 +3,4 @@ disabled_rules:
   - force_cast
   - large_tuple
   - type_body_length
+  - file_length
