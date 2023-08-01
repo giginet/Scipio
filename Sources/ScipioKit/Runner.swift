@@ -214,6 +214,7 @@ extension Runner {
             case macCatalyst
             case tvOS
             case watchOS
+            case visionOS
         }
 
         public var buildOptionsContainer: BuildOptionsContainer
@@ -252,6 +253,8 @@ extension Runner.Options.Platform {
             return isSimulatorSupported ? [.tvOS, .tvOSSimulator] : [.tvOS]
         case .watchOS:
             return isSimulatorSupported ? [.watchOS, .watchOSSimulator] : [.watchOS]
+        case .visionOS:
+            return isSimulatorSupported ? [.visionOS, .visionOSSimulator] : [.visionOS]
         }
     }
 }

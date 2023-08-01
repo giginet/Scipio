@@ -16,11 +16,14 @@ struct DescriptionPackage {
 
     enum Error: LocalizedError {
         case packageNotDefined
+        case cycleDetected
 
         var errorDescription: String? {
             switch self {
             case .packageNotDefined:
                 return "Any packages are not defined in this manifest"
+            case .cycleDetected:
+                return "A cycle has been detected in the dependencies of the targets"
             }
         }
     }
@@ -99,9 +102,37 @@ struct DescriptionPackage {
 }
 
 extension DescriptionPackage {
-    func resolveBuildProducts() throws -> Set<BuildProduct> {
+    func resolveBuildProducts() throws -> [BuildProduct] {
         let targetsToBuild = try targetsToBuild()
-        return Set(try targetsToBuild.flatMap(resolveBuildProduct(from:)))
+        var products = try targetsToBuild.flatMap(resolveBuildProduct(from:))
+
+        let productMap: [String: BuildProduct] = Dictionary(products.map { ($0.target.name, $0) }) { $1 }
+        func resolvedTargetToBuildProduct(_ target: ResolvedTarget) -> BuildProduct {
+            guard let product = productMap[target.name] else {
+                preconditionFailure("The dependency target (\(target.name)) was not found in the build target list")
+            }
+            return product
+        }
+
+        do {
+            products = try topologicalSort(products) { (product) in
+                return product.target.dependencies.flatMap { (dependency) in
+                    switch dependency {
+                    case .target(let target, conditions: _):
+                        return [resolvedTargetToBuildProduct(target)]
+                    case .product(let product, conditions: _):
+                        return product.targets.map(resolvedTargetToBuildProduct)
+                    }
+                }
+            }
+        } catch {
+            switch error {
+            case GraphError.unexpectedCycle: throw Error.cycleDetected
+            default: throw error
+            }
+        }
+
+        return products.reversed()
     }
 
     private func targetsToBuild() throws -> Set<ResolvedTarget> {
