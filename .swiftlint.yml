@@ -8,14 +8,13 @@ disabled_rules:
   - function_parameter_count
   - force_try
   - todo
+  - cyclomatic_complexity
 line_length: 150
 file_length: 600
 nesting:
   type_level: 3
 function_body_length:
   warning: 75
-cyclomatic_complexity:
-  warning: 28
 trailing_comma:
   mandatory_comma: true
 type_body_length:
