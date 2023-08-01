@@ -98,7 +98,7 @@ Scipio disables to support [Library Evolution](https://www.swift.org/blog/librar
 It means built frameworks can be used only from products built with the same Swift version.
 
 The primary reason why is Library Evolution limitation. 
-In fact, some packages can't build with enabling Library Evolution. (https://developer.apple.com/forums/thread/123253)
+In fact, some packages can't build with enabling Library Evolution. (https://developer.apple.com/forums/thread/123253, https://github.com/apple/swift-collections/issues/94, https://github.com/apple/swift-nio/issues/1257)
 
 If you want to distribute generated XCFrameworks, it's recommended to enable Library Evolution. Pass `--enable-library-evolution` flag if you need.
 However, it means some packages can't be built.
