@@ -23,17 +23,6 @@ extension PIF.Target {
     }
 }
 
-extension PIF.BuildConfiguration {
-    mutating func setImpartedBuildProperties(_ newValue: PIF.ImpartedBuildProperties) {
-        self = PIF.BuildConfiguration(
-            guid: guid,
-            name: name,
-            buildSettings: buildSettings,
-            impartedBuildProperties: newValue
-        )
-    }
-}
-
 struct PIFGenerator {
     private let descriptionPackage: DescriptionPackage
     private let buildParameters: BuildParameters
