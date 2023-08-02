@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "IntegrationTestPackage",
-    platforms: [.iOS(.v14), .macOS(.v13)],
+    platforms: [.iOS(.v14)],
     products: [
         .library(
             name: "IntegrationTestPackage",
