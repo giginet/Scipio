@@ -5,7 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "IntegrationTestPackage",
-    platforms: [.iOS(.v14)],
+    platforms: [.iOS(.v14), .macOS(.v13)],
     products: [
         .library(
             name: "IntegrationTestPackage",
@@ -17,6 +17,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-log.git", from: "1.5.2"),
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.4"),
         .package(url: "https://github.com/SDWebImage/SDWebImage.git", from: "5.15.0"),
+        .package(url: "https://github.com/apple/swift-nio-ssl.git", from: "2.24.0")
     ],
     targets: [
         .target(
@@ -27,6 +28,7 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "OrderedCollections", package: "swift-collections"),
                 .product(name: "SDWebImageMapKit", package: "SDWebImage"),
+                .product(name: "NIOSSL", package: "swift-nio-ssl")
             ]),
     ]
 )

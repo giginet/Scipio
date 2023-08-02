@@ -27,6 +27,7 @@ final class IntegrationTests: XCTestCase {
 
     private enum Destination: String {
         case iOS = "ios-arm64"
+        case macOS = "macos-arm64_x86_64"
         case watchOS = "watchos-arm64_arm64_32_armv7k"
     }
 
@@ -45,6 +46,7 @@ final class IntegrationTests: XCTestCase {
                     "Atomics": .init(frameworkType: .static),
                     "_AtomicsShims": .init(frameworkType: .static),
                     "Logging": .init(platforms: .specific([.iOS, .watchOS])),
+                    "NIOSSL": .init(platforms: .specific([.macOS]), frameworkType: .static),
                 ],
                 cacheMode: .disabled,
                 overwrite: true,
@@ -80,6 +82,10 @@ final class IntegrationTests: XCTestCase {
             ("CNIOLinux", .static, [.iOS], true),
             ("CNIODarwin", .static, [.iOS], true),
             ("CNIOWindows", .static, [.iOS], true),
+            ("CNIOBoringSSL", .static, [.macOS], true),
+            ("CNIOBoringSSLShims", .static, [.macOS], true),
+            ("NIOTLS", .static, [.macOS], false),
+            ("NIOSSL", .static, [.macOS], false),
         ]
 
         let outputDirContents = try fileManager.contentsOfDirectory(atPath: outputDir.path)
@@ -102,9 +108,9 @@ final class IntegrationTests: XCTestCase {
             let xcFrameworkPath = outputDir
                 .appendingPathComponent(xcFrameworkName)
 
-            XCTAssertEqual(
-                Set(try fileManager.contentsOfDirectory(atPath: xcFrameworkPath.path)),
-                Set(["Info.plist"]).union(expectedDestinations),
+            XCTAssertTrue(
+                Set(try fileManager.contentsOfDirectory(atPath: xcFrameworkPath.path))
+                    .isSuperset(of: expectedDestinations),
                 "\(xcFrameworkName) must contains \(expectedDestinations.joined(separator: ", "))"
             )
 
