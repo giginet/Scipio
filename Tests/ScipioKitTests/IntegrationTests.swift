@@ -103,15 +103,16 @@ final class IntegrationTests: XCTestCase {
                 "\(xcFrameworkName) should be built"
             )
 
-            let expectedDestinations = platforms.map(\.rawValue)
+            let expectedDestinations = platforms.map(\.rawValue).sorted()
 
             let xcFrameworkPath = outputDir
                 .appendingPathComponent(xcFrameworkName)
 
-            XCTAssertTrue(
-                Set(try fileManager.contentsOfDirectory(atPath: xcFrameworkPath.path))
-                    .isSuperset(of: expectedDestinations),
-                "\(xcFrameworkName) must contains \(expectedDestinations.joined(separator: ", "))"
+            XCTAssertEqual(
+                try fileManager.contentsOfDirectory(atPath: xcFrameworkPath.path)
+                    .filter { $0 != "Info.plist" }.sorted(),
+                expectedDestinations,
+                "\(xcFrameworkName) must contain platforms that are equal to \(expectedDestinations.joined(separator: ", "))"
             )
 
             for destination in expectedDestinations {
