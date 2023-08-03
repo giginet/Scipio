@@ -7,7 +7,6 @@ private let fixturePath = URL(fileURLWithPath: #file)
     .deletingLastPathComponent()
     .appendingPathComponent("Resources")
     .appendingPathComponent("Fixtures")
-private let integrationTestPackagePath = fixturePath.appendingPathComponent("IntegrationTestPackage")
 
 final class IntegrationTests: XCTestCase {
     private let fileManager: FileManager = .default
@@ -32,6 +31,69 @@ final class IntegrationTests: XCTestCase {
     }
 
     func testMajorPackages() async throws {
+        try await testBuildPackages(
+            packageName: "IntegrationTestPackage",
+            buildOptionsMatrix: [
+                "Atomics": .init(frameworkType: .static),
+                "_AtomicsShims": .init(frameworkType: .static),
+                "Logging": .init(platforms: .specific([.iOS, .watchOS])),
+                "NIO": .init(platforms: .specific([.iOS]), frameworkType: .static),
+            ],
+            testCases: [
+                ("Atomics", .static, [.iOS], false),
+                ("Logging", .static, [.iOS, .watchOS], false),
+                ("OrderedCollections", .static, [.iOS], false),
+                ("DequeModule", .static, [.iOS], false),
+                ("_AtomicsShims", .static, [.iOS], true),
+                ("SDWebImage", .static, [.iOS], true),
+                ("SDWebImageMapKit", .static, [.iOS], true),
+                ("NIO", .static, [.iOS], false),
+                ("NIOEmbedded", .static, [.iOS], false),
+                ("NIOPosix", .static, [.iOS], false),
+                ("NIOCore", .static, [.iOS], false),
+                ("NIOConcurrencyHelpers", .static, [.iOS], false),
+                ("_NIODataStructures", .static, [.iOS], false),
+                ("CNIOAtomics", .static, [.iOS], true),
+                ("CNIOLinux", .static, [.iOS], true),
+                ("CNIODarwin", .static, [.iOS], true),
+                ("CNIOWindows", .static, [.iOS], true)
+            ]
+        )
+    }
+
+    func testMajorMacPackages() async throws {
+        try await testBuildPackages(
+            packageName: "IntegrationMacTestPackage",
+            buildOptionsMatrix: [:],
+            testCases: [
+                ("Atomics", .static, [.macOS], false),
+                ("CNIOAtomics", .static, [.macOS], true),
+                ("CNIOBoringSSL", .static, [.macOS], true),
+                ("CNIOBoringSSLShims", .static, [.macOS], true),
+                ("CNIODarwin", .static, [.macOS], true),
+                ("CNIOLinux", .static, [.macOS], true),
+                ("CNIOWindows", .static, [.macOS], true),
+                ("DequeModule", .static, [.macOS], false),
+                ("NIO", .static, [.macOS], false),
+                ("NIOConcurrencyHelpers", .static, [.macOS], false),
+                ("NIOCore", .static, [.macOS], false),
+                ("NIOEmbedded", .static, [.macOS], false),
+                ("NIOPosix", .static, [.macOS], false),
+                ("NIOSSL", .static, [.macOS], false),
+                ("NIOTLS", .static, [.macOS], false),
+                ("_AtomicsShims", .static, [.macOS], true),
+                ("_NIODataStructures", .static, [.macOS], false),
+            ]
+        )
+    }
+
+    private typealias TestCase = (String, FrameworkType, Set<Destination>, Bool)
+
+    private func testBuildPackages(
+        packageName: String,
+        buildOptionsMatrix: [String: Runner.Options.TargetBuildOptions],
+        testCases: [TestCase]
+    ) async throws {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
@@ -42,12 +104,7 @@ final class IntegrationTests: XCTestCase {
                     frameworkType: .static,
                     enableLibraryEvolution: false
                 ),
-                buildOptionsMatrix: [
-                    "Atomics": .init(frameworkType: .static),
-                    "_AtomicsShims": .init(frameworkType: .static),
-                    "Logging": .init(platforms: .specific([.iOS, .watchOS])),
-                    "NIOSSL": .init(platforms: .specific([.macOS]), frameworkType: .static),
-                ],
+                buildOptionsMatrix: buildOptionsMatrix,
                 cacheMode: .disabled,
                 overwrite: true,
                 verbose: false
@@ -55,48 +112,25 @@ final class IntegrationTests: XCTestCase {
         )
         let outputDir = fileManager.temporaryDirectory
             .appendingPathComponent("Scipio")
-            .appendingPathComponent("Integration")
+            .appendingPathComponent(packageName)
+        try? fileManager.removeItem(at: outputDir)
+        let packageDir = fixturePath.appendingPathComponent(packageName)
         try await runner.run(
-            packageDirectory: integrationTestPackagePath,
+            packageDirectory: packageDir,
             frameworkOutputDir: .custom(outputDir)
         )
-        addTeardownBlock {
-            try self.fileManager.removeItem(atPath: outputDir.path)
-        }
-
-        let testCase: [(String, FrameworkType, Set<Destination>, Bool)] = [
-            ("Atomics", .static, [.iOS], false),
-            ("Logging", .static, [.iOS, .watchOS], false),
-            ("OrderedCollections", .static, [.iOS], false),
-            ("DequeModule", .static, [.iOS], false),
-            ("_AtomicsShims", .static, [.iOS], true),
-            ("SDWebImage", .static, [.iOS], true),
-            ("SDWebImageMapKit", .static, [.iOS], true),
-            ("NIO", .static, [.iOS], false),
-            ("NIOEmbedded", .static, [.iOS], false),
-            ("NIOPosix", .static, [.iOS], false),
-            ("NIOCore", .static, [.iOS], false),
-            ("NIOConcurrencyHelpers", .static, [.iOS], false),
-            ("_NIODataStructures", .static, [.iOS], false),
-            ("CNIOAtomics", .static, [.iOS], true),
-            ("CNIOLinux", .static, [.iOS], true),
-            ("CNIODarwin", .static, [.iOS], true),
-            ("CNIOWindows", .static, [.iOS], true),
-            ("CNIOBoringSSL", .static, [.macOS], true),
-            ("CNIOBoringSSLShims", .static, [.macOS], true),
-            ("NIOTLS", .static, [.macOS], false),
-            ("NIOSSL", .static, [.macOS], false),
-        ]
+        print("package directory: \(packageDir.path)")
+        print("output directory: \(outputDir.path)")
 
         let outputDirContents = try fileManager.contentsOfDirectory(atPath: outputDir.path)
-        let allExpectedFrameworkNames = testCase.map { "\($0.0).xcframework" }
+        let allExpectedFrameworkNames = testCases.map { "\($0.0).xcframework" }
         XCTAssertEqual(
-            Set(outputDirContents),
-            Set(allExpectedFrameworkNames),
+            outputDirContents.sorted(),
+            allExpectedFrameworkNames.sorted(),
             "Expected frameworks should be generated"
         )
 
-        for (frameworkName, frameworkType, platforms, isClangFramework) in testCase {
+        for (frameworkName, frameworkType, platforms, isClangFramework) in testCases {
             let xcFrameworkName = "\(frameworkName).xcframework"
             XCTAssertTrue(
                 outputDirContents.contains(xcFrameworkName),
