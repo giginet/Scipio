@@ -115,12 +115,13 @@ final class IntegrationTests: XCTestCase {
             .appendingPathComponent(packageName)
         try? fileManager.removeItem(at: outputDir)
         let packageDir = fixturePath.appendingPathComponent(packageName)
+        print("package directory: \(packageDir.path)")
+        print("output directory: \(outputDir.path)")
+
         try await runner.run(
             packageDirectory: packageDir,
             frameworkOutputDir: .custom(outputDir)
         )
-        print("package directory: \(packageDir.path)")
-        print("output directory: \(outputDir.path)")
 
         let outputDirContents = try fileManager.contentsOfDirectory(atPath: outputDir.path)
         let allExpectedFrameworkNames = testCases.map { "\($0.0).xcframework" }
