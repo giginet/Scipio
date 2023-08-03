@@ -35,6 +35,8 @@ let package = Package(
                  from: "0.6.0"),
         .package(url: "https://github.com/soto-project/soto-core.git", 
                  from: "6.4.0"),
+        .package(url: "https://github.com/apple/swift-docc-plugin", 
+                 from: "1.3.0"),
     ],
     targets: [
         .executableTarget(name: "scipio",
