@@ -113,7 +113,6 @@ final class IntegrationTests: XCTestCase {
         let outputDir = fileManager.temporaryDirectory
             .appendingPathComponent("Scipio")
             .appendingPathComponent(packageName)
-        try? fileManager.removeItem(at: outputDir)
         let packageDir = fixturePath.appendingPathComponent(packageName)
         print("package directory: \(packageDir.path)")
         print("output directory: \(outputDir.path)")
@@ -122,6 +121,10 @@ final class IntegrationTests: XCTestCase {
             packageDirectory: packageDir,
             frameworkOutputDir: .custom(outputDir)
         )
+        addTeardownBlock {
+            print("remove output directory: \(outputDir.path)")
+            try self.fileManager.removeItem(atPath: outputDir.path)
+        }
 
         let outputDirContents = try fileManager.contentsOfDirectory(atPath: outputDir.path)
         let allExpectedFrameworkNames = testCases.map { "\($0.0).xcframework" }
