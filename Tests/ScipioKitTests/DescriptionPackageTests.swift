@@ -33,13 +33,25 @@ final class DescriptionPackageTests: XCTestCase {
         XCTAssertEqual(package.name, "IntegrationTestPackage")
 
         XCTAssertEqual(
-            Set(try package.resolveBuildProducts().map(\.target.name)),
+            try package.resolveBuildProducts().map(\.target.name).sorted(),
             [
-                "CNIOWindows", "NIOConcurrencyHelpers",
-                "NIO", "CNIOAtomics", "Logging", "NIOEmbedded", "Atomics",
-                "DequeModule", "_AtomicsShims", "NIOPosix", "_NIODataStructures",
-                "SDWebImageMapKit", "NIOCore", "CNIOLinux",
-                "OrderedCollections", "SDWebImage", "CNIODarwin",
+                "Atomics",
+                "CNIOAtomics",
+                "CNIODarwin",
+                "CNIOLinux",
+                "CNIOWindows",
+                "DequeModule",
+                "Logging",
+                "NIO",
+                "NIOConcurrencyHelpers",
+                "NIOCore",
+                "NIOEmbedded",
+                "NIOPosix",
+                "OrderedCollections",
+                "SDWebImage",
+                "SDWebImageMapKit",
+                "_AtomicsShims",
+                "_NIODataStructures",
             ]
         )
     }
