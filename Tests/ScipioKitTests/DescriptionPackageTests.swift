@@ -55,7 +55,7 @@ final class DescriptionPackageTests: XCTestCase {
                 "SDWebImage",
                 "SDWebImageMapKit",
                 "_AtomicsShims",
-                "_NIODataStructures"
+                "_NIODataStructures",
             ]
         )
     }

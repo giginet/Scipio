@@ -56,7 +56,7 @@ final class IntegrationTests: XCTestCase {
                 ("CNIOAtomics", .static, [.iOS], true),
                 ("CNIOLinux", .static, [.iOS], true),
                 ("CNIODarwin", .static, [.iOS], true),
-                ("CNIOWindows", .static, [.iOS], true)
+                ("CNIOWindows", .static, [.iOS], true),
             ]
         )
     }
