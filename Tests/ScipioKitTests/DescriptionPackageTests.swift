@@ -37,8 +37,6 @@ final class DescriptionPackageTests: XCTestCase {
             [
                 "Atomics",
                 "CNIOAtomics",
-                "CNIOBoringSSL",
-                "CNIOBoringSSLShims",
                 "CNIODarwin",
                 "CNIOLinux",
                 "CNIOWindows",
@@ -49,8 +47,6 @@ final class DescriptionPackageTests: XCTestCase {
                 "NIOCore",
                 "NIOEmbedded",
                 "NIOPosix",
-                "NIOSSL",
-                "NIOTLS",
                 "OrderedCollections",
                 "SDWebImage",
                 "SDWebImageMapKit",
