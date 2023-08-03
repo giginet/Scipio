@@ -1,0 +1,126 @@
+# Build Your Pipeline
+
+## Overview
+
+You can use CLI version of `scipio` for a simple task. 
+However, you can't configure a complex settings with this.
+
+We also provide `ScipioKit` to build your pipeline. You can configure your pipeline by Swift code.
+
+## Setup
+
+### Create your build script
+
+First, create a new Swift package to implement your script in an executable.
+
+```bash
+$ mkdir my-build-tool
+$ cd my-build-tool
+$ swift package init --type executable
+Creating executable package: my-build-tool
+Creating Package.swift
+Creating .gitignore
+Creating Sources/
+Creating Sources/main.swift
+```
+
+### Open your package with Xcode
+
+Edit the package with Xcode to implement your build script.
+
+```bash
+$ xed .
+```
+
+Remember, you should remove `Sources/main.swift` first. Because currently, you can't call top level async function from `main.swift` by swift-driver limitation.
+
+### Edit your Package.swift
+
+Edit `Package.swift` to integrate Scipio as a dependency.
+
+```swift
+// swift-tools-version: 5.8
+// The swift-tools-version declares the minimum version of Swift required to build this package.
+
+import PackageDescription
+
+let package = Package(
+    name: "my-build-tool",
+    platforms: [
+        .macOS(.v12)
+    ],
+    dependencies: [
+        .package(
+            url: "https://github.com/giginet/Scipio.git", 
+            revision: "0.15.0" // Use the latest version
+        ),
+    ],
+    targets: [
+        .executableTarget(
+            name: "my-build-tool", 
+            dependencies: [
+                .product(name: "ScipioKit", package: "Scipio"),
+            ],
+            path: "Sources"
+        ),
+    ]
+)
+```
+
+> Note: Use `exact` to specify the version of Scipio. Because Scipio depends on swift-package-manager. Unfortunately, it is not following the semantic versioning.
+
+### Implement your build script
+
+Implement a script like following in `Sources/Runner.swift`.
+
+```swift
+import Foundation
+import ScipioKit
+
+@main
+struct EntryPoint {
+    private static let myPackageDirectory = URL(fileURLWithPath: "/path/to/MyPackage")
+
+    static func main() async throws {
+        let runner = Runner(
+            mode: .prepareDependencies,
+            options: .init(
+                baseBuildOptions: .init(
+                    buildConfiguration: .release,
+                    isSimulatorSupported: true
+                )
+            )
+        )
+
+        try await runner.run(
+            packageDirectory: myPackageDirectory,
+            frameworkOutputDir: .default
+        )
+    }
+}
+```
+
+`ScipioKit` provides a `Runner`. It provides an entry point to execute the build process.
+
+You can pass some settings on the initializer. Most of settings are same with the CLI version.
+
+See details for documents of ScipioKit.
+
+### Run your build script
+
+Run your build script to test it. 
+
+Build on Xcode or execute a following command on a terminal.
+
+```bash
+$ swift run -c release my-build-tool
+```
+
+## Writing a Build Script
+
+### Configure build options by products
+
+You can use `buildOptionsMatrix` to override build settings for each product.
+
+
+### Using cache storage
