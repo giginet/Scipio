@@ -13,6 +13,7 @@ private let resourcePackagePath = fixturePath.appendingPathComponent("ResourcePa
 private let usingBinaryPackagePath = fixturePath.appendingPathComponent("UsingBinaryPackage")
 private let clangPackagePath = fixturePath.appendingPathComponent("ClangPackage")
 private let clangPackageWithCustomModuleMapPath = fixturePath.appendingPathComponent("ClangPackageWithCustomModuleMap")
+private let clangPackageWithUmbrellaDirectoryPath = fixturePath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
 
 final class RunnerTests: XCTestCase {
     private let fileManager: FileManager = .default
@@ -560,6 +561,57 @@ final class RunnerTests: XCTestCase {
             XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.path),
                            "Should not create Simulator framework")
         }
+    }
+
+    func testGenerateModuleMapForUmbrellaDirectory() async throws {
+        let runner = Runner(
+            mode: .createPackage,
+            options: .init(
+                baseBuildOptions: .init(platforms: .specific([.iOS]))
+            )
+        )
+        do {
+            try await runner.run(packageDirectory: clangPackageWithUmbrellaDirectoryPath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+        }
+
+        let xcFramework = frameworkOutputDir.appendingPathComponent("MyTarget.xcframework")
+
+        let deviceFramework = xcFramework.appendingPathComponent("ios-arm64/MyTarget.framework")
+        let moduleMapPath = deviceFramework
+            .appendingPathComponent("Modules")
+            .appendingPathComponent("module.modulemap")
+        let headersDirPath = deviceFramework
+            .appendingPathComponent("Headers")
+
+        XCTAssertTrue(fileManager.fileExists(atPath: moduleMapPath.path))
+
+        let generatedModuleMapData = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath.path))
+        let generatedModuleMapContents = String(data: generatedModuleMapData, encoding: .utf8)
+
+        let expectedModuleMap = """
+framework module MyTarget {
+    header "a.h"
+    header "add.h"
+    header "b.h"
+    header "c.h"
+    header "my_target.h"
+    export *
+}
+"""
+
+        XCTAssertEqual(generatedModuleMapContents, expectedModuleMap, "A framework has a valid modulemap")
+
+        let headers = try fileManager.contentsOfDirectory(atPath: headersDirPath.path)
+        XCTAssertEqual(headers, [
+            "a.h",
+            "b.h",
+            "add.h",
+            "c.h",
+            "my_target.h",
+        ], "A framework contains all headers")
     }
 
     override func tearDownWithError() throws {
