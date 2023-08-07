@@ -120,7 +120,60 @@ $ swift run -c release my-build-tool
 
 ### Configure build options by products
 
-You can use `buildOptionsMatrix` to override build settings for each product.
+You can pass `buildOptionsMatrix` to override build settings for each product.
+
+```swift
+let runner = Runner(
+    mode: .prepareDependencies,
+    options: .init(
+        baseBuildOptions: .init(
+            buildConfiguration: .release,
+            platforms: [.iOS],
+            isSimulatorSupported: true,
+            frameworkType: .static
+        ),
+        buildOptionsMatrix: [
+            "MyResourceFramework": .init(
+                frameworkType: .dynamic
+            ),
+            "MyTestingFramework": .init(
+                buildConfiguration: .debug
+            ),
+            "MyWatchFramework": .init(
+                platforms: [iOS, .watchOS]
+            )
+        ]
+    )
+)
+```
+
+This matrix can override build options of the specific targets to base build options.
+
+### Using custom cache storage
+
+In CLI version of Scipio, you can only use Project cache or Local disc cache as a cache storage backend.
+
+Otherwise, on your build script, you can use remote cache storage or your custom storage.
+
+```swift
+import ScipioS3Storage
+
+let s3Storage: some CacheStorage = ScipioS3Storage.S3Storage(...)
+let runner = Runner(
+    mode: .prepareDependencies,
+    options: .init(
+        baseBuildOptions: .init(
+            buildConfiguration: .release,
+            isSimulatorSupported: true
+        ),
+        cacheStorage: .custom(myStorage, [.consumer])
+    )
+)
+```
 
 
-### Using cache storage
+Scipio provides `ScipioS3Storage` to use [Amazon S3](https://aws.amazon.com/jp/s3/) as a cache storage.
+
+See details for <doc:using-s3-storage>
+
+You can also implement your custom cache storage by implementing `CacheStorage` protocol.
