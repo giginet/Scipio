@@ -177,3 +177,16 @@ Scipio provides `ScipioS3Storage` to use [Amazon S3](https://aws.amazon.com/jp/s
 See details for <doc:using-s3-storage>
 
 You can also implement your custom cache storage by implementing `CacheStorage` protocol.
+
+#### Cache actor
+
+There are two cache actors `consumer` and `producer`.
+
+You can specify it by a second argument of `.custom` cache storage.
+
+`consumer` is an actor who can fetch cache from the cache storage.
+
+`producer` is an actor who attempt to save cache to the cache storage.
+
+When build artifacts are built, then it try to save them.
+
