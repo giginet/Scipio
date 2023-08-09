@@ -20,7 +20,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-package-manager.git",
-                 branch: "swift-5.9-DEVELOPMENT-SNAPSHOT-2023-07-05-a"),
+                 branch: "swift-5.9-DEVELOPMENT-SNAPSHOT-2023-08-07-a"),
         .package(url: "https://github.com/apple/swift-log.git",
                  .upToNextMinor(from: "1.4.2")),
         .package(url: "https://github.com/apple/swift-argument-parser.git", 

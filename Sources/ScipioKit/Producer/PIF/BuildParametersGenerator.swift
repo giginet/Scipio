@@ -41,7 +41,7 @@ struct BuildParametersGenerator {
             platform: sdk.settingValue,
             sdk: sdk.settingValue,
             sdkVariant: nil,
-            targetArchitecture: buildParameters.triple.arch.rawValue,
+            targetArchitecture: buildParameters.triple.arch?.rawValue ?? "arm64",
             supportedArchitectures: [],
             disableOnlyActiveArch: true
         )
