@@ -1,11 +1,10 @@
 # ``scipio``
 
-A build tool to generate reusable XCFramework from Swift Packages
+A new build tool to generate XCFramework from Swift Package
 
 @Metadata {
     @DisplayName("Scipio")
-    @TechnologyRoot
-    @DocumentationExtension(mergeBehavior: "replace")
+    @DocumentationExtension(mergeBehavior: override)
 }
 
 ## Overview
