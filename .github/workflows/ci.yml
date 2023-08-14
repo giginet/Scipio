@@ -22,6 +22,7 @@ jobs:
       env:
         ENABLE_INTEGRATION_TESTS: 1
   DocC:
+    if: github.event_name == 'push' && github.branch == 'main'
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v3

@@ -19,7 +19,17 @@ First, use SwiftPM to resolve dependencies and checkout repositories. After that
 
 ## Usage
 
-#### Prepare `Package.swift` to describe your application's dependencies
+See [Scipio Official Documentation](https://giginet.github.io/Scipio/documentation/scipio) for detail.
+
+### Prepare all dependencies for your application
+
+The concept of Scipio, all dependencies wanted to be used in your application should be defined in one Package manifest.
+
+prepare command is to build all dependencies as XCFrameworks in the manifest.
+
+This mode is called `prepare` mode. See [Prepare All Dependencies for Your Application](https://giginet.github.io/Scipio/documentation/scipio/prepare-cache-for-applications) for detail.
+
+#### Define `Package.swift` to describe your application's dependencies
 
 ```swift
 // swift-tools-version: 5.6
@@ -77,7 +87,7 @@ In fact, some packages can't build with enabling Library Evolution. (https://dev
 If you want to distribute generated XCFrameworks, it's recommended to enable Library Evolution. Pass `--enable-library-evolution` flag if you need.
 However, it means some packages can't be built.
 
-## Build Cache System
+#### Build Cache System
 
 By default, Scipio checks whether re-building is required or not for existing XCFrameworks.
 
@@ -94,7 +104,7 @@ Scipio supports Project/Local Disk/Remote Disk cache backends.
 
 Using a remote cache, share built XCFrameworks among developers.
 
-See details for [Learn the Cache System].
+See [Learn the Cache System](https://giginet.github.io/Scipio/documentation/scipio/cache-system) for details.
 
 ### Create XCFramework from a single Swift Package
 
@@ -108,6 +118,8 @@ $ scipio create path/to/MyPackage
 > 🚀 Combining into XCFramework...
 > ❇️ Succeeded.
 ```
+
+See [Convert Single Swift Package to XCFramework](https://giginet.github.io/Scipio/documentation/scipio/create-frameworks) for detail.
 
 ## Reliability
 
