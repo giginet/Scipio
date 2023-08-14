@@ -32,7 +32,7 @@ jobs:
           --disable-indexing \
           --output-path ./docs \
           --transform-for-static-hosting \
-          --hosting-base-path scipio
+          --hosting-base-path ./docs
       - uses: actions/upload-pages-artifact@v2
         with:
           path: docs
