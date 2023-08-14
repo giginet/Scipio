@@ -1,10 +1,22 @@
 # Prepare all dependencies for your application
 
+Use `prepare` mode to generate required frameworks for a project
+
+## Concept
+
 The concept of Scipio, all dependencies wanted to be used in your application should be defined in one Package manifest.
 
 `prepare` command is to build all dependencies as XCFrameworks in the manifest.
 
-## 1. Create a new Swift Package to describe dependencies
+## Practical Usage
+
+Let's see how to use scipio in `prepare` mode.
+
+### 1. Create a new Swift Package to describe dependencies
+
+First, create a new Swift Package to describe required dependencies.
+
+Generally, it's recommended to make this in the same directory as your application's Xcode project.
 
 ```bash
 $ mkdir MyAppDependencies
@@ -12,7 +24,9 @@ $ cd MyAppDependencies
 $ swift package init
 ```
 
-## 2. Edit `Package.swift` to describe your application's dependencies
+### 2. Edit `Package.swift` to describe your application's dependencies
+
+Next, edit `Package.swift`.
 
 ```swift
 // swift-tools-version: 5.6
@@ -45,9 +59,13 @@ let package = Package(
 
 You have to depend on all wanted products on the first target.
 
+Declare all targets as a dependencies of a first target.
+
 `platforms` must be specified. Scipio decides which SDKs to build based on this.
 
-## 3. Run `prepare` command
+### 3. Run `prepare` command
+
+Finally, run `prepare` command.
 
 ```bash
 $ scipio prepare path/to/MyAppDependencies
@@ -62,7 +80,9 @@ $ scipio prepare path/to/MyAppDependencies
 
 All XCFrameworks are generated into `MyAppDependencies/XCFramework` by default.
 
-## Options
+#### Options
+
+`prepare` command has some options. These are available options.
 
 |Flag|Description|Default|
 |---------|------------|-----------|
