@@ -17,6 +17,54 @@ Scipio provides a new hybrid way to manage dependencies.
 
 First, use SwiftPM to resolve dependencies and checkout repositories. After that, this tool converts each dependency into XCFramework.
 
+## Usage
+
+#### Prepare `Package.swift` to describe your application's dependencies
+
+```swift
+// swift-tools-version: 5.6
+// The swift-tools-version declares the minimum version of Swift required to build this package.
+
+import PackageDescription
+
+let package = Package(
+    name: "MyAppDependencies",
+    platforms: [
+        // Specify platforms to build
+        .iOS(.v14),
+    ],
+    products: [],
+    dependencies: [
+        // Add dependencies
+        .package(url: "https://github.com/onevcat/APNGKit.git", exact: "2.2.1"),
+    ],
+    targets: [
+        .target(
+            name: "MyAppDependency",
+            dependencies: [
+                // List all dependencies to build
+                .product(name: "APNGKit", package: "APNGKit"),
+            ]),
+    ]
+)
+
+```
+
+#### Run `prepare` command
+
+```
+$ scipio prepare path/to/MyAppDependencies
+> 🔁 Resolving Dependencies...
+> 🗑️ Cleaning MyAppDependencies...
+> 📦 Building APNGKit for iOS
+> 🚀 Combining into XCFramework...
+> 📦 Building Delegate for iOS
+> 🚀 Combining into XCFramework...
+> ❇️ Succeeded.
+```
+
+All XCFrameworks are generated into `MyAppDependencies/XCFramework` by default.
+
 #### Library Evolution support
 
 Scipio disables to support [Library Evolution](https://www.swift.org/blog/library-evolution/) feature by default.
@@ -29,7 +77,7 @@ In fact, some packages can't build with enabling Library Evolution. (https://dev
 If you want to distribute generated XCFrameworks, it's recommended to enable Library Evolution. Pass `--enable-library-evolution` flag if you need.
 However, it means some packages can't be built.
 
-#### Build cache
+## Build Cache System
 
 By default, Scipio checks whether re-building is required or not for existing XCFrameworks.
 
@@ -42,60 +90,13 @@ $ swift run scipio prepare --cache-policy project path/to/MyAppDependencies
 > ❇️ Succeeded.
 ```
 
-Scipio generates **VersionFile** to describe built framework details within building XCFrameworks.
+Scipio supports Project/Local Disk/Remote Disk cache backends.
 
-`VersionFile` contains the following information:
+Using a remote cache, share built XCFrameworks among developers.
 
-- Revision
-    - Revision of packages. If resolved versions are updated, they may change.
-- Build Options
-    - Build options built with.
-- Compiler Version
-    - Xcode or Swift compiler version.
+See details for [Learn the Cache System].
 
-They are stored on `$OUTPUT_DIR/.$FRAMEWORK_NAME.version` as a JSON file.
-
-```json
-{
-  "buildOptions" : {
-    "buildConfiguration" : "release",
-    "isDebugSymbolsEmbedded" : false,
-    "frameworkType" : "dynamic",
-    "sdks" : [
-      "iOS"
-    ],
-    "isSimulatorSupported" : false
-  },
-  "targetName" : "APNGKit",
-  "clangVersion" : "clang-1400.0.29.102",
-  "pin" : {
-    "version" : "2.2.1",
-    "revision" : "f1807697d455b258cae7522b939372b4652437c1"
-  }
-}
-```
-
-If they are changed, Spicio regards them as a cache are invalid, and then it's re-built.
-
-#### Cache Policy
-
-You can specify cache behavior with `--cache-policy` option. Default value is `project`.
-
-##### disabled
-
-Never reuse already built frameworks. Overwrite existing frameworks everytime.
-
-##### project(default)
-
-VersionFiles are stored in output directories. Skip re-building when existing XCFramework is valid.
-
-##### local
-
-Copy every build artifacts to `~/Library/Caches`. If there are same binaries are exists in cache directory, skip re-building and copy them to the output directory.
-
-Thanks to this strategy, you can reuse built artifacts in past.
-
-### Create XCFramework for single Swift Packages
+### Create XCFramework from a single Swift Package
 
 Scipio also can generate XCFrameworks from a specific Swift Package. This feature is similar to swift-create-xcframework.
 
@@ -129,3 +130,4 @@ Scipio only uses `xcodebuild` to build Frameworks and XCFrameworks.
 ## Why Scipio
 
 Scipio names after a historical story about Carthage.
+
