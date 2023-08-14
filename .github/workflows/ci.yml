@@ -25,7 +25,7 @@ jobs:
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v3
-      - name: build docc
+      - name: Build DocC
         run: |
           swift package --allow-writing-to-directory ./docs generate-documentation \
           --target scipio \
@@ -33,7 +33,7 @@ jobs:
           --output-path ./docs \
           --transform-for-static-hosting \
           --hosting-base-path scipio
-      - uses: actions/upload-pages-artifact@v1
+      - uses: actions/upload-pages-artifact@v2
         with:
           path: docs
   DeployDocC:
@@ -44,8 +44,8 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: macos-13
+    runs-on: ubuntu-latest
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v2
