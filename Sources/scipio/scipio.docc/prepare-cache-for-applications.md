@@ -1,4 +1,4 @@
-# Prepare all dependencies for your application
+# Prepare All Dependencies for Your Application
 
 Use `prepare` mode to generate required frameworks for a project
 

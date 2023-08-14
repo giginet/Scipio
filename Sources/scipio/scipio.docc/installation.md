@@ -4,6 +4,8 @@ Install Scipio at the first
 
 ## Use as CLI
 
+Using with CLI, it's convenient to prepare your project dependencies or generate a single XCFramework from a Swift Package.
+
 Currently, Scipio doesn't provide any binary distribution. You have to build it from source.
 
 ```bash
@@ -11,8 +13,6 @@ $ git clone git@github.com:giginet/Scipio.git
 $ cd Scipio
 $ swift run -c release scipio --help
 ```
-
-Using with CLI, it's convenient to prepare your project dependencies or generate a single XCFramework from a Swift Package.
 
 To use CLI version of Scipio, first, see details in <doc:prepare-cache-for-applications>.
 

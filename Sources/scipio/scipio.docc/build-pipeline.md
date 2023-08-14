@@ -1,5 +1,7 @@
 # Build Your Pipeline
 
+Implement your build pipeline by Swift code to run a complex build task
+
 ## Overview
 
 You can use CLI version of `scipio` for a simple task. 

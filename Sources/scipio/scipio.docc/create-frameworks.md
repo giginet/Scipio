@@ -1,4 +1,4 @@
-# Convert single Swift Package to XCFramework
+# Convert Single Swift Package to XCFramework
 
 Use `create` mode to generate XCFramework from any Swift Package
 
@@ -49,3 +49,12 @@ This command make a XCFramework combined only iOS and watchOS.
 This is because, unlike the prepare command, the existing Swift Package lists all supported platforms.
 By default, it builds for all of them.
 
+#### Enable Library Evolution
+
+In default, Scipio disables [Library Evolution](https://www.swift.org/blog/library-evolution/).
+
+It means built XCFrameworks are not compatible with the users built with other Swift compiler.
+
+You can use `--enable-library-evolution` option to enable Library Evolution.
+
+It's highly recommended to generate Library Evolution to distribute built XCFrameworks.
