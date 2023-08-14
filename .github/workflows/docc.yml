@@ -1,26 +1,12 @@
-name: Scipio
+name: DocC
 
 on: 
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - '*'
 env: 
   DEVELOPER_DIR: "/Applications/Xcode_14.3.1.app/Contents/Developer"
 jobs:
-  Tests:
-    runs-on: macos-13
-    steps:
-    - uses: actions/checkout@v2
-    - name: SwiftLint
-      run: swiftlint --strict
-    - name: Run Tests
-      run: |
-        swift test --verbose
-      env:
-        ENABLE_INTEGRATION_TESTS: 1
   DocC:
     if: github.event_name == 'push' && github.branch == 'main'
     runs-on: macos-13
