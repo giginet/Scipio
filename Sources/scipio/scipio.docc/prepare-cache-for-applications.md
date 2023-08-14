@@ -12,7 +12,7 @@ The concept of Scipio, all dependencies wanted to be used in your application sh
 
 Let's see how to use scipio in `prepare` mode.
 
-### 1. Create a new Swift Package to describe dependencies
+### 1. Create a New Swift Package to Describe Dependencies
 
 First, create a new Swift Package to describe required dependencies.
 
@@ -24,7 +24,7 @@ $ cd MyAppDependencies
 $ swift package init
 ```
 
-### 2. Edit `Package.swift` to describe your application's dependencies
+### 2. Edit `Package.swift` to Describe Your Application's Dependencies
 
 Next, edit `Package.swift`.
 
@@ -63,7 +63,7 @@ Declare all targets as a dependencies of a first target.
 
 `platforms` must be specified. Scipio decides which SDKs to build based on this.
 
-### 3. Run `prepare` command
+### 3. Run `prepare` Command
 
 Finally, run `prepare` command.
 

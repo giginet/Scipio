@@ -1,4 +1,4 @@
-# Instalation
+# Install Scipio
 
 Install Scipio at the first
 
@@ -16,7 +16,7 @@ $ swift run -c release scipio --help
 
 To use CLI version of Scipio, first, see details in <doc:prepare-cache-for-applications>.
 
-## Use as package
+## Use as Package
 
 If you want to implement your own build pipeline, you can use `ScipioKit` as a package dependency.
 

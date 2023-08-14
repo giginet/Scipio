@@ -36,7 +36,7 @@ It's all to do to convert a Swift Package into XCFrameworks.
 
 Basically, this command can take the same options as the `prepare` command. See <doc:prepare-cache-for-applications#Options>
 
-#### Specify target platforms
+#### Specify Target Platforms
 
 In the create command, you can create an XCFramework that contains only arbitrary platforms with the `-platforms` option.
 

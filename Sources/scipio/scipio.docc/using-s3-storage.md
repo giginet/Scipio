@@ -1,4 +1,4 @@
-# Using Amazon S3 as a Cache Storage
+# Use Amazon S3 as a Cache Storage
 
 Use Amazon S3 as a remote cache storage
 

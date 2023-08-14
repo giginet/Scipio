@@ -9,7 +9,7 @@ However, you can't configure a complex settings with this.
 
 We also provide `ScipioKit` to build your pipeline. You can configure your pipeline by Swift code.
 
-## Benefits to implement a build script
+## Benefits to Implement a Build Script
 
 CLI version has a limitation to configure build options.
 
@@ -24,7 +24,7 @@ Implementing your build script can custom build system like following:
 
 ## Setup
 
-### Create your build script
+### Create an Executable Package
 
 First, create a new Swift package to implement your script in an executable.
 
@@ -39,7 +39,7 @@ Creating Sources/
 Creating Sources/main.swift
 ```
 
-### Open your package with Xcode
+### Open Your Package with Xcode
 
 Edit the package with Xcode to implement your build script.
 
@@ -49,7 +49,7 @@ $ xed .
 
 Remember, **you should remove `Sources/main.swift` first**. Because currently, you can't call top level async function from `main.swift` by swift-driver limitation.
 
-### Edit your Package.swift
+### Edit a Package Manifest
 
 Edit `Package.swift` to integrate Scipio as a dependency.
 
@@ -84,7 +84,7 @@ let package = Package(
 
 > Note: Use `exact` to specify the version of Scipio. Because Scipio depends on swift-package-manager. Unfortunately, it is not following the semantic versioning.
 
-### Implement your build script
+### Implement a Build Script
 
 Implement a script like following in `Sources/EntryPoint.swift`.
 
@@ -121,7 +121,7 @@ You can pass some settings on the initializer. Most of settings are same with th
 
 See details for documents of ScipioKit.
 
-### Run your build script
+### Run the Script
 
 Run your build script to test it. 
 
@@ -131,11 +131,11 @@ Build on Xcode or execute a following command on a terminal.
 $ swift run -c release my-build-tool
 ```
 
-## Advanced settings
+## Advanced Settings
 
 As we mentioned, you can configure advanced build options in the code.
 
-### Pass custom build flags
+### Pass Custom Build Flags
 
 You can pass custom build flags to the build process.
 
@@ -159,15 +159,15 @@ let runner = Runner(
 )
 ```
 
-#### ``extraFlags``
+#### `extraFlags`
 
 You can pass any C/C++/Swift/Linker flags to the build process.
 
-#### ``extraBuildParameters``
+#### `extraBuildParameters`
 
 You can pass any Xcode build settings.
 
-### Configure build options by products
+### Configure Build Options by Products
 
 You can pass `buildOptionsMatrix` to override build settings for each product.
 
@@ -200,7 +200,7 @@ This matrix can override build options of the specific targets to base build opt
 
 Of-course, you are also pass `extraFlags` or `extraBuildParameters` per product.
 
-### Use custom cache storage
+### Use Custom Cache Storage
 
 In CLI version of Scipio, you can only use Project cache or Local disk cache as a cache storage backend.
 
@@ -229,7 +229,7 @@ See details for <doc:using-s3-storage>
 
 You can also implement your custom cache storage by implementing `CacheStorage` protocol.
 
-#### Cache actor
+#### Cache Actor
 
 There are two cache actors `consumer` and `producer`.
 
