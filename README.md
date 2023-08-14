@@ -2,7 +2,7 @@
 
 ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/giginet/Scipio/tests.yml?style=flat-square&logo=github)
 ![Swift 5.8](https://img.shields.io/badge/Swift-5.8-FA7343?logo=swift&style=flat-square)
-[[![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-green?logo=swift&style=flat-square)](https://swift.org/package-manager/) 
+[![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-green?logo=swift&style=flat-square)](https://swift.org/package-manager/) 
 [![Documentation](https://img.shields.io/badge/Documentation-available-green?style=flat-square)](https://giginet.github.io/Scipio/documentation/scipio/)
 ![Platforms](https://img.shields.io/badge/Platform-iOS%7CmacOS%7CwatchOS%7CtvOS%7CvisionOS-lightgray?logo=apple&style=flat-square)
 [![Xcode 14.3](https://img.shields.io/badge/Xcode-14.3-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)
@@ -10,7 +10,7 @@
 [![Xcode 15.0](https://img.shields.io/badge/Xcode-15.0-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)
 ](https://developer.apple.com/xcode/)
 [![License](https://img.shields.io/badge/License-MIT-darkgray?style=flat-square)
-](https://github.com/giginet/Scipio/blob/main/LICENSE)
+](https://github.com/giginet/Scipio/blob/main/LICENSE.md)
 
 ## Carthago delenda est
 
