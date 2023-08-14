@@ -31,7 +31,8 @@ jobs:
           --target scipio \
           --disable-indexing \
           --output-path ./docs \
-          --transform-for-static-hosting
+          --transform-for-static-hosting \
+          --hosting-base-path Scipio
       - uses: actions/upload-pages-artifact@v2
         with:
           path: docs
