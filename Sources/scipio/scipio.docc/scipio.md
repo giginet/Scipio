@@ -21,7 +21,7 @@ A build tool to generate reusable XCFramework from Swift Packages
 
 ### Advanced Usage
 
-- <doc:build-pipeline>
 - <doc:cache-system>
+- <doc:build-pipeline>
 - <doc:using-s3-storage>
 
