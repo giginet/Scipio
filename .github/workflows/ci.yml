@@ -7,13 +7,13 @@ on:
   pull_request:
     branches:
       - '*'
+env: 
+  DEVELOPER_DIR: "/Applications/Xcode_14.3.1.app/Contents/Developer"
 jobs:
   Tests:
     runs-on: macos-13
     steps:
     - uses: actions/checkout@v2
-    - name: Select Xcode version
-      run: sudo xcode-select -s '/Applications/Xcode_14.3.1.app/Contents/Developer'
     - name: SwiftLint
       run: swiftlint --strict
     - name: Run Tests
@@ -21,3 +21,31 @@ jobs:
         swift test --verbose
       env:
         ENABLE_INTEGRATION_TESTS: 1
+  DocC:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v3
+      - name: build docc
+        run: |
+          swift package --allow-writing-to-directory ./docs generate-documentation \
+          --target scipio \
+          --disable-indexing \
+          --output-path ./docs \
+          --transform-for-static-hosting \
+          --hosting-base-path scipio
+      - uses: actions/upload-pages-artifact@v1
+        with:
+          path: docs
+  DeployDocC:
+    needs: DocC
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: macos-13
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
