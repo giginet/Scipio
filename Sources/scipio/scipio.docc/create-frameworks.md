@@ -41,7 +41,7 @@ Basically, this command can take the same options as the `prepare` command. See 
 In the create command, you can create an XCFramework that contains only arbitrary platforms with the `-platforms` option.
 
 ```bash
-$ swift create --platforms iOS --platforms watchOS path/to/swift-log
+$ scipio create --platforms iOS --platforms watchOS path/to/swift-log
 ```
 
 This command make a XCFramework combined only iOS and watchOS.
