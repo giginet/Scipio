@@ -57,4 +57,4 @@ It means built XCFrameworks are not compatible with the users built with other S
 
 You can use `--enable-library-evolution` option to enable Library Evolution.
 
-It's highly recommended to generate Library Evolution to distribute built XCFrameworks.
+It's highly recommended to enable Library Evolution to distribute built XCFrameworks.
