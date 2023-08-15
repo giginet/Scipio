@@ -23,7 +23,7 @@ $ git clone https://github.com:apple/swift-log.git
 Then, run the create command with the path to the package.
 
 ```bash
-$ swift create path/to/swift-log
+$ scipio create path/to/swift-log
 🔁 Resolving Dependencies...
 📦 Building Logging for iOS, iPhone Simulator
 🚀 Combining into XCFramework...
