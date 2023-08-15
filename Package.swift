@@ -2,6 +2,7 @@
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
+import Foundation
 
 let package = Package(
     name: "Scipio",
@@ -35,8 +36,6 @@ let package = Package(
                  from: "0.6.0"),
         .package(url: "https://github.com/soto-project/soto-core.git", 
                  from: "6.4.0"),
-        .package(url: "https://github.com/apple/swift-docc-plugin", 
-                 from: "1.3.0"),
     ],
     targets: [
         .executableTarget(name: "scipio",
@@ -84,3 +83,12 @@ let package = Package(
             dependencies: ["ScipioS3Storage"]),
     ]
 )
+
+let isDevelopment = ProcessInfo.processInfo.environment["SCIPIO_DEVELOPMENT"] == "1"
+
+// swift-docs is not needed for package users
+if isDevelopment {
+    package.dependencies += [ 
+        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
+    ]
+}

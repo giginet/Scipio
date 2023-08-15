@@ -19,6 +19,8 @@ jobs:
           --output-path ./docs \
           --transform-for-static-hosting \
           --hosting-base-path Scipio
+        env:
+          SCIPIO_DEVELOPMENT: 1
       - uses: actions/upload-pages-artifact@v2
         with:
           path: docs
