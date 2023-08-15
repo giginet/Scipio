@@ -9,9 +9,11 @@ Using with CLI, it's convenient to prepare your project dependencies or generate
 Currently, Scipio doesn't provide any binary distribution. You have to build it from source.
 
 ```bash
-$ git clone git@github.com:giginet/Scipio.git
+$ git clone https://github.com/giginet/Scipio.git
 $ cd Scipio
 $ swift run -c release scipio --help
+# Add reference .build/release/scipio to the PATH variable.
+$ export PATH=/path/to/scipio:$PATH
 ```
 
 To use CLI version of Scipio, first, see details in <doc:prepare-cache-for-applications>.

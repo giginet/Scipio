@@ -119,7 +119,7 @@ struct EntryPoint {
 
 You can pass some settings on the initializer. Most of settings are same with the CLI version.
 
-See details for documents of ScipioKit.
+See details for documents in ScipioKit. (In Progress)
 
 ### Run the Script
 
@@ -225,7 +225,7 @@ let runner = Runner(
 
 Scipio provides `ScipioS3Storage` to use [Amazon S3](https://aws.amazon.com/jp/s3/) as a cache storage.
 
-See details for <doc:using-s3-storage>
+See details in <doc:using-s3-storage>
 
 You can also implement your custom cache storage by implementing `CacheStorage` protocol.
 
