@@ -80,6 +80,8 @@ $ scipio prepare path/to/MyAppDependencies
 
 All XCFrameworks are generated into `MyAppDependencies/XCFramework` by default.
 
+> Note: You can use built in a regular way XCFrameworks to your project. Refer to this document <https://www.simpleswiftguide.com/how-to-add-xcframework-to-xcode-project/>
+
 #### Options
 
 `prepare` command has some options. These are available options.
