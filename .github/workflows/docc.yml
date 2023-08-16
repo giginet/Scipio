@@ -1,0 +1,39 @@
+name: DocC
+
+on: 
+  push:
+    branches:
+      - main
+env: 
+  DEVELOPER_DIR: "/Applications/Xcode_14.3.1.app/Contents/Developer"
+jobs:
+  DocC:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build DocC
+        run: |
+          swift package --allow-writing-to-directory ./docs generate-documentation \
+          --target scipio \
+          --disable-indexing \
+          --output-path ./docs \
+          --transform-for-static-hosting \
+          --hosting-base-path Scipio
+        env:
+          SCIPIO_DEVELOPMENT: 1
+      - uses: actions/upload-pages-artifact@v2
+        with:
+          path: docs
+  DeployDocC:
+    needs: DocC
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2

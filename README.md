@@ -1,6 +1,16 @@
 # Scipio
 
-**⚠️ This project is currently under development. Please moment until a stable release. Of-course, feedbacks and pull requests are welcome.**
+![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/giginet/Scipio/tests.yml?style=flat-square&logo=github)
+![Swift 5.8](https://img.shields.io/badge/Swift-5.8-FA7343?logo=swift&style=flat-square)
+[![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-green?logo=swift&style=flat-square)](https://swift.org/package-manager/) 
+[![Documentation](https://img.shields.io/badge/Documentation-available-green?style=flat-square)](https://giginet.github.io/Scipio/documentation/scipio/)
+![Platforms](https://img.shields.io/badge/Platform-iOS%7CmacOS%7CwatchOS%7CtvOS%7CvisionOS-lightgray?logo=apple&style=flat-square)
+[![Xcode 14.3](https://img.shields.io/badge/Xcode-14.3-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)
+](https://developer.apple.com/xcode/)
+[![Xcode 15.0](https://img.shields.io/badge/Xcode-15.0-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)
+](https://developer.apple.com/xcode/)
+[![License](https://img.shields.io/badge/License-MIT-darkgray?style=flat-square)
+](https://github.com/giginet/Scipio/blob/main/LICENSE.md)
 
 ## Carthago delenda est
 
@@ -21,16 +31,17 @@ First, use SwiftPM to resolve dependencies and checkout repositories. After that
 
 ## Usage
 
-### Prepare all dependencies for your application.
+See [Scipio Official Documentation](https://giginet.github.io/Scipio/documentation/scipio) for detail.
 
-#### 1. Create a new Swift Package to describe dependencies
+### Prepare all dependencies for your application
 
-```
-$ cd path/to/MyAppDependencies
-$ swift package init
-```
+The concept of Scipio, all dependencies wanted to be used in your application should be defined in one Package manifest.
 
-#### 2. Edit `Package.swift` to describe your application's dependencies
+prepare command is to build all dependencies as XCFrameworks in the manifest.
+
+This mode is called `prepare` mode. See [Prepare All Dependencies for Your Application](https://giginet.github.io/Scipio/documentation/scipio/prepare-cache-for-applications) for detail.
+
+#### Define `Package.swift` to describe your application's dependencies
 
 ```swift
 // swift-tools-version: 5.6
@@ -61,7 +72,7 @@ let package = Package(
 
 ```
 
-#### 3. Run `prepare` command
+#### Run `prepare` command
 
 ```
 $ scipio prepare path/to/MyAppDependencies
@@ -76,21 +87,6 @@ $ scipio prepare path/to/MyAppDependencies
 
 All XCFrameworks are generated into `MyAppDependencies/XCFramework` by default.
 
-#### Options
-
-|Flag|Description|Default|
-|---------|------------|-----------|
-|-\-configuration, -c|Build configuration for generated frameworks (debug / release)|release|
-|-\-output, -o|Path indicates a XCFrameworks output directory|$PACKAGE_ROOT/XCFrameworks|
-|-\-embed-debug-symbols|Whether embed debug symbols to frameworks or not|-|
-|-\-static|Whether generated frameworks are Static Frameworks or not|-|
-|-\-support-simulators|Whether also building for simulators of each SDKs or not|-|
-|-\-cache-policy|How to reuse built frameworks|project|
-|-\-enable-library-evolution|Whether to enable Library Evolution feature or not|-|
-
-
-See `--help` for details.
-
 #### Library Evolution support
 
 Scipio disables to support [Library Evolution](https://www.swift.org/blog/library-evolution/) feature by default.
@@ -103,7 +99,7 @@ In fact, some packages can't build with enabling Library Evolution. (https://dev
 If you want to distribute generated XCFrameworks, it's recommended to enable Library Evolution. Pass `--enable-library-evolution` flag if you need.
 However, it means some packages can't be built.
 
-#### Build cache
+#### Build Cache System
 
 By default, Scipio checks whether re-building is required or not for existing XCFrameworks.
 
@@ -116,60 +112,13 @@ $ swift run scipio prepare --cache-policy project path/to/MyAppDependencies
 > ❇️ Succeeded.
 ```
 
-Scipio generates **VersionFile** to describe built framework details within building XCFrameworks.
+Scipio supports Project/Local Disk/Remote Disk cache backends.
 
-`VersionFile` contains the following information:
+Using a remote cache, share built XCFrameworks among developers.
 
-- Revision
-    - Revision of packages. If resolved versions are updated, they may change.
-- Build Options
-    - Build options built with.
-- Compiler Version
-    - Xcode or Swift compiler version.
+See [Learn the Cache System](https://giginet.github.io/Scipio/documentation/scipio/cache-system) for details.
 
-They are stored on `$OUTPUT_DIR/.$FRAMEWORK_NAME.version` as a JSON file.
-
-```json
-{
-  "buildOptions" : {
-    "buildConfiguration" : "release",
-    "isDebugSymbolsEmbedded" : false,
-    "frameworkType" : "dynamic",
-    "sdks" : [
-      "iOS"
-    ],
-    "isSimulatorSupported" : false
-  },
-  "targetName" : "APNGKit",
-  "clangVersion" : "clang-1400.0.29.102",
-  "pin" : {
-    "version" : "2.2.1",
-    "revision" : "f1807697d455b258cae7522b939372b4652437c1"
-  }
-}
-```
-
-If they are changed, Spicio regards them as a cache are invalid, and then it's re-built.
-
-#### Cache Policy
-
-You can specify cache behavior with `--cache-policy` option. Default value is `project`.
-
-##### disabled
-
-Never reuse already built frameworks. Overwrite existing frameworks everytime.
-
-##### project(default)
-
-VersionFiles are stored in output directories. Skip re-building when existing XCFramework is valid.
-
-##### local
-
-Copy every build artifacts to `~/Library/Caches`. If there are same binaries are exists in cache directory, skip re-building and copy them to the output directory.
-
-Thanks to this strategy, you can reuse built artifacts in past.
-
-### Create XCFramework for single Swift Packages
+### Create XCFramework from a single Swift Package
 
 Scipio also can generate XCFrameworks from a specific Swift Package. This feature is similar to swift-create-xcframework.
 
@@ -181,6 +130,8 @@ $ scipio create path/to/MyPackage
 > 🚀 Combining into XCFramework...
 > ❇️ Succeeded.
 ```
+
+See [Convert Single Swift Package to XCFramework](https://giginet.github.io/Scipio/documentation/scipio/create-frameworks) for detail.
 
 ## Reliability
 
@@ -203,3 +154,4 @@ Scipio only uses `xcodebuild` to build Frameworks and XCFrameworks.
 ## Why Scipio
 
 Scipio names after a historical story about Carthage.
+
