@@ -9,7 +9,7 @@ However, you can't configure a complex settings with this.
 
 We also provide `ScipioKit` to build your pipeline. You can configure your pipeline by Swift code.
 
-## Benefits to Implement a Build Script
+## Benefits to Implement a Build Script by `ScipioKit`
 
 CLI version has a limitation to configure build options.
 
