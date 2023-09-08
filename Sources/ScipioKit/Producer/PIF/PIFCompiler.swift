@@ -92,7 +92,7 @@ struct PIFCompiler: Compiler {
             try fileSystem.removeFileTree(outputXCFrameworkPath)
         }
 
-        let debugSymbolPaths: [AbsolutePath]?
+        let debugSymbolPaths: [SDK: [AbsolutePath]]?
         if buildOptions.isDebugSymbolsEmbedded {
             debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
                                                                  buildConfiguration: buildOptions.buildConfiguration,
