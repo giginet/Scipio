@@ -197,10 +197,6 @@ private struct PIFLibraryTargetModifier {
 
         pifTarget.buildConfigurations = newConfigurations
 
-        if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
-            addPublicHeaders(clangTarget: clangTarget)
-        }
-
         addLinkSettings(of: pifTarget)
     }
 
@@ -247,76 +243,8 @@ private struct PIFLibraryTargetModifier {
         return configuration
     }
 
-    private func collectPublicHeaders(of clangTarget: ClangTarget) -> Set<AbsolutePath> {
-        let publicHeaders = clangTarget
-            .headers
-            .filter { $0.isDescendant(of: clangTarget.includeDir) }
-        let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0) }
-        let symlinks = publicHeaders.filter { fileSystem.isSymlink($0) }
-
-        // Sometimes, public headers include a file and its symlink both.
-        // This situation raises a duplication error
-        // So duplicated symlinks have to be omitted
-        let notDuplicatedSymlinks = symlinks.filter { path in
-            notSymlinks.allSatisfy { FileManager.default.contentsEqual(atPath: path.pathString, andPath: $0.pathString) }
-        }
-
-        return Set(notSymlinks + notDuplicatedSymlinks)
-    }
-
     private func guid(_ suffixes: String...) -> String {
         "GUID::SCIPIO::\(pifTarget.name)::" + suffixes.joined(separator: "::")
-    }
-
-    private func addPublicHeaders(clangTarget: ClangTarget) {
-        let packageRootDir = resolvedPackage.path
-        let targetRootDir = clangTarget.path
-        let targetGroupName = targetRootDir.relative(to: packageRootDir).pathString
-        let includeDir = clangTarget.includeDir
-        let targetGroup = project.groupTree.children
-            .compactMap { $0 as? PIF.Group }
-            .first { $0.name == targetGroupName }
-        guard let targetGroup else {
-            fatalError("Groups \(targetGroupName) not found")
-        }
-        let publicHeadersGroup = PIF.Group(
-            guid: guid("GROUPS", "HEADERS"),
-            path: includeDir.relative(to: targetRootDir).pathString,
-            sourceTree: .group,
-            children: []
-        )
-        targetGroup.children.append(publicHeadersGroup)
-
-        let headers = collectPublicHeaders(of: clangTarget)
-        let fileReference = headers.enumerated().map { (index, headerPath) in
-            let relativePath = headerPath.relative(to: includeDir)
-            return PIF.FileReference(
-                guid: guid("HEADERS_FILE_REFERENCE_\(index)"),
-                path: relativePath.pathString,
-                sourceTree: .group
-            )
-        }
-
-        fileReference.forEach { publicHeadersGroup.children.append($0) }
-
-        let buildFiles = fileReference.enumerated().map { (index, reference) in
-            PIF.BuildFile(
-                guid: guid("HEADERS_BUILD_FILE_\(index)"),
-                file: reference,
-                platformFilters: [],
-                headerVisibility: .public
-            )
-        }
-
-        if let buildPhase = fetchBuildPhase(of: PIF.HeadersBuildPhase.self, in: pifTarget) {
-            buildPhase.buildFiles.append(contentsOf: buildFiles)
-        } else {
-            let buildPhase = PIF.HeadersBuildPhase(
-               guid: guid("HEADERS_BUILD_PHASE"),
-               buildFiles: buildFiles
-            )
-            pifTarget.buildPhases.append(buildPhase)
-        }
     }
 
     // Add dependencies to "Link Binary with Libraries" phase
