@@ -135,11 +135,10 @@ struct XCBuildClient {
     /// It will be $(OBJROOT)/GeneratedModuleMaps/$(PLATFORM_NAME)/*-Swift.h
     private func findBridgingHeader(sdk: SDK) throws -> AbsolutePath? {
         let target = buildProduct.target
-        let generatedModuleMapPath = try descriptionPackage.generatedModuleMapPath(
-            of: target,
-            sdk: sdk
+        let generatedModuleMapDirectoryPath = descriptionPackage.derivedDataPath.appending(
+            components: "Intermediates.noindex", "GeneratedModuleMaps", sdk.settingValue
         )
-        let generatedBridgingHeader = generatedModuleMapPath.appending(component: "\(target.c99name)-Swift.h")
+        let generatedBridgingHeader = generatedModuleMapDirectoryPath.appending(component: "\(target.c99name)-Swift.h")
 
         if fileSystem.exists(generatedBridgingHeader) {
             return generatedBridgingHeader
