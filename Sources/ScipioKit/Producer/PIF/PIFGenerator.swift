@@ -190,8 +190,8 @@ private struct PIFLibraryTargetModifier {
             pifTarget.productType = .staticArchive
         case .dynamic:
             pifTarget.productType = .dynamicLibrary
+            pifTarget.productName = "\(c99Name)"
         }
-//        pifTarget.productName = "\(c99Name).framework"
 
         let newConfigurations = pifTarget.buildConfigurations.map(updateBuildConfiguration)
 
