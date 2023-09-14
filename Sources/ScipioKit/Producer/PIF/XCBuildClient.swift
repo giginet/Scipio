@@ -181,9 +181,9 @@ struct XCBuildClient {
     }
 
     private func frameworkPath(target: ResolvedTarget, of sdk: SDK) throws -> AbsolutePath {
-        let frameworkPath = try RelativePath(validating: "./Products/\(productDirectoryName(sdk: sdk))/PackageFrameworks")
+        let frameworkPath = try RelativePath(validating: productDirectoryName(sdk: sdk))
             .appending(component: "\(buildProduct.target.c99name).framework")
-        return descriptionPackage.derivedDataPath.appending(frameworkPath)
+        return descriptionPackage.generatedFrameworkDirectory.appending(frameworkPath)
     }
 
     private func productDirectoryName(sdk: SDK) -> String {
