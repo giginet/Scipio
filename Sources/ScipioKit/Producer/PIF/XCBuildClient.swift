@@ -52,6 +52,27 @@ struct XCBuildClient {
         pifPath: AbsolutePath,
         buildParametersPath: AbsolutePath
     ) async throws {
+        let xcbuildPath = try await fetchXCBuildPath()
+
+        let executor = XCBuildExecutor(xcbuildPath: xcbuildPath)
+        try await executor.build(
+            pifPath: pifPath,
+            configuration: configuration,
+            derivedDataPath: descriptionPackage.derivedDataPath,
+            buildParametersPath: buildParametersPath,
+            target: buildProduct.target
+        )
+
+        try assembleFramework(sdk: sdk)
+
+        // Copy modulemap to built frameworks
+        // xcbuild generates modulemap for each frameworks
+        // However, these are not includes in Frameworks
+        // So they should be copied into frameworks manually.
+//        try copyModulemap(for: sdk)
+    }
+
+    private func assembleFramework(sdk: SDK) throws {
         let modulemapGenerator = ModuleMapGenerator(
             descriptionPackage: descriptionPackage,
             fileSystem: fileSystem
@@ -65,32 +86,29 @@ struct XCBuildClient {
             buildConfiguration: buildOptions.buildConfiguration
         )
 
-        let xcbuildPath = try await fetchXCBuildPath()
-
-        let executor = XCBuildExecutor(xcbuildPath: xcbuildPath)
-        try await executor.build(
-            pifPath: pifPath,
-            configuration: configuration,
-            derivedDataPath: descriptionPackage.derivedDataPath,
-            buildParametersPath: buildParametersPath,
-            target: buildProduct.target
+        let frameworkOutputDir = descriptionPackage.generatedFrameworkDirectory.appending(
+            component: productDirectoryName(sdk: sdk)
         )
-
-        let frameworkOutputDir = descriptionPackage.workspaceDirectory.appending(
-            components: "GeneratedFrameworks", productDirectoryName(sdk: sdk)
+        let productDir = descriptionPackage.derivedDataPath.appending(
+            components: "Products", productDirectoryName(sdk: sdk)
         )
-        let productDir = descriptionPackage.derivedDataPath.appending(components: "Products", productDirectoryName(sdk: sdk))
 
         let targetName = buildProduct.target.c99name
 
         let binaryPath = productDir.appending(component: targetName)
-        let swiftModulesPath = productDir.appending(component: "\(targetName).swiftmodule")
+
+        let swiftModulesPath = try findSwiftModules(of: targetName, in: productDir)
+
+        let bridgingHeaderPath = try findBridgingHeader(sdk: sdk)
+
+        let publicHeaders = collectPublicHeader()
 
         let components = FrameworkComponents(
             name: buildProduct.target.name.packageNamed(),
             binaryPath: binaryPath,
-            swiftModulePaths: swiftModulesPath,
-            headerPaths: [],
+            swiftModulesPath: swiftModulesPath,
+            publicHeaderPaths: publicHeaders,
+            bridgingHeaderPath: bridgingHeaderPath,
             modulemapPath: frameworkModuleMapPath
         )
 
@@ -101,12 +119,45 @@ struct XCBuildClient {
         )
 
         try assembler.assemble()
+    }
 
-        // Copy modulemap to built frameworks
-        // xcbuild generates modulemap for each frameworks
-        // However, these are not includes in Frameworks
-        // So they should be copied into frameworks manually.
-//        try copyModulemap(for: sdk)
+    /// Find *.swiftmodules*
+    private func findSwiftModules(of targetName: String, in productDir: AbsolutePath) throws -> AbsolutePath? {
+        let swiftModulesPath = productDir.appending(component: "\(targetName).swiftmodule")
+
+        if fileSystem.exists(swiftModulesPath) {
+            return swiftModulesPath
+        }
+        return nil
+    }
+
+    /// Find bridging header under $(SWIFT_OBJC_INTERFACE_HEADER_DIR)
+    /// It will be $(OBJROOT)/GeneratedModuleMaps/$(PLATFORM_NAME)/*-Swift.h
+    private func findBridgingHeader(sdk: SDK) throws -> AbsolutePath? {
+        let target = buildProduct.target
+        let generatedModuleMapPath = try descriptionPackage.generatedModuleMapPath(
+            of: target,
+            sdk: sdk
+        )
+        let generatedBridgingHeader = generatedModuleMapPath.appending(component: "\(target.c99name)-Swift.h")
+
+        if fileSystem.exists(generatedBridgingHeader) {
+            return generatedBridgingHeader
+        }
+
+        return nil
+    }
+
+    /// Collect public headers of clangTarget
+    private func collectPublicHeader() -> Set<AbsolutePath>? {
+        guard let clangTarget = buildProduct.target.underlyingTarget as? ClangTarget else {
+            return nil
+        }
+
+        let publicHeaders = clangTarget
+            .headers
+            .filter { $0.isDescendant(of: clangTarget.includeDir) }
+        return Set(publicHeaders)
     }
 
     private func copyModulemap(for sdk: SDK) throws {

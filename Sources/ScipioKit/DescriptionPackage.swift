@@ -50,6 +50,10 @@ struct DescriptionPackage {
         workspaceDirectory.appending(component: "DerivedData")
     }
 
+    var generatedFrameworkDirectory: AbsolutePath {
+        workspaceDirectory.appending(component: "GeneratedFrameworks")
+    }
+
     func generatedModuleMapPath(of target: ResolvedTarget, sdk: SDK) throws -> AbsolutePath {
         let relativePath = try RelativePath(validating: "GeneratedModuleMaps/\(sdk.settingValue)")
         return workspaceDirectory

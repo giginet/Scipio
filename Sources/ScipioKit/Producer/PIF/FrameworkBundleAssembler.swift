@@ -5,8 +5,9 @@ import TSCBasic
 struct FrameworkComponents {
     var name: String
     var binaryPath: AbsolutePath
-    var swiftModulePaths: AbsolutePath?
-    var headerPaths: Set<AbsolutePath>
+    var swiftModulesPath: AbsolutePath?
+    var publicHeaderPaths: Set<AbsolutePath>?
+    var bridgingHeaderPath: AbsolutePath?
     var modulemapPath: AbsolutePath?
 }
 
@@ -45,9 +46,10 @@ struct FrameworkBundleAssembler {
     }
 
     private func relocateHeaders() throws {
-        let headers = frameworkComponents.headerPaths
+        let headers = (frameworkComponents.publicHeaderPaths ?? [])
+        + (frameworkComponents.bridgingHeaderPath.flatMap { [$0] } ?? [])
 
-        guard headers.isEmpty else {
+        guard !headers.isEmpty else {
             return
         }
 
@@ -55,8 +57,7 @@ struct FrameworkBundleAssembler {
 
         try fileSystem.createDirectory(headerDir)
 
-
-        for header in frameworkComponents.headerPaths {
+        for header in headers {
             try fileSystem.copy(
                 from: header,
                 to: headerDir.appending(component: header.basename)
@@ -65,13 +66,15 @@ struct FrameworkBundleAssembler {
     }
 
     private func relocateModules() throws {
-        let needToCopy = [
-            frameworkComponents.swiftModulePaths,
+        let modules = [
+            frameworkComponents.swiftModulesPath,
             frameworkComponents.modulemapPath,
         ]
             .compactMap { $0 }
 
-        guard needToCopy.isEmpty else {
+        let needToGenerateModules = !modules.isEmpty
+
+        guard needToGenerateModules else {
             return
         }
 
@@ -79,10 +82,17 @@ struct FrameworkBundleAssembler {
 
         try fileSystem.createDirectory(modulesDir)
 
-        for path in needToCopy {
+        if let swiftModulesPath = frameworkComponents.swiftModulesPath {
             try fileSystem.copy(
-                from: path,
-                to: modulesDir
+                from: swiftModulesPath,
+                to: modulesDir.appending(component: swiftModulesPath.basename)
+            )
+        }
+
+        if let moduleMapPath = frameworkComponents.modulemapPath {
+            try fileSystem.copy(
+                from: moduleMapPath,
+                to: modulesDir.appending(component: "module.modulemap")
             )
         }
     }

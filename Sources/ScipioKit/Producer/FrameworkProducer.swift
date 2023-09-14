@@ -87,6 +87,10 @@ struct FrameworkProducer {
         if fileSystem.exists(descriptionPackage.derivedDataPath) {
             try fileSystem.removeFileTree(descriptionPackage.derivedDataPath)
         }
+
+        if fileSystem.exists(descriptionPackage.generatedFrameworkDirectory) {
+            try fileSystem.removeFileTree(descriptionPackage.generatedFrameworkDirectory)
+        }
     }
 
     private func processAllTargets(buildProducts: [BuildProduct]) async throws {
