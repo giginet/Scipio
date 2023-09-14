@@ -5,7 +5,7 @@ import TSCBasic
 struct FrameworkComponents {
     var name: String
     var binaryPath: AbsolutePath
-    var swiftModulePaths: Set<AbsolutePath>?
+    var swiftModulePaths: AbsolutePath?
     var headerPaths: Set<AbsolutePath>
     var modulemapPath: AbsolutePath?
 }
@@ -27,6 +27,7 @@ struct FrameworkBundleAssembler {
         self.fileSystem = fileSystem
     }
 
+    @discardableResult
     func assemble() throws -> AbsolutePath {
         try fileSystem.createDirectory(frameworkBundlePath, recursive: true)
 
@@ -66,10 +67,9 @@ struct FrameworkBundleAssembler {
     private func relocateModules() throws {
         let needToCopy = [
             frameworkComponents.swiftModulePaths,
-            frameworkComponents.modulemapPath.flatMap { [$0] },
+            frameworkComponents.modulemapPath,
         ]
             .compactMap { $0 }
-            .flatMap { $0 }
 
         guard needToCopy.isEmpty else {
             return

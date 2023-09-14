@@ -59,7 +59,7 @@ struct XCBuildClient {
         // xcbuild automatically generates modulemaps. However, these are not for frameworks.
         // Therefore, it's difficult to contain to final XCFrameworks.
         // So generate modulemap for frameworks manually
-        try modulemapGenerator.generate(
+        let frameworkModuleMapPath = try modulemapGenerator.generate(
             resolvedTarget: buildProduct.target,
             sdk: sdk,
             buildConfiguration: buildOptions.buildConfiguration
@@ -76,11 +76,37 @@ struct XCBuildClient {
             target: buildProduct.target
         )
 
+        let frameworkOutputDir = descriptionPackage.workspaceDirectory.appending(
+            components: "GeneratedFrameworks", productDirectoryName(sdk: sdk)
+        )
+        let productDir = descriptionPackage.derivedDataPath.appending(components: "Products", productDirectoryName(sdk: sdk))
+
+        let targetName = buildProduct.target.c99name
+
+        let binaryPath = productDir.appending(component: targetName)
+        let swiftModulesPath = productDir.appending(component: "\(targetName).swiftmodule")
+
+        let components = FrameworkComponents(
+            name: buildProduct.target.name.packageNamed(),
+            binaryPath: binaryPath,
+            swiftModulePaths: swiftModulesPath,
+            headerPaths: [],
+            modulemapPath: frameworkModuleMapPath
+        )
+
+        let assembler = FrameworkBundleAssembler(
+            frameworkComponents: components,
+            outputDirectory: frameworkOutputDir,
+            fileSystem: fileSystem
+        )
+
+        try assembler.assemble()
+
         // Copy modulemap to built frameworks
         // xcbuild generates modulemap for each frameworks
         // However, these are not includes in Frameworks
         // So they should be copied into frameworks manually.
-        try copyModulemap(for: sdk)
+//        try copyModulemap(for: sdk)
     }
 
     private func copyModulemap(for sdk: SDK) throws {

@@ -76,8 +76,6 @@ struct PIFGenerator {
                 .compactMap { target in
                     guard let supportedType = target.supportedType else { return target }
 
-                    updateCommonSettings(of: target)
-
                     switch supportedType {
                     case .library:
                         let modifier = PIFLibraryTargetModifier(
@@ -121,24 +119,6 @@ struct PIFGenerator {
             // So generating a Info.plist and set this
             settings[.GENERATE_INFOPLIST_FILE] = "NO"
             settings[.INFOPLIST_FILE] = infoPlistPath.pathString
-
-            configuration.buildSettings = settings
-            return configuration
-        }
-
-        pifTarget.buildConfigurations = newConfigurations
-    }
-
-    private func updateCommonSettings(of pifTarget: PIF.Target) {
-        let newConfigurations = pifTarget.buildConfigurations.map { original in
-            var configuration = original
-            var settings = configuration.buildSettings
-
-            // If the built framework is named same as one of the target in the package, it can be picked up
-            // automatically during indexing since the build system always adds a -F flag to the built products dir.
-            // To avoid this problem, we build all package frameworks in a subdirectory.
-            settings[.BUILT_PRODUCTS_DIR] = "$(BUILT_PRODUCTS_DIR)/PackageFrameworks"
-            settings[.TARGET_BUILD_DIR] = "$(TARGET_BUILD_DIR)/PackageFrameworks"
 
             configuration.buildSettings = settings
             return configuration
@@ -205,8 +185,8 @@ private struct PIFLibraryTargetModifier {
     }
 
     private func updateLibraryTargetSettings() {
-        pifTarget.productType = .framework
-        pifTarget.productName = "\(c99Name).framework"
+//        pifTarget.productType = .staticArchive
+//        pifTarget.productName = "\(c99Name).framework"
 
         let newConfigurations = pifTarget.buildConfigurations.map(updateBuildConfiguration)
 
@@ -249,11 +229,6 @@ private struct PIFLibraryTargetModifier {
         settings[.LIBRARY_SEARCH_PATHS, default: ["$(inherited)"]]
             .append("\(toolchainLibDir.pathString)/swift/\(sdk.settingValue)")
 
-        settings[.GENERATE_INFOPLIST_FILE] = "YES"
-
-        settings[.MARKETING_VERSION] = "1.0" // Version
-        settings[.CURRENT_PROJECT_VERSION] = "1" // Build
-
         // Enable to emit swiftinterface
         if buildOptions.enableLibraryEvolution {
             settings[.OTHER_SWIFT_FLAGS, default: ["$(inherited)"]]
@@ -264,39 +239,7 @@ private struct PIFLibraryTargetModifier {
 
         configuration.buildSettings = settings
 
-        var impartedBuildProperties = configuration.impartedBuildProperties
-        var imparted = impartedBuildProperties.buildSettings
-        // Remove all `-fmodule-map-file` settings
-        imparted[.OTHER_CFLAGS] = imparted[.OTHER_CFLAGS].map {
-            Self.removeModuleMapFile(fromCFlags: $0)
-        }
-        imparted[.OTHER_SWIFT_FLAGS] = imparted[.OTHER_SWIFT_FLAGS].map {
-            Self.removeModuleMapFile(fromSwiftFlags: $0)
-        }
-        impartedBuildProperties.buildSettings = imparted
-        configuration.setImpartedBuildProperties(impartedBuildProperties)
-
         return configuration
-    }
-
-    private static func removeModuleMapFile(fromCFlags flags: [String]) -> [String] {
-        flags.filter { !$0.hasPrefix("-fmodule-map-file") }
-    }
-
-    private static func removeModuleMapFile(fromSwiftFlags flags: [String]) -> [String] {
-        var newFlags: [String] = []
-        var index = 0
-        while index < flags.count {
-            if flags[index] == "-Xcc",
-               index + 1 < flags.count,
-               flags[index + 1].hasPrefix("-fmodule-map-file") {
-                index += 2
-            } else {
-                newFlags.append(flags[index])
-                index += 1
-            }
-        }
-        return newFlags
     }
 
     private func collectPublicHeaders(of clangTarget: ClangTarget) -> Set<AbsolutePath> {

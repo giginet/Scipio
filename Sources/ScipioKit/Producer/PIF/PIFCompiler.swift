@@ -101,12 +101,12 @@ struct PIFCompiler: Compiler {
             debugSymbolPaths = nil
         }
 
-        // Combine all frameworks into one XCFramework
-        try await xcBuildClient.createXCFramework(
-            sdks: Set(buildOptions.sdks),
-            debugSymbols: debugSymbolPaths,
-            outputPath: outputXCFrameworkPath
-        )
+//        // Combine all frameworks into one XCFramework
+//        try await xcBuildClient.createXCFramework(
+//            sdks: Set(buildOptions.sdks),
+//            debugSymbols: debugSymbolPaths,
+//            outputPath: outputXCFrameworkPath
+//        )
     }
 
     private func makeBuildParameters(toolchain: UserToolchain) throws -> BuildParameters {
