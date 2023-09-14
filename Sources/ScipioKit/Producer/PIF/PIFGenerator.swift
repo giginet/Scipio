@@ -185,7 +185,12 @@ private struct PIFLibraryTargetModifier {
     }
 
     private func updateLibraryTargetSettings() {
-//        pifTarget.productType = .staticArchive
+        switch buildOptions.frameworkType {
+        case .static:
+            pifTarget.productType = .staticArchive
+        case .dynamic:
+            pifTarget.productType = .dynamicLibrary
+        }
 //        pifTarget.productName = "\(c99Name).framework"
 
         let newConfigurations = pifTarget.buildConfigurations.map(updateBuildConfiguration)
