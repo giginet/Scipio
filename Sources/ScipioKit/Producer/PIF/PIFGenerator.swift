@@ -106,7 +106,7 @@ struct PIFGenerator {
         let infoPlistGenerator = InfoPlistGenerator(fileSystem: fileSystem)
         let infoPlistPath = descriptionPackage.workspaceDirectory.appending(component: "Info-\(pifTarget.productName).plist")
         do {
-            try infoPlistGenerator.generateForResourceBundle(at: infoPlistPath)
+            try infoPlistGenerator.generate(for: .bundle, at: infoPlistPath)
         } catch {
             fatalError("Could not generate Info.plist file")
         }

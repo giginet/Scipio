@@ -2,19 +2,31 @@ import Foundation
 import TSCBasic
 
 struct InfoPlistGenerator {
+    enum BundlePackageType {
+        case framework
+        case bundle
+
+        var infoPlistValue: String {
+            switch self {
+            case .framework: return "FMWK"
+            case .bundle: return "BNDL"
+            }
+        }
+    }
+
     private let fileSystem: any FileSystem
 
     init(fileSystem: any FileSystem) {
         self.fileSystem = fileSystem
     }
 
-    func generateForResourceBundle(at path: AbsolutePath) throws {
-        let body = resourceBundleBody
+    func generate(for type: BundlePackageType, at path: AbsolutePath) throws {
+        let body = generateInfoPlistBody(for: type)
 
         try fileSystem.writeFileContents(path, string: body)
     }
 
-    private var resourceBundleBody: String {
+    private func generateInfoPlistBody(for type: BundlePackageType) -> String {
         """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -29,7 +41,7 @@ struct InfoPlistGenerator {
             <key>CFBundleName</key>
             <string>$(PRODUCT_NAME)</string>
             <key>CFBundlePackageType</key>
-            <string>BNDL</string>
+            <string>\(type.infoPlistValue)</string>
             <key>CFBundleShortVersionString</key>
             <string>1.0</string>
             <key>CFBundleVersion</key>
