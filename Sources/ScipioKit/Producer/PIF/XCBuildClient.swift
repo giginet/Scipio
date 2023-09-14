@@ -101,7 +101,7 @@ struct XCBuildClient {
 
         let bridgingHeaderPath = try findBridgingHeader(sdk: sdk)
 
-        let publicHeaders = collectPublicHeader()
+        let publicHeaders = try collectPublicHeader()
 
         let components = FrameworkComponents(
             name: buildProduct.target.name.packageNamed(),
@@ -148,14 +148,17 @@ struct XCBuildClient {
     }
 
     /// Collect public headers of clangTarget
-    private func collectPublicHeader() -> Set<AbsolutePath>? {
+    private func collectPublicHeader() throws -> Set<AbsolutePath>? {
         guard let clangTarget = buildProduct.target.underlyingTarget as? ClangTarget else {
             return nil
         }
 
-        let publicHeaders = clangTarget
+        let publicHeaders = try clangTarget
             .headers
             .filter { $0.isDescendant(of: clangTarget.includeDir) }
+            // Follow symlink
+            .map { $0.asURL.resolvingSymlinksInPath() }
+            .map { try AbsolutePath(validating: $0.path) }
         return Set(publicHeaders)
     }
 
