@@ -196,7 +196,7 @@ struct XCBuildClient {
         }
     }
 
-    func createXCFramework(sdks: Set<SDK>, debugSymbols: [AbsolutePath]?, outputPath: AbsolutePath) async throws {
+    func createXCFramework(sdks: Set<SDK>, debugSymbols: [SDK: [AbsolutePath]]?, outputPath: AbsolutePath) async throws {
         let xcbuildPath = try await fetchXCBuildPath()
 
         let additionalArguments = try buildCreateXCFrameworkArguments(
@@ -213,21 +213,23 @@ struct XCBuildClient {
         try await executor.execute(arguments)
     }
 
-    private func buildCreateXCFrameworkArguments(sdks: Set<SDK>, debugSymbols: [AbsolutePath]?, outputPath: AbsolutePath) throws -> [String] {
-        let frameworksArguments: [String] = try sdks.reduce([]) { arguments, sdk in
+    private func buildCreateXCFrameworkArguments(sdks: Set<SDK>, debugSymbols: [SDK: [AbsolutePath]]?, outputPath: AbsolutePath) throws -> [String] {
+        let frameworksWithDebugSymbolArguments: [String] = try sdks.reduce([]) { arguments, sdk in
             let path = try frameworkPath(target: buildProduct.target, of: sdk)
-            return arguments + ["-framework", path.pathString]
+            var result = arguments + ["-framework", path.pathString]
+            if let debugSymbols, let paths = debugSymbols[sdk] {
+                paths.forEach { path in
+                    result += ["-debug-symbols", path.pathString]
+                }
+            }
+            return result
         }
-
-        let debugSymbolsArguments: [String] = debugSymbols?.reduce(into: []) { arguments, path in
-            arguments.append(contentsOf: ["-debug-symbols", path.pathString])
-        } ?? []
 
         let outputPathArguments: [String] = ["-output", outputPath.pathString]
 
         // Default behavior, this command requires swiftinterface. If they don't exist, `-allow-internal-distribution` must be required.
         let additionalFlags = buildOptions.enableLibraryEvolution ? [] : ["-allow-internal-distribution"]
-        return frameworksArguments + debugSymbolsArguments + outputPathArguments + additionalFlags
+        return frameworksWithDebugSymbolArguments + outputPathArguments + additionalFlags
     }
 }
 
