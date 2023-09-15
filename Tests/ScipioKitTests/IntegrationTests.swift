@@ -172,6 +172,11 @@ final class IntegrationTests: XCTestCase {
                             .appendingPathComponent("dSYMs/\(frameworkName).framework.dSYM/Contents/Resources/DWARF/\(frameworkName)").path),
                         "\(xcFrameworkName) should contain a DWARF file in dSYMs directory"
                     )
+                } else {
+                    XCTAssertFalse(
+                        fileManager.fileExists(atPath: sdkRoot.appendingPathComponent("dSYMs").path),
+                        "\(xcFrameworkName) should not contain a dSYMs directory"
+                    )
                 }
 
                 let frameworkRoot = sdkRoot
