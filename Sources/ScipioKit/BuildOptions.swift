@@ -67,7 +67,7 @@ public enum FrameworkType: String, Codable {
     case `static`
 }
 
-public enum SDK: String, Codable {
+public enum SDK: String, Codable, Hashable {
     case macOS
     case macCatalyst
     case iOS

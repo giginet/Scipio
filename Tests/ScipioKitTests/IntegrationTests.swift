@@ -26,6 +26,7 @@ final class IntegrationTests: XCTestCase {
 
     private enum Destination: String {
         case iOS = "ios-arm64"
+        case iOSSimulator = "ios-arm64_x86_64-simulator"
         case macOS = "macos-arm64_x86_64"
         case watchOS = "watchos-arm64_arm64_32_armv7k"
     }
@@ -38,6 +39,7 @@ final class IntegrationTests: XCTestCase {
                 "_AtomicsShims": .init(frameworkType: .static),
                 "Logging": .init(platforms: .specific([.iOS, .watchOS])),
                 "NIO": .init(platforms: .specific([.iOS]), frameworkType: .static),
+                "SDWebImage": .init(platforms: .specific([.iOS]), isSimulatorSupported: true, isDebugSymbolsEmbedded: true, frameworkType: .dynamic),
             ],
             testCases: [
                 ("Atomics", .static, [.iOS], false),
@@ -45,7 +47,7 @@ final class IntegrationTests: XCTestCase {
                 ("OrderedCollections", .static, [.iOS], false),
                 ("DequeModule", .static, [.iOS], false),
                 ("_AtomicsShims", .static, [.iOS], true),
-                ("SDWebImage", .static, [.iOS], true),
+                ("SDWebImage", .dynamic, [.iOS, .iOSSimulator], true),
                 ("SDWebImageMapKit", .static, [.iOS], true),
                 ("NIO", .static, [.iOS], false),
                 ("NIOEmbedded", .static, [.iOS], false),
@@ -154,8 +156,30 @@ final class IntegrationTests: XCTestCase {
             )
 
             for destination in expectedDestinations {
-                let frameworkRoot = xcFrameworkPath
+                let sdkRoot = xcFrameworkPath
                     .appendingPathComponent(destination)
+
+                if let buildOption = buildOptionsMatrix[frameworkName],
+                   buildOption.isDebugSymbolsEmbedded == true,
+                   buildOption.frameworkType == .dynamic {
+                    XCTAssertTrue(
+                        fileManager.fileExists(atPath: sdkRoot
+                            .appendingPathComponent("dSYMs/\(frameworkName).framework.dSYM/Contents/Info.plist").path),
+                        "\(xcFrameworkName) should contain a Info.plist file in dSYMs directory"
+                    )
+                    XCTAssertTrue(
+                        fileManager.fileExists(atPath: sdkRoot
+                            .appendingPathComponent("dSYMs/\(frameworkName).framework.dSYM/Contents/Resources/DWARF/\(frameworkName)").path),
+                        "\(xcFrameworkName) should contain a DWARF file in dSYMs directory"
+                    )
+                } else {
+                    XCTAssertFalse(
+                        fileManager.fileExists(atPath: sdkRoot.appendingPathComponent("dSYMs").path),
+                        "\(xcFrameworkName) should not contain a dSYMs directory"
+                    )
+                }
+
+                let frameworkRoot = sdkRoot
                     .appendingPathComponent("\(frameworkName).framework")
 
                 if isClangFramework {
