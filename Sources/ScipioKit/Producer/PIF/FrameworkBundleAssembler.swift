@@ -23,8 +23,23 @@ struct FrameworkBundleAssembler {
         try fileSystem.createDirectory(frameworkBundlePath, recursive: true)
 
         // Copy binary
-        let binaryPath = frameworkBundlePath.appending(component: frameworkComponents.name)
-        try fileSystem.copy(from: frameworkComponents.binaryPath, to: binaryPath)
+        let sourcePath = frameworkComponents.binaryPath
+        let destinationPath = frameworkBundlePath.appending(component: frameworkComponents.name)
+        if fileSystem.isSymlink(sourcePath) {
+            // Frameworks for macOS have Versions. So their binaries are symlinks
+            // Follow symlink to copy a original binary
+            let sourceURL = sourcePath.asURL
+            try fileSystem.copy(
+                from: sourceURL.resolvingSymlinksInPath().absolutePath,
+                to: destinationPath
+            )
+        } else {
+            try fileSystem.copy(
+                from: frameworkComponents.binaryPath,
+                to: destinationPath
+            )
+        }
+
 
         try relocateHeaders()
 
