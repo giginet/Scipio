@@ -30,7 +30,10 @@ extension Compiler {
                                           buildConfiguration: buildConfiguration)
             let dumpedDSYMsMaps = try await extractor.dump(dwarfPath: debugSymbol.dwarfPath)
             let bcSymbolMapPaths: [AbsolutePath] = dumpedDSYMsMaps.values.compactMap { uuid in
-                let path = descriptionPackage.buildArtifactsDirectoryPath(buildConfiguration: debugSymbol.buildConfiguration, sdk: debugSymbol.sdk)
+                let path = descriptionPackage.productsDirectory(
+                    buildConfiguration: debugSymbol.buildConfiguration,
+                    sdk: debugSymbol.sdk
+                )
                     .appending(component: "\(uuid.uuidString).bcsymbolmap")
                 guard fileSystem.exists(path) else { return nil }
                 return path
@@ -42,11 +45,8 @@ extension Compiler {
 }
 
 extension DescriptionPackage {
-    fileprivate func buildArtifactsDirectoryPath(buildConfiguration: BuildConfiguration, sdk: SDK) -> AbsolutePath {
-        productsPath.appending(component: "\(buildConfiguration.settingsValue)-\(sdk.settingValue)")
-    }
-
     fileprivate func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> AbsolutePath {
-        buildArtifactsDirectoryPath(buildConfiguration: buildConfiguration, sdk: sdk).appending(component: "\(target.name).framework.dSYM")
+        productsDirectory(buildConfiguration: buildConfiguration, sdk: sdk)
+            .appending(component: "\(target.name).framework.dSYM")
     }
 }

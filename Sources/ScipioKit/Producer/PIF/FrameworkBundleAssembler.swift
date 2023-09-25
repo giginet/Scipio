@@ -1,16 +1,6 @@
 import Foundation
 import TSCBasic
 
-/// FileLists to assemble a framework bundle
-struct FrameworkComponents {
-    var name: String
-    var binaryPath: AbsolutePath
-    var swiftModulesPath: AbsolutePath?
-    var publicHeaderPaths: Set<AbsolutePath>?
-    var bridgingHeaderPath: AbsolutePath?
-    var modulemapPath: AbsolutePath?
-}
-
 /// A assembler to generate framework bundle
 /// This assembler just relocates framework components into the framework structure
 struct FrameworkBundleAssembler {

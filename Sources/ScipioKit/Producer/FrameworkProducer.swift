@@ -88,8 +88,8 @@ struct FrameworkProducer {
             try fileSystem.removeFileTree(descriptionPackage.derivedDataPath)
         }
 
-        if fileSystem.exists(descriptionPackage.generatedFrameworkDirectory) {
-            try fileSystem.removeFileTree(descriptionPackage.generatedFrameworkDirectory)
+        if fileSystem.exists(descriptionPackage.assembledFrameworksRootDirectory) {
+            try fileSystem.removeFileTree(descriptionPackage.assembledFrameworksRootDirectory)
         }
     }
 

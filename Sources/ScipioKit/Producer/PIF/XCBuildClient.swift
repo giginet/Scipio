@@ -73,43 +73,18 @@ struct XCBuildClient {
     }
 
     private func assembleFramework(sdk: SDK) throws {
-        let modulemapGenerator = ModuleMapGenerator(
+        let frameworkComponentsCollector = FrameworkComponentsCollector(
             descriptionPackage: descriptionPackage,
+            buildProduct: buildProduct,
+            buildOptions: buildOptions,
             fileSystem: fileSystem
         )
-        // xcbuild automatically generates modulemaps. However, these are not for frameworks.
-        // Therefore, it's difficult to contain to final XCFrameworks.
-        // So generate modulemap for frameworks manually
-        let frameworkModuleMapPath = try modulemapGenerator.generate(
-            resolvedTarget: buildProduct.target,
-            sdk: sdk,
-            buildConfiguration: buildOptions.buildConfiguration
-        )
 
-        let frameworkOutputDir = descriptionPackage.generatedFrameworkDirectory.appending(
-            component: productDirectoryName(sdk: sdk)
-        )
-        let productDir = descriptionPackage.derivedDataPath.appending(
-            components: "Products", productDirectoryName(sdk: sdk)
-        )
+        let components = try frameworkComponentsCollector.collectComponents(sdk: sdk)
 
-        let targetName = buildProduct.target.c99name
-
-        let binaryPath = productDir.appending(components: "\(targetName).framework", targetName)
-
-        let swiftModulesPath = try findSwiftModules(of: targetName, in: productDir)
-
-        let bridgingHeaderPath = try findBridgingHeader(sdk: sdk)
-
-        let publicHeaders = try collectPublicHeader()
-
-        let components = FrameworkComponents(
-            name: buildProduct.target.name.packageNamed(),
-            binaryPath: binaryPath,
-            swiftModulesPath: swiftModulesPath,
-            publicHeaderPaths: publicHeaders,
-            bridgingHeaderPath: bridgingHeaderPath,
-            modulemapPath: frameworkModuleMapPath
+        let frameworkOutputDir = descriptionPackage.assembledFrameworksDirectory(
+            buildConfiguration: buildOptions.buildConfiguration,
+            sdk: sdk
         )
 
         let assembler = FrameworkBundleAssembler(
@@ -121,79 +96,13 @@ struct XCBuildClient {
         try assembler.assemble()
     }
 
-    /// Find *.swiftmodules*
-    private func findSwiftModules(of targetName: String, in productDir: AbsolutePath) throws -> AbsolutePath? {
-        let swiftModulesPath = productDir.appending(component: "\(targetName).swiftmodule")
-
-        if fileSystem.exists(swiftModulesPath) {
-            return swiftModulesPath
-        }
-        return nil
-    }
-
-    /// Find bridging header under $(SWIFT_OBJC_INTERFACE_HEADER_DIR)
-    /// It will be $(OBJROOT)/GeneratedModuleMaps/$(PLATFORM_NAME)/*-Swift.h
-    private func findBridgingHeader(sdk: SDK) throws -> AbsolutePath? {
-        let target = buildProduct.target
-        let generatedModuleMapDirectoryPath = descriptionPackage.derivedDataPath.appending(
-            components: "Intermediates.noindex", "GeneratedModuleMaps", sdk.settingValue
+    private func assembledFrameworkPath(target: ResolvedTarget, of sdk: SDK) throws -> AbsolutePath {
+        let assembledFrameworkDir = descriptionPackage.assembledFrameworksDirectory(
+            buildConfiguration: buildOptions.buildConfiguration,
+            sdk: sdk
         )
-        let generatedBridgingHeader = generatedModuleMapDirectoryPath.appending(component: "\(target.c99name)-Swift.h")
-
-        if fileSystem.exists(generatedBridgingHeader) {
-            return generatedBridgingHeader
-        }
-
-        return nil
-    }
-
-    /// Collect public headers of clangTarget
-    private func collectPublicHeader() throws -> Set<AbsolutePath>? {
-        guard let clangTarget = buildProduct.target.underlyingTarget as? ClangTarget else {
-            return nil
-        }
-
-        let publicHeaders = try clangTarget
-            .headers
-            .filter { $0.isDescendant(of: clangTarget.includeDir) }
-            // Follow symlink
-            .map { $0.asURL.resolvingSymlinksInPath() }
-            .map { try AbsolutePath(validating: $0.path) }
-        return Set(publicHeaders)
-    }
-
-    private func copyModulemap(for sdk: SDK) throws {
-        let destinationFrameworkPath = try frameworkPath(target: buildProduct.target, of: sdk)
-        let modulesDir = destinationFrameworkPath.appending(component: "Modules")
-        if !fileSystem.exists(modulesDir) {
-            try fileSystem.createDirectory(modulesDir)
-        }
-
-        let generatedModuleMapPath = try descriptionPackage.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
-        if fileSystem.exists(generatedModuleMapPath) {
-            let destination = modulesDir.appending(component: "module.modulemap")
-            if fileSystem.exists(destination) {
-                try fileSystem.removeFileTree(destination)
-            }
-            try fileSystem.copy(
-                from: generatedModuleMapPath,
-                to: destination
-            )
-        }
-    }
-
-    private func frameworkPath(target: ResolvedTarget, of sdk: SDK) throws -> AbsolutePath {
-        let frameworkPath = try RelativePath(validating: productDirectoryName(sdk: sdk))
+        return assembledFrameworkDir
             .appending(component: "\(buildProduct.target.c99name).framework")
-        return descriptionPackage.generatedFrameworkDirectory.appending(frameworkPath)
-    }
-
-    private func productDirectoryName(sdk: SDK) -> String {
-        if sdk == .macOS {
-            return configuration.settingsValue
-        } else {
-            return "\(configuration.settingsValue)-\(sdk.settingValue)"
-        }
     }
 
     func createXCFramework(sdks: Set<SDK>, debugSymbols: [SDK: [AbsolutePath]]?, outputPath: AbsolutePath) async throws {
@@ -215,7 +124,7 @@ struct XCBuildClient {
 
     private func buildCreateXCFrameworkArguments(sdks: Set<SDK>, debugSymbols: [SDK: [AbsolutePath]]?, outputPath: AbsolutePath) throws -> [String] {
         let frameworksWithDebugSymbolArguments: [String] = try sdks.reduce([]) { arguments, sdk in
-            let path = try frameworkPath(target: buildProduct.target, of: sdk)
+            let path = try assembledFrameworkPath(target: buildProduct.target, of: sdk)
             var result = arguments + ["-framework", path.pathString]
             if let debugSymbols, let paths = debugSymbols[sdk] {
                 paths.forEach { path in

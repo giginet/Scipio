@@ -241,10 +241,13 @@ private struct PIFLibraryTargetModifier {
             let intermediateDirectoryName = "\(buildOptions.buildConfiguration.settingsValue)-\(sdk.settingValue)"
 
             // Bridging Headers will be generated inside generated frameworks
-            let bridgingHeaderBaseDirectory = descriptionPackage.productsPath.appending(
-                components: intermediateDirectoryName, "\(swiftTarget.c99name).framework", "Headers"
+            let productsDirectory = descriptionPackage.productsDirectory(
+                buildConfiguration: buildOptions.buildConfiguration,
+                sdk: sdk
             )
-            let bridgingHeaderFullPath = bridgingHeaderBaseDirectory.appending(component: "\(swiftTarget.name)-Swift.h")
+            let bridgingHeaderFullPath = productsDirectory.appending(
+                components: ["\(swiftTarget.c99name).framework", "Headers", "\(swiftTarget.name)-Swift.h"]
+            )
 
             settings[.MODULEMAP_FILE_CONTENTS] = """
                 module \(swiftTarget.c99name) {
