@@ -233,6 +233,27 @@ private struct PIFLibraryTargetModifier {
         }
         settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
+        // Original PIFBuilder implementation of SwiftPM generates modulemap for Swift target
+        // That modulemap refer a bridging header by a relative path
+        // However, this PIFGenerator modified productType to framework. So a generated bridging header path is changed.
+        // So it's need to replace `MODULEMAP_FILE_CONTENTS` to an absolute path.
+        if let swiftTarget = resolvedTarget.underlyingTarget as? SwiftTarget {
+            let intermediateDirectoryName = "\(buildOptions.buildConfiguration.settingsValue)-\(sdk.settingValue)"
+
+            // Bridging Headers will be generated inside generated frameworks
+            let bridgingHeaderBaseDirectory = descriptionPackage.productsPath.appending(
+                components: intermediateDirectoryName, "\(swiftTarget.c99name).framework", "Headers"
+            )
+            let bridgingHeaderFullPath = bridgingHeaderBaseDirectory.appending(component: "\(swiftTarget.name)-Swift.h")
+
+            settings[.MODULEMAP_FILE_CONTENTS] = """
+                module \(swiftTarget.c99name) {
+                    header "\(bridgingHeaderFullPath.pathString)"
+                    export *
+                }
+                """
+        }
+
         configuration.buildSettings = settings
 
         return configuration
