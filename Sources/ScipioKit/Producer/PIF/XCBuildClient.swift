@@ -95,7 +95,7 @@ struct XCBuildClient {
 
         let targetName = buildProduct.target.c99name
 
-        let binaryPath = productDir.appending(component: targetName)
+        let binaryPath = productDir.appending(components: "\(targetName).framework", targetName)
 
         let swiftModulesPath = try findSwiftModules(of: targetName, in: productDir)
 

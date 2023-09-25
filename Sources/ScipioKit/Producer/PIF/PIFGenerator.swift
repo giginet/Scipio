@@ -185,13 +185,7 @@ private struct PIFLibraryTargetModifier {
     }
 
     private func updateLibraryTargetSettings() {
-        switch buildOptions.frameworkType {
-        case .static:
-            pifTarget.productType = .staticArchive
-        case .dynamic:
-            pifTarget.productType = .dynamicLibrary
-            pifTarget.productName = "\(c99Name)"
-        }
+        pifTarget.productType = .framework
 
         let newConfigurations = pifTarget.buildConfigurations.map(updateBuildConfiguration)
 
@@ -218,6 +212,7 @@ private struct PIFLibraryTargetModifier {
         settings[.SKIP_INSTALL] = "NO"
         settings[.INSTALL_PATH] = "/usr/local/lib"
         settings[.ONLY_ACTIVE_ARCH] = "NO"
+        settings[.GENERATE_INFOPLIST_FILE] = "YES"
 
         // Set framework type
         switch buildOptions.frameworkType {
