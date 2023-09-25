@@ -10,6 +10,7 @@ struct FrameworkComponents {
     var publicHeaderPaths: Set<AbsolutePath>?
     var bridgingHeaderPath: AbsolutePath?
     var modulemapPath: AbsolutePath?
+    var resourceBundlePath: AbsolutePath?
 }
 
 /// A collector to collect framework components from a DerivedData dir
@@ -66,13 +67,19 @@ struct FrameworkComponentsCollector {
 
         let publicHeaders = try collectPublicHeader()
 
+        let resourceBundlePath = try collectResourceBundle(
+            of: targetName,
+            in: generatedFrameworkPath
+        )
+
         let components = FrameworkComponents(
             name: buildProduct.target.name.packageNamed(),
             binaryPath: binaryPath,
             swiftModulesPath: swiftModulesPath,
             publicHeaderPaths: publicHeaders,
             bridgingHeaderPath: bridgingHeaderPath,
-            modulemapPath: frameworkModuleMapPath
+            modulemapPath: frameworkModuleMapPath,
+            resourceBundlePath: resourceBundlePath
         )
         return components
     }
@@ -123,5 +130,10 @@ struct FrameworkComponentsCollector {
             .map { $0.asURL.resolvingSymlinksInPath() }
             .map { try AbsolutePath(validating: $0.path) }
         return Set(publicHeaders)
+    }
+
+    private func collectResourceBundle(of targetName: String, in frameworkPath: AbsolutePath) throws -> AbsolutePath? {
+        let bundleFileName = try fileSystem.getDirectoryContents(frameworkPath).first { $0.hasSuffix(".bundle") }
+        return bundleFileName.flatMap { frameworkPath.appending(component: $0) }
     }
 }

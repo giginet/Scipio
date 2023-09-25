@@ -45,6 +45,11 @@ struct FrameworkBundleAssembler {
 
         try relocateModules()
 
+        if let resourceBundlePath = frameworkComponents.resourceBundlePath {
+            let destinationPath = frameworkBundlePath.appending(component: resourceBundlePath.basename)
+            try fileSystem.copy(from: resourceBundlePath, to: destinationPath)
+        }
+
         try generateInfoPlist()
 
         return frameworkBundlePath
