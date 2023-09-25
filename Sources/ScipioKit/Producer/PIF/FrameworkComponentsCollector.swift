@@ -16,17 +16,20 @@ struct FrameworkComponents {
 struct FrameworkComponentsCollector {
     private let descriptionPackage: DescriptionPackage
     private let buildProduct: BuildProduct
+    private let sdk: SDK
     private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem
 
     init(
         descriptionPackage: DescriptionPackage,
         buildProduct: BuildProduct,
+        sdk: SDK,
         buildOptions: BuildOptions,
         fileSystem: any FileSystem
     ) {
         self.descriptionPackage = descriptionPackage
         self.buildProduct = buildProduct
+        self.sdk = sdk
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
     }
@@ -45,18 +48,21 @@ struct FrameworkComponentsCollector {
             sdk: sdk,
             buildConfiguration: buildOptions.buildConfiguration
         )
-        let productDir = descriptionPackage.productsDirectory(
-            buildConfiguration: buildOptions.buildConfiguration,
-            sdk: sdk
-        )
 
         let targetName = buildProduct.target.c99name
+        let generatedFrameworkPath = generatedFrameworkPath()
 
-        let binaryPath = productDir.appending(components: "\(targetName).framework", targetName)
+        let binaryPath = generatedFrameworkPath.appending(component: targetName)
 
-        let swiftModulesPath = try findSwiftModules(of: targetName, in: productDir)
+        let swiftModulesPath = try collectSwiftModules(
+            of: targetName,
+            in: generatedFrameworkPath
+        )
 
-        let bridgingHeaderPath = try findBridgingHeader(sdk: sdk)
+        let bridgingHeaderPath = try collectBridgingHeader(
+            of: targetName,
+            in: generatedFrameworkPath
+        )
 
         let publicHeaders = try collectPublicHeader()
 
@@ -71,9 +77,19 @@ struct FrameworkComponentsCollector {
         return components
     }
 
-    /// Find *.swiftmodules*
-    private func findSwiftModules(of targetName: String, in productDir: AbsolutePath) throws -> AbsolutePath? {
-        let swiftModulesPath = productDir.appending(component: "\(targetName).swiftmodule")
+    private func generatedFrameworkPath() -> AbsolutePath {
+        descriptionPackage.productsDirectory(
+            buildConfiguration: buildOptions.buildConfiguration,
+            sdk: sdk
+        )
+        .appending(component: "\(buildProduct.target.c99name).framework")
+    }
+
+    /// Collects *.swiftmodules* in a generated framework bundle
+    private func collectSwiftModules(of targetName: String, in frameworkPath: AbsolutePath) throws -> AbsolutePath? {
+        let swiftModulesPath = frameworkPath.appending(
+            components: "Modules", "\(targetName).swiftmodule"
+        )
 
         if fileSystem.exists(swiftModulesPath) {
             return swiftModulesPath
@@ -81,14 +97,11 @@ struct FrameworkComponentsCollector {
         return nil
     }
 
-    /// Find bridging header under $(SWIFT_OBJC_INTERFACE_HEADER_DIR)
-    /// It will be $(OBJROOT)/GeneratedModuleMaps/$(PLATFORM_NAME)/*-Swift.h
-    private func findBridgingHeader(sdk: SDK) throws -> AbsolutePath? {
-        let target = buildProduct.target
-        let generatedModuleMapDirectoryPath = descriptionPackage.derivedDataPath.appending(
-            components: "Intermediates.noindex", "GeneratedModuleMaps", sdk.settingValue
+    /// Collects a bridging header in a generated framework bundle
+    private func collectBridgingHeader(of targetName: String, in frameworkPath: AbsolutePath) throws -> AbsolutePath? {
+        let generatedBridgingHeader = frameworkPath.appending(
+            components: "Headers", "\(targetName)-Swift.h"
         )
-        let generatedBridgingHeader = generatedModuleMapDirectoryPath.appending(component: "\(target.c99name)-Swift.h")
 
         if fileSystem.exists(generatedBridgingHeader) {
             return generatedBridgingHeader
@@ -97,7 +110,7 @@ struct FrameworkComponentsCollector {
         return nil
     }
 
-    /// Collect public headers of clangTarget
+    /// Collects public headers of clangTarget
     private func collectPublicHeader() throws -> Set<AbsolutePath>? {
         guard let clangTarget = buildProduct.target.underlyingTarget as? ClangTarget else {
             return nil

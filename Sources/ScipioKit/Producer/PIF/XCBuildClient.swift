@@ -76,6 +76,7 @@ struct XCBuildClient {
         let frameworkComponentsCollector = FrameworkComponentsCollector(
             descriptionPackage: descriptionPackage,
             buildProduct: buildProduct,
+            sdk: sdk,
             buildOptions: buildOptions,
             fileSystem: fileSystem
         )
