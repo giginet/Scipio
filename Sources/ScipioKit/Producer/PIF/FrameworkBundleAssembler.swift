@@ -22,7 +22,26 @@ struct FrameworkBundleAssembler {
     func assemble() throws -> AbsolutePath {
         try fileSystem.createDirectory(frameworkBundlePath, recursive: true)
 
-        // Copy binary
+        try copyInfoPlist()
+
+        try copyBinary()
+
+        try copyHeaders()
+
+        try copyModules()
+
+        try copyResources()
+
+        try generateInfoPlist()
+
+        return frameworkBundlePath
+    }
+
+    private func copyInfoPlist() throws {
+
+    }
+
+    private func copyBinary() throws {
         let sourcePath = frameworkComponents.binaryPath
         let destinationPath = frameworkBundlePath.appending(component: frameworkComponents.name)
         if fileSystem.isSymlink(sourcePath) {
@@ -39,22 +58,9 @@ struct FrameworkBundleAssembler {
                 to: destinationPath
             )
         }
-
-        try relocateHeaders()
-
-        try relocateModules()
-
-        if let resourceBundlePath = frameworkComponents.resourceBundlePath {
-            let destinationPath = frameworkBundlePath.appending(component: resourceBundlePath.basename)
-            try fileSystem.copy(from: resourceBundlePath, to: destinationPath)
-        }
-
-        try generateInfoPlist()
-
-        return frameworkBundlePath
     }
 
-    private func relocateHeaders() throws {
+    private func copyHeaders() throws {
         let headers = (frameworkComponents.publicHeaderPaths ?? [])
         + (frameworkComponents.bridgingHeaderPath.flatMap { [$0] } ?? [])
 
@@ -74,7 +80,7 @@ struct FrameworkBundleAssembler {
         }
     }
 
-    private func relocateModules() throws {
+    private func copyModules() throws {
         let modules = [
             frameworkComponents.swiftModulesPath,
             frameworkComponents.modulemapPath,
@@ -103,6 +109,13 @@ struct FrameworkBundleAssembler {
                 from: moduleMapPath,
                 to: modulesDir.appending(component: "module.modulemap")
             )
+        }
+    }
+
+    private func copyResources() throws {
+        if let resourceBundlePath = frameworkComponents.resourceBundlePath {
+            let destinationPath = frameworkBundlePath.appending(component: resourceBundlePath.basename)
+            try fileSystem.copy(from: resourceBundlePath, to: destinationPath)
         }
     }
 
