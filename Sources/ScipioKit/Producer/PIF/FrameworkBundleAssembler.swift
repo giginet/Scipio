@@ -40,7 +40,6 @@ struct FrameworkBundleAssembler {
             )
         }
 
-
         try relocateHeaders()
 
         try relocateModules()
