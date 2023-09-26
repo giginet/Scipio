@@ -190,8 +190,6 @@ private struct PIFLibraryTargetModifier {
         let newConfigurations = pifTarget.buildConfigurations.map(updateBuildConfiguration)
 
         pifTarget.buildConfigurations = newConfigurations
-
-        addLinkSettings(of: pifTarget)
     }
 
     private func updateBuildConfiguration(_ original: PIF.BuildConfiguration) -> PIF.BuildConfiguration {
@@ -259,59 +257,6 @@ private struct PIFLibraryTargetModifier {
         configuration.buildSettings = settings
 
         return configuration
-    }
-
-    private func guid(_ suffixes: String...) -> String {
-        "GUID::SCIPIO::\(pifTarget.name)::" + suffixes.joined(separator: "::")
-    }
-
-    // Add dependencies to "Link Binary with Libraries" phase
-    // PIFBuilder of SwiftPM links dependencies only to PackageProduct
-    // This method will link all dependencies to library targets
-    private func addLinkSettings(of pifTarget: PIF.Target) {
-        let allBinaryTargets: [BinaryTarget] = resolvedTarget.dependencies.reduce([]) { (binaryTargets, dependency) in
-            if let product = dependency.product {
-                return binaryTargets + product.targets.map(\.underlyingTarget).compactMap { $0 as? BinaryTarget }
-            } else if let target = dependency.target, let binaryTarget = target.underlyingTarget as? BinaryTarget {
-                return binaryTargets + [binaryTarget]
-            }
-            return binaryTargets
-        }
-
-        func shouldLink(_ dependency: PIF.TargetDependency) -> Bool {
-            switch buildOptions.frameworkType {
-            case .dynamic:
-                // For dynamic frameworks, all dependencies should be linked
-                return true
-            case .static:
-                // For static frameworks, only binaryTargets should be linked avoiding to symbol duplication
-                // targetGUID should be `PACKAGE-PRODUCT:<target_name>`
-                guard let targetName = dependency.targetGUID.split(separator: ":").last else { return false }
-                return allBinaryTargets.contains { $0.name == targetName }
-            }
-        }
-
-        let linkingDependencies = pifTarget.dependencies.filter(shouldLink(_:))
-
-        let buildFiles = linkingDependencies.enumerated().map { (index, dependency) in
-            PIF.BuildFile(guid: guid("FRAMEWORKS_BUILD_FILE_\(index)"),
-                          targetGUID: dependency.targetGUID,
-                          platformFilters: dependency.platformFilters)
-        }
-
-        if let buildPhase = fetchBuildPhase(of: PIF.FrameworksBuildPhase.self, in: pifTarget) {
-            buildPhase.buildFiles.append(contentsOf: buildFiles)
-        } else {
-            let buildPhase = PIF.FrameworksBuildPhase(
-               guid: guid("FRAMEWORKS_BUILD_PHASE"),
-               buildFiles: buildFiles
-            )
-            pifTarget.buildPhases.append(buildPhase)
-        }
-    }
-
-    private func fetchBuildPhase<BuildPhase: PIF.BuildPhase>(of buildPhasesType: BuildPhase.Type, in pifTarget: PIF.Target) -> BuildPhase? {
-        pifTarget.buildPhases.compactMap({ $0 as? BuildPhase }).first
     }
 }
 
