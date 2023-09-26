@@ -151,13 +151,22 @@ struct FrameworkComponentsCollector {
             return nil
         }
 
-        let publicHeaders = try clangTarget
+        let publicHeaders = clangTarget
             .headers
             .filter { $0.isDescendant(of: clangTarget.includeDir) }
-            // Follow symlink
+        let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0) }
+        let symlinks = publicHeaders.filter { fileSystem.isSymlink($0) }
+
+        // Sometimes, public headers include a file and its symlink both.
+        // This situation raises a duplication error
+        // So duplicated symlinks have to be omitted
+        let notDuplicatedSymlinks = symlinks.filter { path in
+            notSymlinks.allSatisfy { FileManager.default.contentsEqual(atPath: path.pathString, andPath: $0.pathString) }
+        }
             .map { $0.asURL.resolvingSymlinksInPath() }
-            .map { try AbsolutePath(validating: $0.path) }
-        return Set(publicHeaders)
+            .map(\.absolutePath)
+
+        return Set(notSymlinks + notDuplicatedSymlinks)
     }
 
     private func collectResourceBundle(of targetName: String, in frameworkPath: AbsolutePath) throws -> AbsolutePath? {
