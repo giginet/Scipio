@@ -16,6 +16,17 @@ struct FrameworkComponents {
 
 /// A collector to collect framework components from a DerivedData dir
 struct FrameworkComponentsCollector {
+    enum Error: LocalizedError {
+        case infoPlistNotFound(frameworkBundlePath: AbsolutePath)
+
+        var errorDescription: String? {
+            switch self {
+            case .infoPlistNotFound(let frameworkBundlePath):
+                return "Info.plist is not found in \(frameworkBundlePath.pathString)"
+            }
+        }
+    }
+
     private let descriptionPackage: DescriptionPackage
     private let buildProduct: BuildProduct
     private let sdk: SDK
@@ -73,8 +84,7 @@ struct FrameworkComponentsCollector {
             in: generatedFrameworkPath
         )
 
-        let infoPlistPath = generatedFrameworkPath
-            .appending(component: "Info.plist")
+        let infoPlistPath = try findInfoPlist(in: generatedFrameworkPath)
 
         let components = FrameworkComponents(
             name: buildProduct.target.name.packageNamed(),
@@ -95,6 +105,19 @@ struct FrameworkComponentsCollector {
             sdk: sdk
         )
         .appending(component: "\(buildProduct.target.c99name).framework")
+    }
+
+    private func findInfoPlist(in frameworkBundlePath: AbsolutePath) throws -> AbsolutePath {
+        let infoPlistLocationCandidates = [
+            // In a regular framework bundle, Info.plist should be on its root
+            frameworkBundlePath.appending(component: "Info.plist"),
+            // In a versioned framework bundle (for macOS), Info.plist should be in Resources
+            frameworkBundlePath.appending(components: "Resources", "Info.plist"),
+        ]
+        guard let infoPlistPath = infoPlistLocationCandidates.first(where: fileSystem.exists(_:)) else {
+            throw Error.infoPlistNotFound(frameworkBundlePath: frameworkBundlePath)
+        }
+        return infoPlistPath
     }
 
     /// Collects *.swiftmodules* in a generated framework bundle
