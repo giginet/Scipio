@@ -6,6 +6,7 @@ import PackageModel
 struct FrameworkComponents {
     var name: String
     var binaryPath: AbsolutePath
+    var infoPlistPath: AbsolutePath
     var swiftModulesPath: AbsolutePath?
     var publicHeaderPaths: Set<AbsolutePath>?
     var bridgingHeaderPath: AbsolutePath?
@@ -72,9 +73,13 @@ struct FrameworkComponentsCollector {
             in: generatedFrameworkPath
         )
 
+        let infoPlistPath = generatedFrameworkPath
+            .appending(component: "Info.plist")
+
         let components = FrameworkComponents(
             name: buildProduct.target.name.packageNamed(),
             binaryPath: binaryPath,
+            infoPlistPath: infoPlistPath,
             swiftModulesPath: swiftModulesPath,
             publicHeaderPaths: publicHeaders,
             bridgingHeaderPath: bridgingHeaderPath,

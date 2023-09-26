@@ -38,7 +38,9 @@ struct FrameworkBundleAssembler {
     }
 
     private func copyInfoPlist() throws {
-
+        let sourcePath = frameworkComponents.infoPlistPath
+        let destinationPath = frameworkBundlePath.appending(component: "Info.plist")
+        try fileSystem.copy(from: sourcePath, to: destinationPath)
     }
 
     private func copyBinary() throws {
