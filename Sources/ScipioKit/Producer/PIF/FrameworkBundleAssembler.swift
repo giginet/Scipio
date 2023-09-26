@@ -32,8 +32,6 @@ struct FrameworkBundleAssembler {
 
         try copyResources()
 
-        try generateInfoPlist()
-
         return frameworkBundlePath
     }
 
@@ -119,13 +117,5 @@ struct FrameworkBundleAssembler {
             let destinationPath = frameworkBundlePath.appending(component: resourceBundlePath.basename)
             try fileSystem.copy(from: resourceBundlePath, to: destinationPath)
         }
-    }
-
-    private func generateInfoPlist() throws {
-        let infoPlistGenerator = InfoPlistGenerator(fileSystem: fileSystem)
-
-        let infoPlistPath = frameworkBundlePath.appending(component: "Info.plist")
-
-        try infoPlistGenerator.generate(for: .framework, at: infoPlistPath)
     }
 }
