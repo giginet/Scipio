@@ -27,7 +27,18 @@ struct InfoPlistGenerator {
     }
 
     private func generateInfoPlistBody(for type: BundlePackageType) -> String {
-        """
+        let cfBundleExecutableValue: String
+        switch type {
+        case .framework:
+            cfBundleExecutableValue = """
+            <key>CFBundleExecutable</key>
+            <string>$(EXECUTABLE_NAME)</string>
+            """
+        case .bundle:
+            cfBundleExecutableValue = ""
+        }
+
+        return """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
@@ -38,6 +49,9 @@ struct InfoPlistGenerator {
             <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
             <key>CFBundleInfoDictionaryVersion</key>
             <string>6.0</string>
+            \(cfBundleExecutableValue)
+            <key>CFBundleName</key>
+            <string>$(PRODUCT_NAME)</string>
             <key>CFBundleName</key>
             <string>$(PRODUCT_NAME)</string>
             <key>CFBundlePackageType</key>
