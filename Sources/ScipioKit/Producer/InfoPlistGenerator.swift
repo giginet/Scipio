@@ -2,43 +2,20 @@ import Foundation
 import TSCBasic
 
 struct InfoPlistGenerator {
-    enum BundlePackageType {
-        case framework
-        case bundle
-
-        var infoPlistValue: String {
-            switch self {
-            case .framework: return "FMWK"
-            case .bundle: return "BNDL"
-            }
-        }
-    }
-
     private let fileSystem: any FileSystem
 
     init(fileSystem: any FileSystem) {
         self.fileSystem = fileSystem
     }
 
-    func generate(for type: BundlePackageType, at path: AbsolutePath) throws {
-        let body = generateInfoPlistBody(for: type)
+    func generateForResourceBundle(at path: AbsolutePath) throws {
+        let body = resourceBundleBody
 
         try fileSystem.writeFileContents(path, string: body)
     }
 
-    private func generateInfoPlistBody(for type: BundlePackageType) -> String {
-        let cfBundleExecutableValue: String?
-        switch type {
-        case .framework:
-            cfBundleExecutableValue = """
-                <key>CFBundleExecutable</key>
-                <string>$(EXECUTABLE_NAME)</string>
-            """
-        case .bundle:
-            cfBundleExecutableValue = nil
-        }
-
-        return ["""
+    private var resourceBundleBody: String {
+        """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
@@ -49,24 +26,16 @@ struct InfoPlistGenerator {
             <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
             <key>CFBundleInfoDictionaryVersion</key>
             <string>6.0</string>
-        """,
-            cfBundleExecutableValue,
-        """
-            <key>CFBundleName</key>
-            <string>$(PRODUCT_NAME)</string>
             <key>CFBundleName</key>
             <string>$(PRODUCT_NAME)</string>
             <key>CFBundlePackageType</key>
-            <string>\(type.infoPlistValue)</string>
+            <string>BNDL</string>
             <key>CFBundleShortVersionString</key>
             <string>1.0</string>
             <key>CFBundleVersion</key>
             <string>1</string>
         </dict>
         </plist>
-        """,
-        ]
-            .compactMap { $0 }
-            .joined(separator: "\n")
+        """
     }
 }
