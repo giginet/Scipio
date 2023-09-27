@@ -2,7 +2,9 @@ import Foundation
 import TSCUtility
 import PackageModel
 import TSCBasic
+#if swift(>=5.9)
 import struct Basics.Triple
+#endif
 
 struct ToolchainGenerator {
     private let toolchainDirPath: AbsolutePath
@@ -40,6 +42,7 @@ struct ToolchainGenerator {
         extraSwiftCFlags += ["-I", sdkPaths.lib.pathString]
         extraSwiftCFlags += ["-L", sdkPaths.lib.pathString]
 
+        #if swift(>=5.9)
         let destination = Destination(
             hostTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
             targetTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
@@ -48,5 +51,15 @@ struct ToolchainGenerator {
             extraFlags: BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
         )
         return destination
+        #else
+
+        return Destination(
+            hostTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
+            targetTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
+            sdkRootDir: sdkPath,
+            toolchainBinDir: toolchainDirPath,
+            extraFlags: BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
+        )
+        #endif
     }
 }
