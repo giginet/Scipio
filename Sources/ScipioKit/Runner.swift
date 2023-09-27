@@ -49,7 +49,7 @@ public struct Runner {
         if fileURL.path.hasPrefix("/") {
             return try AbsolutePath(validating: fileURL.path)
         } else if let currentDirectory = fileSystem.currentWorkingDirectory {
-            return try AbsolutePath(currentDirectory, validating: fileURL.path)
+            return AbsolutePath(currentDirectory, fileURL.path)
         } else {
             return try! AbsolutePath(validating: fileURL.path)
         }
