@@ -13,3 +13,5 @@ DerivedData/
 Tests/**/XCFrameworks/*
 
 **/docs
+
+Package.resolved
