@@ -78,7 +78,7 @@ public struct Runner {
             descriptionPackage = try DescriptionPackage(
                 packageDirectory: packagePath,
                 mode: mode,
-                onlyUseVersionsFromResolvedFile: true
+                onlyUseVersionsFromResolvedFile: false
             )
         } catch {
             throw Error.invalidPackage(packageDirectory)
@@ -229,8 +229,8 @@ extension Runner {
 
         public init(
             baseBuildOptions: BuildOptions = .init(),
-            shouldOnlyUseVersionsFromResolvedFile: Bool = false,
             buildOptionsMatrix: [String: TargetBuildOptions] = [:],
+            shouldOnlyUseVersionsFromResolvedFile: Bool = false,
             cacheMode: CacheMode = .project,
             overwrite: Bool = false,
             verbose: Bool = false
