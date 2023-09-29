@@ -177,7 +177,11 @@ final class RunnerTests: XCTestCase {
     }
 
     func testCacheIsValid() async throws {
-        let descriptionPackage = try DescriptionPackage(packageDirectory: testPackagePath.absolutePath, mode: .prepareDependencies)
+        let descriptionPackage = try DescriptionPackage(
+            packageDirectory: testPackagePath.absolutePath,
+            mode: .prepareDependencies,
+            onlyUseVersionsFromResolvedFile: false
+        )
         let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
@@ -333,7 +337,8 @@ final class RunnerTests: XCTestCase {
         // Generate VersionFile
         let descriptionPackage = try DescriptionPackage(
             packageDirectory: usingBinaryPackagePath.absolutePath,
-            mode: .prepareDependencies
+            mode: .prepareDependencies,
+            onlyUseVersionsFromResolvedFile: false
         )
         let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       outputDirectory: frameworkOutputDir,

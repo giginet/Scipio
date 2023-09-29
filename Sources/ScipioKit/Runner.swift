@@ -75,7 +75,11 @@ public struct Runner {
 
         logger.info("🔁 Resolving Dependencies...")
         do {
-            descriptionPackage = try DescriptionPackage(packageDirectory: packagePath, mode: mode)
+            descriptionPackage = try DescriptionPackage(
+                packageDirectory: packagePath,
+                mode: mode,
+                onlyUseVersionsFromResolvedFile: true
+            )
         } catch {
             throw Error.invalidPackage(packageDirectory)
         }
@@ -218,12 +222,14 @@ extension Runner {
         }
 
         public var buildOptionsContainer: BuildOptionsContainer
+        public var shouldOnlyUseVersionsFromResolvedFile: Bool
         public var cacheMode: CacheMode
         public var overwrite: Bool
         public var verbose: Bool
 
         public init(
             baseBuildOptions: BuildOptions = .init(),
+            shouldOnlyUseVersionsFromResolvedFile: Bool = false,
             buildOptionsMatrix: [String: TargetBuildOptions] = [:],
             cacheMode: CacheMode = .project,
             overwrite: Bool = false,
@@ -233,6 +239,7 @@ extension Runner {
                 baseBuildOptions: baseBuildOptions,
                 buildOptionsMatrix: buildOptionsMatrix
             )
+            self.shouldOnlyUseVersionsFromResolvedFile = shouldOnlyUseVersionsFromResolvedFile
             self.cacheMode = cacheMode
             self.overwrite = overwrite
             self.verbose = verbose
