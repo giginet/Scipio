@@ -36,12 +36,18 @@ struct BuildParametersGenerator {
     }
 
     func generate(for sdk: SDK, buildParameters: BuildParameters, destinationDir: AbsolutePath) throws -> AbsolutePath {
+        #if swift(>=5.9)
+        let targetArchitecture = buildParameters.triple.arch?.rawValue ?? "arm64"
+        #else
+        let targetArchitecture = buildParameters.triple.arch.rawValue
+        #endif
+
         // Generate the run destination parameters.
         let runDestination = XCBBuildParameters.RunDestination(
             platform: sdk.settingValue,
             sdk: sdk.settingValue,
             sdkVariant: nil,
-            targetArchitecture: buildParameters.triple.arch.rawValue,
+            targetArchitecture: targetArchitecture,
             supportedArchitectures: [],
             disableOnlyActiveArch: true
         )

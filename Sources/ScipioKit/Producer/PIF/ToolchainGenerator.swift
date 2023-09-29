@@ -2,6 +2,9 @@ import Foundation
 import TSCUtility
 import PackageModel
 import TSCBasic
+#if swift(>=5.9)
+import struct Basics.Triple
+#endif
 
 struct ToolchainGenerator {
     private let toolchainDirPath: AbsolutePath
