@@ -4,7 +4,7 @@ import PackageModel
 
 /// FileLists to assemble a framework bundle
 struct FrameworkComponents {
-    var name: String
+    var frameworkName: String
     var binaryPath: AbsolutePath
     var infoPlistPath: AbsolutePath
     var swiftModulesPath: AbsolutePath?
@@ -84,10 +84,10 @@ struct FrameworkComponentsCollector {
             in: generatedFrameworkPath
         )
 
-        let infoPlistPath = try findInfoPlist(in: generatedFrameworkPath)
+        let infoPlistPath = try collectInfoPlist(in: generatedFrameworkPath)
 
         let components = FrameworkComponents(
-            name: buildProduct.target.name.packageNamed(),
+            frameworkName: buildProduct.target.name.packageNamed(),
             binaryPath: binaryPath,
             infoPlistPath: infoPlistPath,
             swiftModulesPath: swiftModulesPath,
@@ -107,7 +107,7 @@ struct FrameworkComponentsCollector {
         .appending(component: "\(buildProduct.target.c99name).framework")
     }
 
-    private func findInfoPlist(in frameworkBundlePath: AbsolutePath) throws -> AbsolutePath {
+    private func collectInfoPlist(in frameworkBundlePath: AbsolutePath) throws -> AbsolutePath {
         let infoPlistLocationCandidates = [
             // In a regular framework bundle, Info.plist should be on its root
             frameworkBundlePath.appending(component: "Info.plist"),

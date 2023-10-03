@@ -9,7 +9,7 @@ struct FrameworkBundleAssembler {
     private let fileSystem: any FileSystem
 
     private var frameworkBundlePath: AbsolutePath {
-        outputDirectory.appending(component: "\(frameworkComponents.name).framework")
+        outputDirectory.appending(component: "\(frameworkComponents.frameworkName).framework")
     }
 
     init(frameworkComponents: FrameworkComponents, outputDirectory: AbsolutePath, fileSystem: some FileSystem) {
@@ -43,7 +43,7 @@ struct FrameworkBundleAssembler {
 
     private func copyBinary() throws {
         let sourcePath = frameworkComponents.binaryPath
-        let destinationPath = frameworkBundlePath.appending(component: frameworkComponents.name)
+        let destinationPath = frameworkBundlePath.appending(component: frameworkComponents.frameworkName)
         if fileSystem.isSymlink(sourcePath) {
             // Frameworks for macOS have Versions. So their binaries are symlinks
             // Follow symlink to copy a original binary
