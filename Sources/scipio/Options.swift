@@ -34,6 +34,10 @@ struct BuildOptionGroup: ParsableArguments {
           help: "Whether to enable Library Evolution feature or not")
     var shouldEnableLibraryEvolution = false
 
+    @Flag(name: [.customLong("only-use-versions-from-resolved-file")],
+          help: "Whether to disable updating Package.resolved automatically")
+    var shouldOnlyUseVersionsFromResolvedFile: Bool = false
+
     @Flag(name: [.customShort("f", allowingJoined: false), .long],
           help: "Whether overwrite generated frameworks or not")
     var overwrite: Bool = false

@@ -36,7 +36,8 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                baseBuildOptions: .init(isSimulatorSupported: false, enableLibraryEvolution: true)
+                baseBuildOptions: .init(isSimulatorSupported: false, enableLibraryEvolution: true),
+                shouldOnlyUseVersionsFromResolvedFile: true
             )
         )
         do {
@@ -83,7 +84,8 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
-                baseBuildOptions: .init(isSimulatorSupported: false)
+                baseBuildOptions: .init(isSimulatorSupported: false),
+                shouldOnlyUseVersionsFromResolvedFile: true
             )
         )
         do {
@@ -132,7 +134,8 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
-                baseBuildOptions: .init(isSimulatorSupported: false)
+                baseBuildOptions: .init(isSimulatorSupported: false),
+                shouldOnlyUseVersionsFromResolvedFile: true
             )
         )
         do {
@@ -177,7 +180,11 @@ final class RunnerTests: XCTestCase {
     }
 
     func testCacheIsValid() async throws {
-        let descriptionPackage = try DescriptionPackage(packageDirectory: testPackagePath.absolutePath, mode: .prepareDependencies)
+        let descriptionPackage = try DescriptionPackage(
+            packageDirectory: testPackagePath.absolutePath,
+            mode: .prepareDependencies,
+            onlyUseVersionsFromResolvedFile: false
+        )
         let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       outputDirectory: frameworkOutputDir,
                                       storage: nil)
@@ -207,6 +214,7 @@ final class RunnerTests: XCTestCase {
             mode: .prepareDependencies,
             options: .init(
                 baseBuildOptions: .init(enableLibraryEvolution: true),
+                shouldOnlyUseVersionsFromResolvedFile: true,
                 cacheMode: .project
             )
         )
@@ -236,6 +244,7 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
+                shouldOnlyUseVersionsFromResolvedFile: true,
                 cacheMode: .storage(storage, [.consumer, .producer])
             )
         )
@@ -277,6 +286,7 @@ final class RunnerTests: XCTestCase {
                     isDebugSymbolsEmbedded: false,
                     frameworkType: .dynamic
                 ),
+                shouldOnlyUseVersionsFromResolvedFile: true,
                 cacheMode: .project,
                 overwrite: false,
                 verbose: false)
@@ -305,6 +315,7 @@ final class RunnerTests: XCTestCase {
                     isDebugSymbolsEmbedded: false,
                     frameworkType: .dynamic
                 ),
+                shouldOnlyUseVersionsFromResolvedFile: true,
                 cacheMode: .project,
                 overwrite: false,
                 verbose: false)
@@ -333,7 +344,8 @@ final class RunnerTests: XCTestCase {
         // Generate VersionFile
         let descriptionPackage = try DescriptionPackage(
             packageDirectory: usingBinaryPackagePath.absolutePath,
-            mode: .prepareDependencies
+            mode: .prepareDependencies,
+            onlyUseVersionsFromResolvedFile: false
         )
         let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
                                       outputDirectory: frameworkOutputDir,
@@ -374,6 +386,7 @@ final class RunnerTests: XCTestCase {
                     frameworkType: .dynamic,
                     enableLibraryEvolution: true
                 ),
+                shouldOnlyUseVersionsFromResolvedFile: true,
                 cacheMode: .project,
                 overwrite: false,
                 verbose: false)
@@ -411,6 +424,7 @@ final class RunnerTests: XCTestCase {
                         isSimulatorSupported: true
                     ),
                 ],
+                shouldOnlyUseVersionsFromResolvedFile: true,
                 cacheMode: .project,
                 overwrite: false,
                 verbose: false)
@@ -448,6 +462,7 @@ final class RunnerTests: XCTestCase {
                     platforms: .specific([.iOS]),
                     isSimulatorSupported: true
                 ),
+                shouldOnlyUseVersionsFromResolvedFile: true,
                 cacheMode: .disabled
             )
         )
@@ -491,7 +506,8 @@ final class RunnerTests: XCTestCase {
                     extraBuildParameters: [
                         "SWIFT_OPTIMIZATION_LEVEL": "-Osize",
                     ]
-                )
+                ),
+                shouldOnlyUseVersionsFromResolvedFile: true
             )
         )
 
@@ -522,7 +538,8 @@ final class RunnerTests: XCTestCase {
                 baseBuildOptions: .init(
                     isSimulatorSupported: false,
                     enableLibraryEvolution: false
-                )
+                ),
+                shouldOnlyUseVersionsFromResolvedFile: true
             )
         )
         do {
@@ -567,7 +584,8 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
-                baseBuildOptions: .init(platforms: .specific([.iOS]))
+                baseBuildOptions: .init(platforms: .specific([.iOS])),
+                shouldOnlyUseVersionsFromResolvedFile: true
             )
         )
         do {

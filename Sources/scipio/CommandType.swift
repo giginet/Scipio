@@ -45,6 +45,7 @@ extension Runner {
         )
         let runnerOptions = Runner.Options(
             baseBuildOptions: baseBuildOptions,
+            shouldOnlyUseVersionsFromResolvedFile: buildOptions.shouldOnlyUseVersionsFromResolvedFile,
             cacheMode: Self.cacheMode(from: commandType),
             overwrite: buildOptions.overwrite,
             verbose: globalOptions.verbose

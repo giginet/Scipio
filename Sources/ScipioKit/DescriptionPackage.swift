@@ -106,7 +106,14 @@ struct DescriptionPackage {
         return workspace
     }
 
-    init(packageDirectory: AbsolutePath, mode: Runner.Mode) throws {
+    /// Make DescriptionPackage from a passed package directory
+    /// - Parameter packageDirectory: A path for the Swift package to build
+    /// - Parameter mode: A Scipio running mode
+    /// - Parameter onlyUseVersionsFromResolvedFile: A boolean value if true disabling force updating of Package.resolved.
+    /// Then, use package versions only from existing Package.resolved.
+    ///   If it is `true`, Package.resolved never be updated.
+    ///   Instead, the resolving will fail if the Package.resolved is mis-matched with the workspace.
+    init(packageDirectory: AbsolutePath, mode: Runner.Mode, onlyUseVersionsFromResolvedFile: Bool) throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
 
@@ -119,7 +126,7 @@ struct DescriptionPackage {
             rootInput: PackageGraphRootInput(packages: [packageDirectory]),
             // This option is same with resolver option `--disable-automatic-resolution`
             // Never update Package.resolved of the package
-            forceResolvedVersions: true,
+            forceResolvedVersions: onlyUseVersionsFromResolvedFile,
             observabilityScope: scope
         )
         self.manifest = try tsc_await {
