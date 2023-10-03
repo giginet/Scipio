@@ -82,8 +82,8 @@ struct DescriptionPackage {
     /// - Parameter packageDirectory: A path for the Swift package to build
     /// - Parameter mode: A Scipio running mode
     /// - Parameter onlyUseVersionsFromResolvedFile: A boolean value indicates disabling force updating of Package.resolved.
-    ///   If it is `true` Package.resolved never be updated
-    ///   instead the resolving will fail if the Package.resolved is mis-matched with the workspace.
+    ///   If it is `true`, Package.resolved never be updated.
+    ///   Instead, the resolving will fail if the Package.resolved is mis-matched with the workspace.
     init(packageDirectory: AbsolutePath, mode: Runner.Mode, onlyUseVersionsFromResolvedFile: Bool) throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
