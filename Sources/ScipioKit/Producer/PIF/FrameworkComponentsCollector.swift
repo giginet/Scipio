@@ -54,7 +54,7 @@ struct FrameworkComponentsCollector {
         )
 
         // xcbuild automatically generates modulemaps. However, these are not for frameworks.
-        // Therefore, it's difficult to contain to final XCFrameworks.
+        // Therefore, it's difficult to contain this generated modulemaps to final XCFrameworks.
         // So generate modulemap for frameworks manually
         let frameworkModuleMapPath = try modulemapGenerator.generate(
             resolvedTarget: buildProduct.target,
