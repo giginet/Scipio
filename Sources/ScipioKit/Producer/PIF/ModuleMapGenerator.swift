@@ -29,7 +29,6 @@ struct ModuleMapGenerator {
         self.fileSystem = fileSystem
     }
 
-    @discardableResult
     func generate(resolvedTarget: ResolvedTarget, sdk: SDK, buildConfiguration: BuildConfiguration) throws -> AbsolutePath? {
         let context = Context(resolvedTarget: resolvedTarget, sdk: sdk, configuration: buildConfiguration)
 

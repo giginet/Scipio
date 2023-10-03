@@ -52,19 +52,6 @@ struct XCBuildClient {
         pifPath: AbsolutePath,
         buildParametersPath: AbsolutePath
     ) async throws {
-        let modulemapGenerator = ModuleMapGenerator(
-            descriptionPackage: descriptionPackage,
-            fileSystem: fileSystem
-        )
-        // xcbuild automatically generates modulemaps. However, these are not for frameworks.
-        // Therefore, it's difficult to contain to final XCFrameworks.
-        // So generate modulemap for frameworks manually
-        try modulemapGenerator.generate(
-            resolvedTarget: buildProduct.target,
-            sdk: sdk,
-            buildConfiguration: buildOptions.buildConfiguration
-        )
-
         let xcbuildPath = try await fetchXCBuildPath()
 
         let executor = XCBuildExecutor(xcbuildPath: xcbuildPath)
@@ -76,45 +63,47 @@ struct XCBuildClient {
             target: buildProduct.target
         )
 
+        try assembleFramework(sdk: sdk)
+
         // Copy modulemap to built frameworks
         // xcbuild generates modulemap for each frameworks
         // However, these are not includes in Frameworks
         // So they should be copied into frameworks manually.
-        try copyModulemap(for: sdk)
+//        try copyModulemap(for: sdk)
     }
 
-    private func copyModulemap(for sdk: SDK) throws {
-        let destinationFrameworkPath = try frameworkPath(target: buildProduct.target, of: sdk)
-        let modulesDir = destinationFrameworkPath.appending(component: "Modules")
-        if !fileSystem.exists(modulesDir) {
-            try fileSystem.createDirectory(modulesDir)
-        }
+    private func assembleFramework(sdk: SDK) throws {
+        let frameworkComponentsCollector = FrameworkComponentsCollector(
+            descriptionPackage: descriptionPackage,
+            buildProduct: buildProduct,
+            sdk: sdk,
+            buildOptions: buildOptions,
+            fileSystem: fileSystem
+        )
 
-        let generatedModuleMapPath = try descriptionPackage.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
-        if fileSystem.exists(generatedModuleMapPath) {
-            let destination = modulesDir.appending(component: "module.modulemap")
-            if fileSystem.exists(destination) {
-                try fileSystem.removeFileTree(destination)
-            }
-            try fileSystem.copy(
-                from: generatedModuleMapPath,
-                to: destination
-            )
-        }
+        let components = try frameworkComponentsCollector.collectComponents(sdk: sdk)
+
+        let frameworkOutputDir = descriptionPackage.assembledFrameworksDirectory(
+            buildConfiguration: buildOptions.buildConfiguration,
+            sdk: sdk
+        )
+
+        let assembler = FrameworkBundleAssembler(
+            frameworkComponents: components,
+            outputDirectory: frameworkOutputDir,
+            fileSystem: fileSystem
+        )
+
+        try assembler.assemble()
     }
 
-    private func frameworkPath(target: ResolvedTarget, of sdk: SDK) throws -> AbsolutePath {
-        let frameworkPath = try RelativePath(validating: "./Products/\(productDirectoryName(sdk: sdk))/PackageFrameworks")
+    private func assembledFrameworkPath(target: ResolvedTarget, of sdk: SDK) throws -> AbsolutePath {
+        let assembledFrameworkDir = descriptionPackage.assembledFrameworksDirectory(
+            buildConfiguration: buildOptions.buildConfiguration,
+            sdk: sdk
+        )
+        return assembledFrameworkDir
             .appending(component: "\(buildProduct.target.c99name).framework")
-        return descriptionPackage.derivedDataPath.appending(frameworkPath)
-    }
-
-    private func productDirectoryName(sdk: SDK) -> String {
-        if sdk == .macOS {
-            return configuration.settingsValue
-        } else {
-            return "\(configuration.settingsValue)-\(sdk.settingValue)"
-        }
     }
 
     func createXCFramework(sdks: Set<SDK>, debugSymbols: [SDK: [AbsolutePath]]?, outputPath: AbsolutePath) async throws {
@@ -136,7 +125,7 @@ struct XCBuildClient {
 
     private func buildCreateXCFrameworkArguments(sdks: Set<SDK>, debugSymbols: [SDK: [AbsolutePath]]?, outputPath: AbsolutePath) throws -> [String] {
         let frameworksWithDebugSymbolArguments: [String] = try sdks.reduce([]) { arguments, sdk in
-            let path = try frameworkPath(target: buildProduct.target, of: sdk)
+            let path = try assembledFrameworkPath(target: buildProduct.target, of: sdk)
             var result = arguments + ["-framework", path.pathString]
             if let debugSymbols, let paths = debugSymbols[sdk] {
                 paths.forEach { path in
