@@ -15,10 +15,24 @@ private let clangPackagePath = fixturePath.appendingPathComponent("ClangPackage"
 private let clangPackageWithCustomModuleMapPath = fixturePath.appendingPathComponent("ClangPackageWithCustomModuleMap")
 private let clangPackageWithUmbrellaDirectoryPath = fixturePath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
 
+private struct InfoPlist: Decodable {
+    var bundleVersion: String
+    var bundleShortVersionString: String
+    var bundleExecutable: String
+
+    enum CodingKeys: String, CodingKey {
+        case bundleVersion = "CFBundleVersion"
+        case bundleShortVersionString = "CFBundleShortVersionString"
+        case bundleExecutable = "CFBundleExecutable"
+    }
+}
+
 final class RunnerTests: XCTestCase {
     private let fileManager: FileManager = .default
     lazy var tempDir = fileManager.temporaryDirectory
     lazy var frameworkOutputDir = tempDir.appendingPathComponent("XCFrameworks")
+
+    private let plistDecoder: PropertyListDecoder = .init()
 
     override class func setUp() {
         LoggingSystem.bootstrap { _ in SwiftLogNoOpLogHandler() }
@@ -74,6 +88,17 @@ final class RunnerTests: XCTestCase {
                 .dynamic,
                 "Binary should be a dynamic library"
             )
+
+            let infoPlistPath = deviceFramework.appendingPathComponent("Info.plist")
+            let infoPlistData = try XCTUnwrap(
+                fileManager.contents(atPath: infoPlistPath.path),
+                "Info.plist should be exist"
+            )
+
+            let infoPlist = try plistDecoder.decode(InfoPlist.self, from: infoPlistData)
+            XCTAssertEqual(infoPlist.bundleExecutable, library)
+            XCTAssertEqual(infoPlist.bundleVersion, "1")
+            XCTAssertEqual(infoPlist.bundleShortVersionString, "1.0")
 
             XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.path),
                            "Should not create Simulator framework")
