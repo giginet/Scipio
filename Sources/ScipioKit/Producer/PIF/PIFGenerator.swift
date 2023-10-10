@@ -210,7 +210,11 @@ private struct PIFLibraryTargetModifier {
         settings[.SKIP_INSTALL] = "NO"
         settings[.INSTALL_PATH] = "/usr/local/lib"
         settings[.ONLY_ACTIVE_ARCH] = "NO"
+
         settings[.GENERATE_INFOPLIST_FILE] = "YES"
+        // These values are required to ship built frameworks to AppStore as embedded frameworks
+        settings[.MARKETING_VERSION] = "1.0"
+        settings[.CURRENT_PROJECT_VERSION] = "1"
 
         // Set framework type
         switch buildOptions.frameworkType {

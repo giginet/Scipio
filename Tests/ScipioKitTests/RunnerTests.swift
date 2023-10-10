@@ -17,12 +17,12 @@ private let clangPackageWithUmbrellaDirectoryPath = fixturePath.appendingPathCom
 
 private struct InfoPlist: Decodable {
     var bundleVersion: String
-    var shortVersionString: String
+    var bundleShortVersionString: String
     var bundleExecutable: String
 
     enum CodingKeys: String, CodingKey {
         case bundleVersion = "CFBundleVersion"
-        case shortVersionString = "CFShortVersionString"
+        case bundleShortVersionString = "CFBundleShortVersionString"
         case bundleExecutable = "CFBundleExecutable"
     }
 }
