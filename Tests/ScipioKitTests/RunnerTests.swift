@@ -97,6 +97,8 @@ final class RunnerTests: XCTestCase {
 
             let infoPlist = try plistDecoder.decode(InfoPlist.self, from: infoPlistData)
             XCTAssertEqual(infoPlist.bundleExecutable, library)
+            XCTAssertEqual(infoPlist.bundleVersion, "1")
+            XCTAssertEqual(infoPlist.bundleShortVersionString, "1.0")
 
             XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.path),
                            "Should not create Simulator framework")
