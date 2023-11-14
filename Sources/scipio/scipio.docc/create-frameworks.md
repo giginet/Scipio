@@ -17,7 +17,7 @@ Let's see an example to generate XCFrameworks from [apple/swift-log](https://git
 At the first, clone the package to your local machine
 
 ```bash
-$ git clone https://github.com:apple/swift-log.git 
+$ git clone https://github.com/apple/swift-log.git 
 ```
 
 Then, run the create command with the path to the package.
