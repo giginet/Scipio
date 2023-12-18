@@ -97,9 +97,12 @@ struct DescriptionPackage {
         workspaceConfiguration.additionalFileRules = FileRuleDescription.xcbuildFileTypes
 
         let fileSystem = TSCBasic.localFileSystem
+        let authorizationProvider = try Workspace.Configuration.Authorization.default
+            .makeAuthorizationProvider(fileSystem: fileSystem, observabilityScope: observabilitySystem.topScope)
         let workspace = try Workspace(
             fileSystem: fileSystem,
             location: Workspace.Location(forRootPackage: packagePath, fileSystem: fileSystem),
+            authorizationProvider: authorizationProvider,
             configuration: workspaceConfiguration,
             customHostToolchain: toolchain
         )
