@@ -32,34 +32,34 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
                                                     enableLibraryEvolution: true),
                                 clangVersion: "clang-1400.0.29.102")
         let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
+        encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
         let data = try encoder.encode(cacheKey)
         let rawString = try XCTUnwrap(String(data: data, encoding: .utf8))
         let expected = """
 {
   "buildOptions" : {
+    "buildConfiguration" : "release",
+    "enableLibraryEvolution" : true,
+    "extraBuildParameters" : {
+      "SWIFT_OPTIMIZATION_LEVEL" : "-Osize"
+    },
     "extraFlags" : {
       "swiftFlags" : [
         "-D",
         "SOME_FLAG"
       ]
     },
-    "isDebugSymbolsEmbedded" : false,
-    "extraBuildParameters" : {
-      "SWIFT_OPTIMIZATION_LEVEL" : "-Osize"
-    },
-    "enableLibraryEvolution" : true,
     "frameworkType" : "dynamic",
+    "isDebugSymbolsEmbedded" : false,
     "sdks" : [
       "iOS"
-    ],
-    "buildConfiguration" : "release"
+    ]
   },
-  "targetName" : "MyTarget",
   "clangVersion" : "clang-1400.0.29.102",
   "pin" : {
     "revision" : "111111111"
-  }
+  },
+  "targetName" : "MyTarget"
 }
 """
         XCTAssertEqual(rawString, expected)
