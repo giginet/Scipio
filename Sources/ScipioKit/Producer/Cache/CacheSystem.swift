@@ -257,7 +257,7 @@ struct CacheSystem {
 
     private func retrievePin(product: BuildProduct) throws -> PinsStore.Pin {
         let pinsStore = try descriptionPackage.workspace.pinsStore.load()
-        guard let pin = pinsStore.pinsMap[product.package.identity] else {
+        guard let pin = pinsStore.pins[product.package.identity] else {
             throw Error.revisionNotDetected(product.package.manifest.displayName)
         }
         return pin
