@@ -4,15 +4,15 @@ import Basics
 import PackageModel
 
 // TODO: Remove TSCBasics
-// Since Swift 5.10, SwiftPM removes swift-tools-support-core(TSC)
-// So all interfaces are replaced from TSCBasics.AbsolutePath to Basics.AbsolutePath
-// These are almost identical. Unfortunately, Scipio still uses TSC versions of them.
-// It's better to remove TSC dependencies from Scipio.
-// However we just provides utils to bridge them at this time
+// Since Swift 5.10, SwiftPM removes swift-tools-support-core(TSC), 
+// so all interfaces are replaced from TSCBasics.AbsolutePath to Basics.AbsolutePath.
+// These has almost identical feature and interface. Unfortunately, Scipio still uses TSC versions of them 
+// so It's better to remove TSC dependencies from Scipio.
+// At this moment, we just provides utils to bridge them at this time as below.
 #if swift(>=5.10)
 
-// Above Swift 5.10, SwiftPM requires their own AbsolutePath
-// So we have to convert them to Scipio requires
+// Above Swift 5.10, SwiftPM requires their own AbsolutePath,
+// so we have to bridge them to Scipio requires by typealias
 
 typealias ScipioAbsolutePath = TSCBasic.AbsolutePath
 typealias SwiftPMAbsolutePath = Basics.AbsolutePath
@@ -24,7 +24,7 @@ typealias SwiftPMAbsolutePath = Basics.AbsolutePath
 typealias ScipioAbsolutePath = TSCBasic.AbsolutePath
 typealias SwiftPMAbsolutePath = TSCBasic.AbsolutePath
 
-// Since Swift 5.10, Destination is renamed to SwiftSDK
+// In Swift 5.10, Destination is renamed to SwiftSDK, so this is required to keep backward-compatibility
 typealias SwiftSDK = Destination
 
 #endif
