@@ -19,8 +19,3 @@ trailing_comma:
   mandatory_comma: true
 type_body_length:
   warning: 400
-identifier_name:
-  excluded:
-    - spm_absolutePath
-    - tsc_absolutePath
-    - tsc_currentDirectory

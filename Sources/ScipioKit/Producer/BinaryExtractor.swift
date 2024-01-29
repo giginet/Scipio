@@ -20,7 +20,7 @@ struct BinaryExtractor {
         }
         try fileSystem.copy(
             from: sourcePath,
-            to: destinationPath.absolutePath.spm_absolutePath
+            to: destinationPath.absolutePath.spmAbsolutePath
         )
 
         return destinationPath

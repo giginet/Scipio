@@ -8,7 +8,7 @@ import Basics
 
 struct DescriptionPackage {
     let mode: Runner.Mode
-    let packageDirectory: TSCBasic.AbsolutePath
+    let packageDirectory: ScipioAbsolutePath
     private let toolchain: UserToolchain
     let workspace: Workspace
     let graph: PackageGraph
@@ -34,11 +34,11 @@ struct DescriptionPackage {
         manifest.displayName
     }
 
-    var buildDirectory: TSCBasic.AbsolutePath {
+    var buildDirectory: ScipioAbsolutePath {
         packageDirectory.appending(component: ".build")
     }
 
-    var workspaceDirectory: TSCBasic.AbsolutePath {
+    var workspaceDirectory: ScipioAbsolutePath {
         buildDirectory.appending(component: "scipio")
     }
 
@@ -46,11 +46,11 @@ struct DescriptionPackage {
         Set(manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:)))
     }
 
-    var derivedDataPath: TSCBasic.AbsolutePath {
+    var derivedDataPath: ScipioAbsolutePath {
         workspaceDirectory.appending(component: "DerivedData")
     }
 
-    func generatedModuleMapPath(of target: ResolvedTarget, sdk: SDK) throws -> TSCBasic.AbsolutePath {
+    func generatedModuleMapPath(of target: ResolvedTarget, sdk: SDK) throws -> ScipioAbsolutePath {
         let relativePath = try TSCBasic.RelativePath(validating: "ModuleMapsForFramework/\(sdk.settingValue)")
         return workspaceDirectory
             .appending(relativePath)
@@ -59,7 +59,7 @@ struct DescriptionPackage {
 
     /// Returns an Products directory path
     /// It should be the default setting of `TARGET_BUILD_DIR`
-    func productsDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> TSCBasic.AbsolutePath {
+    func productsDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> ScipioAbsolutePath {
         let intermediateDirectoryName = productDirectoryName(
             buildConfiguration: buildConfiguration,
             sdk: sdk
@@ -68,12 +68,12 @@ struct DescriptionPackage {
     }
 
     /// Returns a directory path which contains assembled frameworks
-    var assembledFrameworksRootDirectory: TSCBasic.AbsolutePath {
+    var assembledFrameworksRootDirectory: ScipioAbsolutePath {
         workspaceDirectory.appending(component: "AssembledFrameworks")
     }
 
     /// Returns a directory path of the assembled frameworks path for the specific Configuration/Platform
-    func assembledFrameworksDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> TSCBasic.AbsolutePath {
+    func assembledFrameworksDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> ScipioAbsolutePath {
         let intermediateDirName = productDirectoryName(buildConfiguration: buildConfiguration, sdk: sdk)
         return assembledFrameworksRootDirectory
             .appending(component: intermediateDirName)
@@ -91,7 +91,7 @@ struct DescriptionPackage {
 
     // MARK: Initializer
 
-    private static func makeWorkspace(toolchain: UserToolchain, packagePath: TSCBasic.AbsolutePath) throws -> Workspace {
+    private static func makeWorkspace(toolchain: UserToolchain, packagePath: ScipioAbsolutePath) throws -> Workspace {
         var workspaceConfiguration: WorkspaceConfiguration = .default
         // override default configuration to treat XIB files
         workspaceConfiguration.additionalFileRules = FileRuleDescription.xcbuildFileTypes
@@ -101,7 +101,7 @@ struct DescriptionPackage {
             .makeAuthorizationProvider(fileSystem: fileSystem, observabilityScope: observabilitySystem.topScope)
         let workspace = try Workspace(
             fileSystem: fileSystem,
-            location: Workspace.Location(forRootPackage: packagePath.spm_absolutePath, fileSystem: fileSystem),
+            location: Workspace.Location(forRootPackage: packagePath.spmAbsolutePath, fileSystem: fileSystem),
             authorizationProvider: authorizationProvider,
             configuration: workspaceConfiguration,
             customHostToolchain: toolchain
@@ -116,7 +116,7 @@ struct DescriptionPackage {
     /// Then, use package versions only from existing Package.resolved.
     ///   If it is `true`, Package.resolved never be updated.
     ///   Instead, the resolving will fail if the Package.resolved is mis-matched with the workspace.
-    init(packageDirectory: TSCBasic.AbsolutePath, mode: Runner.Mode, onlyUseVersionsFromResolvedFile: Bool) throws {
+    init(packageDirectory: ScipioAbsolutePath, mode: Runner.Mode, onlyUseVersionsFromResolvedFile: Bool) throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
 
@@ -130,7 +130,7 @@ struct DescriptionPackage {
         let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
         let scope = observabilitySystem.topScope
         self.graph = try workspace.loadPackageGraph(
-            rootInput: PackageGraphRootInput(packages: [packageDirectory.spm_absolutePath]),
+            rootInput: PackageGraphRootInput(packages: [packageDirectory.spmAbsolutePath]),
             // This option is same with resolver option `--disable-automatic-resolution`
             // Never update Package.resolved of the package
             forceResolvedVersions: onlyUseVersionsFromResolvedFile,
@@ -138,7 +138,7 @@ struct DescriptionPackage {
         )
         self.manifest = try tsc_await {
             workspace.loadRootManifest(
-                at: packageDirectory.spm_absolutePath,
+                at: packageDirectory.spmAbsolutePath,
                 observabilityScope: scope,
                 completion: $0
             )

@@ -45,8 +45,8 @@ struct ToolchainGenerator {
         return Destination(
             hostTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
             targetTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
-            sdkRootDir: sdkPath.spm_absolutePath,
-            toolchainBinDir: toolchainDirPath.spm_absolutePath,
+            sdkRootDir: sdkPath.spmAbsolutePath,
+            toolchainBinDir: toolchainDirPath.spmAbsolutePath,
             extraFlags: BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
         )
     }
