@@ -1,6 +1,7 @@
 import Foundation
 import TSCBasic
 import Basics
+import PackageModel
 
 // TODO: Remove TSCBasics
 // Since Swift 5.10, SwiftPM removes swift-tools-support-core(TSC)
@@ -22,6 +23,9 @@ typealias SwiftPMAbsolutePath = Basics.AbsolutePath
 
 typealias ScipioAbsolutePath = TSCBasic.AbsolutePath
 typealias SwiftPMAbsolutePath = TSCBasic.AbsolutePath
+
+// Since Swift 5.10, Destination is renamed to SwiftSDK
+typealias SwiftSDK = Destination
 
 #endif
 

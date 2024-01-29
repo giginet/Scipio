@@ -17,7 +17,11 @@ struct ToolchainGenerator {
 
     func makeToolChain(sdk: SDK) async throws -> UserToolchain {
         let destination: SwiftSDK = try await makeDestination(sdk: sdk)
+        #if swift(>=5.10)
         return try UserToolchain(swiftSDK: destination)
+        #else
+        return try UserToolchain(destination: destination)
+        #endif
     }
 
     private func makeDestination(
