@@ -50,8 +50,8 @@ public struct Runner {
             return try AbsolutePath(validating: fileURL.path)
         } else if let currentDirectory = fileSystem.currentWorkingDirectory {
             #if swift(>=5.10)
-            let tsc_currentDirectory = try ScipioAbsolutePath(validating: currentDirectory.pathString)
-            return try ScipioAbsolutePath(tsc_currentDirectory, validating: fileURL.path)
+            let scipioCurrentDirectory = try ScipioAbsolutePath(validating: currentDirectory.pathString)
+            return try ScipioAbsolutePath(scipioCurrentDirectory, validating: fileURL.path)
             #else
             return ScipioAbsolutePath(currentDirectory, fileURL.path)
             #endif

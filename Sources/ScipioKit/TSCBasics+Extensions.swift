@@ -10,12 +10,15 @@ import Basics
 // However we just provides utils to bridge them at this time
 #if swift(>=5.10)
 
+// Above Swift 5.10, SwiftPM requires their own AbsolutePath
+// So we have to convert them to Scipio requires
+
 typealias ScipioAbsolutePath = TSCBasic.AbsolutePath
 typealias SwiftPMAbsolutePath = Basics.AbsolutePath
 
 #else
 
-// Below Swift 5.9, Basics.AbsolutePath is not implemented. So this is required to keep backward-compatibility
+// Below Swift 5.9, Basics.AbsolutePath is not implemented yet. So this is required to keep backward-compatibility
 
 typealias ScipioAbsolutePath = TSCBasic.AbsolutePath
 typealias SwiftPMAbsolutePath = TSCBasic.AbsolutePath
