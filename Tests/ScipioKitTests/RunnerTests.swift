@@ -480,6 +480,11 @@ final class RunnerTests: XCTestCase {
     }
 
     func testWithResourcePackage() async throws {
+        let isCI = (ProcessInfo.processInfo.environment["IS_CI"] ?? "") == "1"
+        #if swift(>=5.10)
+        try XCTSkipIf(isCI, "Currently, GitHub Action doesn't support Xcode 15.3. So this test can't be passed.")
+        #endif
+
         let runner = Runner(
             mode: .createPackage,
             options: .init(

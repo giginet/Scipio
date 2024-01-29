@@ -33,3 +33,4 @@ jobs:
         fi
       env:
         ENABLE_INTEGRATION_TESTS: 1
+        IS_CI: 1
