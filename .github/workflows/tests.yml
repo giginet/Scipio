@@ -26,6 +26,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Run Tests
       run: |
+        # If default toolchain in Xcode is used, `env.TOOLCHAINS` will be empty
         if [[ -n "${{ env.TOOLCHAINS }}" ]]; then
           xcrun --toolchain ${{ env.TOOLCHAINS }} swift test --verbose
         else
