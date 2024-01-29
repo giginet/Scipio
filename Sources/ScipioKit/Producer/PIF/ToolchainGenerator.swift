@@ -45,13 +45,23 @@ struct ToolchainGenerator {
         extraSwiftCFlags += ["-F", sdkPaths.fwk.pathString]
         extraSwiftCFlags += ["-I", sdkPaths.lib.pathString]
         extraSwiftCFlags += ["-L", sdkPaths.lib.pathString]
-
+        
+        let buildFlags = BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
+        #if swift(>=5.10)
         return SwiftSDK(
+            hostTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
+            targetTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
+            toolset: .init(toolchainBinDir: toolchainDirPath.spmAbsolutePath, buildFlags: buildFlags),
+            pathsConfiguration: .init(sdkRootPath: sdkPath.spmAbsolutePath)
+        )
+        #else
+        return Destination(
             hostTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
             targetTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
             sdkRootDir: sdkPath.spmAbsolutePath,
             toolchainBinDir: toolchainDirPath.spmAbsolutePath,
-            extraFlags: BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
+            extraFlags: buildFlags
         )
+        #endif
     }
 }

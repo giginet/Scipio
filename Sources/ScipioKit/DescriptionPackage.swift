@@ -121,7 +121,7 @@ struct DescriptionPackage {
         self.mode = mode
 
         #if swift(>=5.10)
-        let toolchain = try UserToolchain(destination: try .hostSwiftSDK())
+        let toolchain = try UserToolchain(swiftSDK: try .hostSwiftSDK())
         #else
         let toolchain = try UserToolchain(destination: try .hostDestination())
         #endif
