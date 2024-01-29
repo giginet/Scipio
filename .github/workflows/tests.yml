@@ -1,4 +1,4 @@
-name: Run Tests on Swift ${{ matrix.swift }} with Xcode ${{ matrix.xcode_version }}
+name: Tests
 
 on: 
   push:
@@ -15,7 +15,7 @@ jobs:
         swift: ["5.8.1", "5.9.2", "5.10.0"]
     env: 
       DEVELOPER_DIR: "/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
-    runs-on: macos-14
+    runs-on: macos-13
     steps:
     - uses: SwiftyLab/setup-swift@latest
       with:
