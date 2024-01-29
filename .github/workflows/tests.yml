@@ -24,10 +24,12 @@ jobs:
     - name: Get swift version
       run: swift --version
     - uses: actions/checkout@v2
-    - name: SwiftLint
-      run: swiftlint --strict
     - name: Run Tests
       run: |
-        xcrun --toolchain ${{ env.TOOLCHAINS }} swift test --verbose
+        if [[ -n "${{ env.TOOLCHAINS }}" ]]; then
+          xcrun --toolchain ${{ env.TOOLCHAINS }} swift test --verbose
+        else
+          swift test --verbose
+        fi
       env:
         ENABLE_INTEGRATION_TESTS: 1

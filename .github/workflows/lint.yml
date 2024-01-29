@@ -1,0 +1,21 @@
+name: Lint
+
+on: 
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '*'
+jobs:
+  Tests:
+    strategy:
+      matrix:
+        xcode_version: ["15.2"]
+    env: 
+      DEVELOPER_DIR: "/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
+    runs-on: macos-13
+    steps:
+    - uses: actions/checkout@v2
+    - name: SwiftLint
+      run: swiftlint --strict
