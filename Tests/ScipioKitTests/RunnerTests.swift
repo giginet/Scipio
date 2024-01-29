@@ -34,6 +34,7 @@ final class RunnerTests: XCTestCase {
 
     private let plistDecoder: PropertyListDecoder = .init()
 
+    // Currently, GitHub Action Runner doesn't support Xcode 15.3, so some test can't pass due to using simulators.
     private func skipIfCIIsNotSupported() throws {
         let isCI = (ProcessInfo.processInfo.environment["IS_CI"] ?? "") == "1"
         #if swift(>=5.10)
