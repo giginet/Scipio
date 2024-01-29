@@ -117,8 +117,8 @@ struct PIFCompiler: Compiler {
             toolchain: toolchain,
             targetTriple: toolchain.targetTriple,
             flags: .init(),
-//            enableParseableModuleInterfaces: buildOptions.enableLibraryEvolution, // TODO
-            isXcodeBuildSystemEnabled: true
+            isXcodeBuildSystemEnabled: true,
+            driverParameters: BuildParameters.Driver(enableParseableModuleInterfaces: buildOptions.enableLibraryEvolution)
         )
         #elseif swift(>=5.9)
         try .init(
