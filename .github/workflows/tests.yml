@@ -1,4 +1,4 @@
-name: Tests
+name: Run Tests on Swift ${{ matrix.swift }} with Xcode ${{ matrix.xcode_version }}
 
 on: 
   push:
