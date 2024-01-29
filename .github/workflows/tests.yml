@@ -11,16 +11,23 @@ jobs:
   Tests:
     strategy:
       matrix:
-        xcode_version: ["14.3.1", "15.0"]
+        xcode_version: ["15.2"]
+        swift: ["5.8.1", "5.9.2", "5.10.0"]
     env: 
       DEVELOPER_DIR: "/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
-    runs-on: macos-13
+    runs-on: macos-14
     steps:
+    - uses: SwiftyLab/setup-swift@latest
+      with:
+        development: true
+        swift-version: ${{ matrix.swift }}
+    - name: Get swift version
+      run: swift --version
     - uses: actions/checkout@v2
     - name: SwiftLint
       run: swiftlint --strict
     - name: Run Tests
       run: |
-        swift test --verbose
+        xcrun --toolchain ${{ env.TOOLCHAINS }} swift test --verbose
       env:
         ENABLE_INTEGRATION_TESTS: 1
