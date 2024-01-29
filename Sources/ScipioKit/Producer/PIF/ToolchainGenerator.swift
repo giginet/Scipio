@@ -45,7 +45,7 @@ struct ToolchainGenerator {
         extraSwiftCFlags += ["-F", sdkPaths.fwk.pathString]
         extraSwiftCFlags += ["-I", sdkPaths.lib.pathString]
         extraSwiftCFlags += ["-L", sdkPaths.lib.pathString]
-        
+
         let buildFlags = BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
         #if swift(>=5.10)
         return SwiftSDK(
