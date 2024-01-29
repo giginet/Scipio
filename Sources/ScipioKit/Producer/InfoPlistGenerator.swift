@@ -11,7 +11,7 @@ struct InfoPlistGenerator {
     func generateForResourceBundle(at path: AbsolutePath) throws {
         let body = resourceBundleBody
 
-        try fileSystem.writeFileContents(path, string: body)
+        try fileSystem.writeFileContents(path.spm_absolutePath, string: body)
     }
 
     private var resourceBundleBody: String {

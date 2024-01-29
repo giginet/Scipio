@@ -8,7 +8,7 @@ import Basics
 
 struct DescriptionPackage {
     let mode: Runner.Mode
-    let packageDirectory: AbsolutePath
+    let packageDirectory: TSCBasic.AbsolutePath
     private let toolchain: UserToolchain
     let workspace: Workspace
     let graph: PackageGraph
@@ -34,11 +34,11 @@ struct DescriptionPackage {
         manifest.displayName
     }
 
-    var buildDirectory: AbsolutePath {
+    var buildDirectory: TSCBasic.AbsolutePath {
         packageDirectory.appending(component: ".build")
     }
 
-    var workspaceDirectory: AbsolutePath {
+    var workspaceDirectory: TSCBasic.AbsolutePath {
         buildDirectory.appending(component: "scipio")
     }
 
@@ -46,12 +46,12 @@ struct DescriptionPackage {
         Set(manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:)))
     }
 
-    var derivedDataPath: AbsolutePath {
+    var derivedDataPath: TSCBasic.AbsolutePath {
         workspaceDirectory.appending(component: "DerivedData")
     }
 
-    func generatedModuleMapPath(of target: ResolvedTarget, sdk: SDK) throws -> AbsolutePath {
-        let relativePath = try RelativePath(validating: "ModuleMapsForFramework/\(sdk.settingValue)")
+    func generatedModuleMapPath(of target: ResolvedTarget, sdk: SDK) throws -> TSCBasic.AbsolutePath {
+        let relativePath = try TSCBasic.RelativePath(validating: "ModuleMapsForFramework/\(sdk.settingValue)")
         return workspaceDirectory
             .appending(relativePath)
             .appending(component: target.modulemapName)
@@ -59,7 +59,7 @@ struct DescriptionPackage {
 
     /// Returns an Products directory path
     /// It should be the default setting of `TARGET_BUILD_DIR`
-    func productsDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> AbsolutePath {
+    func productsDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> TSCBasic.AbsolutePath {
         let intermediateDirectoryName = productDirectoryName(
             buildConfiguration: buildConfiguration,
             sdk: sdk
@@ -68,12 +68,12 @@ struct DescriptionPackage {
     }
 
     /// Returns a directory path which contains assembled frameworks
-    var assembledFrameworksRootDirectory: AbsolutePath {
+    var assembledFrameworksRootDirectory: TSCBasic.AbsolutePath {
         workspaceDirectory.appending(component: "AssembledFrameworks")
     }
 
     /// Returns a directory path of the assembled frameworks path for the specific Configuration/Platform
-    func assembledFrameworksDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> AbsolutePath {
+    func assembledFrameworksDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> TSCBasic.AbsolutePath {
         let intermediateDirName = productDirectoryName(buildConfiguration: buildConfiguration, sdk: sdk)
         return assembledFrameworksRootDirectory
             .appending(component: intermediateDirName)
@@ -91,7 +91,7 @@ struct DescriptionPackage {
 
     // MARK: Initializer
 
-    private static func makeWorkspace(toolchain: UserToolchain, packagePath: AbsolutePath) throws -> Workspace {
+    private static func makeWorkspace(toolchain: UserToolchain, packagePath: TSCBasic.AbsolutePath) throws -> Workspace {
         var workspaceConfiguration: WorkspaceConfiguration = .default
         // override default configuration to treat XIB files
         workspaceConfiguration.additionalFileRules = FileRuleDescription.xcbuildFileTypes
@@ -101,7 +101,7 @@ struct DescriptionPackage {
             .makeAuthorizationProvider(fileSystem: fileSystem, observabilityScope: observabilitySystem.topScope)
         let workspace = try Workspace(
             fileSystem: fileSystem,
-            location: Workspace.Location(forRootPackage: packagePath, fileSystem: fileSystem),
+            location: Workspace.Location(forRootPackage: packagePath.spm_absolutePath, fileSystem: fileSystem),
             authorizationProvider: authorizationProvider,
             configuration: workspaceConfiguration,
             customHostToolchain: toolchain
@@ -116,17 +116,21 @@ struct DescriptionPackage {
     /// Then, use package versions only from existing Package.resolved.
     ///   If it is `true`, Package.resolved never be updated.
     ///   Instead, the resolving will fail if the Package.resolved is mis-matched with the workspace.
-    init(packageDirectory: AbsolutePath, mode: Runner.Mode, onlyUseVersionsFromResolvedFile: Bool) throws {
+    init(packageDirectory: TSCBasic.AbsolutePath, mode: Runner.Mode, onlyUseVersionsFromResolvedFile: Bool) throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
 
+        #if swift(>=5.10)
+        let toolchain = try UserToolchain(destination: try .hostSwiftSDK())
+        #else
         let toolchain = try UserToolchain(destination: try .hostDestination())
+        #endif
         self.toolchain = toolchain
 
         let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
         let scope = observabilitySystem.topScope
         self.graph = try workspace.loadPackageGraph(
-            rootInput: PackageGraphRootInput(packages: [packageDirectory]),
+            rootInput: PackageGraphRootInput(packages: [packageDirectory.spm_absolutePath]),
             // This option is same with resolver option `--disable-automatic-resolution`
             // Never update Package.resolved of the package
             forceResolvedVersions: onlyUseVersionsFromResolvedFile,
@@ -134,7 +138,7 @@ struct DescriptionPackage {
         )
         self.manifest = try tsc_await {
             workspace.loadRootManifest(
-                at: packageDirectory,
+                at: packageDirectory.spm_absolutePath,
                 observabilityScope: scope,
                 completion: $0
             )

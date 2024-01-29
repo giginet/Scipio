@@ -138,6 +138,8 @@ private final class _Executor {
             case .cancelled:
                 log(level: .error, target: target, task: task.taskID, "cancelled")
             }
+        case .unknown:
+            break
         }
     }
 

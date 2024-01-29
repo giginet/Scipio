@@ -194,7 +194,10 @@ struct CacheSystem {
 
         let data = try jsonEncoder.encode(cacheKey)
         let versionFilePath = outputDirectory.appendingPathComponent(versionFileName(for: target.buildProduct.target.name))
-        try fileSystem.writeFileContents(versionFilePath.absolutePath, data: data)
+        try fileSystem.writeFileContents(
+            versionFilePath.absolutePath.spm_absolutePath,
+            data: data
+        )
     }
 
     func existsValidCache(cacheKey: CacheKey) async -> Bool {
@@ -285,7 +288,7 @@ public struct VersionFileDecoder {
 
     public func decode(versionFile: URL) throws -> CacheKey {
         try jsonDecoder.decode(
-            path: versionFile.absolutePath,
+            path: versionFile.absolutePath.spm_absolutePath,
             fileSystem: fileSystem,
             as: CacheKey.self
         )

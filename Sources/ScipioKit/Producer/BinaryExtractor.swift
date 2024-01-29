@@ -18,7 +18,10 @@ struct BinaryExtractor {
             logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
             try fileSystem.removeFileTree(destinationPath.absolutePath)
         }
-        try fileSystem.copy(from: sourcePath, to: destinationPath.absolutePath)
+        try fileSystem.copy(
+            from: sourcePath,
+            to: destinationPath.absolutePath.spm_absolutePath
+        )
 
         return destinationPath
     }

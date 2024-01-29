@@ -45,11 +45,12 @@ public struct Runner {
         self.fileSystem = fileSystem
     }
 
-    private func resolveURL(_ fileURL: URL) throws -> AbsolutePath {
+    private func resolveURL(_ fileURL: URL) throws -> TSCBasic.AbsolutePath {
         if fileURL.path.hasPrefix("/") {
             return try AbsolutePath(validating: fileURL.path)
         } else if let currentDirectory = fileSystem.currentWorkingDirectory {
-            return AbsolutePath(currentDirectory, fileURL.path)
+            let tsc_currentDirectory = try TSCBasic.AbsolutePath(validating: currentDirectory.pathString)
+            return try TSCBasic.AbsolutePath(tsc_currentDirectory, validating: fileURL.path)
         } else {
             return try! AbsolutePath(validating: fileURL.path)
         }
