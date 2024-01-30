@@ -52,7 +52,7 @@ struct ModuleMapGenerator {
         if let clangTarget = context.resolvedTarget.underlyingTarget as? ClangTarget {
             switch clangTarget.moduleMapType {
             case .custom(let customModuleMap):
-                return try convertCustomModuleMapForFramework(customModuleMap)
+                return try convertCustomModuleMapForFramework(customModuleMap.scipioAbsolutePath)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
             case .umbrellaHeader(let headerPath):
                 return ([
@@ -64,7 +64,7 @@ struct ModuleMapGenerator {
                 + ["}"])
                 .joined()
             case .umbrellaDirectory(let directoryPath):
-                let headers = try walkDirectoryContents(of: directoryPath)
+                let headers = try walkDirectoryContents(of: directoryPath.scipioAbsolutePath)
                 let declarations = headers.map { "    header \"\($0)\"" }
 
                 return ([
@@ -113,7 +113,7 @@ struct ModuleMapGenerator {
         try fileSystem.createDirectory(dirPath, recursive: true)
 
         let contents = try generateModuleMapContents(context: context)
-        try fileSystem.writeFileContents(outputPath, string: contents)
+        try fileSystem.writeFileContents(outputPath.spmAbsolutePath, string: contents)
     }
 
     private func constructGeneratedModuleMapPath(context: Context) throws -> AbsolutePath {

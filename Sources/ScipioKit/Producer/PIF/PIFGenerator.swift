@@ -65,7 +65,7 @@ struct PIFGenerator {
         let newJSONData = try encoder.encode(topLevelObject)
         let path = descriptionPackage.workspaceDirectory
             .appending(component: "manifest-\(descriptionPackage.name)-\(sdk.settingValue).pif")
-        try fileSystem.writeFileContents(path, data: newJSONData)
+        try fileSystem.writeFileContents(path.spmAbsolutePath, data: newJSONData)
         return path
     }
 

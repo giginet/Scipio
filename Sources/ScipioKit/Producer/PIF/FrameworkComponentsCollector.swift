@@ -155,6 +155,7 @@ struct FrameworkComponentsCollector {
             .headers
             .filter { $0.isDescendant(of: clangTarget.includeDir) }
         let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0) }
+            .map { $0.scipioAbsolutePath }
         let symlinks = publicHeaders.filter { fileSystem.isSymlink($0) }
 
         // Sometimes, public headers include a file and its symlink both.

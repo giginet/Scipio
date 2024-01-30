@@ -10,8 +10,11 @@ struct InfoPlistGenerator {
 
     func generateForResourceBundle(at path: AbsolutePath) throws {
         let body = resourceBundleBody
-
+        #if swift(>=5.10)
+        try fileSystem.writeFileContents(path.spmAbsolutePath, string: body)
+        #else
         try fileSystem.writeFileContents(path, string: body)
+        #endif
     }
 
     private var resourceBundleBody: String {

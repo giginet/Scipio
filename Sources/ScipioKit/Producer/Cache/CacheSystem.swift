@@ -194,7 +194,10 @@ struct CacheSystem {
 
         let data = try jsonEncoder.encode(cacheKey)
         let versionFilePath = outputDirectory.appendingPathComponent(versionFileName(for: target.buildProduct.target.name))
-        try fileSystem.writeFileContents(versionFilePath.absolutePath, data: data)
+        try fileSystem.writeFileContents(
+            versionFilePath.absolutePath.spmAbsolutePath,
+            data: data
+        )
     }
 
     func existsValidCache(cacheKey: CacheKey) async -> Bool {
@@ -254,9 +257,15 @@ struct CacheSystem {
 
     private func retrievePin(product: BuildProduct) throws -> PinsStore.Pin {
         let pinsStore = try descriptionPackage.workspace.pinsStore.load()
+        #if swift(>=5.10)
+        guard let pin = pinsStore.pins[product.package.identity] else {
+            throw Error.revisionNotDetected(product.package.manifest.displayName)
+        }
+        #else
         guard let pin = pinsStore.pinsMap[product.package.identity] else {
             throw Error.revisionNotDetected(product.package.manifest.displayName)
         }
+        #endif
         return pin
     }
 
@@ -285,7 +294,7 @@ public struct VersionFileDecoder {
 
     public func decode(versionFile: URL) throws -> CacheKey {
         try jsonDecoder.decode(
-            path: versionFile.absolutePath,
+            path: versionFile.absolutePath.spmAbsolutePath,
             fileSystem: fileSystem,
             as: CacheKey.self
         )

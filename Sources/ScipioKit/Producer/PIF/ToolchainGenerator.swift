@@ -16,13 +16,17 @@ struct ToolchainGenerator {
     }
 
     func makeToolChain(sdk: SDK) async throws -> UserToolchain {
-        let destination: Destination = try await makeDestination(sdk: sdk)
+        let destination: SwiftSDK = try await makeDestination(sdk: sdk)
+        #if swift(>=5.10)
+        return try UserToolchain(swiftSDK: destination)
+        #else
         return try UserToolchain(destination: destination)
+        #endif
     }
 
     private func makeDestination(
         sdk: SDK
-    ) async throws -> Destination {
+    ) async throws -> SwiftSDK {
         let sdkPathString = try await executor.execute(
             "/usr/bin/xcrun",
             "--sdk",
@@ -36,18 +40,28 @@ struct ToolchainGenerator {
         // Compute common arguments for clang and swift.
         var extraCCFlags: [String] = []
         var extraSwiftCFlags: [String] = []
-        let sdkPaths = try Destination.sdkPlatformFrameworkPaths(environment: [:])
+        let sdkPaths = try SwiftSDK.sdkPlatformFrameworkPaths(environment: [:])
         extraCCFlags += ["-F", sdkPaths.fwk.pathString]
         extraSwiftCFlags += ["-F", sdkPaths.fwk.pathString]
         extraSwiftCFlags += ["-I", sdkPaths.lib.pathString]
         extraSwiftCFlags += ["-L", sdkPaths.lib.pathString]
 
+        let buildFlags = BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
+        #if swift(>=5.10)
+        return SwiftSDK(
+            hostTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
+            targetTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
+            toolset: .init(toolchainBinDir: toolchainDirPath.spmAbsolutePath, buildFlags: buildFlags),
+            pathsConfiguration: .init(sdkRootPath: sdkPath.spmAbsolutePath)
+        )
+        #else
         return Destination(
             hostTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
             targetTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
-            sdkRootDir: sdkPath,
-            toolchainBinDir: toolchainDirPath,
-            extraFlags: BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
+            sdkRootDir: sdkPath.spmAbsolutePath,
+            toolchainBinDir: toolchainDirPath.spmAbsolutePath,
+            extraFlags: buildFlags
         )
+        #endif
     }
 }

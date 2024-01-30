@@ -1,9 +1,11 @@
 # Scipio
 
 ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/giginet/Scipio/tests.yml?style=flat-square&logo=github)
+![Swift 5.10](https://img.shields.io/badge/Swift-5.10-FA7343?logo=swift&style=flat-square)
 ![Swift 5.9](https://img.shields.io/badge/Swift-5.9-FA7343?logo=swift&style=flat-square)
 ![Swift 5.8](https://img.shields.io/badge/Swift-5.8-FA7343?logo=swift&style=flat-square)
-[![Xcode 15.0](https://img.shields.io/badge/Xcode-15.0-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)](https://developer.apple.com/xcode/)
+[![Xcode 15.3](https://img.shields.io/badge/Xcode-15.3-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)](https://developer.apple.com/xcode/)
+[![Xcode 15.2](https://img.shields.io/badge/Xcode-15.2-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)](https://developer.apple.com/xcode/)
 [![Xcode 14.3](https://img.shields.io/badge/Xcode-14.3-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)](https://developer.apple.com/xcode/)
 [![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-green?logo=swift&style=flat-square)](https://swift.org/package-manager/) 
 [![Documentation](https://img.shields.io/badge/Documentation-available-green?style=flat-square)](https://giginet.github.io/Scipio/documentation/scipio/)
@@ -131,6 +133,18 @@ $ scipio create path/to/MyPackage
 ```
 
 See [Convert Single Swift Package to XCFramework](https://giginet.github.io/Scipio/documentation/scipio/create-frameworks) for detail.
+
+## Supported Xcode and Swift version
+
+Currently, we support Swift 5.8, 5.9, and 5.10.
+
+Swift 5.8 support will be dropped in the future.
+
+|    | Xcode        | Swift |
+|----|--------------|-------|
+| ✅ | 15.3(Beta 1) | 5.10  |
+| ✅ | 15.0<=15.2   | 5.9   |
+| ✅ | 14.3         | 5.8   |
 
 ## Reliability
 
