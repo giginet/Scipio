@@ -140,11 +140,11 @@ Currently, we support Swift 5.8, 5.9, and 5.10.
 
 Swift 5.8 support will be dropped in the future.
 
-|    | Xcode        | Swift |
-|----|--------------|-------|
-| ✅ | 15.3(Beta 1) | 5.10  |
-| ✅ | 15.0<=15.2   | 5.9   |
-| ✅ | 14.3         | 5.8   |
+|    | Xcode      | Swift |
+|----|------------|-------|
+| ✅ | 15.3       | 5.10  |
+| ✅ | 15.0<=15.2 | 5.9   |
+| ✅ | 14.3       | 5.8   |
 
 ## Reliability
 
