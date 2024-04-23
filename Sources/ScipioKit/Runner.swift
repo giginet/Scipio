@@ -181,6 +181,7 @@ extension Runner {
                 self.isSimulatorSupported = isSimulatorSupported
                 self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
                 self.frameworkType = frameworkType
+                self.extraBuildParameters = extraBuildParameters
                 self.extraFlags = extraFlags
                 self.enableLibraryEvolution = enableLibraryEvolution
             }
