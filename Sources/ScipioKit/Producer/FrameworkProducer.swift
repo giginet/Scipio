@@ -127,7 +127,8 @@ struct FrameworkProducer {
         for target in targetsToBuild {
             try await buildXCFrameworks(
                 target,
-                outputDir: outputDir
+                outputDir: outputDir,
+                buildOptionsMatrix: buildOptionsMatrix
             )
         }
 
@@ -214,14 +215,15 @@ struct FrameworkProducer {
     @discardableResult
     private func buildXCFrameworks(
         _ target: CacheSystem.CacheTarget,
-        outputDir: URL
+        outputDir: URL,
+        buildOptionsMatrix: [String: BuildOptions]
     ) async throws -> Set<CacheSystem.CacheTarget> {
         let product = target.buildProduct
         let buildOptions = target.buildOptions
 
         switch product.target.type {
         case .library:
-            let compiler = PIFCompiler(descriptionPackage: descriptionPackage, buildOptions: buildOptions)
+            let compiler = PIFCompiler(descriptionPackage: descriptionPackage, buildOptions: buildOptions, buildOptionsMatrix: buildOptionsMatrix)
             try await compiler.createXCFramework(buildProduct: product,
                                                  outputDirectory: outputDir,
                                                  overwrite: overwrite)

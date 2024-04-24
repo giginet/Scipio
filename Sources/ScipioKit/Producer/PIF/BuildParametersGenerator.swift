@@ -79,8 +79,7 @@ struct BuildParametersGenerator {
             buildOptions.extraFlags?.swiftFlags
         )
         settings["OTHER_LDFLAGS"] = expandFlags(
-            buildParameters.flags.linkerFlags.map { $0.spm_shellEscaped() },
-            buildOptions.extraFlags?.linkerFlags
+            buildParameters.flags.linkerFlags.map { $0.spm_shellEscaped() }
         )
 
         let additionalSettings = buildOptions.extraBuildParameters ?? [:]
