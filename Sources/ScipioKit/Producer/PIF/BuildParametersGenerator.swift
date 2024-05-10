@@ -65,18 +65,15 @@ struct BuildParametersGenerator {
         )
         settings["OTHER_CFLAGS"] = expandFlags(
             buildParameters.toolchain.extraFlags.cCompilerFlags,
-            buildParameters.flags.cCompilerFlags.map { $0.spm_shellEscaped() },
-            buildOptions.extraFlags?.cFlags
+            buildParameters.flags.cCompilerFlags.map { $0.spm_shellEscaped() }
         )
         settings["OTHER_CPLUSPLUSFLAGS"] = expandFlags(
             buildParameters.toolchain.extraFlags.cxxCompilerFlags,
-            buildParameters.flags.cxxCompilerFlags.map { $0.spm_shellEscaped() },
-            buildOptions.extraFlags?.cxxFlags
+            buildParameters.flags.cxxCompilerFlags.map { $0.spm_shellEscaped() }
         )
         settings["OTHER_SWIFT_FLAGS"] = expandFlags(
             buildParameters.toolchain.extraFlags.swiftCompilerFlags,
-            buildParameters.flags.swiftCompilerFlags.map { $0.spm_shellEscaped() },
-            buildOptions.extraFlags?.swiftFlags
+            buildParameters.flags.swiftCompilerFlags.map { $0.spm_shellEscaped() }
         )
         settings["OTHER_LDFLAGS"] = expandFlags(
             buildParameters.flags.linkerFlags.map { $0.spm_shellEscaped() }

@@ -242,9 +242,7 @@ private struct PIFLibraryTargetModifier {
         }
         settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
-        if let partialOption = self.buildOptionsMatrix[pifTarget.name] {
-            settings[.OTHER_LDFLAGS] = partialOption.extraFlags?.linkerFlags ?? []
-        }
+        appendExtraFlagsByBuildOptionsMatrix(to: &settings)
 
         // Original PIFBuilder implementation of SwiftPM generates modulemap for Swift target
         // That modulemap refer a bridging header by a relative path
@@ -272,6 +270,20 @@ private struct PIFLibraryTargetModifier {
         configuration.buildSettings = settings
 
         return configuration
+    }
+
+    // Append extraFlags from BuildOptionsMatrix to each target settings
+    private func appendExtraFlagsByBuildOptionsMatrix(to settings: inout PIF.BuildSettings) {
+        if let partialOption = self.buildOptionsMatrix[pifTarget.name] {
+            settings[.OTHER_CFLAGS]?
+                .append(contentsOf: partialOption.extraFlags?.cFlags ?? [])
+            settings[.OTHER_CPLUSPLUSFLAGS]?
+                .append(contentsOf: partialOption.extraFlags?.cxxFlags ?? [])
+            settings[.OTHER_SWIFT_FLAGS]?
+                .append(contentsOf: partialOption.extraFlags?.swiftFlags ?? [])
+            settings[.OTHER_LDFLAGS]?
+                .append(contentsOf: partialOption.extraFlags?.linkerFlags ?? [])
+        }
     }
 }
 
