@@ -16,14 +16,14 @@ struct PIFCompiler: Compiler {
     init(
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
-        fileSystem: any FileSystem = TSCBasic.localFileSystem,
         buildOptionsMatrix: [String: BuildOptions],
+        fileSystem: any FileSystem = TSCBasic.localFileSystem,
         executor: any Executor = ProcessExecutor()
     ) {
         self.descriptionPackage = descriptionPackage
         self.buildOptions = buildOptions
-        self.fileSystem = fileSystem
         self.buildOptionsMatrix = buildOptionsMatrix
+        self.fileSystem = fileSystem
         self.executor = executor
         self.buildParametersGenerator = .init(buildOptions: buildOptions, fileSystem: fileSystem)
     }

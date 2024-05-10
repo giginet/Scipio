@@ -223,7 +223,11 @@ struct FrameworkProducer {
 
         switch product.target.type {
         case .library:
-            let compiler = PIFCompiler(descriptionPackage: descriptionPackage, buildOptions: buildOptions, buildOptionsMatrix: buildOptionsMatrix)
+            let compiler = PIFCompiler(
+                descriptionPackage: descriptionPackage,
+                buildOptions: buildOptions,
+                buildOptionsMatrix: buildOptionsMatrix
+            )
             try await compiler.createXCFramework(buildProduct: product,
                                                  outputDirectory: outputDir,
                                                  overwrite: overwrite)
