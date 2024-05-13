@@ -274,16 +274,16 @@ private struct PIFLibraryTargetModifier {
 
     // Append extraFlags from BuildOptionsMatrix to each target settings
     private func appendExtraFlagsByBuildOptionsMatrix(to settings: inout PIF.BuildSettings) {
-        if let partialOption = self.buildOptionsMatrix[pifTarget.name] {
-            settings[.OTHER_CFLAGS]?
-                .append(contentsOf: partialOption.extraFlags?.cFlags ?? [])
-            settings[.OTHER_CPLUSPLUSFLAGS]?
-                .append(contentsOf: partialOption.extraFlags?.cxxFlags ?? [])
-            settings[.OTHER_SWIFT_FLAGS]?
-                .append(contentsOf: partialOption.extraFlags?.swiftFlags ?? [])
-            settings[.OTHER_LDFLAGS]?
-                .append(contentsOf: partialOption.extraFlags?.linkerFlags ?? [])
+        func createOrUpdateFlags(for key: PIF.BuildSettings.MultipleValueSetting, to keyPath: KeyPath<ExtraFlags, [String]?>) {
+            if let extraFlags = self.buildOptionsMatrix[pifTarget.name]?.extraFlags?[keyPath: keyPath] {
+                settings[key] = (settings[key] ?? []) + extraFlags
+            }
         }
+
+        createOrUpdateFlags(for: .OTHER_CFLAGS, to: \.cFlags)
+        createOrUpdateFlags(for: .OTHER_CPLUSPLUSFLAGS, to: \.cxxFlags)
+        createOrUpdateFlags(for: .OTHER_SWIFT_FLAGS, to: \.swiftFlags)
+        createOrUpdateFlags(for: .OTHER_LDFLAGS, to: \.linkerFlags)
     }
 }
 
