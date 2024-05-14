@@ -32,7 +32,7 @@ struct ModuleMapGenerator {
     func generate(resolvedTarget: ResolvedTarget, sdk: SDK, buildConfiguration: BuildConfiguration) throws -> AbsolutePath? {
         let context = Context(resolvedTarget: resolvedTarget, sdk: sdk, configuration: buildConfiguration)
 
-        if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
+        if let clangTarget = resolvedTarget.scipioUnderlyingTarget as? ClangTarget {
             switch clangTarget.moduleMapType {
             case .custom, .umbrellaHeader, .umbrellaDirectory:
                 let path = try constructGeneratedModuleMapPath(context: context)
@@ -49,7 +49,7 @@ struct ModuleMapGenerator {
     }
 
     private func generateModuleMapContents(context: Context) throws -> String {
-        if let clangTarget = context.resolvedTarget.underlyingTarget as? ClangTarget {
+        if let clangTarget = context.resolvedTarget.scipioUnderlyingTarget as? ClangTarget {
             switch clangTarget.moduleMapType {
             case .custom(let customModuleMap):
                 return try convertCustomModuleMapForFramework(customModuleMap.scipioAbsolutePath)

@@ -81,7 +81,8 @@ let package = Package(
         .testTarget(
             name: "ScipioS3StorageTests",
             dependencies: ["ScipioS3Storage"]),
-    ]
+    ],
+    swiftLanguageVersions: [.version("6")]
 )
 
 let isDevelopment = ProcessInfo.processInfo.environment["SCIPIO_DEVELOPMENT"] == "1"

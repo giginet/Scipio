@@ -2,6 +2,7 @@ import Foundation
 import TSCBasic
 import Basics
 import PackageModel
+import PackageGraph
 
 // TODO: Remove TSCBasics
 // Since Swift 5.10, SwiftPM removes swift-tools-support-core(TSC), 
@@ -38,5 +39,17 @@ extension ScipioAbsolutePath {
 extension SwiftPMAbsolutePath {
     var scipioAbsolutePath: ScipioAbsolutePath {
         try! ScipioAbsolutePath(validating: pathString)
+    }
+}
+
+extension ResolvedTarget {
+    /// A property to keep compatibility between 5.10 and 6.0
+    /// underlyingTarget property is renamed since Swift 6.0
+    var scipioUnderlyingTarget: Target {
+        #if swift(>=6)
+        underlying
+        #else
+        underlyingTarget
+        #endif
     }
 }

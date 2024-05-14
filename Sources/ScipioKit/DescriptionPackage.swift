@@ -129,7 +129,7 @@ struct DescriptionPackage {
 
         let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
         let scope = observabilitySystem.topScope
-        #if swift(>=6.0)
+        #if swift(>=6)
         self.graph = try workspace.loadPackageGraph(
             rootInput: PackageGraphRootInput(packages: [packageDirectory.spmAbsolutePath]),
             // This option is same with resolver option `--disable-automatic-resolution`
@@ -248,6 +248,6 @@ struct BuildProduct: Hashable {
     }
 
     var binaryTarget: BinaryTarget? {
-        target.underlyingTarget as? BinaryTarget
+        target.scipioUnderlyingTarget as? BinaryTarget
     }
 }
