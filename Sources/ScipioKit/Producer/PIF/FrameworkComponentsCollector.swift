@@ -147,7 +147,7 @@ struct FrameworkComponentsCollector {
 
     /// Collects public headers of clangTarget
     private func collectPublicHeader() throws -> Set<AbsolutePath>? {
-        guard let clangTarget = buildProduct.target.underlyingTarget as? ClangTarget else {
+        guard let clangTarget = buildProduct.target.underlying as? ClangTarget else {
             return nil
         }
 

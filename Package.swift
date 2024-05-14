@@ -12,7 +12,7 @@ let swiftSettings: [SwiftSetting] = [
 let package = Package(
     name: "Scipio",
     platforms: [
-        .macOS(.v13),
+        .macOS(.v14),
     ],
     products: [
         .executable(name: "scipio",
@@ -23,7 +23,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-package-manager.git",
-                 revision: "swift-5.10-RELEASE"),
+                 branch: "release/6.0"),
         .package(url: "https://github.com/apple/swift-log.git",
                  from: "1.5.2"),
         .package(url: "https://github.com/apple/swift-collections",

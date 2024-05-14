@@ -50,7 +50,8 @@ struct ToolchainGenerator {
             hostTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
             targetTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
             toolset: .init(toolchainBinDir: toolchainDirPath.spmAbsolutePath, buildFlags: buildFlags),
-            pathsConfiguration: .init(sdkRootPath: sdkPath.spmAbsolutePath)
+            pathsConfiguration: .init(sdkRootPath: sdkPath.spmAbsolutePath),
+            supportsTesting: false
         )
         #else
         return Destination(

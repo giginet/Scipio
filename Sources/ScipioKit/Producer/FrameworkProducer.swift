@@ -240,7 +240,7 @@ struct FrameworkProducer {
                                                  outputDirectory: outputDir,
                                                  overwrite: overwrite)
         case .binary:
-            guard let binaryTarget = product.target.underlyingTarget as? BinaryTarget else {
+            guard let binaryTarget = product.target.underlying as? BinaryTarget else {
                 fatalError("Unexpected failure")
             }
             let binaryExtractor = BinaryExtractor(

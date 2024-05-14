@@ -256,7 +256,7 @@ private struct PIFLibraryTargetModifier {
         // However, this PIFGenerator modified productType to framework.
         // So a bridging header will be generated in frameworks bundle even if `SWIFT_OBJC_INTERFACE_HEADER_DIR` was specified.
         // So it's need to replace `MODULEMAP_FILE_CONTENTS` to an absolute path.
-        if let swiftTarget = resolvedTarget.underlyingTarget as? SwiftTarget {
+        if let swiftTarget = resolvedTarget.underlying as? SwiftTarget {
             // Bridging Headers will be generated inside generated frameworks
             let productsDirectory = descriptionPackage.productsDirectory(
                 buildConfiguration: buildOptions.buildConfiguration,

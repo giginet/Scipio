@@ -135,6 +135,7 @@ struct DescriptionPackage {
             // This option is same with resolver option `--disable-automatic-resolution`
             // Never update Package.resolved of the package
             forceResolvedVersions: onlyUseVersionsFromResolvedFile,
+            availableLibraries: [],
             observabilityScope: scope
         )
         self.manifest = try tsc_await {
@@ -182,18 +183,18 @@ extension DescriptionPackage {
         return products.reversed()
     }
 
-    private func targetsToBuild() throws -> Set<ResolvedTarget> {
+    private func targetsToBuild() throws -> [ResolvedTarget] {
         switch mode {
         case .createPackage:
             // In create mode, all products should be built
             // In future update, users will be enable to specify products want to build
             let rootPackage = try fetchRootPackage()
             let productsToBuild = rootPackage.products
-            return Set(productsToBuild.flatMap(\.targets))
+            return productsToBuild.flatMap(\.targets)
         case .prepareDependencies:
             // In prepare mode, all targets should be built
             // In future update, users will be enable to specify targets want to build
-            return Set(try fetchRootPackage().targets)
+            return try fetchRootPackage().targets
         }
     }
 
@@ -238,6 +239,6 @@ struct BuildProduct: Hashable, Sendable {
     }
 
     var binaryTarget: BinaryTarget? {
-        target.underlyingTarget as? BinaryTarget
+        target.underlying as? BinaryTarget
     }
 }
