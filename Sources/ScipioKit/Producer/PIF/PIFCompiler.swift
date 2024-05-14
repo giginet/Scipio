@@ -45,7 +45,7 @@ struct PIFCompiler: Compiler {
         let target = buildProduct.target
 
         // Build frameworks for each SDK
-        logger.info("📦 Building \(target.name) for \(sdkNames)")
+        logger().info("📦 Building \(target.name) for \(sdkNames)")
 
         let xcBuildClient: XCBuildClient = .init(
             package: descriptionPackage,
@@ -77,18 +77,18 @@ struct PIFCompiler: Compiler {
                     buildParametersPath: buildParametersPath
                 )
             } catch {
-                logger.error("Unable to build for \(sdk.displayName)", metadata: .color(.red))
-                logger.error(error)
+                logger().error("Unable to build for \(sdk.displayName)", metadata: .color(.red))
+                logger().error(error)
             }
         }
 
-        logger.info("🚀 Combining into XCFramework...")
+        logger().info("🚀 Combining into XCFramework...")
 
         // If there is existing framework, remove it
         let frameworkName = target.xcFrameworkName
         let outputXCFrameworkPath = try AbsolutePath(validating: outputDirectory.path).appending(component: frameworkName)
         if fileSystem.exists(outputXCFrameworkPath) && overwrite {
-            logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
+            logger().info("💥 Delete \(frameworkName)", metadata: .color(.red))
             try fileSystem.removeFileTree(outputXCFrameworkPath)
         }
 

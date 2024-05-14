@@ -94,7 +94,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
     var collectsOutput: Bool = true
 
     func execute(_ arguments: [String]) async throws -> ExecutorResult {
-        logger.debug("\(arguments.joined(separator: " "))")
+        logger().debug("\(arguments.joined(separator: " "))")
 
         var outputBuffer: [UInt8] = []
         var errorBuffer: [UInt8] = []

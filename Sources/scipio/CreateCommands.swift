@@ -21,7 +21,8 @@ extension Scipio {
         var platforms: [Runner.Options.Platform] = []
 
         mutating func run() async throws {
-            LoggingSystem.bootstrap()
+            let logLevel: Logger.Level = globalOptions.verbose ? .info : .warning
+            LoggingSystem.bootstrap(logLevel: logLevel)
 
             let platformSpecifier: Runner.Options.PlatformSpecifier
             if platforms.isEmpty {

@@ -15,7 +15,7 @@ struct BinaryExtractor {
         let fileName = sourcePath.basename
         let destinationPath = outputDirectory.appendingPathComponent(fileName)
         if fileSystem.exists(destinationPath.absolutePath) && overwrite {
-            logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
+            logger().info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
             try fileSystem.removeFileTree(destinationPath.absolutePath)
         }
         try fileSystem.copy(

@@ -177,13 +177,13 @@ struct CacheSystem: Sendable {
                     group.addTask {
                         let frameworkPath = context.outputDirectory.appendingPathComponent(context.frameworkName)
                         do {
-                            logger.info(
+                            logger().info(
                                 "🚀 Cache \(context.frameworkName) to cache storage",
                                 metadata: .color(.green)
                             )
                             try await cacheFramework(target, at: frameworkPath)
                         } catch {
-                            logger.warning("⚠️ Can't create caches for \(frameworkPath.path)")
+                            logger().warning("⚠️ Can't create caches for \(frameworkPath.path)")
                         }
                     }
                 }

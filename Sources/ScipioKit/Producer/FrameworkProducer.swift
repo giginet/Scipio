@@ -188,25 +188,25 @@ struct FrameworkProducer {
                 let isValidCache = await cacheSystem.existsValidCache(cacheKey: expectedCacheKey)
                 let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
                 if isValidCache && exists {
-                    logger.info(
+                    logger().info(
                         "✅ Valid \(product.target.name).xcframework (\(expectedCacheKeyHash)) is exists. Skip building.", metadata: .color(.green)
                     )
                     return true
                 } else {
                     if exists {
-                        logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
-                        logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
+                        logger().warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
+                        logger().info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
                         try fileSystem.removeFileTree(outputPath.absolutePath)
                     }
                     let restoreResult = await cacheSystem.restoreCacheIfPossible(target: target)
                     switch restoreResult {
                     case .succeeded:
-                        logger.info("✅ Restore \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
+                        logger().info("✅ Restore \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
                         return true
                     case .failed(let error):
-                        logger.warning("⚠️ Restoring \(frameworkName) (\(expectedCacheKeyHash)) is failed", metadata: .color(.yellow))
+                        logger().warning("⚠️ Restoring \(frameworkName) (\(expectedCacheKeyHash)) is failed", metadata: .color(.yellow))
                         if let description = error?.errorDescription {
-                            logger.warning("\(description)", metadata: .color(.yellow))
+                            logger().warning("\(description)", metadata: .color(.yellow))
                         }
                         return false
                     case .noCache:
@@ -242,7 +242,7 @@ struct FrameworkProducer {
                 fileSystem: fileSystem
             )
             try binaryExtractor.extract(of: binaryTarget, overwrite: overwrite)
-            logger.info("✅ Copy \(binaryTarget.c99name).xcframework", metadata: .color(.green))
+            logger().info("✅ Copy \(binaryTarget.c99name).xcframework", metadata: .color(.green))
         default:
             fatalError("Unexpected target type \(product.target.type)")
         }
@@ -254,7 +254,7 @@ struct FrameworkProducer {
         do {
             try await cacheSystem.generateVersionFile(for: target)
         } catch {
-            logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
+            logger().warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
         }
     }
 }

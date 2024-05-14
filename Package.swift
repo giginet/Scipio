@@ -28,7 +28,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-package-manager.git",
                  revision: "swift-5.10-RELEASE"),
         .package(url: "https://github.com/apple/swift-log.git",
-                 .upToNextMinor(from: "1.4.2")),
+                 from: "1.5.2"),
         .package(url: "https://github.com/apple/swift-collections",
                  from: "1.0.4"),
         .package(url: "https://github.com/apple/swift-argument-parser.git",
