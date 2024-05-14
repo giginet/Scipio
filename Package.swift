@@ -76,6 +76,7 @@ let package = Package(
                 .target(name: "ScipioKit"),
                 .product(name: "SotoCore", package: "soto-core"),
             ],
+            swiftSettings: swiftSettings,
             plugins: [
                 .plugin(name: "SotoCodeGeneratorPlugin", package: "soto-codegenerator"),
             ]
@@ -86,7 +87,9 @@ let package = Package(
                 .target(name: "ScipioKit"),
             ],
             exclude: ["Resources/Fixtures/"],
-            resources: [.copy("Resources/Fixtures")]),
+            resources: [.copy("Resources/Fixtures")],
+            swiftSettings: swiftSettings
+        ),
         .testTarget(
             name: "ScipioS3StorageTests",
             dependencies: ["ScipioS3Storage"]),

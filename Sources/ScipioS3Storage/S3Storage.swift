@@ -1,7 +1,7 @@
 import Foundation
 import ScipioKit
 
-public struct S3StorageConfig {
+public struct S3StorageConfig: Sendable {
     public var bucket: String
     public var region: String
     public var endpoint: URL
@@ -22,7 +22,7 @@ public struct S3StorageConfig {
         self.shouldPublishObject = shouldPublishObject
     }
 
-    public enum AuthenticationMode {
+    public enum AuthenticationMode: Sendable {
         case usePublicURL
         case authorized(accessKeyID: String, secretAccessKey: String)
     }
@@ -37,15 +37,13 @@ public struct S3StorageConfig {
     }
 }
 
-public struct S3Storage: CacheStorage {
+public struct S3Storage: CacheStorage, Sendable {
     private let storagePrefix: String?
     private let storageClient: any ObjectStorageClient
-    private let archiver: AARArchiver
 
     public init(config: S3StorageConfig, storagePrefix: String? = nil) throws {
         self.storageClient = try config.objectStorageClientType.init(storageConfig: config)
         self.storagePrefix = storagePrefix
-        self.archiver = try AARArchiver()
     }
 
     public func existsValidCache(for cacheKey: ScipioKit.CacheKey) async throws -> Bool {
@@ -61,10 +59,12 @@ public struct S3Storage: CacheStorage {
         let objectStorageKey = try constructObjectStorageKey(from: cacheKey)
         let archiveData = try await storageClient.fetchObject(at: objectStorageKey)
         let destinationPath = destinationDir.appendingPathComponent(cacheKey.frameworkName)
+        let archiver = try AARArchiver()
         try archiver.extract(archiveData, to: destinationPath)
     }
 
     public func cacheFramework(_ frameworkPath: URL, for cacheKey: ScipioKit.CacheKey) async throws {
+        let archiver = try AARArchiver()
         let data = try archiver.compress(frameworkPath)
         let objectStorageKey = try constructObjectStorageKey(from: cacheKey)
         try await storageClient.putObject(data, at: objectStorageKey)

@@ -210,9 +210,12 @@ final class RunnerTests: XCTestCase {
             mode: .prepareDependencies,
             onlyUseVersionsFromResolvedFile: false
         )
-        let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
-                                      outputDirectory: frameworkOutputDir,
-                                      storage: nil)
+        let pinsStore = try descriptionPackage.workspace.pinsStore.load()
+        let cacheSystem = CacheSystem(
+            pinsStore: pinsStore,
+            outputDirectory: frameworkOutputDir,
+            storage: nil
+        )
         let packages = descriptionPackage.graph.packages
             .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
 
@@ -297,7 +300,7 @@ final class RunnerTests: XCTestCase {
         XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appendingPathComponent("ScipioTesting").path))
 
         addTeardownBlock {
-            try self.fileManager.removeItem(at: storageDir)
+            try FileManager.default.removeItem(at: storageDir)
         }
     }
 
@@ -326,7 +329,7 @@ final class RunnerTests: XCTestCase {
         )
 
         addTeardownBlock {
-            try self.fileManager.removeItem(atPath: binaryPath.path)
+            try FileManager.default.removeItem(atPath: binaryPath.path)
         }
     }
 
@@ -361,7 +364,7 @@ final class RunnerTests: XCTestCase {
         )
 
         addTeardownBlock {
-            try self.fileManager.removeItem(atPath: binaryPath.path)
+            try FileManager.default.removeItem(atPath: binaryPath.path)
         }
     }
 
@@ -372,9 +375,12 @@ final class RunnerTests: XCTestCase {
             mode: .prepareDependencies,
             onlyUseVersionsFromResolvedFile: false
         )
-        let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
-                                      outputDirectory: frameworkOutputDir,
-                                      storage: nil)
+        let pinsStore = try descriptionPackage.workspace.pinsStore.load()
+        let cacheSystem = CacheSystem(
+            pinsStore: pinsStore,
+            outputDirectory: frameworkOutputDir,
+            storage: nil
+        )
         let packages = descriptionPackage.graph.packages
             .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
 
@@ -434,7 +440,7 @@ final class RunnerTests: XCTestCase {
         )
 
         addTeardownBlock {
-            try self.fileManager.removeItem(atPath: binaryPath.path)
+            try FileManager.default.removeItem(atPath: binaryPath.path)
         }
     }
 
