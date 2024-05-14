@@ -129,6 +129,16 @@ struct DescriptionPackage {
 
         let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
         let scope = observabilitySystem.topScope
+        #if swift(>=6.0)
+        self.graph = try workspace.loadPackageGraph(
+            rootInput: PackageGraphRootInput(packages: [packageDirectory.spmAbsolutePath]),
+            // This option is same with resolver option `--disable-automatic-resolution`
+            // Never update Package.resolved of the package
+            forceResolvedVersions: onlyUseVersionsFromResolvedFile,
+            availableLibraries: [],
+            observabilityScope: scope
+        )
+        #else
         self.graph = try workspace.loadPackageGraph(
             rootInput: PackageGraphRootInput(packages: [packageDirectory.spmAbsolutePath]),
             // This option is same with resolver option `--disable-automatic-resolution`
@@ -136,6 +146,7 @@ struct DescriptionPackage {
             forceResolvedVersions: onlyUseVersionsFromResolvedFile,
             observabilityScope: scope
         )
+        #endif
         self.manifest = try tsc_await {
             workspace.loadRootManifest(
                 at: packageDirectory.spmAbsolutePath,
@@ -181,18 +192,18 @@ extension DescriptionPackage {
         return products.reversed()
     }
 
-    private func targetsToBuild() throws -> Set<ResolvedTarget> {
+    private func targetsToBuild() throws -> [ResolvedTarget] {
         switch mode {
         case .createPackage:
             // In create mode, all products should be built
             // In future update, users will be enable to specify products want to build
             let rootPackage = try fetchRootPackage()
             let productsToBuild = rootPackage.products
-            return Set(productsToBuild.flatMap(\.targets))
+            return productsToBuild.flatMap(\.targets)
         case .prepareDependencies:
             // In prepare mode, all targets should be built
             // In future update, users will be enable to specify targets want to build
-            return Set(try fetchRootPackage().targets)
+            return try fetchRootPackage().targets
         }
     }
 
