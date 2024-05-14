@@ -200,8 +200,8 @@ extension Runner {
             public var buildOptionsMatrix: [String: TargetBuildOptions]
         }
 
-        public enum CacheMode {
-            public enum CacheActorKind {
+        public enum CacheMode: Sendable {
+            public enum CacheActorKind: Sendable {
                 // Save built product to cacheStorage
                 case producer
                 // Consume stored caches

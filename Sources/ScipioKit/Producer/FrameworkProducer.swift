@@ -21,15 +21,6 @@ struct FrameworkProducer {
         }
     }
 
-    private var isConsumingCacheEnabled: Bool {
-        switch cacheMode {
-        case .disabled: return false
-        case .project: return true
-        case .storage(_, let actors):
-            return actors.contains(.consumer)
-        }
-    }
-
     private var isProducingCacheEnabled: Bool {
         switch cacheMode {
         case .disabled: return false
@@ -109,11 +100,13 @@ struct FrameworkProducer {
                 buildOptions: buildOptionsForProduct
             )
         })
-        let cacheSystem = CacheSystem(descriptionPackage: descriptionPackage,
+        let pinsStore = try descriptionPackage.workspace.pinsStore.load()
+
+        let cacheSystem = CacheSystem(pinsStore: pinsStore,
                                       outputDirectory: outputDir,
                                       storage: cacheStorage)
         let cacheEnabledTargets: Set<CacheSystem.CacheTarget>
-        if isConsumingCacheEnabled {
+        if cacheMode.isConsumingCacheEnabled {
             cacheEnabledTargets = await restoreAllAvailableCaches(
                 availableTargets: Set(allTargets),
                 cacheSystem: cacheSystem
@@ -151,11 +144,15 @@ struct FrameworkProducer {
 
         var restored: Set<CacheSystem.CacheTarget> = []
         for chunk in chunked {
+            let restorer = Restorer(outputDir: outputDir, cacheMode: cacheMode, fileSystem: fileSystem)
             await withTaskGroup(of: CacheSystem.CacheTarget?.self) { group in
                 for target in chunk {
                     group.addTask {
                         do {
-                            let restored = try await restore(target: target, cacheSystem: cacheSystem)
+                            let restored = try await restorer.restore(
+                                target: target,
+                                cacheSystem: cacheSystem
+                            )
                             return restored ? target : nil
                         } catch {
                             return nil
@@ -170,45 +167,55 @@ struct FrameworkProducer {
         return restored
     }
 
-    // Return true if pre-built artifact is available (already existing or restored from cache)
-    private func restore(target: CacheSystem.CacheTarget, cacheSystem: CacheSystem) async throws -> Bool {
-        let product = target.buildProduct
-        let frameworkName = product.frameworkName
-        let outputPath = outputDir.appendingPathComponent(product.frameworkName)
-        let exists = fileSystem.exists(outputPath.absolutePath)
+    /// Sendable interface to provide restore caches
+    private struct Restorer: Sendable {
+        let outputDir: URL
+        let cacheMode: Runner.Options.CacheMode
+        let fileSystem: any FileSystem
 
-        if isConsumingCacheEnabled {
-            let expectedCacheKey = try await cacheSystem.calculateCacheKey(of: target)
-            let isValidCache = await cacheSystem.existsValidCache(cacheKey: expectedCacheKey)
-            let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
-            if isValidCache && exists {
-                logger.info(
-                    "✅ Valid \(product.target.name).xcframework (\(expectedCacheKeyHash)) is exists. Skip building.", metadata: .color(.green)
-                )
-                return true
-            } else {
-                if exists {
-                    logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
-                    logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-                    try fileSystem.removeFileTree(outputPath.absolutePath)
-                }
-                let restoreResult = await cacheSystem.restoreCacheIfPossible(target: target)
-                switch restoreResult {
-                case .succeeded:
-                    logger.info("✅ Restore \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
+        // Return true if pre-built artifact is available (already existing or restored from cache)
+        func restore(
+            target: CacheSystem.CacheTarget,
+            cacheSystem: CacheSystem
+        ) async throws -> Bool {
+            let product = target.buildProduct
+            let frameworkName = product.frameworkName
+            let outputPath = outputDir.appendingPathComponent(product.frameworkName)
+            let exists = fileSystem.exists(outputPath.absolutePath)
+
+            if cacheMode.isConsumingCacheEnabled {
+                let expectedCacheKey = try await cacheSystem.calculateCacheKey(of: target)
+                let isValidCache = await cacheSystem.existsValidCache(cacheKey: expectedCacheKey)
+                let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
+                if isValidCache && exists {
+                    logger.info(
+                        "✅ Valid \(product.target.name).xcframework (\(expectedCacheKeyHash)) is exists. Skip building.", metadata: .color(.green)
+                    )
                     return true
-                case .failed(let error):
-                    logger.warning("⚠️ Restoring \(frameworkName) (\(expectedCacheKeyHash)) is failed", metadata: .color(.yellow))
-                    if let description = error?.errorDescription {
-                        logger.warning("\(description)", metadata: .color(.yellow))
+                } else {
+                    if exists {
+                        logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
+                        logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
+                        try fileSystem.removeFileTree(outputPath.absolutePath)
                     }
-                    return false
-                case .noCache:
-                    return false
+                    let restoreResult = await cacheSystem.restoreCacheIfPossible(target: target)
+                    switch restoreResult {
+                    case .succeeded:
+                        logger.info("✅ Restore \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
+                        return true
+                    case .failed(let error):
+                        logger.warning("⚠️ Restoring \(frameworkName) (\(expectedCacheKeyHash)) is failed", metadata: .color(.yellow))
+                        if let description = error?.errorDescription {
+                            logger.warning("\(description)", metadata: .color(.yellow))
+                        }
+                        return false
+                    case .noCache:
+                        return false
+                    }
                 }
             }
+            return false
         }
-        return false
     }
 
     @discardableResult
@@ -248,6 +255,17 @@ struct FrameworkProducer {
             try await cacheSystem.generateVersionFile(for: target)
         } catch {
             logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
+        }
+    }
+}
+
+extension Runner.Options.CacheMode {
+    fileprivate var isConsumingCacheEnabled: Bool {
+        switch self {
+        case .disabled: return false
+        case .project: return true
+        case .storage(_, let actors):
+            return actors.contains(.consumer)
         }
     }
 }

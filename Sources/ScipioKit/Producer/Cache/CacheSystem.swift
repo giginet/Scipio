@@ -1,7 +1,7 @@
 import Foundation
 import TSCBasic
 import struct TSCUtility.Version
-import PackageGraph
+@preconcurrency import class PackageGraph.PinsStore
 import Algorithms
 
 private let jsonEncoder = {
@@ -118,9 +118,9 @@ extension CacheStorage {
     }
 }
 
-struct CacheSystem {
+struct CacheSystem: Sendable {
     static let defaultParalellNumber = 8
-    private let descriptionPackage: DescriptionPackage
+    private let pinsStore: PinsStore
     private let outputDirectory: URL
     private let storage: (any CacheStorage)?
     private let fileSystem: any FileSystem
@@ -148,12 +148,12 @@ struct CacheSystem {
     }
 
     init(
-        descriptionPackage: DescriptionPackage,
+        pinsStore: PinsStore,
         outputDirectory: URL,
         storage: (any CacheStorage)?,
         fileSystem: any FileSystem = localFileSystem
     ) {
-        self.descriptionPackage = descriptionPackage
+        self.pinsStore = pinsStore
         self.outputDirectory = outputDirectory
         self.storage = storage
         self.fileSystem = fileSystem
@@ -265,7 +265,6 @@ struct CacheSystem {
     }
 
     private func retrievePin(product: BuildProduct) throws -> PinsStore.Pin {
-        let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         #if swift(>=5.10)
         guard let pin = pinsStore.pins[product.package.identity] else {
             throw Error.revisionNotDetected(product.package.manifest.displayName)
