@@ -3,8 +3,8 @@ import TSCBasic
 import XCBuildSupport
 import SPMBuildCore
 
-struct XCBBuildParameters: Encodable {
-    struct RunDestination: Encodable {
+struct XCBBuildParameters: Encodable, Sendable {
+    struct RunDestination: Encodable, Sendable {
         var platform: String
         var sdk: String
         var sdkVariant: String?
@@ -13,11 +13,11 @@ struct XCBBuildParameters: Encodable {
         var disableOnlyActiveArch: Bool
     }
 
-    struct XCBSettingsTable: Encodable {
+    struct XCBSettingsTable: Encodable, Sendable {
         var table: [String: String]
     }
 
-    struct SettingsOverride: Encodable {
+    struct SettingsOverride: Encodable, Sendable {
         var synthesized: XCBSettingsTable?
     }
 

@@ -3,7 +3,7 @@ import Workspace
 import TSCBasic
 import PackageModel
 import PackageLoading
-import PackageGraph
+@preconcurrency import PackageGraph
 import Basics
 
 class DescriptionPackage {
@@ -239,28 +239,4 @@ struct BuildProduct: Hashable, Sendable {
     var binaryTarget: BinaryTarget? {
         target.underlyingTarget as? BinaryTarget
     }
-}
-
-extension ResolvedPackage: @unchecked Sendable {
-
-}
-
-extension ResolvedTarget: @unchecked Sendable {
-
-}
-
-extension ResolvedProduct: @unchecked Sendable {
-
-}
-
-extension ResolvedTarget.Dependency: @unchecked Sendable {
-
-}
-
-extension FileRuleDescription: @unchecked Sendable {
-
-}
-
-extension FileRuleDescription.Rule: @unchecked Sendable {
-
 }
