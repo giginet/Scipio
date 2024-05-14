@@ -9,7 +9,7 @@ public struct Runner {
     private let options: Options
     private let fileSystem: any FileSystem
 
-    public enum Mode {
+    public enum Mode: Sendable {
         case createPackage
         case prepareDependencies
     }

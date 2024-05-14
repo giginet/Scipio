@@ -105,7 +105,7 @@ extension CacheKey {
     }
 }
 
-public protocol CacheStorage {
+public protocol CacheStorage: Sendable {
     func existsValidCache(for cacheKey: CacheKey) async throws -> Bool
     func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: URL) async throws
     func cacheFramework(_ frameworkPath: URL, for cacheKey: CacheKey) async throws
@@ -125,7 +125,7 @@ struct CacheSystem {
     private let storage: (any CacheStorage)?
     private let fileSystem: any FileSystem
 
-    struct CacheTarget: Hashable {
+    struct CacheTarget: Hashable, Sendable {
         var buildProduct: BuildProduct
         var buildOptions: BuildOptions
     }
@@ -159,17 +159,26 @@ struct CacheSystem {
         self.fileSystem = fileSystem
     }
 
+    private struct TaskContext: Sendable {
+        var outputDirectory: URL
+        var frameworkName: String
+    }
+
     func cacheFrameworks(_ targets: Set<CacheTarget>) async {
         let chunked = targets.chunks(ofCount: storage?.paralellNumber ?? CacheSystem.defaultParalellNumber)
 
         for chunk in chunked {
             await withTaskGroup(of: Void.self) { group in
                 for target in chunk {
+                    let context = TaskContext(
+                        outputDirectory: outputDirectory,
+                        frameworkName: target.buildProduct.frameworkName
+                    )
                     group.addTask {
-                        let frameworkPath = outputDirectory.appendingPathComponent(target.buildProduct.frameworkName)
+                        let frameworkPath = context.outputDirectory.appendingPathComponent(context.frameworkName)
                         do {
                             logger.info(
-                                "🚀 Cache \(target.buildProduct.frameworkName) to cache storage",
+                                "🚀 Cache \(context.frameworkName) to cache storage",
                                 metadata: .color(.green)
                             )
                             try await cacheFramework(target, at: frameworkPath)

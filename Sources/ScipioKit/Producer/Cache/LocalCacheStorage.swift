@@ -9,7 +9,7 @@ public struct LocalCacheStorage: CacheStorage {
         case cacheDirectoryIsNotFound
     }
 
-    public enum CacheDirectory {
+    public enum CacheDirectory: Sendable {
         case system
         case custom(URL)
     }

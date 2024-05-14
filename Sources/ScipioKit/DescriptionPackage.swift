@@ -6,7 +6,7 @@ import PackageLoading
 import PackageGraph
 import Basics
 
-struct DescriptionPackage {
+class DescriptionPackage {
     let mode: Runner.Mode
     let packageDirectory: ScipioAbsolutePath
     private let toolchain: UserToolchain
@@ -228,7 +228,7 @@ extension DescriptionPackage {
     }
 }
 
-struct BuildProduct: Hashable {
+struct BuildProduct: Hashable, Sendable {
     var package: ResolvedPackage
     var target: ResolvedTarget
 
@@ -239,4 +239,28 @@ struct BuildProduct: Hashable {
     var binaryTarget: BinaryTarget? {
         target.underlyingTarget as? BinaryTarget
     }
+}
+
+extension ResolvedPackage: @unchecked Sendable {
+
+}
+
+extension ResolvedTarget: @unchecked Sendable {
+
+}
+
+extension ResolvedProduct: @unchecked Sendable {
+
+}
+
+extension ResolvedTarget.Dependency: @unchecked Sendable {
+
+}
+
+extension FileRuleDescription: @unchecked Sendable {
+
+}
+
+extension FileRuleDescription.Rule: @unchecked Sendable {
+
 }
