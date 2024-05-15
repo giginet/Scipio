@@ -79,19 +79,17 @@ extension LoggingSystem {
     }
 }
 
-let observabilitySystem = ObservabilitySystem { _, diagnostics in
-    switch diagnostics.severity {
-    case .error:
-        logger().error("\(diagnostics.message)")
-    case .warning:
-        logger().warning("\(diagnostics.message)")
-    case .info:
-        logger().info("\(diagnostics.message)")
-    case .debug:
-        logger().debug("\(diagnostics.message)")
+func generateObservabilitySystem() -> ObservabilitySystem {
+    ObservabilitySystem { _, diagnostics in
+        switch diagnostics.severity {
+        case .error:
+            logger().error("\(diagnostics.message)")
+        case .warning:
+            logger().warning("\(diagnostics.message)")
+        case .info:
+            logger().info("\(diagnostics.message)")
+        case .debug:
+            logger().debug("\(diagnostics.message)")
+        }
     }
-}
-
-extension ObservabilitySystem: @unchecked Sendable {
-
 }

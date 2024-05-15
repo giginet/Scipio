@@ -98,7 +98,7 @@ class DescriptionPackage {
 
         let fileSystem = TSCBasic.localFileSystem
         let authorizationProvider = try Workspace.Configuration.Authorization.default
-            .makeAuthorizationProvider(fileSystem: fileSystem, observabilityScope: observabilitySystem.topScope)
+            .makeAuthorizationProvider(fileSystem: fileSystem, observabilityScope: generateObservabilitySystem().topScope)
         let workspace = try Workspace(
             fileSystem: fileSystem,
             location: Workspace.Location(forRootPackage: packagePath.spmAbsolutePath, fileSystem: fileSystem),
@@ -128,7 +128,7 @@ class DescriptionPackage {
         self.toolchain = toolchain
 
         let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
-        let scope = observabilitySystem.topScope
+        let scope = generateObservabilitySystem().topScope
         self.graph = try workspace.loadPackageGraph(
             rootInput: PackageGraphRootInput(packages: [packageDirectory.spmAbsolutePath]),
             // This option is same with resolver option `--disable-automatic-resolution`
