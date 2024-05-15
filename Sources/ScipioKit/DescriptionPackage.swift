@@ -3,6 +3,7 @@ import Workspace
 import TSCBasic
 import PackageModel
 import PackageLoading
+// We can drop this annotation with SwiftPM release/6.0
 @preconcurrency import PackageGraph
 import Basics
 

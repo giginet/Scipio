@@ -3,9 +3,7 @@ import Logging
 import Rainbow
 import class Basics.ObservabilitySystem
 
-func logger() -> Logger {
-    Logger(label: "me.giginet.Scipio")
-}
+let logger = Logger(label: "me.giginet.Scipio")
 
 extension Logger.MetadataValue {
     static func color(_ color: NamedColor) -> Self {
@@ -83,13 +81,13 @@ func generateObservabilitySystem() -> ObservabilitySystem {
     ObservabilitySystem { _, diagnostics in
         switch diagnostics.severity {
         case .error:
-            logger().error("\(diagnostics.message)")
+            logger.error("\(diagnostics.message)")
         case .warning:
-            logger().warning("\(diagnostics.message)")
+            logger.warning("\(diagnostics.message)")
         case .info:
-            logger().info("\(diagnostics.message)")
+            logger.info("\(diagnostics.message)")
         case .debug:
-            logger().debug("\(diagnostics.message)")
+            logger.debug("\(diagnostics.message)")
         }
     }
 }

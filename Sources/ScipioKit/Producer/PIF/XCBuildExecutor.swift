@@ -169,7 +169,7 @@ private final class _Executor {
         ].compacted().joined(separator: " ")
 
         allMessages.append(message)
-        logger().log(level: level, "\(message)")
+        logger.log(level: level, "\(message)")
     }
 }
 
@@ -180,7 +180,7 @@ extension _Executor: XCBuildOutputParserDelegate {
 
     func xcBuildOutputParser(_ parser: XCBuildOutputParser, didFailWith error: Error) {
         self.parseError = error
-        logger().error("xcbuild output parse failed", metadata: .color(.red))
-        logger().error(error)
+        logger.error("xcbuild output parse failed", metadata: .color(.red))
+        logger.error(error)
     }
 }

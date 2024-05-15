@@ -72,7 +72,7 @@ public struct Runner {
         let packagePath = try resolveURL(packageDirectory)
         let descriptionPackage: DescriptionPackage
 
-        logger().info("🔁 Resolving Dependencies...")
+        logger.info("🔁 Resolving Dependencies...")
         do {
             descriptionPackage = try DescriptionPackage(
                 packageDirectory: packagePath,
@@ -106,13 +106,13 @@ public struct Runner {
         )
         do {
             try await producer.produce()
-            logger().info("❇️ Succeeded.", metadata: .color(.green))
+            logger.info("❇️ Succeeded.", metadata: .color(.green))
         } catch {
-            logger().error("Something went wrong during building", metadata: .color(.red))
+            logger.error("Something went wrong during building", metadata: .color(.red))
             if !options.verbose {
-                logger().error("Please execute with --verbose option.", metadata: .color(.red))
+                logger.error("Please execute with --verbose option.", metadata: .color(.red))
             }
-            logger().error("\(error.localizedDescription)")
+            logger.error("\(error.localizedDescription)")
             throw Error.compilerError(error)
         }
     }
