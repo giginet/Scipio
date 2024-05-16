@@ -27,17 +27,20 @@ struct PIFGenerator {
     private let descriptionPackage: DescriptionPackage
     private let buildParameters: BuildParameters
     private let buildOptions: BuildOptions
+    private let buildOptionsMatrix: [String: BuildOptions]
     private let fileSystem: any FileSystem
 
     init(
         package: DescriptionPackage,
         buildParameters: BuildParameters,
         buildOptions: BuildOptions,
+        buildOptionsMatrix: [String: BuildOptions],
         fileSystem: any FileSystem = TSCBasic.localFileSystem
     ) throws {
         self.descriptionPackage = package
         self.buildParameters = buildParameters
         self.buildOptions = buildOptions
+        self.buildOptionsMatrix = buildOptionsMatrix
         self.fileSystem = fileSystem
     }
 
@@ -82,6 +85,7 @@ struct PIFGenerator {
                             descriptionPackage: descriptionPackage,
                             buildParameters: buildParameters,
                             buildOptions: buildOptions,
+                            buildOptionsMatrix: buildOptionsMatrix,
                             fileSystem: fileSystem,
                             project: project,
                             pifTarget: target,
@@ -132,6 +136,7 @@ private struct PIFLibraryTargetModifier {
     private let descriptionPackage: DescriptionPackage
     private let buildParameters: BuildParameters
     private let buildOptions: BuildOptions
+    private let buildOptionsMatrix: [String: BuildOptions]
     private let fileSystem: any FileSystem
 
     private let project: PIF.Project
@@ -145,6 +150,7 @@ private struct PIFLibraryTargetModifier {
         descriptionPackage: DescriptionPackage,
         buildParameters: BuildParameters,
         buildOptions: BuildOptions,
+        buildOptionsMatrix: [String: BuildOptions],
         fileSystem: any FileSystem,
         project: PIF.Project,
         pifTarget: PIF.Target,
@@ -155,6 +161,7 @@ private struct PIFLibraryTargetModifier {
         self.descriptionPackage = descriptionPackage
         self.buildParameters = buildParameters
         self.buildOptions = buildOptions
+        self.buildOptionsMatrix = buildOptionsMatrix
         self.fileSystem = fileSystem
         self.project = project
         self.pifTarget = pifTarget
@@ -235,6 +242,8 @@ private struct PIFLibraryTargetModifier {
         }
         settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
+        appendExtraFlagsByBuildOptionsMatrix(to: &settings)
+
         // Original PIFBuilder implementation of SwiftPM generates modulemap for Swift target
         // That modulemap refer a bridging header by a relative path
         // However, this PIFGenerator modified productType to framework.
@@ -261,6 +270,20 @@ private struct PIFLibraryTargetModifier {
         configuration.buildSettings = settings
 
         return configuration
+    }
+
+    // Append extraFlags from BuildOptionsMatrix to each target settings
+    private func appendExtraFlagsByBuildOptionsMatrix(to settings: inout PIF.BuildSettings) {
+        func createOrUpdateFlags(for key: PIF.BuildSettings.MultipleValueSetting, to keyPath: KeyPath<ExtraFlags, [String]?>) {
+            if let extraFlags = self.buildOptionsMatrix[pifTarget.name]?.extraFlags?[keyPath: keyPath] {
+                settings[key] = (settings[key] ?? []) + extraFlags
+            }
+        }
+
+        createOrUpdateFlags(for: .OTHER_CFLAGS, to: \.cFlags)
+        createOrUpdateFlags(for: .OTHER_CPLUSPLUSFLAGS, to: \.cxxFlags)
+        createOrUpdateFlags(for: .OTHER_SWIFT_FLAGS, to: \.swiftFlags)
+        createOrUpdateFlags(for: .OTHER_LDFLAGS, to: \.linkerFlags)
     }
 }
 

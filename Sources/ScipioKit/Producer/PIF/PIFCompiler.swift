@@ -9,17 +9,20 @@ struct PIFCompiler: Compiler {
     private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem
     private let executor: any Executor
+    private let buildOptionsMatrix: [String: BuildOptions]
 
     private let buildParametersGenerator: BuildParametersGenerator
 
     init(
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
+        buildOptionsMatrix: [String: BuildOptions],
         fileSystem: any FileSystem = TSCBasic.localFileSystem,
         executor: any Executor = ProcessExecutor()
     ) {
         self.descriptionPackage = descriptionPackage
         self.buildOptions = buildOptions
+        self.buildOptionsMatrix = buildOptionsMatrix
         self.fileSystem = fileSystem
         self.executor = executor
         self.buildParametersGenerator = .init(buildOptions: buildOptions, fileSystem: fileSystem)
@@ -61,7 +64,8 @@ struct PIFCompiler: Compiler {
             let generator = try PIFGenerator(
                 package: descriptionPackage,
                 buildParameters: buildParameters,
-                buildOptions: buildOptions
+                buildOptions: buildOptions,
+                buildOptionsMatrix: buildOptionsMatrix
             )
             let pifPath = try generator.generateJSON(for: sdk)
             let buildParametersPath = try buildParametersGenerator.generate(
