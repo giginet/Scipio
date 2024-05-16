@@ -1,4 +1,5 @@
 import Foundation
+import ScipioStorage
 import TSCBasic
 import struct TSCUtility.Version
 import PackageGraph
@@ -91,35 +92,12 @@ extension PinsStore.PinState: Hashable {
     }
 }
 
-public protocol CacheKey: Hashable, Codable, Equatable {
-    var targetName: String { get }
-}
-
 public struct SwiftPMCacheKey: CacheKey {
     public var targetName: String
     public var pin: PinsStore.PinState
     var buildOptions: BuildOptions
     public var clangVersion: String
     public var scipioVersion: String?
-}
-
-extension CacheKey {
-    public var frameworkName: String {
-        "\(targetName.packageNamed()).xcframework"
-    }
-}
-
-public protocol CacheStorage {
-    func existsValidCache(for cacheKey: some CacheKey) async throws -> Bool
-    func fetchArtifacts(for cacheKey: some CacheKey, to destinationDir: URL) async throws
-    func cacheFramework(_ frameworkPath: URL, for cacheKey: some CacheKey) async throws
-    var paralellNumber: Int? { get }
-}
-
-extension CacheStorage {
-    public var paralellNumber: Int? {
-        nil
-    }
 }
 
 struct CacheSystem {
@@ -164,7 +142,7 @@ struct CacheSystem {
     }
 
     func cacheFrameworks(_ targets: Set<CacheTarget>) async {
-        let chunked = targets.chunks(ofCount: storage?.paralellNumber ?? CacheSystem.defaultParalellNumber)
+        let chunked = targets.chunks(ofCount: storage?.parallelNumber ?? CacheSystem.defaultParalellNumber)
 
         for chunk in chunked {
             await withTaskGroup(of: Void.self) { group in

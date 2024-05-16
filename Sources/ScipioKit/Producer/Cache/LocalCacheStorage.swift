@@ -1,9 +1,12 @@
 import Foundation
+import ScipioStorage
 import PackageGraph
 import TSCBasic
 
 public struct LocalCacheStorage: CacheStorage {
     private let fileSystem: any FileSystem
+
+    public var parallelNumber: Int? { nil }
 
     enum Error: Swift.Error {
         case cacheDirectoryIsNotFound

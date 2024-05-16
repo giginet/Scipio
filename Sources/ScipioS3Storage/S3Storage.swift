@@ -1,5 +1,6 @@
 import Foundation
 import ScipioKit
+import ScipioStorage
 
 public struct S3StorageConfig {
     public var bucket: String

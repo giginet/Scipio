@@ -36,6 +36,8 @@ let package = Package(
                  from: "0.6.0"),
         .package(url: "https://github.com/soto-project/soto-core.git", 
                  from: "6.4.0"),
+        .package(url: "https://github.com/giginet/scipio-cache-storage.git",
+                 revision: "3b286ae2130b3aefb2efa8bf059065e5dc613350"),
     ],
     targets: [
         .executableTarget(name: "scipio",
@@ -52,6 +54,7 @@ let package = Package(
                 .product(name: "Collections", package: "swift-collections"),
                 .product(name: "Algorithms", package: "swift-algorithms"),
                 .product(name: "Rainbow", package: "Rainbow"),
+                .product(name: "ScipioStorage", package: "scipio-cache-storage"),
             ],
             plugins: [
                 .plugin(name: "GenerateScipioVersion")
@@ -65,6 +68,7 @@ let package = Package(
             name: "ScipioS3Storage",
             dependencies: [
                 .target(name: "ScipioKit"),
+                .product(name: "ScipioStorage", package: "scipio-cache-storage"),
                 .product(name: "SotoCore", package: "soto-core"),
             ],
             plugins: [

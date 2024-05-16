@@ -1,4 +1,5 @@
 import Foundation
+import ScipioStorage
 import struct TSCBasic.AbsolutePath
 import protocol TSCBasic.FileSystem
 import var TSCBasic.localFileSystem
