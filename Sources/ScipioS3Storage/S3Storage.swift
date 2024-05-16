@@ -48,7 +48,7 @@ public struct S3Storage: CacheStorage {
         self.archiver = try AARArchiver()
     }
 
-    public func existsValidCache(for cacheKey: ScipioKit.CacheKey) async throws -> Bool {
+    public func existsValidCache(for cacheKey: some CacheKey) async throws -> Bool {
         let objectStorageKey = try constructObjectStorageKey(from: cacheKey)
         do {
             return try await storageClient.isExistObject(at: objectStorageKey)
@@ -57,20 +57,20 @@ public struct S3Storage: CacheStorage {
         }
     }
 
-    public func fetchArtifacts(for cacheKey: ScipioKit.CacheKey, to destinationDir: URL) async throws {
+    public func fetchArtifacts(for cacheKey: some CacheKey, to destinationDir: URL) async throws {
         let objectStorageKey = try constructObjectStorageKey(from: cacheKey)
         let archiveData = try await storageClient.fetchObject(at: objectStorageKey)
         let destinationPath = destinationDir.appendingPathComponent(cacheKey.frameworkName)
         try archiver.extract(archiveData, to: destinationPath)
     }
 
-    public func cacheFramework(_ frameworkPath: URL, for cacheKey: ScipioKit.CacheKey) async throws {
+    public func cacheFramework(_ frameworkPath: URL, for cacheKey: some CacheKey) async throws {
         let data = try archiver.compress(frameworkPath)
         let objectStorageKey = try constructObjectStorageKey(from: cacheKey)
         try await storageClient.putObject(data, at: objectStorageKey)
     }
 
-    private func constructObjectStorageKey(from cacheKey: CacheKey) throws -> String {
+    private func constructObjectStorageKey(from cacheKey: some CacheKey) throws -> String {
         let frameworkName = cacheKey.targetName
         let checksum = try cacheKey.calculateChecksum()
         let archiveName = "\(checksum).aar"

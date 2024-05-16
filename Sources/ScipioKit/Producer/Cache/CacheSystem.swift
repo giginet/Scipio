@@ -91,7 +91,11 @@ extension PinsStore.PinState: Hashable {
     }
 }
 
-public struct CacheKey: Hashable, Codable, Equatable {
+public protocol CacheKey: Hashable, Codable, Equatable {
+    var targetName: String { get }
+}
+
+public struct SwiftPMCacheKey: CacheKey {
     public var targetName: String
     public var pin: PinsStore.PinState
     var buildOptions: BuildOptions
@@ -106,9 +110,9 @@ extension CacheKey {
 }
 
 public protocol CacheStorage {
-    func existsValidCache(for cacheKey: CacheKey) async throws -> Bool
-    func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: URL) async throws
-    func cacheFramework(_ frameworkPath: URL, for cacheKey: CacheKey) async throws
+    func existsValidCache(for cacheKey: some CacheKey) async throws -> Bool
+    func fetchArtifacts(for cacheKey: some CacheKey, to destinationDir: URL) async throws
+    func cacheFramework(_ frameworkPath: URL, for cacheKey: some CacheKey) async throws
     var paralellNumber: Int? { get }
 }
 
@@ -200,7 +204,7 @@ struct CacheSystem {
         )
     }
 
-    func existsValidCache(cacheKey: CacheKey) async -> Bool {
+    func existsValidCache(cacheKey: SwiftPMCacheKey) async -> Bool {
         do {
             let versionFilePath = versionFilePath(for: cacheKey.targetName)
             guard fileSystem.exists(versionFilePath.absolutePath) else { return false }
@@ -208,7 +212,7 @@ struct CacheSystem {
             guard let contents = try? fileSystem.readFileContents(versionFilePath.absolutePath).contents else {
                 throw Error.couldNotReadVersionFile(versionFilePath)
             }
-            let versionFileKey = try decoder.decode(CacheKey.self, from: Data(contents))
+            let versionFileKey = try decoder.decode(SwiftPMCacheKey.self, from: Data(contents))
             return versionFileKey == cacheKey
         } catch {
             return false
@@ -241,12 +245,12 @@ struct CacheSystem {
         try await storage.fetchArtifacts(for: cacheKey, to: destination)
     }
 
-    func calculateCacheKey(of target: CacheTarget) async throws -> CacheKey {
+    func calculateCacheKey(of target: CacheTarget) async throws -> SwiftPMCacheKey {
         let targetName = target.buildProduct.target.name
         let pin = try retrievePin(product: target.buildProduct)
         let buildOptions = target.buildOptions
         guard let clangVersion = try await ClangChecker().fetchClangVersion() else { throw Error.compilerVersionNotDetected } // TODO DI
-        return CacheKey(
+        return SwiftPMCacheKey(
             targetName: targetName,
             pin: pin.state,
             buildOptions: buildOptions,
@@ -292,11 +296,11 @@ public struct VersionFileDecoder {
         self.fileSystem = fileSystem
     }
 
-    public func decode(versionFile: URL) throws -> CacheKey {
+    public func decode(versionFile: URL) throws -> SwiftPMCacheKey {
         try jsonDecoder.decode(
             path: versionFile.absolutePath.spmAbsolutePath,
             fileSystem: fileSystem,
-            as: CacheKey.self
+            as: SwiftPMCacheKey.self
         )
     }
 }
