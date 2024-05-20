@@ -77,7 +77,7 @@ extension LoggingSystem {
     }
 }
 
-func generateObservabilitySystem() -> ObservabilitySystem {
+func makeObservabilitySystem() -> ObservabilitySystem {
     ObservabilitySystem { _, diagnostics in
         switch diagnostics.severity {
         case .error:
