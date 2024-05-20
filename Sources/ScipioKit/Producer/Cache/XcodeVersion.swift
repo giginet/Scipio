@@ -1,7 +1,7 @@
 import Foundation
 import RegexBuilder
 
-public struct XcodeVersion: Sendable, Hashable {
+public struct XcodeVersion: Sendable, Hashable, Codable {
     var xcodeVersion: String
     var xcodeBuildVersion: String
 }
@@ -9,7 +9,7 @@ public struct XcodeVersion: Sendable, Hashable {
 struct XcodeVersionFetcher<E: Executor> {
     private let executor: E
 
-    init(executor: E) {
+    init(executor: E = ProcessExecutor()) {
         self.executor = executor
     }
 
