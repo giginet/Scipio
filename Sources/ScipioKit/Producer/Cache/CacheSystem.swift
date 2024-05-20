@@ -159,26 +159,19 @@ struct CacheSystem: Sendable {
         self.fileSystem = fileSystem
     }
 
-    private struct TaskContext: Sendable {
-        var outputDirectory: URL
-        var frameworkName: String
-    }
-
     func cacheFrameworks(_ targets: Set<CacheTarget>) async {
         let chunked = targets.chunks(ofCount: storage?.paralellNumber ?? CacheSystem.defaultParalellNumber)
 
         for chunk in chunked {
             await withTaskGroup(of: Void.self) { group in
                 for target in chunk {
-                    let context = TaskContext(
-                        outputDirectory: outputDirectory,
-                        frameworkName: target.buildProduct.frameworkName
-                    )
+                    let outputDirectory = outputDirectory
+                    let frameworkName = target.buildProduct.frameworkName
                     group.addTask {
-                        let frameworkPath = context.outputDirectory.appendingPathComponent(context.frameworkName)
+                        let frameworkPath = outputDirectory.appendingPathComponent(frameworkName)
                         do {
                             logger.info(
-                                "🚀 Cache \(context.frameworkName) to cache storage",
+                                "🚀 Cache \(frameworkName) to cache storage",
                                 metadata: .color(.green)
                             )
                             try await cacheFramework(target, at: frameworkPath)
