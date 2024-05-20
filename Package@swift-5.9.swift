@@ -32,10 +32,6 @@ let package = Package(
                  from: "1.0.0"),
         .package(url: "https://github.com/onevcat/Rainbow",
                  .upToNextMinor(from: "4.0.1")),
-        .package(url: "https://github.com/soto-project/soto-codegenerator", 
-                 from: "0.6.0"),
-        .package(url: "https://github.com/soto-project/soto-core.git", 
-                 from: "6.4.0"),
     ],
     targets: [
         .executableTarget(name: "scipio",
