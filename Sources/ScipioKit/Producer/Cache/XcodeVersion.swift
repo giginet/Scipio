@@ -2,8 +2,13 @@ import Foundation
 import RegexBuilder
 
 public struct XcodeVersion: Sendable, Hashable, Codable {
-    var xcodeVersion: String
-    var xcodeBuildVersion: String
+    public var xcodeVersion: String
+    public var xcodeBuildVersion: String
+
+    public init(xcodeVersion: String, xcodeBuildVersion: String) {
+        self.xcodeVersion = xcodeVersion
+        self.xcodeBuildVersion = xcodeBuildVersion
+    }
 }
 
 struct XcodeVersionFetcher<E: Executor> {
