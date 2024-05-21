@@ -51,7 +51,7 @@ public struct LocalCacheStorage: CacheStorage {
             .appendingPathComponent(xcFrameworkFileName(for: cacheKey))
     }
 
-    public func existsValidCache(for cacheKey:some  CacheKey) async -> Bool {
+    public func existsValidCache(for cacheKey: some CacheKey) async -> Bool {
         do {
             let xcFrameworkPath = try cacheFrameworkPath(for: cacheKey)
             return fileSystem.exists(xcFrameworkPath.absolutePath)

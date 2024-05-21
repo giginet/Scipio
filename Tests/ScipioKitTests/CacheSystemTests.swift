@@ -9,7 +9,7 @@ Target: arm64-apple-darwin21.6.0
 Thread model: posix
 InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
 """
-    
+
     func testParseClangVersion() async throws {
         let hook = { arguments in
             XCTAssertEqual(arguments, ["/usr/bin/xcrun", "clang", "--version"])
@@ -19,7 +19,7 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
         let version = try await clangParser.fetchClangVersion()
         XCTAssertEqual(version, "clang-1400.0.29.102")
     }
-    
+
     func testEncodeCacheKey() throws {
         let cacheKey = SwiftPMCacheKey(targetName: "MyTarget",
                                        pin: .revision("111111111"),
