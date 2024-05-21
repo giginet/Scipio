@@ -299,9 +299,7 @@ final class RunnerTests: XCTestCase {
 
         XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appendingPathComponent("ScipioTesting").path))
 
-        addTeardownBlock {
-            try FileManager.default.removeItem(at: storageDir)
-        }
+        try fileManager.removeItem(at: storageDir)
     }
 
     func testExtractBinary() async throws {
@@ -328,9 +326,7 @@ final class RunnerTests: XCTestCase {
             "Binary frameworks should be copied."
         )
 
-        addTeardownBlock {
-            try FileManager.default.removeItem(atPath: binaryPath.path)
-        }
+        try fileManager.removeItem(atPath: binaryPath.path)
     }
 
     func testPrepareBinary() async throws {
@@ -363,9 +359,7 @@ final class RunnerTests: XCTestCase {
             "Version files should be created"
         )
 
-        addTeardownBlock {
-            try FileManager.default.removeItem(atPath: binaryPath.path)
-        }
+        try fileManager.removeItem(atPath: binaryPath.path)
     }
 
     func testBinaryHasValidCache() async throws {
@@ -439,9 +433,7 @@ final class RunnerTests: XCTestCase {
             "XCFramework should not be updated"
         )
 
-        addTeardownBlock {
-            try FileManager.default.removeItem(atPath: binaryPath.path)
-        }
+        try? fileManager.removeItem(atPath: binaryPath.path)
     }
 
     func testWithPlatformMatrix() async throws {
