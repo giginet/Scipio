@@ -96,6 +96,7 @@ public struct CacheKey: Hashable, Codable, Equatable {
     public var pin: PinsStore.PinState
     var buildOptions: BuildOptions
     public var clangVersion: String
+    public var xcodeVersion: XcodeVersion
     public var scipioVersion: String?
 }
 
@@ -133,6 +134,7 @@ struct CacheSystem {
     enum Error: LocalizedError {
         case revisionNotDetected(String)
         case compilerVersionNotDetected
+        case xcodeVersionNotDetected
         case couldNotReadVersionFile(URL)
 
         var errorDescription: String? {
@@ -141,6 +143,8 @@ struct CacheSystem {
                 return "Repository version is not detected for \(packageName)."
             case .compilerVersionNotDetected:
                 return "Compiler version not detected. Please check your environment"
+            case .xcodeVersionNotDetected:
+                return "Xcode version not detected. Please check your environment"
             case .couldNotReadVersionFile(let path):
                 return "Could not read VersionFile \(path.path)"
             }
@@ -245,12 +249,18 @@ struct CacheSystem {
         let targetName = target.buildProduct.target.name
         let pin = try retrievePin(product: target.buildProduct)
         let buildOptions = target.buildOptions
-        guard let clangVersion = try await ClangChecker().fetchClangVersion() else { throw Error.compilerVersionNotDetected } // TODO DI
+        guard let clangVersion = try await ClangChecker().fetchClangVersion() else {
+            throw Error.compilerVersionNotDetected
+        } // TODO DI
+        guard let xcodeVersion = try await XcodeVersionFetcher().fetchXcodeVersion() else {
+            throw Error.xcodeVersionNotDetected
+        }
         return CacheKey(
             targetName: targetName,
             pin: pin.state,
             buildOptions: buildOptions,
             clangVersion: clangVersion,
+            xcodeVersion: xcodeVersion,
             scipioVersion: currentScipioVersion
         )
     }
