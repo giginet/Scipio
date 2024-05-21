@@ -3,6 +3,7 @@ import ScipioStorage
 import TSCBasic
 import struct TSCUtility.Version
 @preconcurrency import class PackageGraph.PinsStore
+import Algorithms
 
 private let jsonEncoder = {
     let encoder = JSONEncoder()
@@ -231,18 +232,13 @@ struct CacheSystem: Sendable {
         let targetName = target.buildProduct.target.name
         let pin = try retrievePin(product: target.buildProduct)
         let buildOptions = target.buildOptions
-<<<<<<< HEAD
-        guard let clangVersion = try await ClangChecker().fetchClangVersion() else { throw Error.compilerVersionNotDetected } // TODO DI
-        return SwiftPMCacheKey(
-=======
         guard let clangVersion = try await ClangChecker().fetchClangVersion() else {
             throw Error.compilerVersionNotDetected
         } // TODO DI
         guard let xcodeVersion = try await XcodeVersionFetcher().fetchXcodeVersion() else {
             throw Error.xcodeVersionNotDetected
         }
-        return CacheKey(
->>>>>>> origin/main
+        return SwiftPMCacheKey(
             targetName: targetName,
             pin: pin.state,
             buildOptions: buildOptions,

@@ -2,6 +2,7 @@ import Logging
 import TSCBasic
 import PackageGraph
 import XCBuildSupport
+import Algorithms
 
 struct XCBuildExecutor {
 
