@@ -183,38 +183,38 @@ struct FrameworkProducer {
             let outputPath = outputDir.appendingPathComponent(product.frameworkName)
             let exists = fileSystem.exists(outputPath.absolutePath)
 
-            if cacheMode.isConsumingCacheEnabled {
-                let expectedCacheKey = try await cacheSystem.calculateCacheKey(of: target)
-                let isValidCache = await cacheSystem.existsValidCache(cacheKey: expectedCacheKey)
-                let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
-                if isValidCache && exists {
-                    logger.info(
-                        "✅ Valid \(product.target.name).xcframework (\(expectedCacheKeyHash)) is exists. Skip building.", metadata: .color(.green)
-                    )
+            guard cacheMode.isConsumingCacheEnabled else {
+                return false
+            }
+            let expectedCacheKey = try await cacheSystem.calculateCacheKey(of: target)
+            let isValidCache = await cacheSystem.existsValidCache(cacheKey: expectedCacheKey)
+            let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
+            if isValidCache && exists {
+                logger.info(
+                    "✅ Valid \(product.target.name).xcframework (\(expectedCacheKeyHash)) is exists. Skip building.", metadata: .color(.green)
+                )
+                return true
+            } else {
+                if exists {
+                    logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
+                    logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
+                    try fileSystem.removeFileTree(outputPath.absolutePath)
+                }
+                let restoreResult = await cacheSystem.restoreCacheIfPossible(target: target)
+                switch restoreResult {
+                case .succeeded:
+                    logger.info("✅ Restore \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
                     return true
-                } else {
-                    if exists {
-                        logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
-                        logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-                        try fileSystem.removeFileTree(outputPath.absolutePath)
+                case .failed(let error):
+                    logger.warning("⚠️ Restoring \(frameworkName) (\(expectedCacheKeyHash)) is failed", metadata: .color(.yellow))
+                    if let description = error?.errorDescription {
+                        logger.warning("\(description)", metadata: .color(.yellow))
                     }
-                    let restoreResult = await cacheSystem.restoreCacheIfPossible(target: target)
-                    switch restoreResult {
-                    case .succeeded:
-                        logger.info("✅ Restore \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
-                        return true
-                    case .failed(let error):
-                        logger.warning("⚠️ Restoring \(frameworkName) (\(expectedCacheKeyHash)) is failed", metadata: .color(.yellow))
-                        if let description = error?.errorDescription {
-                            logger.warning("\(description)", metadata: .color(.yellow))
-                        }
-                        return false
-                    case .noCache:
-                        return false
-                    }
+                    return false
+                case .noCache:
+                    return false
                 }
             }
-            return false
         }
     }
 
