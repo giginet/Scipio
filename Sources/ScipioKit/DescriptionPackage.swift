@@ -7,7 +7,7 @@ import PackageLoading
 @preconcurrency import PackageGraph
 import Basics
 
-class DescriptionPackage {
+struct DescriptionPackage {
     let mode: Runner.Mode
     let packageDirectory: ScipioAbsolutePath
     private let toolchain: UserToolchain
