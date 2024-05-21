@@ -3,7 +3,7 @@ import ScipioStorage
 import TSCBasic
 import struct TSCUtility.Version
 import PackageGraph
-import Algorithms
+
 
 private let jsonEncoder = {
     let encoder = JSONEncoder()
@@ -257,13 +257,6 @@ struct CacheSystem {
 
     private func versionFileName(for targetName: String) -> String {
         ".\(targetName).version"
-    }
-}
-
-extension CacheKey {
-    public func calculateChecksum() throws -> String {
-        let data = try jsonEncoder.encode(self)
-        return SHA256().hash(ByteString(data)).hexadecimalRepresentation
     }
 }
 
