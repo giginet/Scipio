@@ -165,7 +165,6 @@ struct CacheSystem: Sendable {
         for chunk in chunked {
             await withTaskGroup(of: Void.self) { group in
                 for target in chunk {
-                    let outputDirectory = outputDirectory
                     let frameworkName = target.buildProduct.frameworkName
                     group.addTask {
                         let frameworkPath = outputDirectory.appendingPathComponent(frameworkName)
