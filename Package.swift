@@ -35,11 +35,7 @@ let package = Package(
         .package(url: "https://github.com/onevcat/Rainbow",
                  .upToNextMinor(from: "4.0.1")),
         .package(url: "https://github.com/giginet/scipio-cache-storage.git",
-                 revision: "3b286ae2130b3aefb2efa8bf059065e5dc613350"),
-        .package(url: "https://github.com/soto-project/soto-codegenerator",
-                 from: "0.6.0"),
-        .package(url: "https://github.com/soto-project/soto-core.git",
-                 from: "6.4.0"),
+                 revision: "ec3467983ae14356ffcba0ecf4e5c76c3dd80532"),
     ],
     targets: [
         .executableTarget(
