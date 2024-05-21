@@ -50,7 +50,7 @@ struct PIFGenerator {
             buildParameters: buildParameters,
             packageGraph: descriptionPackage.graph,
             fileSystem: localFileSystem,
-            observabilityScope: observabilitySystem.topScope,
+            observabilityScope: makeObservabilitySystem().topScope,
             preservePIFModelStructure: true
         )
         let data = jsonString.data(using: .utf8)!

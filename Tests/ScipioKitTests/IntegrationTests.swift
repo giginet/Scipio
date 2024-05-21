@@ -126,7 +126,7 @@ final class IntegrationTests: XCTestCase {
         )
         addTeardownBlock {
             print("remove output directory: \(outputDir.path)")
-            try self.fileManager.removeItem(atPath: outputDir.path)
+            try FileManager.default.removeItem(atPath: outputDir.path)
         }
 
         let outputDirContents = try fileManager.contentsOfDirectory(atPath: outputDir.path)

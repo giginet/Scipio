@@ -10,7 +10,7 @@ public struct Runner {
     private let options: Options
     private let fileSystem: any FileSystem
 
-    public enum Mode {
+    public enum Mode: Sendable {
         case createPackage
         case prepareDependencies
     }
@@ -36,12 +36,6 @@ public struct Runner {
 
     public init(mode: Mode, options: Options, fileSystem: (any FileSystem) = localFileSystem) {
         self.mode = mode
-        if options.verbose {
-            setLogLevel(.trace)
-        } else {
-            setLogLevel(.info)
-        }
-
         self.options = options
         self.fileSystem = fileSystem
     }
@@ -201,8 +195,8 @@ extension Runner {
             public var buildOptionsMatrix: [String: TargetBuildOptions]
         }
 
-        public enum CacheMode {
-            public enum CacheActorKind {
+        public enum CacheMode: Sendable {
+            public enum CacheActorKind: Sendable {
                 // Save built product to cacheStorage
                 case producer
                 // Consume stored caches

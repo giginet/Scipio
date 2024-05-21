@@ -1,7 +1,7 @@
 import Foundation
 import OrderedCollections
 
-struct BuildOptions: Hashable, Codable {
+struct BuildOptions: Hashable, Codable, Sendable {
     init(
         buildConfiguration: BuildConfiguration,
         isDebugSymbolsEmbedded: Bool,
@@ -29,7 +29,7 @@ struct BuildOptions: Hashable, Codable {
     let enableLibraryEvolution: Bool
 }
 
-public struct ExtraFlags: Hashable, Codable {
+public struct ExtraFlags: Hashable, Codable, Sendable {
     public var cFlags: [String]?
     public var cxxFlags: [String]?
     public var swiftFlags: [String]?
@@ -50,7 +50,7 @@ public struct ExtraFlags: Hashable, Codable {
 
 public typealias ExtraBuildParameters = [String: String]
 
-public enum BuildConfiguration: String, Codable {
+public enum BuildConfiguration: String, Codable, Sendable {
     case debug
     case release
 
@@ -62,12 +62,12 @@ public enum BuildConfiguration: String, Codable {
     }
 }
 
-public enum FrameworkType: String, Codable {
+public enum FrameworkType: String, Codable, Sendable {
     case dynamic
     case `static`
 }
 
-public enum SDK: String, Codable, Hashable {
+public enum SDK: String, Codable, Hashable, Sendable {
     case macOS
     case macCatalyst
     case iOS

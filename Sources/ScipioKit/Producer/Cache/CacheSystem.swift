@@ -2,8 +2,7 @@ import Foundation
 import ScipioStorage
 import TSCBasic
 import struct TSCUtility.Version
-import PackageGraph
-
+@preconcurrency import class PackageGraph.PinsStore
 
 private let jsonEncoder = {
     let encoder = JSONEncoder()
@@ -97,17 +96,18 @@ public struct SwiftPMCacheKey: CacheKey {
     public var pin: PinsStore.PinState
     var buildOptions: BuildOptions
     public var clangVersion: String
+    public var xcodeVersion: XcodeVersion
     public var scipioVersion: String?
 }
 
-struct CacheSystem {
+struct CacheSystem: Sendable {
     static let defaultParalellNumber = 8
-    private let descriptionPackage: DescriptionPackage
+    private let pinsStore: PinsStore
     private let outputDirectory: URL
     private let storage: (any CacheStorage)?
     private let fileSystem: any FileSystem
 
-    struct CacheTarget: Hashable {
+    struct CacheTarget: Hashable, Sendable {
         var buildProduct: BuildProduct
         var buildOptions: BuildOptions
     }
@@ -115,6 +115,7 @@ struct CacheSystem {
     enum Error: LocalizedError {
         case revisionNotDetected(String)
         case compilerVersionNotDetected
+        case xcodeVersionNotDetected
         case couldNotReadVersionFile(URL)
 
         var errorDescription: String? {
@@ -123,6 +124,8 @@ struct CacheSystem {
                 return "Repository version is not detected for \(packageName)."
             case .compilerVersionNotDetected:
                 return "Compiler version not detected. Please check your environment"
+            case .xcodeVersionNotDetected:
+                return "Xcode version not detected. Please check your environment"
             case .couldNotReadVersionFile(let path):
                 return "Could not read VersionFile \(path.path)"
             }
@@ -130,12 +133,12 @@ struct CacheSystem {
     }
 
     init(
-        descriptionPackage: DescriptionPackage,
+        pinsStore: PinsStore,
         outputDirectory: URL,
         storage: (any CacheStorage)?,
         fileSystem: any FileSystem = localFileSystem
     ) {
-        self.descriptionPackage = descriptionPackage
+        self.pinsStore = pinsStore
         self.outputDirectory = outputDirectory
         self.storage = storage
         self.fileSystem = fileSystem
@@ -147,11 +150,12 @@ struct CacheSystem {
         for chunk in chunked {
             await withTaskGroup(of: Void.self) { group in
                 for target in chunk {
+                    let frameworkName = target.buildProduct.frameworkName
                     group.addTask {
-                        let frameworkPath = outputDirectory.appendingPathComponent(target.buildProduct.frameworkName)
+                        let frameworkPath = outputDirectory.appendingPathComponent(frameworkName)
                         do {
                             logger.info(
-                                "🚀 Cache \(target.buildProduct.frameworkName) to cache storage",
+                                "🚀 Cache \(frameworkName) to cache storage",
                                 metadata: .color(.green)
                             )
                             try await cacheFramework(target, at: frameworkPath)
@@ -227,18 +231,28 @@ struct CacheSystem {
         let targetName = target.buildProduct.target.name
         let pin = try retrievePin(product: target.buildProduct)
         let buildOptions = target.buildOptions
+<<<<<<< HEAD
         guard let clangVersion = try await ClangChecker().fetchClangVersion() else { throw Error.compilerVersionNotDetected } // TODO DI
         return SwiftPMCacheKey(
+=======
+        guard let clangVersion = try await ClangChecker().fetchClangVersion() else {
+            throw Error.compilerVersionNotDetected
+        } // TODO DI
+        guard let xcodeVersion = try await XcodeVersionFetcher().fetchXcodeVersion() else {
+            throw Error.xcodeVersionNotDetected
+        }
+        return CacheKey(
+>>>>>>> origin/main
             targetName: targetName,
             pin: pin.state,
             buildOptions: buildOptions,
             clangVersion: clangVersion,
+            xcodeVersion: xcodeVersion,
             scipioVersion: currentScipioVersion
         )
     }
 
     private func retrievePin(product: BuildProduct) throws -> PinsStore.Pin {
-        let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         #if swift(>=5.10)
         guard let pin = pinsStore.pins[product.package.identity] else {
             throw Error.revisionNotDetected(product.package.manifest.displayName)

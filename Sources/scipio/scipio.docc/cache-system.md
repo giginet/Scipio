@@ -37,13 +37,17 @@ They are stored on `$OUTPUT_DIR/.$FRAMEWORK_NAME.version` as a JSON file.
       "watchOSSimulator"
     ]
   },
-  "clangVersion" : "clang-1403.0.22.14.1",
+  "clangVersion" : "clang-1500.3.9.4",
   "pin" : {
     "revision" : "32e8d724467f8fe623624570367e3d50c5638e46",
     "version" : "1.5.2"
   },
   "scipioVersion" : "9456405b33f2a25c479ea31cad0ba3c0222d9e20",
-  "targetName" : "Logging"
+  "targetName" : "Logging",
+  "xcodeVersion" : {
+    "xcodeBuildVersion" : "15F31d",
+    "xcodeVersion" : "15.4"
+  }
 }
 ```
 

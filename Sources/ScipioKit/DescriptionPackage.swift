@@ -3,7 +3,8 @@ import Workspace
 import TSCBasic
 import PackageModel
 import PackageLoading
-import PackageGraph
+// We can drop this annotation with SwiftPM release/6.0
+@preconcurrency import PackageGraph
 import Basics
 
 struct DescriptionPackage {
@@ -98,7 +99,7 @@ struct DescriptionPackage {
 
         let fileSystem = TSCBasic.localFileSystem
         let authorizationProvider = try Workspace.Configuration.Authorization.default
-            .makeAuthorizationProvider(fileSystem: fileSystem, observabilityScope: observabilitySystem.topScope)
+            .makeAuthorizationProvider(fileSystem: fileSystem, observabilityScope: makeObservabilitySystem().topScope)
         let workspace = try Workspace(
             fileSystem: fileSystem,
             location: Workspace.Location(forRootPackage: packagePath.spmAbsolutePath, fileSystem: fileSystem),
@@ -128,7 +129,7 @@ struct DescriptionPackage {
         self.toolchain = toolchain
 
         let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
-        let scope = observabilitySystem.topScope
+        let scope = makeObservabilitySystem().topScope
         self.graph = try workspace.loadPackageGraph(
             rootInput: PackageGraphRootInput(packages: [packageDirectory.spmAbsolutePath]),
             // This option is same with resolver option `--disable-automatic-resolution`
@@ -228,7 +229,7 @@ extension DescriptionPackage {
     }
 }
 
-struct BuildProduct: Hashable {
+struct BuildProduct: Hashable, Sendable {
     var package: ResolvedPackage
     var target: ResolvedTarget
 
