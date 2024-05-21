@@ -15,9 +15,6 @@ let package = Package(
         .library(
             name: "ScipioKit",
             targets: ["ScipioKit"]),
-        .library(
-            name: "ScipioS3Storage",
-            targets: ["ScipioS3Storage"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-package-manager.git",
@@ -57,16 +54,6 @@ let package = Package(
             name: "GenerateScipioVersion", 
             capability: .buildTool()
         ),
-        .target(
-            name: "ScipioS3Storage",
-            dependencies: [
-                .target(name: "ScipioKit"),
-                .product(name: "SotoCore", package: "soto-core"),
-            ],
-            plugins: [
-                .plugin(name: "SotoCodeGeneratorPlugin", package: "soto-codegenerator"),
-            ]
-        ),
         .testTarget(
             name: "ScipioKitTests",
             dependencies: [
@@ -74,9 +61,6 @@ let package = Package(
             ],
             exclude: ["Resources/Fixtures/"],
             resources: [.copy("Resources/Fixtures")]),
-        .testTarget(
-            name: "ScipioS3StorageTests",
-            dependencies: ["ScipioS3Storage"]),
     ]
 )
 
