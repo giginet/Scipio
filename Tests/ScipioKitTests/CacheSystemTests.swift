@@ -30,7 +30,9 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
                                                     extraFlags: .init(swiftFlags: ["-D", "SOME_FLAG"]),
                                                     extraBuildParameters: ["SWIFT_OPTIMIZATION_LEVEL": "-Osize"],
                                                     enableLibraryEvolution: true),
-                                clangVersion: "clang-1400.0.29.102")
+                                clangVersion: "clang-1400.0.29.102",
+                                xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d")
+        )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
         let data = try encoder.encode(cacheKey)
@@ -59,7 +61,11 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
   "pin" : {
     "revision" : "111111111"
   },
-  "targetName" : "MyTarget"
+  "targetName" : "MyTarget",
+  "xcodeVersion" : {
+    "xcodeBuildVersion" : "15F31d",
+    "xcodeVersion" : "15.4"
+  }
 }
 """
         XCTAssertEqual(rawString, expected)

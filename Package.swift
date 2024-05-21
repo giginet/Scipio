@@ -12,7 +12,7 @@ let swiftSettings: [SwiftSetting] = [
 let package = Package(
     name: "Scipio",
     platforms: [
-        .macOS(.v12),
+        .macOS(.v13),
     ],
     products: [
         .executable(name: "scipio",
