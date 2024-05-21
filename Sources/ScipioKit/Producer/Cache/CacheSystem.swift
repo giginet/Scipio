@@ -1,7 +1,7 @@
 import Foundation
 import TSCBasic
 import struct TSCUtility.Version
-import PackageGraph
+@preconcurrency import class PackageGraph.PinsStore
 import Algorithms
 
 private let jsonEncoder = {
@@ -106,7 +106,7 @@ extension CacheKey {
     }
 }
 
-public protocol CacheStorage {
+public protocol CacheStorage: Sendable {
     func existsValidCache(for cacheKey: CacheKey) async throws -> Bool
     func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: URL) async throws
     func cacheFramework(_ frameworkPath: URL, for cacheKey: CacheKey) async throws
@@ -119,14 +119,14 @@ extension CacheStorage {
     }
 }
 
-struct CacheSystem {
+struct CacheSystem: Sendable {
     static let defaultParalellNumber = 8
-    private let descriptionPackage: DescriptionPackage
+    private let pinsStore: PinsStore
     private let outputDirectory: URL
     private let storage: (any CacheStorage)?
     private let fileSystem: any FileSystem
 
-    struct CacheTarget: Hashable {
+    struct CacheTarget: Hashable, Sendable {
         var buildProduct: BuildProduct
         var buildOptions: BuildOptions
     }
@@ -152,12 +152,12 @@ struct CacheSystem {
     }
 
     init(
-        descriptionPackage: DescriptionPackage,
+        pinsStore: PinsStore,
         outputDirectory: URL,
         storage: (any CacheStorage)?,
         fileSystem: any FileSystem = localFileSystem
     ) {
-        self.descriptionPackage = descriptionPackage
+        self.pinsStore = pinsStore
         self.outputDirectory = outputDirectory
         self.storage = storage
         self.fileSystem = fileSystem
@@ -169,11 +169,12 @@ struct CacheSystem {
         for chunk in chunked {
             await withTaskGroup(of: Void.self) { group in
                 for target in chunk {
+                    let frameworkName = target.buildProduct.frameworkName
                     group.addTask {
-                        let frameworkPath = outputDirectory.appendingPathComponent(target.buildProduct.frameworkName)
+                        let frameworkPath = outputDirectory.appendingPathComponent(frameworkName)
                         do {
                             logger.info(
-                                "🚀 Cache \(target.buildProduct.frameworkName) to cache storage",
+                                "🚀 Cache \(frameworkName) to cache storage",
                                 metadata: .color(.green)
                             )
                             try await cacheFramework(target, at: frameworkPath)
@@ -266,7 +267,6 @@ struct CacheSystem {
     }
 
     private func retrievePin(product: BuildProduct) throws -> PinsStore.Pin {
-        let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         #if swift(>=5.10)
         guard let pin = pinsStore.pins[product.package.identity] else {
             throw Error.revisionNotDetected(product.package.manifest.displayName)

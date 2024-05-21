@@ -1,8 +1,13 @@
-// swift-tools-version: 5.8
+// swift-tools-version: 5.10
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 import Foundation
+
+let swiftSettings: [SwiftSetting] = [
+    .enableExperimentalFeature("StrictConcurrency"),
+    .unsafeFlags(["-strict-concurrency=complete"]),
+]
 
 let package = Package(
     name: "Scipio",
@@ -23,26 +28,29 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-package-manager.git",
                  revision: "swift-5.10-RELEASE"),
         .package(url: "https://github.com/apple/swift-log.git",
-                 .upToNextMinor(from: "1.4.2")),
+                 from: "1.5.2"),
         .package(url: "https://github.com/apple/swift-collections",
                  from: "1.0.4"),
         .package(url: "https://github.com/apple/swift-argument-parser.git",
                  from: "1.1.0"),
-        .package(url: "https://github.com/apple/swift-algorithms.git", 
+        .package(url: "https://github.com/apple/swift-algorithms.git",
                  from: "1.0.0"),
         .package(url: "https://github.com/onevcat/Rainbow",
                  .upToNextMinor(from: "4.0.1")),
-        .package(url: "https://github.com/soto-project/soto-codegenerator", 
+        .package(url: "https://github.com/soto-project/soto-codegenerator",
                  from: "0.6.0"),
-        .package(url: "https://github.com/soto-project/soto-core.git", 
+        .package(url: "https://github.com/soto-project/soto-core.git",
                  from: "6.4.0"),
     ],
     targets: [
-        .executableTarget(name: "scipio",
-                          dependencies: [
-                            .target(name: "ScipioKit"),
-                            .product(name: "ArgumentParser", package: "swift-argument-parser"),
-                          ]),
+        .executableTarget(
+            name: "scipio",
+            dependencies: [
+                .target(name: "ScipioKit"),
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ],
+            swiftSettings: swiftSettings
+        ),
         .target(
             name: "ScipioKit",
             dependencies: [
@@ -53,12 +61,13 @@ let package = Package(
                 .product(name: "Algorithms", package: "swift-algorithms"),
                 .product(name: "Rainbow", package: "Rainbow"),
             ],
+            swiftSettings: swiftSettings,
             plugins: [
                 .plugin(name: "GenerateScipioVersion")
             ]
         ),
         .plugin(
-            name: "GenerateScipioVersion", 
+            name: "GenerateScipioVersion",
             capability: .buildTool()
         ),
         .target(
@@ -67,6 +76,7 @@ let package = Package(
                 .target(name: "ScipioKit"),
                 .product(name: "SotoCore", package: "soto-core"),
             ],
+            swiftSettings: swiftSettings,
             plugins: [
                 .plugin(name: "SotoCodeGeneratorPlugin", package: "soto-codegenerator"),
             ]
@@ -77,7 +87,9 @@ let package = Package(
                 .target(name: "ScipioKit"),
             ],
             exclude: ["Resources/Fixtures/"],
-            resources: [.copy("Resources/Fixtures")]),
+            resources: [.copy("Resources/Fixtures")],
+            swiftSettings: swiftSettings
+        ),
         .testTarget(
             name: "ScipioS3StorageTests",
             dependencies: ["ScipioS3Storage"]),
@@ -88,7 +100,7 @@ let isDevelopment = ProcessInfo.processInfo.environment["SCIPIO_DEVELOPMENT"] ==
 
 // swift-docs is not needed for package users
 if isDevelopment {
-    package.dependencies += [ 
+    package.dependencies += [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
     ]
 }
