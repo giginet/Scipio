@@ -29,6 +29,8 @@ let package = Package(
                  from: "1.0.0"),
         .package(url: "https://github.com/onevcat/Rainbow",
                  .upToNextMinor(from: "4.0.1")),
+        .package(url: "https://github.com/giginet/scipio-cache-storage.git",
+                 revision: "ec3467983ae14356ffcba0ecf4e5c76c3dd80532"),
     ],
     targets: [
         .executableTarget(name: "scipio",
@@ -45,6 +47,7 @@ let package = Package(
                 .product(name: "Collections", package: "swift-collections"),
                 .product(name: "Algorithms", package: "swift-algorithms"),
                 .product(name: "Rainbow", package: "Rainbow"),
+                .product(name: "ScipioStorage", package: "scipio-cache-storage"),
             ],
             plugins: [
                 .plugin(name: "GenerateScipioVersion")
