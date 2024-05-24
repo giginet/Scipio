@@ -1,4 +1,5 @@
 import Foundation
+import ScipioStorage
 import TSCBasic
 import struct TSCUtility.Version
 @preconcurrency import class PackageGraph.PinsStore
@@ -91,32 +92,13 @@ extension PinsStore.PinState: Hashable {
     }
 }
 
-public struct CacheKey: Hashable, Codable, Equatable {
+public struct SwiftPMCacheKey: CacheKey {
     public var targetName: String
     public var pin: PinsStore.PinState
     var buildOptions: BuildOptions
     public var clangVersion: String
     public var xcodeVersion: XcodeVersion
     public var scipioVersion: String?
-}
-
-extension CacheKey {
-    public var frameworkName: String {
-        "\(targetName.packageNamed()).xcframework"
-    }
-}
-
-public protocol CacheStorage: Sendable {
-    func existsValidCache(for cacheKey: CacheKey) async throws -> Bool
-    func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: URL) async throws
-    func cacheFramework(_ frameworkPath: URL, for cacheKey: CacheKey) async throws
-    var paralellNumber: Int? { get }
-}
-
-extension CacheStorage {
-    public var paralellNumber: Int? {
-        nil
-    }
 }
 
 struct CacheSystem: Sendable {
@@ -164,7 +146,7 @@ struct CacheSystem: Sendable {
     }
 
     func cacheFrameworks(_ targets: Set<CacheTarget>) async {
-        let chunked = targets.chunks(ofCount: storage?.paralellNumber ?? CacheSystem.defaultParalellNumber)
+        let chunked = targets.chunks(ofCount: storage?.parallelNumber ?? CacheSystem.defaultParalellNumber)
 
         for chunk in chunked {
             await withTaskGroup(of: Void.self) { group in
@@ -205,7 +187,7 @@ struct CacheSystem: Sendable {
         )
     }
 
-    func existsValidCache(cacheKey: CacheKey) async -> Bool {
+    func existsValidCache(cacheKey: SwiftPMCacheKey) async -> Bool {
         do {
             let versionFilePath = versionFilePath(for: cacheKey.targetName)
             guard fileSystem.exists(versionFilePath.absolutePath) else { return false }
@@ -213,7 +195,7 @@ struct CacheSystem: Sendable {
             guard let contents = try? fileSystem.readFileContents(versionFilePath.absolutePath).contents else {
                 throw Error.couldNotReadVersionFile(versionFilePath)
             }
-            let versionFileKey = try decoder.decode(CacheKey.self, from: Data(contents))
+            let versionFileKey = try decoder.decode(SwiftPMCacheKey.self, from: Data(contents))
             return versionFileKey == cacheKey
         } catch {
             return false
@@ -246,7 +228,7 @@ struct CacheSystem: Sendable {
         try await storage.fetchArtifacts(for: cacheKey, to: destination)
     }
 
-    func calculateCacheKey(of target: CacheTarget) async throws -> CacheKey {
+    func calculateCacheKey(of target: CacheTarget) async throws -> SwiftPMCacheKey {
         let targetName = target.buildProduct.target.name
         let pin = try retrievePin(product: target.buildProduct)
         let buildOptions = target.buildOptions
@@ -256,7 +238,7 @@ struct CacheSystem: Sendable {
         guard let xcodeVersion = try await XcodeVersionFetcher().fetchXcodeVersion() else {
             throw Error.xcodeVersionNotDetected
         }
-        return CacheKey(
+        return SwiftPMCacheKey(
             targetName: targetName,
             pin: pin.state,
             buildOptions: buildOptions,
@@ -288,13 +270,6 @@ struct CacheSystem: Sendable {
     }
 }
 
-extension CacheKey {
-    public func calculateChecksum() throws -> String {
-        let data = try jsonEncoder.encode(self)
-        return SHA256().hash(ByteString(data)).hexadecimalRepresentation
-    }
-}
-
 public struct VersionFileDecoder {
     private let fileSystem: any FileSystem
 
@@ -302,11 +277,11 @@ public struct VersionFileDecoder {
         self.fileSystem = fileSystem
     }
 
-    public func decode(versionFile: URL) throws -> CacheKey {
+    public func decode(versionFile: URL) throws -> SwiftPMCacheKey {
         try jsonDecoder.decode(
             path: versionFile.absolutePath.spmAbsolutePath,
             fileSystem: fileSystem,
-            as: CacheKey.self
+            as: SwiftPMCacheKey.self
         )
     }
 }

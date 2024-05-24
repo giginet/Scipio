@@ -14,9 +14,9 @@ To use AWS S3, you have to configure a suitable permission for buckets before. W
 
 ## Use S3Storage for a Cache Backend
 
-Scipio provides `ScipioS3Storage` target.
+Using S3, add [scipio-s3-storage](https://github.com/giginet/scipio-s3-storage) package to your build script.
 
-This package provides S3 backend for cache storage.
+This package provides `ScipioS3Storage` target, it has S3 backend for cache storage.
 
 Here is a sample implementation.
 

@@ -1,9 +1,12 @@
 import Foundation
+import ScipioStorage
 import PackageGraph
 import TSCBasic
 
 public struct LocalCacheStorage: CacheStorage {
     private let fileSystem: any FileSystem
+
+    public var parallelNumber: Int? { nil }
 
     enum Error: Swift.Error {
         case cacheDirectoryIsNotFound
@@ -35,11 +38,11 @@ public struct LocalCacheStorage: CacheStorage {
         return cacheDir.appendingPathComponent("Scipio")
     }
 
-    private func xcFrameworkFileName(for cacheKey: CacheKey) -> String {
+    private func xcFrameworkFileName(for cacheKey: some CacheKey) -> String {
         "\(cacheKey.targetName.packageNamed()).xcframework"
     }
 
-    private func cacheFrameworkPath(for cacheKey: CacheKey) throws -> URL {
+    private func cacheFrameworkPath(for cacheKey: some CacheKey) throws -> URL {
         let baseDirectory = try buildBaseDirectoryPath()
         let checksum = try cacheKey.calculateChecksum()
         return baseDirectory
@@ -48,7 +51,7 @@ public struct LocalCacheStorage: CacheStorage {
             .appendingPathComponent(xcFrameworkFileName(for: cacheKey))
     }
 
-    public func existsValidCache(for cacheKey: CacheKey) async -> Bool {
+    public func existsValidCache(for cacheKey: some CacheKey) async -> Bool {
         do {
             let xcFrameworkPath = try cacheFrameworkPath(for: cacheKey)
             return fileSystem.exists(xcFrameworkPath.absolutePath)
@@ -57,7 +60,7 @@ public struct LocalCacheStorage: CacheStorage {
         }
     }
 
-    public func cacheFramework(_ frameworkPath: URL, for cacheKey: CacheKey) async {
+    public func cacheFramework(_ frameworkPath: URL, for cacheKey: some CacheKey) async {
         do {
             let destination = try cacheFrameworkPath(for: cacheKey)
             let directoryPath = destination.deletingLastPathComponent()
@@ -69,7 +72,7 @@ public struct LocalCacheStorage: CacheStorage {
         }
     }
 
-    public func fetchArtifacts(for cacheKey: CacheKey, to destinationDir: URL) async throws {
+    public func fetchArtifacts(for cacheKey: some CacheKey, to destinationDir: URL) async throws {
         let source = try cacheFrameworkPath(for: cacheKey)
         let destination = destinationDir.appendingPathComponent(xcFrameworkFileName(for: cacheKey))
         try fileSystem.copy(from: source.absolutePath, to: destination.absolutePath)

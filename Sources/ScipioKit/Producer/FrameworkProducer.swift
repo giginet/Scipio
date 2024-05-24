@@ -1,4 +1,5 @@
 import Foundation
+import ScipioStorage
 import PackageGraph
 import PackageModel
 import Collections
@@ -141,7 +142,7 @@ struct FrameworkProducer {
         availableTargets: Set<CacheSystem.CacheTarget>,
         cacheSystem: CacheSystem
     ) async -> Set<CacheSystem.CacheTarget> {
-        let chunked = availableTargets.chunks(ofCount: cacheStorage?.paralellNumber ?? CacheSystem.defaultParalellNumber)
+        let chunked = availableTargets.chunks(ofCount: cacheStorage?.parallelNumber ?? CacheSystem.defaultParalellNumber)
 
         var restored: Set<CacheSystem.CacheTarget> = []
         for chunk in chunked {
