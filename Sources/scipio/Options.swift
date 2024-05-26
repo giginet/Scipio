@@ -28,6 +28,10 @@ struct BuildOptionGroup: ParsableArguments {
     @Flag(name: [.customLong("static")],
           help: "Whether generated frameworks are Static Frameworks or not")
     var shouldBuildStaticFramework = false
+    
+    @Option(name: [.customLong("framework-type")],
+            help: "Specify the frameworkType. Availables: dynamic, static or mergeable")
+    var frameworkType: FrameworkType = .dynamic
 
     @Flag(name: [.customLong("library-evolution")],
           inversion: .prefixedEnableDisable,
@@ -43,8 +47,4 @@ struct BuildOptionGroup: ParsableArguments {
     var overwrite: Bool = false
 }
 
-extension BuildOptionGroup {
-    var frameworkType: FrameworkType {
-        shouldBuildStaticFramework ? .static : .dynamic
-    }
-}
+extension FrameworkType: ExpressibleByArgument { }
