@@ -227,7 +227,7 @@ private struct PIFLibraryTargetModifier {
 
         // Set framework type
         switch frameworkType {
-        case .dynamic:
+        case .dynamic, .mergeable:
             settings[.MACH_O_TYPE] = "mh_dylib"
         case .static:
             settings[.MACH_O_TYPE] = "staticlib"
@@ -243,6 +243,10 @@ private struct PIFLibraryTargetModifier {
             settings[.SWIFT_EMIT_MODULE_INTERFACE] = "YES"
         }
         settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
+        
+        if frameworkType == .mergeable {
+            settings[.OTHER_LDFLAGS] = ["-Wl,-make_mergeable"]
+        }
 
         appendExtraFlagsByBuildOptionsMatrix(to: &settings)
 

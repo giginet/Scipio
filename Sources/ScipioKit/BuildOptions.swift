@@ -65,6 +65,7 @@ public enum BuildConfiguration: String, Codable, Sendable {
 public enum FrameworkType: String, Codable, Sendable {
     case dynamic
     case `static`
+    case mergeable
 }
 
 public enum SDK: String, Codable, Hashable, Sendable {
