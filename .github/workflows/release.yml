@@ -3,7 +3,8 @@ on:
     types: [created]
 
 name: Upload Artifact Bundle to Release
-env:
+env: 
+  DEVELOPER_DIR: "/Applications/Xcode_15.3.app/Contents/Developer"
   SCIPIO_DEVELOPMENT: 1
 
 jobs:
@@ -12,6 +13,9 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v3
+      - name: Resolve Dependencies
+        run: |
+          swift package resolve
       - name: Build Binary
         run: |
           # Scipio can't build for x86_64 on Apple Silicon because it uses build tools plugin
@@ -20,14 +24,12 @@ jobs:
         run: echo "TAG_NAME=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       - name: Make Artifact Bundle
         run: |
-          swift package plugin --allow-writing-to-directory . generate-artifact-bundle \
-          --package-version ${{ env.TAG_NAME }} \ 
+          swift package --allow-writing-to-package-directory generate-artifact-bundle \
+          --package-version ${{ env.TAG_NAME }} \
           --executable-name scipio \
           --build-config release \
           --build-folder .build
-      - uses: Shopify/upload-to-release@v2.0.0
+      - uses: AButler/upload-release-assets@v3.0
         with:
-          name: scipio.artifactbundle.zip
-          path: ./scipio.artifactbundle.zip
+          files: ./scipio.artifactbundle.zip
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          content-type: application/zip
