@@ -29,7 +29,8 @@ jobs:
           --executable-name scipio \
           --build-config release \
           --build-folder .build
-      - uses: AButler/upload-release-assets@v3.0
-        with:
-          files: ./scipio.artifactbundle.zip
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Artifact Bundle to Release
+        run: |
+          gh release upload ${{ env.TAG_NAME }} ./scipio.artifactbundle.zip
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
