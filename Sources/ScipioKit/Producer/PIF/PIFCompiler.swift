@@ -124,19 +124,9 @@ struct PIFCompiler: Compiler {
             isXcodeBuildSystemEnabled: true,
             driverParameters: BuildParameters.Driver(enableParseableModuleInterfaces: buildOptions.enableLibraryEvolution)
         )
-        #elseif swift(>=5.9)
+        #else
         try .init(
             dataPath: descriptionPackage.buildDirectory.spmAbsolutePath,
-            configuration: buildOptions.buildConfiguration.spmConfiguration,
-            toolchain: toolchain,
-            destinationTriple: toolchain.triple,
-            flags: .init(),
-            enableParseableModuleInterfaces: buildOptions.enableLibraryEvolution,
-            isXcodeBuildSystemEnabled: true
-        )
-        #else
-        .init(
-            dataPath: descriptionPackage.buildDirectory,
             configuration: buildOptions.buildConfiguration.spmConfiguration,
             toolchain: toolchain,
             destinationTriple: toolchain.triple,

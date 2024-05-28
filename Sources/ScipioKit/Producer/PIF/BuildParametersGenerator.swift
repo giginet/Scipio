@@ -40,8 +40,6 @@ struct BuildParametersGenerator {
         let targetArchitecture = buildParameters.targetTriple.arch?.rawValue ?? "arm64"
         #elseif swift(>=5.9)
         let targetArchitecture = buildParameters.triple.arch?.rawValue ?? "arm64"
-        #else
-        let targetArchitecture = buildParameters.triple.arch.rawValue
         #endif
 
         // Generate the run destination parameters.
