@@ -20,7 +20,7 @@ jobs:
         run: echo "TAG_NAME=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       - name: Make Artifact Bundle
         run: |
-          swift package --allow-writing-to-directory . generate-artifact-bundle \
+          swift package plugin --allow-writing-to-directory . generate-artifact-bundle \
           --package-version ${{ env.TAG_NAME }} \ 
           --executable-name scipio \
           --build-config release \
