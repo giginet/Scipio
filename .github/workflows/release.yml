@@ -1,0 +1,32 @@
+on: 
+  release:
+    types: [created]
+
+name: Upload Artifact Bundle to Release
+jobs:
+  release:
+    name: Build and Upload Artifact Bundle
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Binary
+        run: |
+          # Scipio can't build for x86_64 on Apple Silicon because it uses build tools plugin
+          swift build --disable-sandbox -c release --arch arm64
+      - name: Get Current Tag
+        run: echo "TAG_NAME=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: Make Artifact Bundle
+        run: |
+          swift package --allow-writing-to-directory . generate-artifact-bundle \
+          --package-version ${{ env.TAG_NAME }} \ 
+          --executable-name scipio \
+          --build-config release \
+          --build-folder .build
+        env:
+          SCIPIO_DEVELOPMENT: 1
+      - uses: Shopify/upload-to-release@v1
+        with:
+          name: scipio.artifactbundle.zip
+          path: ./scipio.artifactbundle.zip
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          content-type: application/zip

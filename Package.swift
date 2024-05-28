@@ -84,5 +84,6 @@ let isDevelopment = ProcessInfo.processInfo.environment["SCIPIO_DEVELOPMENT"] ==
 if isDevelopment {
     package.dependencies += [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
+        .package(url: "https://github.com/freddi-kit/ArtifactBundleGen.git", from: "0.0.6"),
     ]
 }
