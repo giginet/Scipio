@@ -136,7 +136,7 @@ final class RunnerTests: XCTestCase {
                 fileManager.fileExists(atPath: moduleMapPath),
                 "Should exist a modulemap"
             )
-            let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: .UTF8.self) })
+            let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: UTF8.self) })
             XCTAssertEqual(
                 moduleMapContents,
                 """
