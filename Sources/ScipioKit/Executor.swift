@@ -145,7 +145,7 @@ extension ExecutorResult {
     func unwrapOutput() throws -> String {
         switch output {
         case .success(let data):
-            return String(data: Data(data), encoding: .utf8)!
+            return String(decoding: Data(data), as: UTF8.self)
         case .failure(let error):
             throw error
         }
@@ -154,7 +154,7 @@ extension ExecutorResult {
     func unwrapStdErrOutput() throws -> String {
         switch stderrOutput {
         case .success(let data):
-            return String(data: Data(data), encoding: .utf8)!
+            return String(decoding: Data(data), as: UTF8.self)
         case .failure(let error):
             throw error
         }

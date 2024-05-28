@@ -34,7 +34,7 @@ final class RunnerTests: XCTestCase {
 
     private let plistDecoder: PropertyListDecoder = .init()
 
-    override class func setUp() {
+    override static func setUp() {
         LoggingSystem.bootstrap { _ in SwiftLogNoOpLogHandler() }
 
         super.setUp()
@@ -136,7 +136,7 @@ final class RunnerTests: XCTestCase {
                 fileManager.fileExists(atPath: moduleMapPath),
                 "Should exist a modulemap"
             )
-            let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(data: $0, encoding: .utf8) })
+            let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: .UTF8.self) })
             XCTAssertEqual(
                 moduleMapContents,
                 """
@@ -186,7 +186,7 @@ final class RunnerTests: XCTestCase {
                 fileManager.fileExists(atPath: moduleMapPath),
                 "Should exist a modulemap"
             )
-            let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(data: $0, encoding: .utf8) })
+            let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: UTF8.self) })
             XCTAssertEqual(
                 moduleMapContents,
                 """
@@ -630,7 +630,7 @@ final class RunnerTests: XCTestCase {
         XCTAssertTrue(fileManager.fileExists(atPath: moduleMapPath.path))
 
         let generatedModuleMapData = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath.path))
-        let generatedModuleMapContents = String(data: generatedModuleMapData, encoding: .utf8)
+        let generatedModuleMapContents = String(decoding: generatedModuleMapData, as: UTF8.self)
 
         let expectedModuleMap = """
 framework module MyTarget {

@@ -36,7 +36,7 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
         let data = try encoder.encode(cacheKey)
-        let rawString = try XCTUnwrap(String(data: data, encoding: .utf8))
+        let rawString = try XCTUnwrap(String(decoding: data, as: UTF8.self))
         let expected = """
 {
   "buildOptions" : {
