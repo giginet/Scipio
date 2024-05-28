@@ -222,7 +222,7 @@ private struct PIFLibraryTargetModifier {
         // These values are required to ship built frameworks to AppStore as embedded frameworks
         settings[.MARKETING_VERSION] = "1.0"
         settings[.CURRENT_PROJECT_VERSION] = "1"
-        
+
         let frameworkType = buildOptionsMatrix[pifTarget.name]?.frameworkType ?? buildOptions.frameworkType
 
         // Set framework type
@@ -270,12 +270,12 @@ private struct PIFLibraryTargetModifier {
         }
 
         configuration.buildSettings = settings
-        
+
         linkAllDependencies(of: pifTarget)
 
         return configuration
     }
-    
+
     /// Link all dependencies of the target
     /// The original implementations of PIFBuilder links all dependencies to the PackageProduct targets
     /// However, Scipio ignores PackageProduct so targets' dependencies haven't be linked
@@ -301,7 +301,7 @@ private struct PIFLibraryTargetModifier {
     private func fetchBuildPhase<BuildPhase: PIF.BuildPhase>(of buildPhasesType: BuildPhase.Type, in pifTarget: PIF.Target) -> BuildPhase? {
         pifTarget.buildPhases.compactMap({ $0 as? BuildPhase }).first
     }
-    
+
     /// Build GUID with suffixes
     private func guid(_ suffixes: String...) -> String {
         "GUID::SCIPIO::\(pifTarget.name)::" + suffixes.joined(separator: "::")
