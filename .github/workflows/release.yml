@@ -3,6 +3,9 @@ on:
     types: [created]
 
 name: Upload Artifact Bundle to Release
+env:
+  SCIPIO_DEVELOPMENT: 1
+
 jobs:
   release:
     name: Build and Upload Artifact Bundle
@@ -22,8 +25,6 @@ jobs:
           --executable-name scipio \
           --build-config release \
           --build-folder .build
-        env:
-          SCIPIO_DEVELOPMENT: 1
       - uses: Shopify/upload-to-release@v2.0.0
         with:
           name: scipio.artifactbundle.zip
