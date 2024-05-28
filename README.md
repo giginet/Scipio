@@ -134,15 +134,12 @@ See [Convert Single Swift Package to XCFramework](https://giginet.github.io/Scip
 
 ## Supported Xcode and Swift version
 
-Currently, we support Swift 5.8, 5.9, and 5.10.
-
-Swift 5.8 support will be dropped in the future.
+Currently, we support Swift 5.9, and 5.10.
 
 |    | Xcode      | Swift |
 |----|------------|-------|
 | ✅ | 15.3       | 5.10  |
 | ✅ | 15.0<=15.2 | 5.9   |
-| ✅ | 14.3       | 5.8   |
 
 ## Reliability
 
