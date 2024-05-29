@@ -5,10 +5,10 @@ on:
     branches:
       - main
 env: 
-  DEVELOPER_DIR: "/Applications/Xcode_14.3.1.app/Contents/Developer"
+  DEVELOPER_DIR: "/Applications/Xcode_15.3.app/Contents/Developer"
 jobs:
   DocC:
-    runs-on: macos-13
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v3
       - name: Build DocC
