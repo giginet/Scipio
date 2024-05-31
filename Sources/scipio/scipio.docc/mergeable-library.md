@@ -20,7 +20,7 @@ In general, mergeable frameworks will be about 2x bigger binary size than the no
 Mergeable frameworks have `LC_ATOM_INFO` load command in the binary. You can check it by `otool` command.
 
 ```shell
-echo $(otool -l path/to/binary) | grep "LC_ATOM_INFO"
+echo $(otool -l MyFramework.framework/MyFramework) | grep "LC_ATOM_INFO"
 ```
 
 ## Limitation
