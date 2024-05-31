@@ -519,6 +519,45 @@ final class RunnerTests: XCTestCase {
             )
         }
     }
+    
+    func testMergeableLibrary() async throws {
+        let runner = Runner(
+            mode: .createPackage,
+            options: .init(
+                baseBuildOptions: .init(
+                    platforms: .specific([.iOS]),
+                    frameworkType: .mergeable
+                ),
+                shouldOnlyUseVersionsFromResolvedFile: true,
+                cacheMode: .disabled
+            )
+        )
+
+        try await runner.run(packageDirectory: testPackagePath,
+                             frameworkOutputDir: .custom(frameworkOutputDir))
+
+        let xcFramework = frameworkOutputDir.appendingPathComponent("TestingPackage.xcframework")
+        
+        let executor = ProcessExecutor()
+        
+        for arch in ["ios-arm64",] {
+            let binaryPath = xcFramework
+                .appendingPathComponent(arch)
+                .appendingPathComponent("TestingPackage.framework")
+                .appendingPathComponent("TestingPackage")
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: binaryPath.path),
+                "A framework for \(arch) should contain binary"
+            )
+            
+            let executionResult = try await executor.execute("/usr/bin/otool", "-l", binaryPath.path())
+            let loadCommands = try XCTUnwrap(executionResult.unwrapOutput())
+            XCTAssertTrue(
+                loadCommands.contains("LC_ATOM_INFO"),
+                "A Mergeable Library should contain LC_ATOM_INFO segment"
+            )
+        }
+    }
 
     func testWithExtraBuildParameters() async throws {
         let runner = Runner(
