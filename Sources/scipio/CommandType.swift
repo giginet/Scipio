@@ -39,7 +39,7 @@ extension Runner {
         if buildOptions.shouldBuildStaticFramework {
             fatalError("--static is deprecated. Use `-framework-type static` instead.")
         }
-        
+
         let baseBuildOptions = Runner.Options.BuildOptions(
             buildConfiguration: buildOptions.buildConfiguration,
             platforms: commandType.platformSpecifier,

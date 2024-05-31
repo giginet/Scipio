@@ -28,7 +28,7 @@ struct BuildOptionGroup: ParsableArguments {
     @Flag(name: [.customLong("static")],
           help: "Whether generated frameworks are Static Frameworks or not")
     var shouldBuildStaticFramework = false
-    
+
     @Option(name: [.customLong("framework-type")],
             help: "Specify the frameworkType. Availables: dynamic, static or mergeable")
     var frameworkType: FrameworkType = .dynamic

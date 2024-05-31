@@ -243,7 +243,7 @@ private struct PIFLibraryTargetModifier {
             settings[.SWIFT_EMIT_MODULE_INTERFACE] = "YES"
         }
         settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
-        
+
         if frameworkType == .mergeable {
             settings[.OTHER_LDFLAGS] = ["-Wl,-make_mergeable"]
         }
