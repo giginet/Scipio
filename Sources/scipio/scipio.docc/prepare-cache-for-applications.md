@@ -86,16 +86,16 @@ All XCFrameworks are generated into `MyAppDependencies/XCFramework` by default.
 
 `prepare` command has some options. These are available options.
 
-|Flag|Description|Default|
-|---------|------------|-----------|
-|-\-configuration, -c|Build configuration for generated frameworks (debug / release)|release|
-|-\-output, -o|Path indicates a XCFrameworks output directory|$PACKAGE_ROOT/XCFrameworks|
-|-\-embed-debug-symbols|Whether embed debug symbols to frameworks or not|-|
-|-\-static|Whether generated frameworks are Static Frameworks or not|-|
-|-\-support-simulators|Whether also building for simulators of each SDKs or not|-|
-|-\-cache-policy|How to reuse built frameworks|project|
-|-\-enable-library-evolution|Whether to enable Library Evolution feature or not|-|
-|-\-only-use-versions-from-resolved-file|Whether to disable updating Package.resolved automatically|false|
+| Flag                                    | Description                                                         | Default                    |
+|-----------------------------------------|---------------------------------------------------------------------|----------------------------|
+| -\-configuration, -c                    | Build configuration for generated frameworks (debug / release)      | release                    |
+| -\-output, -o                           | Path indicates a XCFrameworks output directory                      | $PACKAGE_ROOT/XCFrameworks |
+| -\-embed-debug-symbols                  | Whether embed debug symbols to frameworks or not                    | -                          |
+| -\-framework-type                       | Framework type to generate Available: dynamic, static or mergeable) | dynamic                    |
+| -\-support-simulators                   | Whether also building for simulators of each SDKs or not            | -                          |
+| -\-cache-policy                         | How to reuse built frameworks                                       | project                    |
+| -\-enable-library-evolution             | Whether to enable Library Evolution feature or not                  | -                          |
+| -\-only-use-versions-from-resolved-file | Whether to disable updating Package.resolved automatically          | false                      |
 
 
 See `--help` for details.
