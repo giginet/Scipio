@@ -276,40 +276,7 @@ private struct PIFLibraryTargetModifier {
 
         configuration.buildSettings = settings
 
-        linkAllDependencies(of: pifTarget)
-
         return configuration
-    }
-
-    /// Link all dependencies of the target
-    /// The original implementations of PIFBuilder links all dependencies to the PackageProduct targets
-    /// However, Scipio ignores PackageProduct so targets' dependencies haven't be linked
-    private func linkAllDependencies(of pifTarget: PIF.Target) {
-         let buildFiles = pifTarget.dependencies.enumerated().map { (index, dependency) in
-             PIF.BuildFile(guid: guid("FRAMEWORKS_BUILD_FILE_\(index)"),
-                           targetGUID: dependency.targetGUID,
-                           platformFilters: dependency.platformFilters)
-         }
-
-         if let buildPhase = fetchBuildPhase(of: PIF.FrameworksBuildPhase.self, in: pifTarget) {
-             buildPhase.buildFiles.append(contentsOf: buildFiles)
-         } else {
-             let buildPhase = PIF.FrameworksBuildPhase(
-                guid: guid("FRAMEWORKS_BUILD_PHASE"),
-                buildFiles: buildFiles
-             )
-             pifTarget.buildPhases.append(buildPhase)
-         }
-     }
-
-    /// Fetch BuildPhase of the passed type
-    private func fetchBuildPhase<BuildPhase: PIF.BuildPhase>(of buildPhasesType: BuildPhase.Type, in pifTarget: PIF.Target) -> BuildPhase? {
-        pifTarget.buildPhases.compactMap({ $0 as? BuildPhase }).first
-    }
-
-    /// Build GUID with suffixes
-    private func guid(_ suffixes: String...) -> String {
-        "GUID::SCIPIO::\(pifTarget.name)::" + suffixes.joined(separator: "::")
     }
 
     // Append extraFlags from BuildOptionsMatrix to each target settings
