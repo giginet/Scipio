@@ -15,7 +15,7 @@ extension Compiler {
         target: ResolvedTarget,
         buildConfiguration: BuildConfiguration,
         sdks: Set<SDK>,
-        fileSystem: FileSystem = localFileSystem
+        fileSystem: any FileSystem = localFileSystem
     ) async throws -> [SDK: [AbsolutePath]] {
         let extractor = DwarfExtractor()
 

@@ -18,7 +18,7 @@ public struct Runner {
     public enum Error: Swift.Error, LocalizedError {
         case invalidPackage(URL)
         case platformNotSpecified
-        case compilerError(Swift.Error)
+        case compilerError(any Swift.Error)
 
         public var errorDescription: String? {
             switch self {

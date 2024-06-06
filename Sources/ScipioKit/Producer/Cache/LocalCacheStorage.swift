@@ -19,7 +19,7 @@ public struct LocalCacheStorage: CacheStorage {
 
     private let cacheDirectroy: CacheDirectory
 
-    public init(cacheDirectory: CacheDirectory = .system, fileSystem: FileSystem = localFileSystem) {
+    public init(cacheDirectory: CacheDirectory = .system, fileSystem: any FileSystem = localFileSystem) {
         self.cacheDirectroy = cacheDirectory
         self.fileSystem = fileSystem
     }

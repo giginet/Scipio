@@ -4,11 +4,11 @@ import struct TSCBasic.ProcessResult
 
 protocol Executor {
     @discardableResult
-    func execute(_ arguments: [String]) async throws -> ExecutorResult
+    func execute(_ arguments: [String]) async throws -> any ExecutorResult
 }
 
 protocol ErrorDecoder {
-    func decode(_ result: ExecutorResult) throws -> String?
+    func decode(_ result: any ExecutorResult) throws -> String?
 }
 
 protocol ExecutorResult {
@@ -21,22 +21,22 @@ protocol ExecutorResult {
 
     /// The output bytes of the process. Available only if the process was
     /// asked to redirect its output and no stdout output closure was set.
-    var output: Result<[UInt8], Swift.Error> { get }
+    var output: Result<[UInt8], (any Swift.Error)> { get }
 
     /// The output bytes of the process. Available only if the process was
     /// asked to redirect its output and no stderr output closure was set.
-    var stderrOutput: Result<[UInt8], Swift.Error> { get }
+    var stderrOutput: Result<[UInt8], (any Swift.Error)> { get }
 }
 
 extension Executor {
     @discardableResult
-    func execute(_ arguments: String...) async throws -> ExecutorResult {
+    func execute(_ arguments: String...) async throws -> any ExecutorResult {
         try await execute(arguments)
     }
 }
 
 extension ProcessResult {
-    mutating func setOutput(_ newValue: Result<[UInt8], Swift.Error>) {
+    mutating func setOutput(_ newValue: Result<[UInt8], (any Swift.Error)>) {
         self = ProcessResult(
             arguments: arguments,
             environment: environment,
@@ -46,7 +46,7 @@ extension ProcessResult {
         )
     }
 
-    mutating func setStderrOutput(_ newValue: Result<[UInt8], Swift.Error>) {
+    mutating func setStderrOutput(_ newValue: Result<[UInt8], (any Swift.Error)>) {
         self = ProcessResult(
             arguments: arguments,
             environment: environment,
@@ -62,7 +62,7 @@ extension ProcessResult: ExecutorResult { }
 enum ProcessExecutorError: LocalizedError {
     case terminated(errorOutput: String?)
     case signalled(Int32)
-    case unknownError(Swift.Error)
+    case unknownError(any Swift.Error)
 
     var errorDescription: String? {
         switch self {
@@ -93,7 +93,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
     var streamOutput: (([UInt8]) -> Void)?
     var collectsOutput: Bool = true
 
-    func execute(_ arguments: [String]) async throws -> ExecutorResult {
+    func execute(_ arguments: [String]) async throws -> any ExecutorResult {
         logger.debug("\(arguments.joined(separator: " "))")
 
         var outputBuffer: [UInt8] = []
@@ -162,13 +162,13 @@ extension ExecutorResult {
 }
 
 struct StandardErrorOutputDecoder: ErrorDecoder {
-    func decode(_ result: ExecutorResult) throws -> String? {
+    func decode(_ result: any ExecutorResult) throws -> String? {
         try result.unwrapStdErrOutput()
     }
 }
 
 struct StandardOutputDecoder: ErrorDecoder {
-    func decode(_ result: ExecutorResult) throws -> String? {
+    func decode(_ result: any ExecutorResult) throws -> String? {
         try result.unwrapOutput()
     }
 }

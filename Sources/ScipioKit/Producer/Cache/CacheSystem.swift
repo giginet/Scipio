@@ -46,7 +46,7 @@ extension PinsStore.PinState: Codable {
         case version
     }
 
-    public func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var versionContainer = encoder.container(keyedBy: Key.self)
         switch self {
         case .version(let version, let revision):
@@ -60,7 +60,7 @@ extension PinsStore.PinState: Codable {
         }
     }
 
-    public init(from decoder: Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         let decoder = try decoder.container(keyedBy: Key.self)
         if decoder.contains(.branch) {
             let branchName = try decoder.decode(String.self, forKey: .branch)
@@ -204,7 +204,7 @@ struct CacheSystem: Sendable {
 
     enum RestoreResult {
         case succeeded
-        case failed(LocalizedError?)
+        case failed((any LocalizedError)?)
         case noCache
     }
     func restoreCacheIfPossible(target: CacheTarget) async -> RestoreResult {
@@ -218,7 +218,7 @@ struct CacheSystem: Sendable {
                 return .noCache
             }
         } catch {
-            return .failed(error as? LocalizedError)
+            return .failed(error as? any LocalizedError)
         }
     }
 

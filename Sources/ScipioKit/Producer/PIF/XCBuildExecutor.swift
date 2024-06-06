@@ -54,8 +54,8 @@ private final class _Executor {
     // FIXME: store log on file
     private var allMessages: [String] = []
 
-    private var parseError: Error?
-    private var executeError: Error?
+    private var parseError: (any Error)?
+    private var executeError: (any Error)?
 
     private var targets: [Int: XCBuildMessage.TargetStartedInfo] = [:]
     private var tasks: [Int: XCBuildMessage.TaskStartedInfo] = [:]
@@ -179,7 +179,7 @@ extension _Executor: XCBuildOutputParserDelegate {
         handle(message: message)
     }
 
-    func xcBuildOutputParser(_ parser: XCBuildOutputParser, didFailWith error: Error) {
+    func xcBuildOutputParser(_ parser: XCBuildOutputParser, didFailWith error: any Error) {
         self.parseError = error
         logger.error("xcbuild output parse failed", metadata: .color(.red))
         logger.error(error)

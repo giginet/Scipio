@@ -146,7 +146,7 @@ struct XCBuildClient {
 private struct XCBuildOutputDecoder: ErrorDecoder {
     private let jsonDecoder = JSONDecoder()
 
-    func decode(_ result: ExecutorResult) throws -> String? {
+    func decode(_ result: any ExecutorResult) throws -> String? {
         let lines = try result.unwrapOutput().split(separator: "\n")
             .map(String.init)
         return lines.compactMap { line -> String? in

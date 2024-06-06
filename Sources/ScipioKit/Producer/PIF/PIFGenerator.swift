@@ -295,7 +295,7 @@ private struct PIFLibraryTargetModifier {
 }
 
 extension PIF.TopLevelObject: Decodable {
-    public init(from decoder: Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         var container = try decoder.unkeyedContainer()
         self.init(workspace: try container.decode(PIF.Workspace.self))
     }
