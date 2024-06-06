@@ -12,7 +12,7 @@ struct DescriptionPackage {
     let packageDirectory: ScipioAbsolutePath
     private let toolchain: UserToolchain
     let workspace: Workspace
-    let graph: PackageGraph
+    let graph: ScipioPackageGraph
     let manifest: Manifest
 
     enum Error: LocalizedError {
@@ -51,7 +51,7 @@ struct DescriptionPackage {
         workspaceDirectory.appending(component: "DerivedData")
     }
 
-    func generatedModuleMapPath(of target: ResolvedTarget, sdk: SDK) throws -> ScipioAbsolutePath {
+    func generatedModuleMapPath(of target: ScipioResolvedTarget, sdk: SDK) throws -> ScipioAbsolutePath {
         let relativePath = try TSCBasic.RelativePath(validating: "ModuleMapsForFramework/\(sdk.settingValue)")
         return workspaceDirectory
             .appending(relativePath)
@@ -155,7 +155,7 @@ extension DescriptionPackage {
         var products = try targetsToBuild.flatMap(resolveBuildProduct(from:))
 
         let productMap: [String: BuildProduct] = Dictionary(products.map { ($0.target.name, $0) }) { $1 }
-        func resolvedTargetToBuildProduct(_ target: ResolvedTarget) -> BuildProduct {
+        func resolvedTargetToBuildProduct(_ target: ScipioResolvedTarget) -> BuildProduct {
             guard let product = productMap[target.name] else {
                 preconditionFailure("The dependency target (\(target.name)) was not found in the build target list")
             }
@@ -183,7 +183,7 @@ extension DescriptionPackage {
         return products.reversed()
     }
 
-    private func targetsToBuild() throws -> [ResolvedTarget] {
+    private func targetsToBuild() throws -> [ScipioResolvedTarget] {
         switch mode {
         case .createPackage:
             // In create mode, all products should be built
@@ -205,7 +205,7 @@ extension DescriptionPackage {
         return rootPackage
     }
 
-    private func resolveBuildProduct(from rootTarget: ResolvedTarget) throws -> Set<BuildProduct> {
+    private func resolveBuildProduct(from rootTarget: ScipioResolvedTarget) throws -> Set<BuildProduct> {
         let dependencyProducts = Set(try rootTarget.recursiveTargetDependencies().flatMap(buildProducts(from:)))
 
         switch mode {
@@ -219,7 +219,7 @@ extension DescriptionPackage {
         }
     }
 
-    private func buildProducts(from target: ResolvedTarget) throws -> Set<BuildProduct> {
+    private func buildProducts(from target: ScipioResolvedTarget) throws -> Set<BuildProduct> {
         guard let package = graph.package(for: target) else {
             return []
         }
@@ -232,7 +232,7 @@ extension DescriptionPackage {
 
 struct BuildProduct: Hashable, Sendable {
     var package: ResolvedPackage
-    var target: ResolvedTarget
+    var target: ScipioResolvedTarget
 
     var frameworkName: String {
         "\(target.name.packageNamed()).xcframework"

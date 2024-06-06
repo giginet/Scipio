@@ -5,7 +5,7 @@ import PackageModel
 
 struct ModuleMapGenerator {
     private struct Context {
-        var resolvedTarget: ResolvedTarget
+        var resolvedTarget: ScipioResolvedTarget
         var sdk: SDK
         var configuration: BuildConfiguration
     }
@@ -29,7 +29,7 @@ struct ModuleMapGenerator {
         self.fileSystem = fileSystem
     }
 
-    func generate(resolvedTarget: ResolvedTarget, sdk: SDK, buildConfiguration: BuildConfiguration) throws -> AbsolutePath? {
+    func generate(resolvedTarget: ScipioResolvedTarget, sdk: SDK, buildConfiguration: BuildConfiguration) throws -> AbsolutePath? {
         let context = Context(resolvedTarget: resolvedTarget, sdk: sdk, configuration: buildConfiguration)
 
         if let clangTarget = resolvedTarget.underlying as? ClangTarget {

@@ -4,7 +4,7 @@ import TSCBasic
 
 struct DebugSymbol {
     var dSYMPath: AbsolutePath
-    var target: ResolvedTarget
+    var target: ScipioResolvedTarget
     var sdk: SDK
     var buildConfiguration: BuildConfiguration
 

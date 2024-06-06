@@ -97,7 +97,7 @@ struct XCBuildClient {
         try assembler.assemble()
     }
 
-    private func assembledFrameworkPath(target: ResolvedTarget, of sdk: SDK) throws -> AbsolutePath {
+    private func assembledFrameworkPath(target: ScipioResolvedTarget, of sdk: SDK) throws -> AbsolutePath {
         let assembledFrameworkDir = descriptionPackage.assembledFrameworksDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
             sdk: sdk

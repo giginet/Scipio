@@ -1,4 +1,5 @@
 import Foundation
+import PackageGraph
 import TSCBasic
 import Basics
 import PackageModel
@@ -40,3 +41,15 @@ extension SwiftPMAbsolutePath {
         try! ScipioAbsolutePath(validating: pathString)
     }
 }
+
+#if swift(>=6.0)
+typealias ScipioResolvedTarget = ResolvedModule
+#else
+typealias ScipioResolvedTarget = ResolvedTarget
+#endif
+
+#if swift(>=6.0)
+typealias ScipioPackageGraph = ModulesGraph
+#else
+typealias ScipioPackageGraph = PackageGraph
+#endif

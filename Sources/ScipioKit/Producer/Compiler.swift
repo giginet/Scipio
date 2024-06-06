@@ -12,7 +12,7 @@ protocol Compiler {
 
 extension Compiler {
     func extractDebugSymbolPaths(
-        target: ResolvedTarget,
+        target: ScipioResolvedTarget,
         buildConfiguration: BuildConfiguration,
         sdks: Set<SDK>,
         fileSystem: any FileSystem = localFileSystem
@@ -45,7 +45,7 @@ extension Compiler {
 }
 
 extension DescriptionPackage {
-    fileprivate func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ResolvedTarget) -> AbsolutePath {
+    fileprivate func buildDebugSymbolPath(buildConfiguration: BuildConfiguration, sdk: SDK, target: ScipioResolvedTarget) -> AbsolutePath {
         productsDirectory(buildConfiguration: buildConfiguration, sdk: sdk)
             .appending(component: "\(target.name).framework.dSYM")
     }

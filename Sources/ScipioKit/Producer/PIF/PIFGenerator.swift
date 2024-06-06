@@ -144,7 +144,7 @@ private struct PIFLibraryTargetModifier {
     private let sdk: SDK
 
     private let resolvedPackage: ResolvedPackage
-    private let resolvedTarget: ResolvedTarget
+    private let resolvedTarget: ScipioResolvedTarget
 
     init(
         descriptionPackage: DescriptionPackage,
