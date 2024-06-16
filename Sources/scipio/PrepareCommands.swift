@@ -28,7 +28,7 @@ extension Scipio {
         @OptionGroup var globalOptions: GlobalOptionGroup
 
         mutating func run() async throws {
-            let logLevel: Logger.Level = globalOptions.verbose ? .info : .warning
+            let logLevel: Logger.Level = globalOptions.verbose ? .trace : .info
             LoggingSystem.bootstrap(logLevel: logLevel)
 
             let runnerCacheMode: Runner.Options.CacheMode
