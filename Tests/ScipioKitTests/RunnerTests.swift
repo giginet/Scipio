@@ -3,7 +3,7 @@ import XCTest
 @testable import ScipioKit
 import Logging
 
-private let fixturePath = URL(fileURLWithPath: #file)
+private let fixturePath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
     .appendingPathComponent("Resources")
     .appendingPathComponent("Fixtures")

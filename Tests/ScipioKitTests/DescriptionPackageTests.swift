@@ -2,7 +2,7 @@ import Foundation
 @testable import ScipioKit
 import XCTest
 
-private let fixturePath = URL(fileURLWithPath: #file)
+private let fixturePath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
     .appendingPathComponent("Resources")
     .appendingPathComponent("Fixtures")
@@ -18,7 +18,7 @@ final class DescriptionPackageTests: XCTestCase {
         XCTAssertEqual(package.name, "TestingPackage")
 
         let packageNames = package.graph.packages.map(\.manifest.displayName)
-        XCTAssertEqual(packageNames, ["TestingPackage", "swift-log"])
+        XCTAssertEqual(packageNames.sorted(), ["TestingPackage", "swift-log"])
 
         XCTAssertEqual(
             package.workspaceDirectory.pathString,

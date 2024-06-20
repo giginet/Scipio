@@ -39,7 +39,7 @@ extension ProcessResult {
     mutating func setOutput(_ newValue: Result<[UInt8], (any Swift.Error)>) {
         self = ProcessResult(
             arguments: arguments,
-            environment: environment,
+            environmentBlock: environmentBlock,
             exitStatus: exitStatus,
             output: newValue,
             stderrOutput: stderrOutput
@@ -49,7 +49,7 @@ extension ProcessResult {
     mutating func setStderrOutput(_ newValue: Result<[UInt8], (any Swift.Error)>) {
         self = ProcessResult(
             arguments: arguments,
-            environment: environment,
+            environmentBlock: environmentBlock,
             exitStatus: exitStatus,
             output: output,
             stderrOutput: newValue

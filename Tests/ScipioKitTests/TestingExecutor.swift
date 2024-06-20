@@ -3,7 +3,7 @@ import Foundation
 import struct TSCBasic.ProcessResult
 
 final class StubbableExecutor: Executor {
-    init(executeHook: @escaping (([String]) throws -> ExecutorResult)) {
+    init(executeHook: @escaping (([String]) throws -> any ExecutorResult)) {
         self.executeHook = executeHook
     }
 
@@ -14,7 +14,7 @@ final class StubbableExecutor: Executor {
         calledArguments.count
     }
 
-    func execute(_ arguments: [String]) async throws -> ExecutorResult {
+    func execute(_ arguments: [String]) async throws -> any ExecutorResult {
         calledArguments.append(arguments)
         return try executeHook(arguments)
     }
@@ -32,8 +32,8 @@ struct StubbableExecutorResult: ExecutorResult {
     var arguments: [String]
     var environment: [String: String]
     var exitStatus: TSCBasic.ProcessResult.ExitStatus
-    var output: Result<[UInt8], Error>
-    var stderrOutput: Result<[UInt8], Error>
+    var output: Result<[UInt8], any Error>
+    var stderrOutput: Result<[UInt8], any Error>
 }
 
 extension StubbableExecutorResult {

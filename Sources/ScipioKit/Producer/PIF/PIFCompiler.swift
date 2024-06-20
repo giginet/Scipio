@@ -114,9 +114,8 @@ struct PIFCompiler: Compiler {
     }
 
     private func makeBuildParameters(toolchain: UserToolchain) throws -> BuildParameters {
-        #if swift(>=5.10)
         try .init(
-            destination: .target, 
+            destination: .target,
             dataPath: descriptionPackage.buildDirectory.spmAbsolutePath,
             configuration: buildOptions.buildConfiguration.spmConfiguration,
             toolchain: toolchain,
@@ -124,17 +123,6 @@ struct PIFCompiler: Compiler {
             isXcodeBuildSystemEnabled: true,
             driverParameters: BuildParameters.Driver(enableParseableModuleInterfaces: buildOptions.enableLibraryEvolution)
         )
-        #else
-        try .init(
-            dataPath: descriptionPackage.buildDirectory.spmAbsolutePath,
-            configuration: buildOptions.buildConfiguration.spmConfiguration,
-            toolchain: toolchain,
-            destinationTriple: toolchain.triple,
-            flags: .init(),
-            enableParseableModuleInterfaces: buildOptions.enableLibraryEvolution,
-            isXcodeBuildSystemEnabled: true
-        )
-        #endif
     }
 }
 
