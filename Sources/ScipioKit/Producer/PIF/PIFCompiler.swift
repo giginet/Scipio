@@ -116,6 +116,7 @@ struct PIFCompiler: Compiler {
     private func makeBuildParameters(toolchain: UserToolchain) throws -> BuildParameters {
         #if swift(>=5.10)
         try .init(
+            destination: .target, 
             dataPath: descriptionPackage.buildDirectory.spmAbsolutePath,
             configuration: buildOptions.buildConfiguration.spmConfiguration,
             toolchain: toolchain,

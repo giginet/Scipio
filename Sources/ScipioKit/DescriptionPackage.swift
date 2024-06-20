@@ -194,7 +194,7 @@ extension DescriptionPackage {
         case .prepareDependencies:
             // In prepare mode, all targets should be built
             // In future update, users will be enable to specify targets want to build
-            return try fetchRootPackage().targets
+            return Array(try fetchRootPackage().targets)
         }
     }
 
