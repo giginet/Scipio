@@ -188,7 +188,8 @@ extension DescriptionPackage {
             // In create mode, all products should be built
             // In future update, users will be enable to specify products want to build
             let rootPackage = try fetchRootPackage()
-            let productsToBuild = rootPackage.products
+            let productNamesToBuild = rootPackage.manifest.products.map { $0.name }
+            let productsToBuild = rootPackage.products.filter { productNamesToBuild.contains($0.name) }
             return Set(productsToBuild.flatMap(\.targets))
         case .prepareDependencies:
             // In prepare mode, all targets should be built

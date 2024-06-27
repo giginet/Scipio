@@ -22,6 +22,16 @@ let package = Package(
             name: "TestingPackage",
             dependencies: [
                 .product(name: "Logging", package: "swift-log"),
-            ]),
+            ]
+        ),
+        .executableTarget(
+            name: "InternalExecutableTarget",
+            dependencies: ["InternalRegularTarget"]
+        ),
+        .target(name: "InternalRegularTarget"),
+        .testTarget(
+            name: "TestingPackageTests",
+            dependencies: ["InternalRegularTarget"]
+        )
     ]
 )
