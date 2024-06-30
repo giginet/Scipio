@@ -95,5 +95,4 @@ final class DescriptionPackageTests: XCTestCase {
             ["SomeBinary"]
         )
     }
-
 }
