@@ -77,8 +77,23 @@ final class DescriptionPackageTests: XCTestCase {
             Set(try package.resolveBuildProducts().map(\.target.name)),
             [
                 "Logging",
-                "TestingPackage"
+                "TestingPackage",
             ]
         )
     }
+
+    func testBinaryBuildProductsInCreateMode() throws {
+        let rootPath = fixturePath.appendingPathComponent("BinaryPackage")
+        let package = try XCTUnwrap(try DescriptionPackage(
+            packageDirectory: rootPath.absolutePath,
+            mode: .createPackage,
+            onlyUseVersionsFromResolvedFile: false
+        ))
+        XCTAssertEqual(package.name, "BinaryPackage")
+        XCTAssertEqual(
+            Set(try package.resolveBuildProducts().map(\.target.name)),
+            ["SomeBinary"]
+        )
+    }
+
 }
