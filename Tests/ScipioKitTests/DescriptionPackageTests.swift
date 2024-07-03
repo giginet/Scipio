@@ -74,10 +74,12 @@ final class DescriptionPackageTests: XCTestCase {
         XCTAssertEqual(package.name, "TestingPackage")
 
         XCTAssertEqual(
-            Set(try package.resolveBuildProducts().map(\.target.name)),
+            try package.resolveBuildProducts().map(\.target.name),
             [
                 "Logging",
                 "TestingPackage",
+                "ExecutableTarget",
+                "MyPlugin"
             ]
         )
     }

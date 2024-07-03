@@ -241,4 +241,22 @@ struct BuildProduct: Hashable, Sendable {
     var binaryTarget: BinaryTarget? {
         target.underlyingTarget as? BinaryTarget
     }
+
+    func hash(into hasher: inout Hasher) {
+        // Important: Relevant for swift-6.0+ toolchain versions. For the versions below
+        // this change has no effect as SwiftPM provides its own proper `Hashable`
+        // implementations for both `ResolvedPackage` and `ResolvedTarget`.
+        //
+        // We cannot directly use `ResolvedModule.id` here as `id` also includes `BuildTriple`.
+        // The reason for this is that `ResolvedModule.buildTriple` is parent-dependent; more
+        // specifically, the same `ResolvedModule` will have a different build triple depending
+        // on whether it is in a root or dependency position.
+        // For more context, see `ResolvedModule.updateBuildTriplesOfDependencies`.
+        //
+        // At the same time, build triples remain irrelevant for the `Scipio` use case where the 
+        // build product must be the same regardless of the triple. Meanwhile, the target name and
+        // package identity remain relevant and unambiguously identify the build product.
+        hasher.combine(target.name)
+        hasher.combine(package.identity)
+    }
 }
