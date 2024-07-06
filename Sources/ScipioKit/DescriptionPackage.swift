@@ -51,7 +51,7 @@ struct DescriptionPackage {
         workspaceDirectory.appending(component: "DerivedData")
     }
 
-    func generatedModuleMapPath(of target: ResolvedTarget, sdk: SDK) throws -> ScipioAbsolutePath {
+    func generatedModuleMapPath(of target: ScipioResolvedModule, sdk: SDK) throws -> ScipioAbsolutePath {
         let relativePath = try TSCBasic.RelativePath(validating: "ModuleMapsForFramework/\(sdk.settingValue)")
         return workspaceDirectory
             .appending(relativePath)
@@ -154,7 +154,7 @@ extension DescriptionPackage {
         var products = try targetsToBuild.flatMap(resolveBuildProduct(from:))
 
         let productMap: [String: BuildProduct] = Dictionary(products.map { ($0.target.name, $0) }) { $1 }
-        func resolvedTargetToBuildProduct(_ target: ResolvedTarget) -> BuildProduct {
+        func resolvedTargetToBuildProduct(_ target: ScipioResolvedModule) -> BuildProduct {
             guard let product = productMap[target.name] else {
                 preconditionFailure("The dependency target (\(target.name)) was not found in the build target list")
             }
@@ -165,10 +165,15 @@ extension DescriptionPackage {
             products = try topologicalSort(products) { (product) in
                 return product.target.dependencies.flatMap { (dependency) in
                     switch dependency {
+                    #if compiler(>=6.0)
+                    case .module(let module, conditions: _):
+                        return [resolvedTargetToBuildProduct(module)]
+                    #else
                     case .target(let target, conditions: _):
                         return [resolvedTargetToBuildProduct(target)]
+                    #endif
                     case .product(let product, conditions: _):
-                        return product.targets.map(resolvedTargetToBuildProduct)
+                        return product.modules.map(resolvedTargetToBuildProduct)
                     }
                 }
             }
@@ -182,7 +187,7 @@ extension DescriptionPackage {
         return products.reversed()
     }
 
-    private func targetsToBuild() throws -> Set<ResolvedTarget> {
+    private func targetsToBuild() throws -> IdentifiableSet< ScipioResolvedModule> {
         switch mode {
         case .createPackage:
             // In create mode, all products should be built
@@ -190,11 +195,19 @@ extension DescriptionPackage {
             let rootPackage = try fetchRootPackage()
             let productNamesToBuild = rootPackage.manifest.products.map { $0.name }
             let productsToBuild = rootPackage.products.filter { productNamesToBuild.contains($0.name) }
-            return Set(productsToBuild.flatMap(\.targets))
+            #if compiler(>=6.0)
+            return IdentifiableSet(productsToBuild.flatMap(\.modules))
+            #else
+            return productsToBuild.flatMap(\.targets)
+            #endif
         case .prepareDependencies:
             // In prepare mode, all targets should be built
             // In future update, users will be enable to specify targets want to build
-            return Set(try fetchRootPackage().targets)
+            #if compiler(>=6.0)
+            return try fetchRootPackage().modules
+            #else
+            return try fetchRootPackage().targets
+            #endif
         }
     }
 
@@ -205,8 +218,14 @@ extension DescriptionPackage {
         return rootPackage
     }
 
-    private func resolveBuildProduct(from rootTarget: ResolvedTarget) throws -> Set<BuildProduct> {
-        let dependencyProducts = Set(try rootTarget.recursiveTargetDependencies().flatMap(buildProducts(from:)))
+    private func resolveBuildProduct(from rootTarget: ScipioResolvedModule) throws -> Set<BuildProduct> {
+        #if compiler(>=6.0)
+        let dependencyProducts = Set(try rootTarget.recursiveModuleDependencies()
+            .flatMap(buildProducts(from:)))
+        #else
+        let dependencyProducts = Set(try rootTarget.recursiveTargetDependencies()
+            .flatMap(buildProducts(from:)))
+        #endif
 
         switch mode {
         case .createPackage:
@@ -219,26 +238,30 @@ extension DescriptionPackage {
         }
     }
 
-    private func buildProducts(from target: ResolvedTarget) throws -> Set<BuildProduct> {
+    private func buildProducts(from target: ScipioResolvedModule) throws -> Set<BuildProduct> {
         guard let package = graph.package(for: target) else {
             return []
         }
 
         let rootTargetProduct = BuildProduct(package: package, target: target)
+        #if compiler(>=6.0)
+        let dependencyProducts = try target.recursiveDependencies().compactMap(\.module).flatMap(buildProducts(from:))
+        #else
         let dependencyProducts = try target.recursiveDependencies().compactMap(\.target).flatMap(buildProducts(from:))
+        #endif
         return Set([rootTargetProduct] + dependencyProducts)
     }
 }
 
 struct BuildProduct: Hashable, Sendable {
     var package: ResolvedPackage
-    var target: ResolvedTarget
+    var target: ScipioResolvedModule
 
     var frameworkName: String {
         "\(target.name.packageNamed()).xcframework"
     }
 
-    var binaryTarget: BinaryTarget? {
-        target.underlyingTarget as? BinaryTarget
+    var binaryTarget: ScipioBinaryModule? {
+        target.underlying as? ScipioBinaryModule
     }
 }

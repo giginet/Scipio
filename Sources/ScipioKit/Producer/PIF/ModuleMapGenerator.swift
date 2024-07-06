@@ -5,7 +5,7 @@ import PackageModel
 
 struct ModuleMapGenerator {
     private struct Context {
-        var resolvedTarget: ResolvedTarget
+        var resolvedTarget: ScipioResolvedModule
         var sdk: SDK
         var configuration: BuildConfiguration
     }
@@ -27,12 +27,12 @@ struct ModuleMapGenerator {
     init(descriptionPackage: DescriptionPackage, fileSystem: any FileSystem) {
         self.descriptionPackage = descriptionPackage
         self.fileSystem = fileSystem
-    }
+    } 
 
-    func generate(resolvedTarget: ResolvedTarget, sdk: SDK, buildConfiguration: BuildConfiguration) throws -> AbsolutePath? {
+    func generate(resolvedTarget: ScipioResolvedModule, sdk: SDK, buildConfiguration: BuildConfiguration) throws -> AbsolutePath? {
         let context = Context(resolvedTarget: resolvedTarget, sdk: sdk, configuration: buildConfiguration)
 
-        if let clangTarget = resolvedTarget.underlyingTarget as? ClangTarget {
+        if let clangTarget = resolvedTarget.underlying as? ScipioClangModule {
             switch clangTarget.moduleMapType {
             case .custom, .umbrellaHeader, .umbrellaDirectory:
                 let path = try constructGeneratedModuleMapPath(context: context)
@@ -49,7 +49,7 @@ struct ModuleMapGenerator {
     }
 
     private func generateModuleMapContents(context: Context) throws -> String {
-        if let clangTarget = context.resolvedTarget.underlyingTarget as? ClangTarget {
+        if let clangTarget = context.resolvedTarget.underlying as? ScipioClangModule {
             switch clangTarget.moduleMapType {
             case .custom(let customModuleMap):
                 return try convertCustomModuleMapForFramework(customModuleMap.scipioAbsolutePath)
@@ -104,7 +104,7 @@ struct ModuleMapGenerator {
 
     private func generateLinkSection(context: Context) -> [String] {
         context.resolvedTarget.dependencies
-            .compactMap(\.target?.c99name)
+            .compactMap(\.module?.c99name)
             .map { "    link framework \"\($0)\"" }
     }
 

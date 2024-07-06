@@ -221,7 +221,7 @@ final class RunnerTests: XCTestCase {
 
         let allTargets = packages
             .flatMap { package in
-                package.targets.map { BuildProduct(package: package, target: $0) }
+                package.modules.map { BuildProduct(package: package, target: $0) }
             }
             .map {
                 CacheSystem.CacheTarget(buildProduct: $0, buildOptions: .default)
@@ -380,7 +380,7 @@ final class RunnerTests: XCTestCase {
 
         let allTargets = packages
             .flatMap { package in
-                package.targets.map { BuildProduct(package: package, target: $0) }
+                package.modules.map { BuildProduct(package: package, target: $0) }
             }
             .map {
                 CacheSystem.CacheTarget(buildProduct: $0, buildOptions: .default)

@@ -1,10 +1,10 @@
 import Foundation
 import ScipioKit
-import ArgumentParser
+@preconcurrency import ArgumentParser
 
 extension Scipio {
     struct DumpCacheKey: AsyncParsableCommand {
-        static var configuration: CommandConfiguration = .init(
+        static let configuration: CommandConfiguration = .init(
             abstract: "Dump cache key of a VersionFile"
         )
 

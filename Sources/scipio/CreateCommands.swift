@@ -1,11 +1,11 @@
 import Foundation
 import ScipioKit
-import ArgumentParser
+@preconcurrency import ArgumentParser
 import Logging
 
 extension Scipio {
     struct Create: AsyncParsableCommand {
-        static var configuration: CommandConfiguration = .init(
+        static let configuration: CommandConfiguration = .init(
             abstract: "Create XCFramework for a single package."
         )
 

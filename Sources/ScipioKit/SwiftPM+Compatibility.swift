@@ -1,4 +1,5 @@
 import Foundation
+import PackageGraph
 import TSCBasic
 import Basics
 import PackageModel
@@ -40,3 +41,48 @@ extension SwiftPMAbsolutePath {
         try! ScipioAbsolutePath(validating: pathString)
     }
 }
+
+// Since 6.0, all `~Target` has been renamed to `~Module`
+#if compiler(>=6.0)
+
+typealias ScipioResolvedModule = ResolvedModule
+typealias ScipioSwiftModule = SwiftModule
+typealias ScipioClangModule = ClangModule
+typealias ScipioBinaryModule = BinaryModule
+
+#else
+
+typealias ScipioResolvedModule = ResolvedTarget
+typealias ScipioSwiftModule = SwiftTarget
+typealias ScipioClangModule = ClangTarget
+typealias ScipioBinaryModule = BinaryTarget
+
+#endif
+
+#if compiler(<6.0)
+
+extension ResolvedPackage {
+    var modules: IdentifiableSet<ScipioResolvedModule> {
+        targets
+    }
+}
+
+extension ResolvedModule {
+    var modules: IdentifiableSet<ScipioResolvedModule> {
+        targets
+    }
+}
+
+extension ResolvedModule {
+    var underlying: Module {
+        underlyingTarget
+    }
+}
+
+extension ResolvedModule.Dependency {
+    var module: ScipioResolvedModule {
+        target
+    }
+}
+
+#endif
