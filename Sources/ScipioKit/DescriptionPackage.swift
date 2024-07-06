@@ -196,7 +196,7 @@ extension DescriptionPackage {
             let productNamesToBuild = rootPackage.manifest.products.map { $0.name }
             let productsToBuild = rootPackage.products.filter { productNamesToBuild.contains($0.name) }
             #if compiler(>=6.0)
-            return IdentifiableSet(productsToBuild.flatMap(\.modules))
+            return productsToBuild.flatMap(\.modules)
             #else
             return productsToBuild.flatMap(\.targets)
             #endif
@@ -204,7 +204,7 @@ extension DescriptionPackage {
             // In prepare mode, all targets should be built
             // In future update, users will be enable to specify targets want to build
             #if compiler(>=6.0)
-            return try fetchRootPackage().modules
+            return Array(try fetchRootPackage().modules)
             #else
             return try fetchRootPackage().targets
             #endif
