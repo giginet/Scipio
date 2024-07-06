@@ -52,4 +52,12 @@ extension Scipio {
 
 private let availablePlatforms: Set<SDK> = [.iOS, .macOS, .tvOS, .watchOS]
 
+#if compiler(>=6.0)
+
 extension Runner.Options.Platform: @retroactive ExpressibleByArgument { }
+
+#else
+
+extension Runner.Options.Platform: ExpressibleByArgument { }
+
+#endif

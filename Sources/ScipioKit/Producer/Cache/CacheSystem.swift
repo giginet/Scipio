@@ -77,6 +77,8 @@ extension PinsStore.PinState: Codable {
     }
 }
 
+#if compiler(>=6.0)
+
 extension PinsStore.PinState: @retroactive Hashable {
     public func hash(into hasher: inout Hasher) {
         switch self {
@@ -91,6 +93,25 @@ extension PinsStore.PinState: @retroactive Hashable {
         }
     }
 }
+
+#else
+
+extension PinsStore.PinState: Hashable {
+    public func hash(into hasher: inout Hasher) {
+        switch self {
+        case .revision(let revision):
+            hasher.combine(revision)
+        case .version(let version, let revision):
+            hasher.combine(version)
+            hasher.combine(revision)
+        case .branch(let branchName, let revision):
+            hasher.combine(branchName)
+            hasher.combine(revision)
+        }
+    }
+}
+
+#endif
 
 public struct SwiftPMCacheKey: CacheKey {
     public var targetName: String

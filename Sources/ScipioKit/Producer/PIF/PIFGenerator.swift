@@ -300,12 +300,25 @@ private struct PIFLibraryTargetModifier {
     }
 }
 
+#if compiler(>=6.0)
+
 extension PIF.TopLevelObject: @retroactive Decodable {
     public init(from decoder: Decoder) throws {
         var container = try decoder.unkeyedContainer()
         self.init(workspace: try container.decode(PIF.Workspace.self))
     }
 }
+
+#else
+
+extension PIF.TopLevelObject: Decodable {
+    public init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        self.init(workspace: try container.decode(PIF.Workspace.self))
+    }
+}
+
+#endif
 
 extension AbsolutePath {
     fileprivate var moduleEscapedPathString: String {
