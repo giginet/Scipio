@@ -4,14 +4,14 @@ import PackagePlugin
 @main
 struct GenerateScipioVersion: BuildToolPlugin {
     func createBuildCommands(context: PluginContext, target: Target) async throws -> [Command] {
-        let zshPath = URL(filePath: "/bin/zsh")
+        let zshPath = URL(filePath: "/bin/zsh") // execute dummy command
         
         #if compiler(>=6.0)
         let generatedSourceDir = context.pluginWorkDirectoryURL
         #else
         let generatedSourceDir = URL(filePath: context.pluginWorkDirectory.string)
         #endif
-        // execute dummy command
+        
         let generatedSourcePath = generatedSourceDir
             .appending(component: "ScipioVersion.generated.swift")
 
