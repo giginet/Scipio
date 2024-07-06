@@ -61,26 +61,26 @@ typealias ScipioBinaryModule = BinaryTarget
 
 #if compiler(<6.0)
 
+extension ResolvedProduct {
+    var modules: [ResolvedTarget] {
+        targets
+    }
+}
+
 extension ResolvedPackage {
-    var modules: IdentifiableSet<ScipioResolvedModule> {
+    var modules: [ScipioResolvedModule] {
         targets
     }
 }
 
-extension ResolvedModule {
-    var modules: IdentifiableSet<ScipioResolvedModule> {
-        targets
-    }
-}
-
-extension ResolvedModule {
-    var underlying: Module {
+extension ScipioResolvedModule {
+    var underlying: Target {
         underlyingTarget
     }
 }
 
-extension ResolvedModule.Dependency {
-    var module: ScipioResolvedModule {
+extension ScipioResolvedModule.Dependency {
+    var module: ScipioResolvedModule? {
         target
     }
 }

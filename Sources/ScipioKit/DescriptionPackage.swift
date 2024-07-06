@@ -163,7 +163,7 @@ extension DescriptionPackage {
 
         do {
             products = try topologicalSort(products) { (product) in
-                return product.target.dependencies.flatMap { (dependency) in
+                return product.target.dependencies.flatMap { (dependency) -> [BuildProduct] in
                     switch dependency {
                     #if compiler(>=6.0)
                     case .module(let module, conditions: _):
@@ -173,7 +173,7 @@ extension DescriptionPackage {
                         return [resolvedTargetToBuildProduct(target)]
                     #endif
                     case .product(let product, conditions: _):
-                        return product.modules.map(resolvedTargetToBuildProduct)
+                        return product.targets.map(resolvedTargetToBuildProduct)
                     }
                 }
             }
@@ -187,7 +187,7 @@ extension DescriptionPackage {
         return products.reversed()
     }
 
-    private func targetsToBuild() throws -> IdentifiableSet< ScipioResolvedModule> {
+    private func targetsToBuild() throws -> [ScipioResolvedModule] {
         switch mode {
         case .createPackage:
             // In create mode, all products should be built
