@@ -4,10 +4,16 @@ import PackagePlugin
 @main
 struct GenerateScipioVersion: BuildToolPlugin {
     func createBuildCommands(context: PluginContext, target: Target) async throws -> [Command] {
-        let zshPath = Path("/bin/zsh") // execute dummy command
-        let generatedSourceDir = context.pluginWorkDirectory
+        let zshPath = URL(filePath: "/bin/zsh")
+        
+        #if compiler(>=6.0)
+        let generatedSourceDir = context.pluginWorkDirectoryURL
+        #else
+        let generatedSourceDir = URL(filePath: context.pluginWorkDirectory.string)
+        #endif
+        // execute dummy command
         let generatedSourcePath = generatedSourceDir
-            .appending(subpath: "ScipioVersion.generated.swift")
+            .appending(component: "ScipioVersion.generated.swift")
 
         let revision = try? fetchRepositoryVersion(context: context)
 
@@ -19,7 +25,7 @@ struct GenerateScipioVersion: BuildToolPlugin {
         }
 
         FileManager.default.createFile(
-            atPath: generatedSourcePath.string,
+            atPath: generatedSourcePath.path(),
             contents: fileContents.data(using: .utf8)
         )
 
@@ -36,10 +42,17 @@ struct GenerateScipioVersion: BuildToolPlugin {
     private func fetchRepositoryVersion(context: PluginContext) throws -> String? {
         let standardOutput = Pipe()
         let process = Process()
+        
+        #if compiler(>=6.0)
+        let repositoryPath = context.package.directoryURL.path()
+        #else
+        let repositoryPath = context.package.directory.string
+        #endif
+        
         process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
         process.arguments = [
             "-C",
-            context.package.directory.string,
+            repositoryPath,
             "rev-parse",
             "HEAD",
         ]
