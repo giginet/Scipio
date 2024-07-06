@@ -85,7 +85,7 @@ extension Command {
             executable: Path(executable.path()),
             arguments: arguments,
             outputFilesDirectory: Path(outputFilesDirectory.path())
-        ),
+        )
     }
 }
 
