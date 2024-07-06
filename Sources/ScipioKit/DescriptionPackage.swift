@@ -12,7 +12,7 @@ struct DescriptionPackage {
     let packageDirectory: ScipioAbsolutePath
     private let toolchain: UserToolchain
     let workspace: Workspace
-    let graph: PackageGraph
+    let graph: ModulesGraph
     let manifest: Manifest
 
     enum Error: LocalizedError {
@@ -168,12 +168,14 @@ extension DescriptionPackage {
                     #if compiler(>=6.0)
                     case .module(let module, conditions: _):
                         return [resolvedTargetToBuildProduct(module)]
+                    case .product(let product, conditions: _):
+                        return product.modules.map(resolvedTargetToBuildProduct)
                     #else
                     case .target(let target, conditions: _):
                         return [resolvedTargetToBuildProduct(target)]
-                    #endif
                     case .product(let product, conditions: _):
                         return product.targets.map(resolvedTargetToBuildProduct)
+                    #endif
                     }
                 }
             }

@@ -86,3 +86,9 @@ extension ScipioResolvedModule.Dependency {
 }
 
 #endif
+
+#if compiler(<6.0)
+
+typealias ModulesGraph = PackageGraph
+
+#endif
