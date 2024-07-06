@@ -27,7 +27,7 @@ struct ModuleMapGenerator {
     init(descriptionPackage: DescriptionPackage, fileSystem: any FileSystem) {
         self.descriptionPackage = descriptionPackage
         self.fileSystem = fileSystem
-    } 
+    }
 
     func generate(resolvedTarget: ScipioResolvedModule, sdk: SDK, buildConfiguration: BuildConfiguration) throws -> AbsolutePath? {
         let context = Context(resolvedTarget: resolvedTarget, sdk: sdk, configuration: buildConfiguration)
