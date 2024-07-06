@@ -11,8 +11,8 @@ jobs:
   Tests:
     strategy:
       matrix:
-        xcode_version: ["15.3"]
-        swift: ["5.9.2", "5.10.0"]
+        xcode_version: ["15.4", "16.0"]
+        swift: ["5.9.2", "5.10.0", "6.0"]
     env: 
       DEVELOPER_DIR: "/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
     runs-on: macos-14
