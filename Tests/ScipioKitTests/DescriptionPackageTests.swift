@@ -79,7 +79,7 @@ final class DescriptionPackageTests: XCTestCase {
                 "Logging",
                 "TestingPackage",
                 "ExecutableTarget",
-                "MyPlugin"
+                "MyPlugin",
             ]
         )
     }
