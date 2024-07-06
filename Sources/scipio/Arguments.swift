@@ -2,13 +2,13 @@ import Foundation
 import ArgumentParser
 import ScipioKit
 
-extension URL: ExpressibleByArgument {
+extension URL: @retroactive ExpressibleByArgument {
     public init?(argument: String) {
         self.init(fileURLWithPath: argument)
     }
 }
 
-extension BuildConfiguration: ExpressibleByArgument {
+extension BuildConfiguration: @retroactive ExpressibleByArgument {
     public init?(argument: String) {
         switch argument.lowercased() {
         case "debug":

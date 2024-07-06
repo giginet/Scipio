@@ -77,7 +77,7 @@ extension PinsStore.PinState: Codable {
     }
 }
 
-extension PinsStore.PinState: Hashable {
+extension PinsStore.PinState: @retroactive Hashable {
     public func hash(into hasher: inout Hasher) {
         switch self {
         case .revision(let revision):
