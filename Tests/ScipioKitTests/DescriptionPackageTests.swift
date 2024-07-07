@@ -77,7 +77,7 @@ final class DescriptionPackageTests: XCTestCase {
             try package.resolveBuildProducts().map(\.target.name),
             [
                 "Logging",
-                "TestingPackage",
+                "MyTarget",
                 "ExecutableTarget",
                 "MyPlugin",
             ]
