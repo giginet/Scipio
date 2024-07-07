@@ -80,7 +80,8 @@ final class DescriptionPackageTests: XCTestCase {
                 "MyTarget",
                 "ExecutableTarget",
                 "MyPlugin",
-            ]
+            ],
+            "Order of the resolved products should be correct"
         )
     }
 
