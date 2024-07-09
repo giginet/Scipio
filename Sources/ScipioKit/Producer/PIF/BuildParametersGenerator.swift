@@ -36,7 +36,9 @@ struct BuildParametersGenerator {
     }
 
     func generate(for sdk: SDK, buildParameters: BuildParameters, destinationDir: AbsolutePath) throws -> AbsolutePath {
-        #if swift(>=5.10)
+        #if compiler(>=6.0)
+        let targetArchitecture = buildParameters.triple.arch?.rawValue ?? "arm64"
+        #elseif swift(>=5.10)
         let targetArchitecture = buildParameters.targetTriple.arch?.rawValue ?? "arm64"
         #elseif swift(>=5.9)
         let targetArchitecture = buildParameters.triple.arch?.rawValue ?? "arm64"

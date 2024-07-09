@@ -147,13 +147,13 @@ struct FrameworkComponentsCollector {
 
     /// Collects public headers of clangTarget
     private func collectPublicHeader() throws -> Set<AbsolutePath>? {
-        guard let clangTarget = buildProduct.target.underlyingTarget as? ClangTarget else {
+        guard let clangModule = buildProduct.target.underlying as? ScipioClangModule else {
             return nil
         }
 
-        let publicHeaders = clangTarget
+        let publicHeaders = clangModule
             .headers
-            .filter { $0.isDescendant(of: clangTarget.includeDir) }
+            .filter { $0.isDescendant(of: clangModule.includeDir) }
         let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0) }
             .map { $0.scipioAbsolutePath }
         let symlinks = publicHeaders.filter { fileSystem.isSymlink($0) }

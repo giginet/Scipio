@@ -47,4 +47,12 @@ struct BuildOptionGroup: ParsableArguments {
     var overwrite: Bool = false
 }
 
+#if compiler(>=6.0)
+
+extension FrameworkType: @retroactive ExpressibleByArgument { }
+
+#else
+
 extension FrameworkType: ExpressibleByArgument { }
+
+#endif

@@ -144,7 +144,7 @@ private struct PIFLibraryTargetModifier {
     private let sdk: SDK
 
     private let resolvedPackage: ResolvedPackage
-    private let resolvedTarget: ResolvedTarget
+    private let resolvedTarget: ScipioResolvedModule
 
     init(
         descriptionPackage: DescriptionPackage,
@@ -169,9 +169,15 @@ private struct PIFLibraryTargetModifier {
 
         let c99Name = pifTarget.name.spm_mangledToC99ExtendedIdentifier()
 
+        #if compiler(>=6.0)
+        guard let resolvedTarget = descriptionPackage.graph.allModules.first(where: { $0.c99name == c99Name }) else {
+            fatalError("Resolved Target named \(c99Name) is not found.")
+        }
+        #else
         guard let resolvedTarget = descriptionPackage.graph.allTargets.first(where: { $0.c99name == c99Name }) else {
             fatalError("Resolved Target named \(c99Name) is not found.")
         }
+        #endif
 
         guard let resolvedPackage = descriptionPackage.graph.package(for: resolvedTarget) else {
             fatalError("Could not find a package")
@@ -256,7 +262,7 @@ private struct PIFLibraryTargetModifier {
         // However, this PIFGenerator modified productType to framework.
         // So a bridging header will be generated in frameworks bundle even if `SWIFT_OBJC_INTERFACE_HEADER_DIR` was specified.
         // So it's need to replace `MODULEMAP_FILE_CONTENTS` to an absolute path.
-        if let swiftTarget = resolvedTarget.underlyingTarget as? SwiftTarget {
+        if let swiftTarget = resolvedTarget.underlying as? ScipioSwiftModule {
             // Bridging Headers will be generated inside generated frameworks
             let productsDirectory = descriptionPackage.productsDirectory(
                 buildConfiguration: buildOptions.buildConfiguration,
@@ -294,12 +300,25 @@ private struct PIFLibraryTargetModifier {
     }
 }
 
+#if compiler(>=6.0)
+
+extension PIF.TopLevelObject: @retroactive Decodable {
+    public init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        self.init(workspace: try container.decode(PIF.Workspace.self))
+    }
+}
+
+#else
+
 extension PIF.TopLevelObject: Decodable {
     public init(from decoder: Decoder) throws {
         var container = try decoder.unkeyedContainer()
         self.init(workspace: try container.decode(PIF.Workspace.self))
     }
 }
+
+#endif
 
 extension AbsolutePath {
     fileprivate var moduleEscapedPathString: String {

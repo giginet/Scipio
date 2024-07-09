@@ -1,11 +1,11 @@
 import Foundation
 import ScipioKit
-import ArgumentParser
+@preconcurrency import ArgumentParser
 import Logging
 
 extension Scipio {
     struct Create: AsyncParsableCommand {
-        static var configuration: CommandConfiguration = .init(
+        static let configuration: CommandConfiguration = .init(
             abstract: "Create XCFramework for a single package."
         )
 
@@ -52,4 +52,12 @@ extension Scipio {
 
 private let availablePlatforms: Set<SDK> = [.iOS, .macOS, .tvOS, .watchOS]
 
+#if compiler(>=6.0)
+
+extension Runner.Options.Platform: @retroactive ExpressibleByArgument { }
+
+#else
+
 extension Runner.Options.Platform: ExpressibleByArgument { }
+
+#endif

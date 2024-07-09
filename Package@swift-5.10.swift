@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 5.10
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -23,7 +23,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-package-manager.git",
-                 branch: "release/6.0"),
+                 revision: "swift-5.10-RELEASE"),
         .package(url: "https://github.com/apple/swift-log.git",
                  from: "1.5.2"),
         .package(url: "https://github.com/apple/swift-collections",
@@ -75,8 +75,7 @@ let package = Package(
             resources: [.copy("Resources/Fixtures")],
             swiftSettings: swiftSettings
         ),
-    ],
-    swiftLanguageVersions: [.v6]
+    ]
 )
 
 let isDevelopment = ProcessInfo.processInfo.environment["SCIPIO_DEVELOPMENT"] == "1"

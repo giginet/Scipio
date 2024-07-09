@@ -11,27 +11,20 @@ jobs:
   Tests:
     strategy:
       matrix:
-        xcode_version: ["15.3"]
-        swift: ["5.9.2", "5.10.0"]
+        xcode_version:
+          - "15.2" # 5.9
+          - "15.4" # 5.10
+          - "16.0" # 6.0
     env: 
       DEVELOPER_DIR: "/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
     runs-on: macos-14
     steps:
-    - uses: SwiftyLab/setup-swift@latest
-      with:
-        development: true
-        swift-version: ${{ matrix.swift }}
     - name: Get swift version
       run: swift --version
     - uses: actions/checkout@v2
     - name: Run Tests
       run: |
-        # If default toolchain in Xcode is used, `env.TOOLCHAINS` will be empty
-        if [[ -n "${{ env.TOOLCHAINS }}" ]]; then
-          xcrun --toolchain ${{ env.TOOLCHAINS }} swift test --verbose
-        else
-          swift test --verbose
-        fi
+        swift test --verbose
       env:
         ENABLE_INTEGRATION_TESTS: 1
         IS_CI: 1
