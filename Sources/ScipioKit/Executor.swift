@@ -37,6 +37,15 @@ extension Executor {
 
 extension ProcessResult {
     mutating func setOutput(_ newValue: Result<[UInt8], Swift.Error>) {
+        #if compiler(>=6.0)
+        self = ProcessResult(
+            arguments: arguments,
+            environmentBlock: environmentBlock,
+            exitStatus: exitStatus,
+            output: newValue,
+            stderrOutput: stderrOutput
+        )
+        #else
         self = ProcessResult(
             arguments: arguments,
             environment: environment,
@@ -44,9 +53,19 @@ extension ProcessResult {
             output: newValue,
             stderrOutput: stderrOutput
         )
+        #endif
     }
 
     mutating func setStderrOutput(_ newValue: Result<[UInt8], Swift.Error>) {
+        #if compiler(>=6.0)
+        self = ProcessResult(
+            arguments: arguments,
+            environmentBlock: environmentBlock,
+            exitStatus: exitStatus,
+            output: output,
+            stderrOutput: newValue
+        )
+        #else
         self = ProcessResult(
             arguments: arguments,
             environment: environment,
@@ -54,6 +73,7 @@ extension ProcessResult {
             output: output,
             stderrOutput: newValue
         )
+        #endif
     }
 }
 

@@ -1,6 +1,6 @@
 import Foundation
 import ScipioKit
-import ArgumentParser
+@preconcurrency import ArgumentParser
 import Logging
 
 extension Scipio {
@@ -11,7 +11,7 @@ extension Scipio {
             case local
         }
 
-        static var configuration: CommandConfiguration = .init(
+        static let configuration: CommandConfiguration = .init(
             abstract: "Prepare all dependencies in a specific manifest."
         )
 

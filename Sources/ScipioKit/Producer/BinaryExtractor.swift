@@ -9,7 +9,7 @@ struct BinaryExtractor {
     var fileSystem: any FileSystem
 
     @discardableResult
-    func extract(of binaryTarget: BinaryTarget, overwrite: Bool) throws -> URL {
+    func extract(of binaryTarget: ScipioBinaryModule, overwrite: Bool) throws -> URL {
         let sourcePath = binaryTarget.artifactPath
         let frameworkName = "\(binaryTarget.c99name).xcframework"
         let fileName = sourcePath.basename
