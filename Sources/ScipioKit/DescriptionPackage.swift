@@ -150,108 +150,8 @@ struct DescriptionPackage {
 
 extension DescriptionPackage {
     func resolveBuildProducts() throws -> [BuildProduct] {
-        let targetsToBuild = try targetsToBuild()
-        var products = try targetsToBuild.flatMap(resolveBuildProduct(from:))
-
-        let productMap: [String: BuildProduct] = Dictionary(products.map { ($0.target.name, $0) }) { $1 }
-        func resolvedTargetToBuildProduct(_ target: ScipioResolvedModule) -> BuildProduct {
-            guard let product = productMap[target.name] else {
-                preconditionFailure("The dependency target (\(target.name)) was not found in the build target list")
-            }
-            return product
-        }
-
-        do {
-            products = try topologicalSort(products) { (product) in
-                return product.target.dependencies.flatMap { (dependency) -> [BuildProduct] in
-                    switch dependency {
-                    #if compiler(>=6.0)
-                    case .module(let module, conditions: _):
-                        return [resolvedTargetToBuildProduct(module)]
-                    case .product(let product, conditions: _):
-                        return product.modules.map(resolvedTargetToBuildProduct)
-                    #else
-                    case .target(let target, conditions: _):
-                        return [resolvedTargetToBuildProduct(target)]
-                    case .product(let product, conditions: _):
-                        return product.targets.map(resolvedTargetToBuildProduct)
-                    #endif
-                    }
-                }
-            }
-        } catch {
-            switch error {
-            case GraphError.unexpectedCycle: throw Error.cycleDetected
-            default: throw error
-            }
-        }
-
-        return products.reversed()
-    }
-
-    private func targetsToBuild() throws -> [ScipioResolvedModule] {
-        switch mode {
-        case .createPackage:
-            // In create mode, all products should be built
-            // In future update, users will be enable to specify products want to build
-            let rootPackage = try fetchRootPackage()
-            let productNamesToBuild = rootPackage.manifest.products.map { $0.name }
-            let productsToBuild = rootPackage.products.filter { productNamesToBuild.contains($0.name) }
-            #if compiler(>=6.0)
-            return productsToBuild.flatMap(\.modules)
-            #else
-            return productsToBuild.flatMap(\.targets)
-            #endif
-        case .prepareDependencies:
-            // In prepare mode, all targets should be built
-            // In future update, users will be enable to specify targets want to build
-            #if compiler(>=6.0)
-            return Array(try fetchRootPackage().modules)
-            #else
-            return try fetchRootPackage().targets
-            #endif
-        }
-    }
-
-    private func fetchRootPackage() throws -> ResolvedPackage {
-        guard let rootPackage = graph.rootPackages.first else {
-            throw Error.packageNotDefined
-        }
-        return rootPackage
-    }
-
-    private func resolveBuildProduct(from rootTarget: ScipioResolvedModule) throws -> Set<BuildProduct> {
-        #if compiler(>=6.0)
-        let dependencyProducts = Set(try rootTarget.recursiveModuleDependencies()
-            .flatMap(buildProducts(from:)))
-        #else
-        let dependencyProducts = Set(try rootTarget.recursiveTargetDependencies()
-            .flatMap(buildProducts(from:)))
-        #endif
-
-        switch mode {
-        case .createPackage:
-            // In create mode, rootTarget should be built
-            let rootTargetProducts = try buildProducts(from: rootTarget)
-            return rootTargetProducts.union(dependencyProducts)
-        case .prepareDependencies:
-            // In prepare mode, rootTarget is just a container. So it should be skipped.
-            return dependencyProducts
-        }
-    }
-
-    private func buildProducts(from target: ScipioResolvedModule) throws -> Set<BuildProduct> {
-        guard let package = graph.package(for: target) else {
-            return []
-        }
-
-        let rootTargetProduct = BuildProduct(package: package, target: target)
-        #if compiler(>=6.0)
-        let dependencyProducts = try target.recursiveDependencies().compactMap(\.module).flatMap(buildProducts(from:))
-        #else
-        let dependencyProducts = try target.recursiveDependencies().compactMap(\.target).flatMap(buildProducts(from:))
-        #endif
-        return Set([rootTargetProduct] + dependencyProducts)
+        let resolver = BuildProductsResolver(descriptionPackage: self)
+        return try resolver.resolveBuildProducts()
     }
 }
 
@@ -283,5 +183,129 @@ struct BuildProduct: Hashable, Sendable {
         // package identity remain relevant and unambiguously identify the build product.
         hasher.combine(target.name)
         hasher.combine(package.identity)
+    }
+}
+
+
+private final class BuildProductsResolver {
+    private var buildProductsCache: [BuildProduct: Set<BuildProduct>] = [:]
+    let descriptionPackage: DescriptionPackage
+
+    init(descriptionPackage: DescriptionPackage) {
+        self.descriptionPackage = descriptionPackage
+    }
+
+    func resolveBuildProducts() throws -> [BuildProduct] {
+        let targetsToBuild = try targetsToBuild()
+        var products = try targetsToBuild.flatMap(resolveBuildProduct(from:))
+
+        let productMap: [String: BuildProduct] = Dictionary(products.map { ($0.target.name, $0) }) { $1 }
+        func resolvedTargetToBuildProduct(_ target: ScipioResolvedModule) -> BuildProduct {
+            guard let product = productMap[target.name] else {
+                preconditionFailure("The dependency target (\(target.name)) was not found in the build target list")
+            }
+            return product
+        }
+
+        do {
+            products = try topologicalSort(products) { (product) in
+                return product.target.dependencies.flatMap { (dependency) -> [BuildProduct] in
+                    switch dependency {
+                    #if compiler(>=6.0)
+                    case .module(let module, conditions: _):
+                        return [resolvedTargetToBuildProduct(module)]
+                    case .product(let product, conditions: _):
+                        return product.modules.map(resolvedTargetToBuildProduct)
+                    #else
+                    case .target(let target, conditions: _):
+                        return [resolvedTargetToBuildProduct(target)]
+                    case .product(let product, conditions: _):
+                        return product.targets.map(resolvedTargetToBuildProduct)
+                    #endif
+                    }
+                }
+            }
+        } catch {
+            switch error {
+            case GraphError.unexpectedCycle: throw DescriptionPackage.Error.cycleDetected
+            default: throw error
+            }
+        }
+
+        return products.reversed()
+    }
+
+    private func targetsToBuild() throws -> [ScipioResolvedModule] {
+        switch descriptionPackage.mode {
+        case .createPackage:
+            // In create mode, all products should be built
+            // In future update, users will be enable to specify products want to build
+            let rootPackage = try fetchRootPackage()
+            let productNamesToBuild = rootPackage.manifest.products.map { $0.name }
+            let productsToBuild = rootPackage.products.filter { productNamesToBuild.contains($0.name) }
+            #if compiler(>=6.0)
+            return productsToBuild.flatMap(\.modules)
+            #else
+            return productsToBuild.flatMap(\.targets)
+            #endif
+        case .prepareDependencies:
+            // In prepare mode, all targets should be built
+            // In future update, users will be enable to specify targets want to build
+            #if compiler(>=6.0)
+            return Array(try fetchRootPackage().modules)
+            #else
+            return try fetchRootPackage().targets
+            #endif
+        }
+    }
+
+    private func fetchRootPackage() throws -> ResolvedPackage {
+        guard let rootPackage = descriptionPackage.graph.rootPackages.first else {
+            throw DescriptionPackage.Error.packageNotDefined
+        }
+        return rootPackage
+    }
+
+    private func resolveBuildProduct(from rootTarget: ScipioResolvedModule) throws -> Set<BuildProduct> {
+        #if compiler(>=6.0)
+        let dependencyProducts = Set(try rootTarget.recursiveModuleDependencies()
+            .flatMap(buildProducts(from:)))
+        #else
+        let dependencyProducts = Set(try rootTarget.recursiveTargetDependencies()
+            .flatMap(buildProducts(from:)))
+        #endif
+
+        switch descriptionPackage.mode {
+        case .createPackage:
+            // In create mode, rootTarget should be built
+            let rootTargetProducts = try buildProducts(from: rootTarget)
+            return rootTargetProducts.union(dependencyProducts)
+        case .prepareDependencies:
+            // In prepare mode, rootTarget is just a container. So it should be skipped.
+            return dependencyProducts
+        }
+    }
+
+    private func buildProducts(from target: ScipioResolvedModule) throws -> Set<BuildProduct> {
+        guard let package = descriptionPackage.graph.package(for: target) else {
+            return []
+        }
+
+        let rootTargetProduct = BuildProduct(package: package, target: target)
+
+        if let buildProducts = buildProductsCache[rootTargetProduct] {
+            return buildProducts
+        }
+
+        #if compiler(>=6.0)
+        let dependencyProducts = try target.recursiveDependencies().compactMap(\.module).flatMap(buildProducts(from:))
+        #else
+        let dependencyProducts = try target.recursiveDependencies().compactMap(\.target).flatMap(buildProducts(from:))
+        #endif
+
+        let buildProducts = Set([rootTargetProduct] + dependencyProducts)
+        buildProductsCache.updateValue(buildProducts, forKey: rootTargetProduct)
+
+        return buildProducts
     }
 }
