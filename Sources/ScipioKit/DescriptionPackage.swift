@@ -149,7 +149,7 @@ struct DescriptionPackage {
 }
 
 extension DescriptionPackage {
-    func resolveBuildProducts() throws -> [BuildProduct] {
+    func resolveBuildProducts() throws -> OrderedSet<BuildProduct> {
         let resolver = BuildProductsResolver(descriptionPackage: self)
         return try resolver.resolveBuildProducts()
     }
@@ -165,6 +165,11 @@ struct BuildProduct: Hashable, Sendable {
 
     var binaryTarget: ScipioBinaryModule? {
         target.underlying as? ScipioBinaryModule
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.target.name == rhs.target.name &&
+        lhs.package.identity == rhs.package.identity
     }
 
     func hash(into hasher: inout Hasher) {
@@ -186,7 +191,6 @@ struct BuildProduct: Hashable, Sendable {
     }
 }
 
-
 private final class BuildProductsResolver {
     private var buildProductsCache: [BuildProduct: Set<BuildProduct>] = [:]
     let descriptionPackage: DescriptionPackage
@@ -195,7 +199,7 @@ private final class BuildProductsResolver {
         self.descriptionPackage = descriptionPackage
     }
 
-    func resolveBuildProducts() throws -> [BuildProduct] {
+    func resolveBuildProducts() throws -> OrderedSet<BuildProduct> {
         let targetsToBuild = try targetsToBuild()
         var products = try targetsToBuild.flatMap(resolveBuildProduct(from:))
 
@@ -232,7 +236,7 @@ private final class BuildProductsResolver {
             }
         }
 
-        return products.reversed()
+        return OrderedSet(products.reversed())
     }
 
     private func targetsToBuild() throws -> [ScipioResolvedModule] {
