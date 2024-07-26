@@ -80,6 +80,11 @@ struct DescriptionPackage {
             .appending(component: intermediateDirName)
     }
 
+    /// Returns a target description in the package manifest of the given target
+    func targetDescription(of targetName: String) -> TargetDescription? {
+        manifest.targets.first { $0.name == targetName }
+    }
+
     /// Returns an intermediate directory name in the Products dir.
     /// e.g. `Debug` / `Debug-iphoneos`
     private func productDirectoryName(buildConfiguration: BuildConfiguration, sdk: SDK) -> String {

@@ -15,11 +15,14 @@ struct ModuleMapGenerator {
 
     enum Error: LocalizedError {
         case unableToLoadCustomModuleMap(AbsolutePath)
+        case targetDescriptionNotFound(String)
 
         var errorDescription: String? {
             switch self {
             case .unableToLoadCustomModuleMap(let customModuleMapPath):
                 return "Something went wrong to load \(customModuleMapPath.pathString)"
+            case .targetDescriptionNotFound(let targetName):
+                return "Cannot load the package manifest of '\(targetName)'. It might be bug."
             }
         }
     }
@@ -64,8 +67,18 @@ struct ModuleMapGenerator {
                 + ["}"])
                 .joined()
             case .umbrellaDirectory(let directoryPath):
-                let headers = try walkDirectoryContents(of: directoryPath.scipioAbsolutePath)
-                let declarations = headers.map { "    header \"\($0)\"" }
+                let allHeaders = try headers(under: directoryPath.scipioAbsolutePath)
+
+                guard let targetDescription = descriptionPackage.targetDescription(of: clangTarget.name) else {
+                    throw Error.targetDescriptionNotFound(clangTarget.name)
+                }
+
+                let includingHeaders = try excludedIgnoredHeaders(
+                    from: allHeaders,
+                    excludedFiles: Set(targetDescription.exclude),
+                    targetRoot: clangTarget.path.scipioAbsolutePath
+                )
+                let declarations = includingHeaders.map { "    header \"\($0.basename)\"" }
 
                 return ([
                     "framework module \(context.resolvedTarget.c99name) {",
@@ -91,13 +104,30 @@ struct ModuleMapGenerator {
         }
     }
 
-    private func walkDirectoryContents(of directoryPath: AbsolutePath) throws -> Set<String> {
-        try fileSystem.getDirectoryContents(directoryPath).reduce(into: Set()) { headers, file in
+    private func headers(under directoryPath: AbsolutePath) throws -> Set<AbsolutePath> {
+        try fileSystem.getDirectoryContents(directoryPath).reduce(into: Set<AbsolutePath>()) { foundHeaders, file in
             let path = directoryPath.appending(component: file)
             if fileSystem.isDirectory(path) {
-                headers.formUnion(try walkDirectoryContents(of: path))
+                foundHeaders.formUnion(try headers(under: path))
             } else if file.hasSuffix(".h") {
-                headers.insert(file)
+                foundHeaders.insert(path)
+            }
+        }
+    }
+
+    /// Exclude ignored files defined in the target description from the passed headers set
+    private func excludedIgnoredHeaders(
+        from headers: Set<AbsolutePath>,
+        excludedFiles: Set<String>,
+        targetRoot: AbsolutePath
+    ) throws -> Set<AbsolutePath> {
+        let excludedPaths = try excludedFiles
+            .map { try RelativePath(validating: $0) }
+            .map { targetRoot.appending($0) }
+
+        return headers.filter { header in
+            excludedPaths.allSatisfy { excludePath in
+                !header.isDescendantOfOrEqual(to: excludePath)
             }
         }
     }
