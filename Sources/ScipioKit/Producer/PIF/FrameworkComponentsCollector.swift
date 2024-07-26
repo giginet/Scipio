@@ -48,7 +48,7 @@ struct FrameworkComponentsCollector {
     }
 
     func collectComponents(sdk: SDK) throws -> FrameworkComponents {
-        let modulemapGenerator = ModuleMapGenerator(
+        let modulemapGenerator = FrameworkModuleMapGenerator(
             descriptionPackage: descriptionPackage,
             fileSystem: fileSystem
         )

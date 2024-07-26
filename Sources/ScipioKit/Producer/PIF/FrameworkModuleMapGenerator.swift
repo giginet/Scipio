@@ -3,7 +3,8 @@ import TSCBasic
 import PackageGraph
 import PackageModel
 
-struct ModuleMapGenerator {
+/// A generator its generated modulemap for the distributed frameworks
+struct FrameworkModuleMapGenerator {
     private struct Context {
         var resolvedTarget: ScipioResolvedModule
         var sdk: SDK
@@ -73,9 +74,9 @@ struct ModuleMapGenerator {
                     throw Error.targetDescriptionNotFound(clangTarget.name)
                 }
 
-                let includingHeaders = try excludedIgnoredHeaders(
+                let includingHeaders = try Self.excludePaths(
                     from: allHeaders,
-                    excludedFiles: Set(targetDescription.exclude),
+                    excludedFiles: Set(targetDescription.exclude.map { try RelativePath(validating: $0) }),
                     targetRoot: clangTarget.path.scipioAbsolutePath
                 )
                 let declarations = includingHeaders.map { "    header \"\($0.basename)\"" }
@@ -116,18 +117,22 @@ struct ModuleMapGenerator {
     }
 
     /// Exclude ignored files defined in the target description from the passed headers set
-    private func excludedIgnoredHeaders(
-        from headers: Set<AbsolutePath>,
-        excludedFiles: Set<String>,
+    /// - Parameter files: A file path list. They should be absolute paths
+    /// - Parameter excludedFiles: A exclude files list. They should be a relative path form the target root
+    /// - Parameter targetRoot: An absolute path of the target root
+    /// - Returns: A list of files excluded matching excludeFiles
+    /// - Note: This should be private but currently, this struct isn't testable.
+    static func excludePaths(
+        from files: Set<AbsolutePath>,
+        excludedFiles: Set<RelativePath>,
         targetRoot: AbsolutePath
-    ) throws -> Set<AbsolutePath> {
-        let excludedPaths = try excludedFiles
-            .map { try RelativePath(validating: $0) }
+    ) -> Set<AbsolutePath> {
+        let excludedPaths = excludedFiles
             .map { targetRoot.appending($0) }
 
-        return headers.filter { header in
+        return files.filter { file in
             excludedPaths.allSatisfy { excludePath in
-                !header.isDescendantOfOrEqual(to: excludePath)
+                !file.isDescendantOfOrEqual(to: excludePath)
             }
         }
     }
