@@ -105,6 +105,7 @@ struct FrameworkModuleMapGenerator {
         }
     }
 
+    /// Search all headers(*.h) under the given directory. Directories in that also be searched recursively
     private func headers(under directoryPath: AbsolutePath) throws -> Set<AbsolutePath> {
         try fileSystem.getDirectoryContents(directoryPath).reduce(into: Set<AbsolutePath>()) { foundHeaders, file in
             let path = directoryPath.appending(component: file)
