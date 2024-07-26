@@ -117,7 +117,7 @@ struct FrameworkModuleMapGenerator {
         }
     }
 
-    /// Exclude ignored files defined in the target description from the passed headers set
+    /// Exclude ignored files defined in the excludedFiles from the passed files set
     /// - Parameter files: A file path list. They should be absolute paths
     /// - Parameter excludedFiles: A exclude files list. They should be a relative path form the target root
     /// - Parameter targetRoot: An absolute path of the target root
