@@ -16,14 +16,11 @@ struct FrameworkModuleMapGenerator {
 
     enum Error: LocalizedError {
         case unableToLoadCustomModuleMap(AbsolutePath)
-        case targetDescriptionNotFound(String)
 
         var errorDescription: String? {
             switch self {
             case .unableToLoadCustomModuleMap(let customModuleMapPath):
                 return "Something went wrong to load \(customModuleMapPath.pathString)"
-            case .targetDescriptionNotFound(let targetName):
-                return "Cannot load the package manifest of '\(targetName)'. It might be bug."
             }
         }
     }
@@ -70,15 +67,17 @@ struct FrameworkModuleMapGenerator {
             case .umbrellaDirectory(let directoryPath):
                 let allHeaders = try headers(under: directoryPath.scipioAbsolutePath)
 
-                guard let targetDescription = descriptionPackage.targetDescription(of: clangTarget.name) else {
-                    throw Error.targetDescriptionNotFound(clangTarget.name)
-                }
+                let targetDescription = descriptionPackage.targetDescription(of: clangTarget.name)
 
-                let includingHeaders = try Self.excludePaths(
-                    from: allHeaders,
-                    excludedFiles: Set(targetDescription.exclude.map { try RelativePath(validating: $0) }),
-                    targetRoot: clangTarget.path.scipioAbsolutePath
-                )
+                let includingHeaders = if let targetDescription {
+                    try Self.excludePaths(
+                        from: allHeaders,
+                        excludedFiles: Set(targetDescription.exclude.map { try RelativePath(validating: $0) }),
+                        targetRoot: clangTarget.path.scipioAbsolutePath
+                    )
+                } else {
+                    allHeaders
+                }
                 let declarations = includingHeaders.map { "    header \"\($0.basename)\"" }
 
                 return ([
