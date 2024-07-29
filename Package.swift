@@ -22,7 +22,7 @@ let package = Package(
             targets: ["ScipioKit"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-package-manager.git",
+        .package(url: "https://github.com/swiftlang/swift-package-manager.git",
                  branch: "release/6.0"),
         .package(url: "https://github.com/apple/swift-log.git",
                  from: "1.5.2"),
@@ -84,7 +84,7 @@ let isDevelopment = ProcessInfo.processInfo.environment["SCIPIO_DEVELOPMENT"] ==
 // swift-docs is not needed for package users
 if isDevelopment {
     package.dependencies += [
-        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
+        .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.3.0"),
         .package(url: "https://github.com/freddi-kit/ArtifactBundleGen.git", from: "0.0.6"),
     ]
 }
