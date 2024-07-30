@@ -130,6 +130,7 @@ extension Runner {
             public var extraFlags: ExtraFlags?
             public var extraBuildParameters: [String: String]?
             public var enableLibraryEvolution: Bool
+            /// An option indicates use custom modulemaps for distribution
             public var frameworkModuleMapGenerationPolicy: FrameworkModuleMapGenerationPolicy
 
             public init(
