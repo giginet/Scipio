@@ -95,7 +95,7 @@ struct FrameworkComponentsCollector {
     }
 
     private func generateFrameworkModuleMap() throws -> AbsolutePath? {
-        let modulemapGenerator = ModuleMapGenerator(
+        let modulemapGenerator = FrameworkModuleMapGenerator(
             descriptionPackage: descriptionPackage,
             fileSystem: fileSystem
         )

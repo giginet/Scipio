@@ -3,7 +3,8 @@ import TSCBasic
 import PackageGraph
 import PackageModel
 
-struct ModuleMapGenerator {
+// A generator to generate modulemaps which are distributed in the XCFramework
+struct FrameworkModuleMapGenerator {
     private struct Context {
         var resolvedTarget: ScipioResolvedModule
         var sdk: SDK
