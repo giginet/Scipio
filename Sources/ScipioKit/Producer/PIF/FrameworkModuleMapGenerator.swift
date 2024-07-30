@@ -69,7 +69,7 @@ struct FrameworkModuleMapGenerator {
 
                 let targetDescription = descriptionPackage.targetDescription(of: clangTarget.name)
 
-                let includingHeaders = if let targetDescription {
+                let includingHeaders: Set<AbsolutePath> = if let targetDescription {
                     try Self.excludePaths(
                         from: allHeaders,
                         excludedFiles: Set(targetDescription.exclude.map { try RelativePath(validating: $0) }),
