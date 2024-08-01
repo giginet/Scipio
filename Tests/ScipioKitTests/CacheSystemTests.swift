@@ -14,7 +14,7 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
         umbrella header "umbrella.h"
         export *
     }
-    """.data(using: .utf8)!
+    """
 
     func testParseClangVersion() async throws {
         let hook = { arguments in
@@ -36,7 +36,7 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
                                                            extraFlags: .init(swiftFlags: ["-D", "SOME_FLAG"]),
                                                            extraBuildParameters: ["SWIFT_OPTIMIZATION_LEVEL": "-Osize"],
                                                            enableLibraryEvolution: true,
-                                                           customFrameworkModuleMapContents: customModuleMap
+                                                           customFrameworkModuleMapContents: Data(customModuleMap.utf8)
                                                           ),
                                        clangVersion: "clang-1400.0.29.102",
                                        xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d")
