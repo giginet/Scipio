@@ -9,6 +9,12 @@ Target: arm64-apple-darwin21.6.0
 Thread model: posix
 InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
 """
+    private let customModuleMap = """
+    framework module MyTarget {
+        umbrella header "umbrella.h"
+        export *
+    }
+    """
 
     func testParseClangVersion() async throws {
         let hook = { arguments in
@@ -29,7 +35,9 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
                                                            sdks: [.iOS],
                                                            extraFlags: .init(swiftFlags: ["-D", "SOME_FLAG"]),
                                                            extraBuildParameters: ["SWIFT_OPTIMIZATION_LEVEL": "-Osize"],
-                                                           enableLibraryEvolution: true),
+                                                           enableLibraryEvolution: true,
+                                                           customFrameworkModuleMapContents: Data(customModuleMap.utf8)
+                                                          ),
                                        clangVersion: "clang-1400.0.29.102",
                                        xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d")
         )
@@ -41,6 +49,7 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
 {
   "buildOptions" : {
     "buildConfiguration" : "release",
+    "customFrameworkModuleMapContents" : "ZnJhbWV3b3JrIG1vZHVsZSBNeVRhcmdldCB7CiAgICB1bWJyZWxsYSBoZWFkZXIgInVtYnJlbGxhLmgiCiAgICBleHBvcnQgKgp9",
     "enableLibraryEvolution" : true,
     "extraBuildParameters" : {
       "SWIFT_OPTIMIZATION_LEVEL" : "-Osize"

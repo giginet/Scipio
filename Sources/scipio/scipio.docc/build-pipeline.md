@@ -200,6 +200,19 @@ This matrix can override build options of the specific targets to base build opt
 
 Of-course, you are also pass `extraFlags` or `extraBuildParameters` per product.
 
+#### Passing custom modulemap
+
+Scipio attempt to generate modulemap automatically distributed in the XCFramework. However, if you want to custom modulemap, you can pass `frameworkModuleMapGenerationPolicy` to the build options. In general, this option should be used `buildOptionsMatrix`.
+
+```swift
+buildOptionsMatrix: [
+    "MyResourceFramework": .init(
+        frameworkModuleMapGenerationPolicy: .custom(URL(filePath: "path/to/module.modulemap"))
+    ),
+]
+
+```
+
 ### Use Custom Cache Storage
 
 In CLI version of Scipio, you can only use Project cache or Local disk cache as a cache storage backend.

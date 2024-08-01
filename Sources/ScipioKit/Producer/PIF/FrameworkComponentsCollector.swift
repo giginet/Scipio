@@ -48,19 +48,13 @@ struct FrameworkComponentsCollector {
     }
 
     func collectComponents(sdk: SDK) throws -> FrameworkComponents {
-        let modulemapGenerator = ModuleMapGenerator(
-            descriptionPackage: descriptionPackage,
-            fileSystem: fileSystem
-        )
-
-        // xcbuild automatically generates modulemaps. However, these are not for frameworks.
-        // Therefore, it's difficult to contain this generated modulemaps to final XCFrameworks.
-        // So generate modulemap for frameworks manually
-        let frameworkModuleMapPath = try modulemapGenerator.generate(
-            resolvedTarget: buildProduct.target,
-            sdk: sdk,
-            buildConfiguration: buildOptions.buildConfiguration
-        )
+        let frameworkModuleMapPath: AbsolutePath?
+        if let customFrameworkModuleMapContents = buildOptions.customFrameworkModuleMapContents {
+            logger.info("📝 Using custom modulemap for \(buildProduct.target.name)(\(sdk.displayName))")
+            frameworkModuleMapPath = try copyModuleMapContentsToBuildArtifacts(customFrameworkModuleMapContents)
+        } else {
+            frameworkModuleMapPath = try generateFrameworkModuleMap()
+        }
 
         let targetName = buildProduct.target.c99name
         let generatedFrameworkPath = generatedFrameworkPath()
@@ -97,6 +91,31 @@ struct FrameworkComponentsCollector {
             resourceBundlePath: resourceBundlePath
         )
         return components
+    }
+
+    /// Copy content data to the build artifacts
+    private func copyModuleMapContentsToBuildArtifacts(_ data: Data) throws -> ScipioAbsolutePath {
+        let generatedModuleMapPath = try descriptionPackage.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
+
+        try fileSystem.writeFileContents(generatedModuleMapPath.spmAbsolutePath, data: data)
+        return generatedModuleMapPath
+    }
+
+    private func generateFrameworkModuleMap() throws -> AbsolutePath? {
+        let modulemapGenerator = FrameworkModuleMapGenerator(
+            descriptionPackage: descriptionPackage,
+            fileSystem: fileSystem
+        )
+
+        // xcbuild automatically generates modulemaps. However, these are not for frameworks.
+        // Therefore, it's difficult to contain this generated modulemaps to final XCFrameworks.
+        // So generate modulemap for frameworks manually
+        let frameworkModuleMapPath = try modulemapGenerator.generate(
+            resolvedTarget: buildProduct.target,
+            sdk: sdk,
+            buildConfiguration: buildOptions.buildConfiguration
+        )
+        return frameworkModuleMapPath
     }
 
     private func generatedFrameworkPath() -> AbsolutePath {
