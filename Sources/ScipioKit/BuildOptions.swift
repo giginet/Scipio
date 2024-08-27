@@ -1,5 +1,6 @@
 import Foundation
 import OrderedCollections
+import Basics
 
 struct BuildOptions: Hashable, Codable, Sendable {
     init(
@@ -10,7 +11,8 @@ struct BuildOptions: Hashable, Codable, Sendable {
         extraFlags: ExtraFlags?,
         extraBuildParameters: ExtraBuildParameters?,
         enableLibraryEvolution: Bool,
-        customFrameworkModuleMapContents: Data?
+        customFrameworkModuleMapContents: Data?,
+        environment: Environment?
     ) {
         self.buildConfiguration = buildConfiguration
         self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
@@ -20,6 +22,7 @@ struct BuildOptions: Hashable, Codable, Sendable {
         self.extraBuildParameters = extraBuildParameters
         self.enableLibraryEvolution = enableLibraryEvolution
         self.customFrameworkModuleMapContents = customFrameworkModuleMapContents
+        self.environment = environment
     }
 
     let buildConfiguration: BuildConfiguration
@@ -33,6 +36,7 @@ struct BuildOptions: Hashable, Codable, Sendable {
     /// - Note: It have to store the actual file contents rather than its path,
     /// because the cache key should change when the file contents change.
     let customFrameworkModuleMapContents: Data?
+    let environment: Environment?
 }
 
 public struct ExtraFlags: Hashable, Codable, Sendable {
@@ -187,5 +191,13 @@ extension ExtraFlags {
             swiftFlags: concatenating(\.swiftFlags),
             linkerFlags: concatenating(\.linkerFlags)
         )
+    }
+}
+
+extension Environment: Hashable {
+    public func hash(into hasher: inout Hasher) {
+        for item in self {
+            hasher.combine(item.value)
+        }
     }
 }

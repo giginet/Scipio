@@ -30,7 +30,7 @@ struct PIFCompiler: Compiler {
 
     private func fetchDefaultToolchainBinPath() async throws -> AbsolutePath {
         let result = try await executor.execute("/usr/bin/xcrun", "xcode-select", "-p")
-        let rawString = try result.unwrapOutput()
+        let rawString = try result.unwrapOutput().trimmingCharacters(in: .whitespacesAndNewlines)
         let developerDirPath = try AbsolutePath(validating: rawString)
         let toolchainPath = try RelativePath(validating: "./Toolchains/XcodeDefault.xctoolchain/usr/bin")
         return developerDirPath.appending(toolchainPath)
@@ -38,7 +38,7 @@ struct PIFCompiler: Compiler {
 
     private func makeToolchain(for sdk: SDK) async throws -> UserToolchain {
         let toolchainDirPath = try await fetchDefaultToolchainBinPath()
-        let toolchainGenerator = ToolchainGenerator(toolchainDirPath: toolchainDirPath)
+        let toolchainGenerator = ToolchainGenerator(toolchainDirPath: toolchainDirPath, environment: buildOptions.environment)
         return try await toolchainGenerator.makeToolChain(sdk: sdk)
     }
 
