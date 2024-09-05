@@ -4,6 +4,9 @@ import TSCBasic
 import struct TSCUtility.Version
 @preconcurrency import class PackageGraph.PinsStore
 import Algorithms
+import PackageGraph
+import PackageModel
+import SourceControl
 
 private let jsonEncoder = {
     let encoder = JSONEncoder()
@@ -251,7 +254,7 @@ struct CacheSystem: Sendable {
 
     func calculateCacheKey(of target: CacheTarget) async throws -> SwiftPMCacheKey {
         let targetName = target.buildProduct.target.name
-        let pin = try retrievePin(product: target.buildProduct)
+        let pin = try retrievePin(package: target.buildProduct.package)
         let buildOptions = target.buildOptions
         guard let clangVersion = try await ClangChecker().fetchClangVersion() else {
             throw Error.compilerVersionNotDetected
@@ -269,14 +272,14 @@ struct CacheSystem: Sendable {
         )
     }
 
-    private func retrievePin(product: BuildProduct) throws -> PinsStore.Pin {
+    private func retrievePin(package: ResolvedPackage) throws -> PinsStore.Pin {
         #if swift(>=5.10)
-        guard let pin = pinsStore.pins[product.package.identity] else {
-            throw Error.revisionNotDetected(product.package.manifest.displayName)
+        guard let pin = pinsStore.pins[package.identity] ?? package.pin else {
+            throw Error.revisionNotDetected(package.manifest.displayName)
         }
         #else
-        guard let pin = pinsStore.pinsMap[product.package.identity] else {
-            throw Error.revisionNotDetected(product.package.manifest.displayName)
+        guard let pin = pinsStore.pinsMap[package.identity] ?? package.pin else {
+            throw Error.revisionNotDetected(package.manifest.displayName)
         }
         #endif
         return pin
@@ -305,4 +308,29 @@ public struct VersionFileDecoder {
             as: SwiftPMCacheKey.self
         )
     }
+}
+
+fileprivate extension ResolvedPackage {
+
+    var pin: PinsStore.Pin? {
+        let repository = GitRepository(path: path)
+
+        guard let tag = try? repository.getCurrentTag(), let version = try? Version(tag: tag) else {
+            return nil
+        }
+
+        // TODO: Even though the `version` requirement already covers the vast majority of cases,
+        // supporting the `branch` and `revision` requirements should be also possible.
+        return PinsStore.Pin(
+            packageRef: PackageReference(
+                identity: identity,
+                kind: manifest.packageKind
+            ),
+            state: .version(
+                version,
+                revision: try? repository.getCurrentRevision().identifier
+            )
+        )
+    }
+
 }
