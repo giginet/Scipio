@@ -194,10 +194,6 @@ extension ExtraFlags {
     }
 }
 
-extension Environment: Hashable {
-    public func hash(into hasher: inout Hasher) {
-        for item in self {
-            hasher.combine(item.value)
-        }
-    }
+extension Environment: @retroactive Hashable {
+    public func hash(into hasher: inout Hasher) {}
 }
