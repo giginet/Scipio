@@ -3,6 +3,18 @@ import OrderedCollections
 import Basics
 
 struct BuildOptions: Hashable, Codable, Sendable {
+
+    private enum CodingKeys: CodingKey {
+        case buildConfiguration
+        case isDebugSymbolsEmbedded
+        case frameworkType
+        case sdks
+        case extraFlags
+        case extraBuildParameters
+        case enableLibraryEvolution
+        case customFrameworkModuleMapContents
+    }
+
     init(
         buildConfiguration: BuildConfiguration,
         isDebugSymbolsEmbedded: Bool,
@@ -36,7 +48,7 @@ struct BuildOptions: Hashable, Codable, Sendable {
     /// - Note: It have to store the actual file contents rather than its path,
     /// because the cache key should change when the file contents change.
     let customFrameworkModuleMapContents: Data?
-    let environment: Environment?
+    private(set) var environment: Environment? = nil
 }
 
 public struct ExtraFlags: Hashable, Codable, Sendable {
