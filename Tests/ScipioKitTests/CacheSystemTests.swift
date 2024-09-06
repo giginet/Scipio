@@ -1,6 +1,7 @@
 import Foundation
 @testable import ScipioKit
 import XCTest
+@_spi(SwiftPMInternal) import struct Basics.Environment
 
 final class ClangCheckerTests: XCTestCase {
     private let clangVersion = """
@@ -36,7 +37,11 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
                                                            extraFlags: .init(swiftFlags: ["-D", "SOME_FLAG"]),
                                                            extraBuildParameters: ["SWIFT_OPTIMIZATION_LEVEL": "-Osize"],
                                                            enableLibraryEvolution: true,
-                                                           customFrameworkModuleMapContents: Data(customModuleMap.utf8)
+                                                           customFrameworkModuleMapContents: Data(customModuleMap.utf8),
+                                                           environment: Environment([
+                                                            "DEVELOPER_DIR": "/Xcode.app/Contents/Developer",
+                                                            "PATH": "/Xcode.app/Contents/Developer:/usr/bin:/bin"
+                                                           ])
                                                           ),
                                        clangVersion: "clang-1400.0.29.102",
                                        xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d")
