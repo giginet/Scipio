@@ -48,7 +48,7 @@ struct BuildOptions: Hashable, Codable, Sendable {
     /// - Note: It have to store the actual file contents rather than its path,
     /// because the cache key should change when the file contents change.
     let customFrameworkModuleMapContents: Data?
-    private(set) var environment: Environment? = nil
+    private(set) var environment: Environment?
 }
 
 public struct ExtraFlags: Hashable, Codable, Sendable {
@@ -213,4 +213,3 @@ extension Environment: @retroactive Hashable {
         }
     }
 }
-

@@ -40,7 +40,7 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
                                                            customFrameworkModuleMapContents: Data(customModuleMap.utf8),
                                                            environment: Environment([
                                                             "DEVELOPER_DIR": "/Xcode.app/Contents/Developer",
-                                                            "PATH": "/Xcode.app/Contents/Developer:/usr/bin:/bin"
+                                                            "PATH": "/Xcode.app/Contents/Developer:/usr/bin:/bin",
                                                            ])
                                                           ),
                                        clangVersion: "clang-1400.0.29.102",
