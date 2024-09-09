@@ -49,7 +49,7 @@ struct BuildOptionGroup: ParsableArguments {
 
 #if compiler(>=6.0)
 
-extension FrameworkType: @retroactive ExpressibleByArgument { }
+extension FrameworkType: ExpressibleByArgument { }
 
 #else
 

@@ -10,7 +10,7 @@ extension URL: @retroactive ExpressibleByArgument {
     }
 }
 
-extension BuildConfiguration: @retroactive ExpressibleByArgument {
+extension BuildConfiguration: ExpressibleByArgument {
     public init?(argument: String) {
         switch argument.lowercased() {
         case "debug":
