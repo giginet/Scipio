@@ -38,7 +38,11 @@ struct PIFCompiler: Compiler {
 
     private func makeToolchain(for sdk: SDK) async throws -> UserToolchain {
         let toolchainDirPath = try await fetchDefaultToolchainBinPath()
+        #if compiler(>=6.0)
         let toolchainGenerator = ToolchainGenerator(toolchainDirPath: toolchainDirPath, environment: buildOptions.environment)
+        #else
+        let toolchainGenerator = ToolchainGenerator(toolchainDirPath: toolchainDirPath)
+        #endif
         return try await toolchainGenerator.makeToolChain(sdk: sdk)
     }
 

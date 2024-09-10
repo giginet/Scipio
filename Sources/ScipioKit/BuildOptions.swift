@@ -23,8 +23,7 @@ struct BuildOptions: Hashable, Codable, Sendable {
         extraFlags: ExtraFlags?,
         extraBuildParameters: ExtraBuildParameters?,
         enableLibraryEvolution: Bool,
-        customFrameworkModuleMapContents: Data?,
-        environment: Environment?
+        customFrameworkModuleMapContents: Data?
     ) {
         self.buildConfiguration = buildConfiguration
         self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
@@ -34,8 +33,33 @@ struct BuildOptions: Hashable, Codable, Sendable {
         self.extraBuildParameters = extraBuildParameters
         self.enableLibraryEvolution = enableLibraryEvolution
         self.customFrameworkModuleMapContents = customFrameworkModuleMapContents
+    }
+
+    #if compiler(>=6.0)
+    init(
+        buildConfiguration: BuildConfiguration,
+        isDebugSymbolsEmbedded: Bool,
+        frameworkType: FrameworkType,
+        sdks: Set<SDK>,
+        extraFlags: ExtraFlags?,
+        extraBuildParameters: ExtraBuildParameters?,
+        enableLibraryEvolution: Bool,
+        customFrameworkModuleMapContents: Data?,
+        environment: Environment?
+    ) {
+        self.init(
+            buildConfiguration: buildConfiguration,
+            isDebugSymbolsEmbedded: isDebugSymbolsEmbedded,
+            frameworkType: frameworkType,
+            sdks: sdks,
+            extraFlags: extraFlags,
+            extraBuildParameters: extraBuildParameters,
+            enableLibraryEvolution: enableLibraryEvolution,
+            customFrameworkModuleMapContents: customFrameworkModuleMapContents
+        )
         self.environment = environment
     }
+    #endif
 
     let buildConfiguration: BuildConfiguration
     let isDebugSymbolsEmbedded: Bool
@@ -48,7 +72,10 @@ struct BuildOptions: Hashable, Codable, Sendable {
     /// - Note: It have to store the actual file contents rather than its path,
     /// because the cache key should change when the file contents change.
     let customFrameworkModuleMapContents: Data?
+
+    #if compiler(>=6.0)
     private(set) var environment: Environment?
+    #endif
 }
 
 public struct ExtraFlags: Hashable, Codable, Sendable {
@@ -206,6 +233,7 @@ extension ExtraFlags {
     }
 }
 
+#if compiler(>=6.0)
 extension Environment: @retroactive Hashable {
     public func hash(into hasher: inout Hasher) {
         for item in self {
@@ -213,3 +241,4 @@ extension Environment: @retroactive Hashable {
         }
     }
 }
+#endif
