@@ -206,6 +206,8 @@ extension ExtraFlags {
     }
 }
 
+#if compiler(>=6.0)
+
 extension Environment: @retroactive Hashable {
     public func hash(into hasher: inout Hasher) {
         for item in self {
@@ -213,3 +215,5 @@ extension Environment: @retroactive Hashable {
         }
     }
 }
+
+#endif
