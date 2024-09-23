@@ -1,7 +1,6 @@
 import Foundation
 @testable import ScipioKit
 import XCTest
-@_spi(SwiftPMInternal) import struct Basics.Environment
 
 final class ClangCheckerTests: XCTestCase {
     private let clangVersion = """
