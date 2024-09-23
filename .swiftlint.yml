@@ -9,6 +9,7 @@ disabled_rules:
   - force_try
   - todo
   - cyclomatic_complexity
+  - optional_data_string_conversion
 line_length: 150
 file_length: 600
 nesting:
