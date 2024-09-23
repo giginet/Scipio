@@ -3,7 +3,6 @@ import ScipioStorage
 import struct TSCBasic.AbsolutePath
 import protocol TSCBasic.FileSystem
 import var TSCBasic.localFileSystem
-import struct Basics.Environment
 
 public typealias PlatformMatrix = [String: Set<SDK>]
 
