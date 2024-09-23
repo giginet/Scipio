@@ -10,7 +10,6 @@ extension URL: @retroactive ExpressibleByArgument {
     }
 }
 
-
 #else
 
 extension URL: ExpressibleByArgument {
