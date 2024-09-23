@@ -24,7 +24,7 @@ struct BuildOptions: Hashable, Codable, Sendable {
         extraBuildParameters: ExtraBuildParameters?,
         enableLibraryEvolution: Bool,
         customFrameworkModuleMapContents: Data?,
-        environment: Environment?
+        environment: [String: String]?
     ) {
         self.buildConfiguration = buildConfiguration
         self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
@@ -48,7 +48,7 @@ struct BuildOptions: Hashable, Codable, Sendable {
     /// - Note: It have to store the actual file contents rather than its path,
     /// because the cache key should change when the file contents change.
     let customFrameworkModuleMapContents: Data?
-    private(set) var environment: Environment?
+    private(set) var environment: [String: String]?
 }
 
 public struct ExtraFlags: Hashable, Codable, Sendable {
