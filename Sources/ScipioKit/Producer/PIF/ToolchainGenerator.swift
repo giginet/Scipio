@@ -2,40 +2,28 @@ import Foundation
 import TSCUtility
 #if compiler(>=6.0)
 @_spi(SwiftPMInternal) import PackageModel
-import struct Basics.Environment
 #else
 import PackageModel
 #endif
 import TSCBasic
 import struct Basics.Triple
+import struct Basics.Environment
 
 struct ToolchainGenerator {
     private let toolchainDirPath: AbsolutePath
     private let executor: any Executor
-
-    #if compiler(>=6.0)
     private let environment: Environment?
-    #endif
 
-    #if compiler(>=6.0)
     init(toolchainDirPath: AbsolutePath, executor: any Executor = ProcessExecutor(), environment: Environment? = nil) {
         self.toolchainDirPath = toolchainDirPath
         self.executor = executor
         self.environment = environment
     }
-    #else
-    init(toolchainDirPath: AbsolutePath, executor: any Executor = ProcessExecutor()) {
-        self.toolchainDirPath = toolchainDirPath
-        self.executor = executor
-    }
-    #endif
 
     func makeToolChain(sdk: SDK) async throws -> UserToolchain {
         let destination: SwiftSDK = try await makeDestination(sdk: sdk)
-        #if swift(>=6.0)
+        #if swift(>=5.10)
         return try UserToolchain(swiftSDK: destination, environment: environment ?? .current)
-        #elseif swift(>=5.10)
-        return try UserToolchain(swiftSDK: destination)
         #else
         return try UserToolchain(destination: destination)
         #endif

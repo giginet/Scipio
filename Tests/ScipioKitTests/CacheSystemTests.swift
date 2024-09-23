@@ -1,9 +1,7 @@
 import Foundation
 @testable import ScipioKit
 import XCTest
-#if compiler(>=6.0)
 @_spi(SwiftPMInternal) import struct Basics.Environment
-#endif
 
 final class ClangCheckerTests: XCTestCase {
     private let clangVersion = """
@@ -30,7 +28,6 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
     }
 
     func testEncodeCacheKey() throws {
-        #if compiler(>=6.0)
         let cacheKey = SwiftPMCacheKey(targetName: "MyTarget",
                                        pin: .revision("111111111"),
                                        buildOptions: .init(buildConfiguration: .release,
@@ -49,23 +46,6 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
                                        clangVersion: "clang-1400.0.29.102",
                                        xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d")
         )
-        #else
-        let cacheKey = SwiftPMCacheKey(targetName: "MyTarget",
-                                       pin: .revision("111111111"),
-                                       buildOptions: .init(buildConfiguration: .release,
-                                                           isDebugSymbolsEmbedded: false,
-                                                           frameworkType: .dynamic,
-                                                           sdks: [.iOS],
-                                                           extraFlags: .init(swiftFlags: ["-D", "SOME_FLAG"]),
-                                                           extraBuildParameters: ["SWIFT_OPTIMIZATION_LEVEL": "-Osize"],
-                                                           enableLibraryEvolution: true,
-                                                           customFrameworkModuleMapContents: Data(customModuleMap.utf8)
-                                                          ),
-                                       clangVersion: "clang-1400.0.29.102",
-                                       xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d")
-        )
-        #endif
-
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
         let data = try encoder.encode(cacheKey)

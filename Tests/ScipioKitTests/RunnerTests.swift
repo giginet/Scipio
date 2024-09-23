@@ -708,7 +708,6 @@ framework module MyTarget {
 }
 
 extension BuildOptions {
-    #if compiler(>=6.0)
     fileprivate static let `default`: Self = .init(
         buildConfiguration: .release,
         isDebugSymbolsEmbedded: false,
@@ -720,16 +719,4 @@ extension BuildOptions {
         customFrameworkModuleMapContents: nil,
         environment: nil
     )
-    #else
-    fileprivate static let `default`: Self = .init(
-        buildConfiguration: .release,
-        isDebugSymbolsEmbedded: false,
-        frameworkType: .dynamic,
-        sdks: [.iOS],
-        extraFlags: nil,
-        extraBuildParameters: nil,
-        enableLibraryEvolution: true,
-        customFrameworkModuleMapContents: nil
-    )
-    #endif
 }
