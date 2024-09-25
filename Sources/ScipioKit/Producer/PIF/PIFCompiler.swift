@@ -10,6 +10,7 @@ struct PIFCompiler: Compiler {
     private let fileSystem: any FileSystem
     private let executor: any Executor
     private let buildOptionsMatrix: [String: BuildOptions]
+    private let toolchainEnvironment: [String: String]?
 
     private let buildParametersGenerator: BuildParametersGenerator
 
@@ -18,7 +19,8 @@ struct PIFCompiler: Compiler {
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
         fileSystem: any FileSystem = TSCBasic.localFileSystem,
-        executor: any Executor = ProcessExecutor()
+        executor: any Executor = ProcessExecutor(),
+        toolchainEnvironment: [String: String]? = nil
     ) {
         self.descriptionPackage = descriptionPackage
         self.buildOptions = buildOptions
@@ -26,6 +28,7 @@ struct PIFCompiler: Compiler {
         self.fileSystem = fileSystem
         self.executor = executor
         self.buildParametersGenerator = .init(buildOptions: buildOptions, fileSystem: fileSystem)
+        self.toolchainEnvironment = toolchainEnvironment
     }
 
     private func fetchDefaultToolchainBinPath() async throws -> AbsolutePath {
@@ -38,7 +41,7 @@ struct PIFCompiler: Compiler {
 
     private func makeToolchain(for sdk: SDK) async throws -> UserToolchain {
         let toolchainDirPath = try await fetchDefaultToolchainBinPath()
-        let toolchainGenerator = ToolchainGenerator(toolchainDirPath: toolchainDirPath, environment: buildOptions.toolchainEnvironment)
+        let toolchainGenerator = ToolchainGenerator(toolchainDirPath: toolchainDirPath, environment: toolchainEnvironment)
         return try await toolchainGenerator.makeToolChain(sdk: sdk)
     }
 

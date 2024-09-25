@@ -716,7 +716,6 @@ extension BuildOptions {
         extraFlags: nil,
         extraBuildParameters: nil,
         enableLibraryEvolution: true,
-        customFrameworkModuleMapContents: nil,
-        toolchainEnvironment: nil
+        customFrameworkModuleMapContents: nil
     )
 }

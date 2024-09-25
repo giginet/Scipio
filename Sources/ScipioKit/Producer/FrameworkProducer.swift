@@ -14,6 +14,7 @@ struct FrameworkProducer {
     private let overwrite: Bool
     private let outputDir: URL
     private let fileSystem: any FileSystem
+    private let toolchainEnvironment: [String: String]?
 
     private var cacheStorage: (any CacheStorage)? {
         switch cacheMode {
@@ -51,7 +52,8 @@ struct FrameworkProducer {
         cacheMode: Runner.Options.CacheMode,
         overwrite: Bool,
         outputDir: URL,
-        fileSystem: any FileSystem = localFileSystem
+        fileSystem: any FileSystem = localFileSystem,
+        toolchainEnvironment: [String: String]? = nil
     ) {
         self.descriptionPackage = descriptionPackage
         self.baseBuildOptions = buildOptions
@@ -60,6 +62,7 @@ struct FrameworkProducer {
         self.overwrite = overwrite
         self.outputDir = outputDir
         self.fileSystem = fileSystem
+        self.toolchainEnvironment = toolchainEnvironment
     }
 
     func produce() async throws {
