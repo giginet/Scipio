@@ -165,7 +165,6 @@ extension Runner {
             public var extraBuildParameters: [String: String]?
             public var enableLibraryEvolution: Bool?
             public var frameworkModuleMapGenerationPolicy: FrameworkModuleMapGenerationPolicy?
-            public var environment: [String: String]?
 
             public init(
                 buildConfiguration: BuildConfiguration? = nil,
@@ -176,8 +175,7 @@ extension Runner {
                 extraFlags: ExtraFlags? = nil,
                 extraBuildParameters: [String: String]? = nil,
                 enableLibraryEvolution: Bool? = nil,
-                frameworkModuleMapGenerationPolicy: FrameworkModuleMapGenerationPolicy? = nil,
-                environment: [String: String]? = nil
+                frameworkModuleMapGenerationPolicy: FrameworkModuleMapGenerationPolicy? = nil
             ) {
                 self.buildConfiguration = buildConfiguration
                 self.platforms = platforms
@@ -188,7 +186,6 @@ extension Runner {
                 self.extraFlags = extraFlags
                 self.enableLibraryEvolution = enableLibraryEvolution
                 self.frameworkModuleMapGenerationPolicy = frameworkModuleMapGenerationPolicy
-                self.environment = environment
             }
         }
 
