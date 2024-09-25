@@ -37,7 +37,7 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
                                                            extraBuildParameters: ["SWIFT_OPTIMIZATION_LEVEL": "-Osize"],
                                                            enableLibraryEvolution: true,
                                                            customFrameworkModuleMapContents: Data(customModuleMap.utf8),
-                                                           environment: [
+                                                           toolchainEnvironment: [
                                                             "DEVELOPER_DIR": "/Xcode.app/Contents/Developer",
                                                             "PATH": "/Xcode.app/Contents/Developer:/usr/bin:/bin",
                                                            ]
