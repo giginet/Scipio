@@ -18,17 +18,17 @@ struct PIFCompiler: Compiler {
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
+        toolchainEnvironment: [String: String]? = nil,
         fileSystem: any FileSystem = TSCBasic.localFileSystem,
-        executor: any Executor = ProcessExecutor(),
-        toolchainEnvironment: [String: String]? = nil
+        executor: any Executor = ProcessExecutor()
     ) {
         self.descriptionPackage = descriptionPackage
         self.buildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
+        self.toolchainEnvironment = toolchainEnvironment
         self.fileSystem = fileSystem
         self.executor = executor
         self.buildParametersGenerator = .init(buildOptions: buildOptions, fileSystem: fileSystem)
-        self.toolchainEnvironment = toolchainEnvironment
     }
 
     private func fetchDefaultToolchainBinPath() async throws -> AbsolutePath {

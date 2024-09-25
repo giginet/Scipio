@@ -11,17 +11,17 @@ import struct Basics.Triple
 
 struct ToolchainGenerator {
     private let toolchainDirPath: AbsolutePath
-    private let executor: any Executor
     private let environment: [String: String]?
+    private let executor: any Executor
 
     init(
         toolchainDirPath: AbsolutePath,
-        executor: any Executor = ProcessExecutor(),
-        environment: [String: String]? = nil
+        environment: [String: String]? = nil,
+        executor: any Executor = ProcessExecutor()
     ) {
         self.toolchainDirPath = toolchainDirPath
-        self.executor = executor
         self.environment = environment
+        self.executor = executor
     }
 
     func makeToolChain(sdk: SDK) async throws -> UserToolchain {
