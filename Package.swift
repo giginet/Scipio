@@ -76,7 +76,7 @@ let package = Package(
             swiftSettings: swiftSettings
         ),
     ],
-    swiftLanguageVersions: [.v6]
+    swiftLanguageModes: [.v6]
 )
 
 let isDevelopment = ProcessInfo.processInfo.environment["SCIPIO_DEVELOPMENT"] == "1"
