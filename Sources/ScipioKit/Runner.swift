@@ -234,6 +234,7 @@ extension Runner {
         public var cacheMode: CacheMode
         public var overwrite: Bool
         public var verbose: Bool
+        public var toolchainEnvironment: [String: String]?
 
         public init(
             baseBuildOptions: BuildOptions = .init(),
@@ -241,7 +242,8 @@ extension Runner {
             shouldOnlyUseVersionsFromResolvedFile: Bool = false,
             cacheMode: CacheMode = .project,
             overwrite: Bool = false,
-            verbose: Bool = false
+            verbose: Bool = false,
+            toolchainEnvironment: [String: String]? = nil
         ) {
             self.buildOptionsContainer = BuildOptionsContainer(
                 baseBuildOptions: baseBuildOptions,
@@ -251,6 +253,7 @@ extension Runner {
             self.cacheMode = cacheMode
             self.overwrite = overwrite
             self.verbose = verbose
+            self.toolchainEnvironment = toolchainEnvironment
         }
     }
 }

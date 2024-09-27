@@ -1,7 +1,9 @@
 import Foundation
 import OrderedCollections
+import Basics
 
 struct BuildOptions: Hashable, Codable, Sendable {
+
     init(
         buildConfiguration: BuildConfiguration,
         isDebugSymbolsEmbedded: Bool,
