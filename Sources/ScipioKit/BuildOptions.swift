@@ -4,17 +4,6 @@ import Basics
 
 struct BuildOptions: Hashable, Codable, Sendable {
 
-    private enum CodingKeys: CodingKey {
-        case buildConfiguration
-        case isDebugSymbolsEmbedded
-        case frameworkType
-        case sdks
-        case extraFlags
-        case extraBuildParameters
-        case enableLibraryEvolution
-        case customFrameworkModuleMapContents
-    }
-
     init(
         buildConfiguration: BuildConfiguration,
         isDebugSymbolsEmbedded: Bool,
@@ -23,8 +12,7 @@ struct BuildOptions: Hashable, Codable, Sendable {
         extraFlags: ExtraFlags?,
         extraBuildParameters: ExtraBuildParameters?,
         enableLibraryEvolution: Bool,
-        customFrameworkModuleMapContents: Data?,
-        environment: Environment?
+        customFrameworkModuleMapContents: Data?
     ) {
         self.buildConfiguration = buildConfiguration
         self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
@@ -34,7 +22,6 @@ struct BuildOptions: Hashable, Codable, Sendable {
         self.extraBuildParameters = extraBuildParameters
         self.enableLibraryEvolution = enableLibraryEvolution
         self.customFrameworkModuleMapContents = customFrameworkModuleMapContents
-        self.environment = environment
     }
 
     let buildConfiguration: BuildConfiguration
@@ -48,7 +35,6 @@ struct BuildOptions: Hashable, Codable, Sendable {
     /// - Note: It have to store the actual file contents rather than its path,
     /// because the cache key should change when the file contents change.
     let customFrameworkModuleMapContents: Data?
-    private(set) var environment: Environment? = nil
 }
 
 public struct ExtraFlags: Hashable, Codable, Sendable {
@@ -204,8 +190,4 @@ extension ExtraFlags {
             linkerFlags: concatenating(\.linkerFlags)
         )
     }
-}
-
-extension Environment: @retroactive Hashable {
-    public func hash(into hasher: inout Hasher) {}
 }
