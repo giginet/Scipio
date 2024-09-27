@@ -10,19 +10,6 @@ extension URL: @retroactive ExpressibleByArgument {
     }
 }
 
-extension BuildConfiguration: @retroactive ExpressibleByArgument {
-    public init?(argument: String) {
-        switch argument.lowercased() {
-        case "debug":
-            self = .debug
-        case "release":
-            self = .release
-        default:
-            return nil
-        }
-    }
-}
-
 #else
 
 extension URL: ExpressibleByArgument {
@@ -30,6 +17,8 @@ extension URL: ExpressibleByArgument {
         self.init(fileURLWithPath: argument)
     }
 }
+
+#endif
 
 extension BuildConfiguration: ExpressibleByArgument {
     public init?(argument: String) {
@@ -43,5 +32,3 @@ extension BuildConfiguration: ExpressibleByArgument {
         }
     }
 }
-
-#endif
