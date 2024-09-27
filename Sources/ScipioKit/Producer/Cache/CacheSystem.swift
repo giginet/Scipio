@@ -315,12 +315,12 @@ fileprivate extension ResolvedPackage {
     var pin: PinsStore.Pin? {
         let repository = GitRepository(path: path)
 
-        guard let tag = try? repository.getCurrentTag(), let version = try? Version(tag: tag) else {
+        guard let tag = repository.getCurrentTag(), let version = Version(tag: tag) else {
             return nil
         }
 
-        // TODO: Even though the `version` requirement already covers the vast majority of cases,
-        // supporting the `branch` and `revision` requirements should be also possible.
+        // TODO: Even though the version requirement already covers the vast majority of cases,
+        // supporting `branch` and `revision` requirements should, in theory, also be possible.
         return PinsStore.Pin(
             packageRef: PackageReference(
                 identity: identity,
