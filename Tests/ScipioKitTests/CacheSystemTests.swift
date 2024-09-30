@@ -2,13 +2,13 @@ import Foundation
 @testable import ScipioKit
 import XCTest
 
-final class ClangCheckerTests: XCTestCase {
-    private let clangVersion = """
-Apple clang version 14.0.0 (clang-1400.0.29.102)
-Target: arm64-apple-darwin21.6.0
-Thread model: posix
-InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
-"""
+private let fixturePath = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent()
+    .appendingPathComponent("Resources")
+    .appendingPathComponent("Fixtures")
+
+final class CacheSystemTests: XCTestCase {
+
     private let customModuleMap = """
     framework module MyTarget {
         umbrella header "umbrella.h"
@@ -16,15 +16,7 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
     }
     """
 
-    func testParseClangVersion() async throws {
-        let hook = { arguments in
-            XCTAssertEqual(arguments, ["/usr/bin/xcrun", "clang", "--version"])
-            return StubbableExecutorResult(arguments: arguments, success: self.clangVersion)
-        }
-        let clangParser = ClangChecker(executor: StubbableExecutor(executeHook: hook))
-        let version = try await clangParser.fetchClangVersion()
-        XCTAssertEqual(version, "clang-1400.0.29.102")
-    }
+    private let testingPackagePath = fixturePath.appendingPathComponent("TestingPackage")
 
     func testEncodeCacheKey() throws {
         let cacheKey = SwiftPMCacheKey(targetName: "MyTarget",
@@ -46,37 +38,78 @@ InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault
         let data = try encoder.encode(cacheKey)
         let rawString = try XCTUnwrap(String(decoding: data, as: UTF8.self))
         let expected = """
-{
-  "buildOptions" : {
-    "buildConfiguration" : "release",
-    "customFrameworkModuleMapContents" : "ZnJhbWV3b3JrIG1vZHVsZSBNeVRhcmdldCB7CiAgICB1bWJyZWxsYSBoZWFkZXIgInVtYnJlbGxhLmgiCiAgICBleHBvcnQgKgp9",
-    "enableLibraryEvolution" : true,
-    "extraBuildParameters" : {
-      "SWIFT_OPTIMIZATION_LEVEL" : "-Osize"
-    },
-    "extraFlags" : {
-      "swiftFlags" : [
-        "-D",
-        "SOME_FLAG"
-      ]
-    },
-    "frameworkType" : "dynamic",
-    "isDebugSymbolsEmbedded" : false,
-    "sdks" : [
-      "iOS"
-    ]
-  },
-  "clangVersion" : "clang-1400.0.29.102",
-  "pin" : {
-    "revision" : "111111111"
-  },
-  "targetName" : "MyTarget",
-  "xcodeVersion" : {
-    "xcodeBuildVersion" : "15F31d",
-    "xcodeVersion" : "15.4"
-  }
-}
-"""
+        {
+          "buildOptions" : {
+            "buildConfiguration" : "release",
+            "customFrameworkModuleMapContents" : "ZnJhbWV3b3JrIG1vZHVsZSBNeVRhcmdldCB7CiAgICB1bWJyZWxsYSBoZWFkZXIgInVtYnJlbGxhLmgiCiAgICBleHBvcnQgKgp9",
+            "enableLibraryEvolution" : true,
+            "extraBuildParameters" : {
+              "SWIFT_OPTIMIZATION_LEVEL" : "-Osize"
+            },
+            "extraFlags" : {
+              "swiftFlags" : [
+                "-D",
+                "SOME_FLAG"
+              ]
+            },
+            "frameworkType" : "dynamic",
+            "isDebugSymbolsEmbedded" : false,
+            "sdks" : [
+              "iOS"
+            ]
+          },
+          "clangVersion" : "clang-1400.0.29.102",
+          "pin" : {
+            "revision" : "111111111"
+          },
+          "targetName" : "MyTarget",
+          "xcodeVersion" : {
+            "xcodeBuildVersion" : "15F31d",
+            "xcodeVersion" : "15.4"
+          }
+        }
+        """
         XCTAssertEqual(rawString, expected)
+    }
+
+    func testCacheKeyCalculationForRootPackageTarget() async throws {
+        let tempDir = FileManager.default.temporaryDirectory
+        let frameworkOutputDir = tempDir.appendingPathComponent("XCFrameworks")
+        let descriptionPackage = try DescriptionPackage(
+            packageDirectory: testingPackagePath.absolutePath,
+            mode: .createPackage,
+            onlyUseVersionsFromResolvedFile: false
+        )
+        let cacheSystem = CacheSystem(
+            pinsStore: try descriptionPackage.workspace.pinsStore.load(),
+            outputDirectory: frameworkOutputDir,
+            storage: nil
+        )
+        let testingPackage = descriptionPackage
+            .graph
+            .packages
+            .first { $0.manifest.displayName == descriptionPackage.manifest.displayName }!
+        let myTarget = testingPackage.modules.first { $0.name == "MyTarget" }!
+
+        let cacheTarget = CacheSystem.CacheTarget(
+            buildProduct: BuildProduct(
+                package: testingPackage,
+                target: myTarget
+            ),
+            buildOptions: BuildOptions(
+                buildConfiguration: .release,
+                isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
+                sdks: [.iOS, .iOSSimulator],
+                extraFlags: nil,
+                extraBuildParameters: nil,
+                enableLibraryEvolution: false,
+                customFrameworkModuleMapContents: nil
+            )
+        )
+
+        let cacheKey = try await cacheSystem.calculateCacheKey(of: cacheTarget)
+
+        XCTAssertEqual(cacheKey.pin.description, "1.1.0")
     }
 }
