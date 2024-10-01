@@ -2,9 +2,8 @@ import Foundation
 import ScipioStorage
 import TSCBasic
 import struct TSCUtility.Version
-@preconcurrency import class PackageGraph.PinsStore
 import Algorithms
-import PackageGraph
+@preconcurrency import PackageGraph
 import PackageModel
 import SourceControl
 
