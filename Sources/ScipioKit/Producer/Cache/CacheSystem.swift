@@ -341,4 +341,3 @@ fileprivate extension ResolvedPackage {
 }
 
 #endif
-
