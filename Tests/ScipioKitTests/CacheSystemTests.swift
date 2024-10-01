@@ -36,6 +36,8 @@ final class CacheSystemTests: XCTestCase {
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
         let data = try encoder.encode(cacheKey)
         let rawString = try XCTUnwrap(String(decoding: data, as: UTF8.self))
+
+        // swiftlint:disable line_length
         let expected = """
         {
           "buildOptions" : {
@@ -68,6 +70,7 @@ final class CacheSystemTests: XCTestCase {
           }
         }
         """
+        // swiftlint:enable line_length
         XCTAssertEqual(rawString, expected)
     }
 
