@@ -1,6 +1,7 @@
 import Foundation
 @testable import ScipioKit
 import XCTest
+import Basics
 
 private let fixturePath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
@@ -15,8 +16,6 @@ final class CacheSystemTests: XCTestCase {
         export *
     }
     """
-
-    private let testingPackagePath = fixturePath.appendingPathComponent("TestingPackage")
 
     func testEncodeCacheKey() throws {
         let cacheKey = SwiftPMCacheKey(targetName: "MyTarget",
@@ -73,24 +72,31 @@ final class CacheSystemTests: XCTestCase {
     }
 
     func testCacheKeyCalculationForRootPackageTarget() async throws {
-        let tempDir = FileManager.default.temporaryDirectory
-        let frameworkOutputDir = tempDir.appendingPathComponent("XCFrameworks")
+        let fileSystem = localFileSystem
+        let testingPackagePath = fixturePath.appendingPathComponent("TestingPackage")
+        let tempTestingPackagePath = testingPackagePath.absolutePath.parentDirectory.appending(component: "temp_TestingPackage")
+
+        try fileSystem.removeFileTree(tempTestingPackagePath)
+        try fileSystem.copy(from: testingPackagePath.absolutePath, to: tempTestingPackagePath)
+
+        defer { try? fileSystem.removeFileTree(tempTestingPackagePath) }
+
         let descriptionPackage = try DescriptionPackage(
-            packageDirectory: testingPackagePath.absolutePath,
+            packageDirectory: tempTestingPackagePath,
             mode: .createPackage,
             onlyUseVersionsFromResolvedFile: false
         )
         let cacheSystem = CacheSystem(
             pinsStore: try descriptionPackage.workspace.pinsStore.load(),
-            outputDirectory: frameworkOutputDir,
+            outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks"),
             storage: nil
         )
         let testingPackage = descriptionPackage
             .graph
             .packages
             .first { $0.manifest.displayName == descriptionPackage.manifest.displayName }!
-        let myTarget = testingPackage.modules.first { $0.name == "MyTarget" }!
 
+        let myTarget = testingPackage.modules.first { $0.name == "MyTarget" }!
         let cacheTarget = CacheSystem.CacheTarget(
             buildProduct: BuildProduct(
                 package: testingPackage,
@@ -108,8 +114,26 @@ final class CacheSystemTests: XCTestCase {
             )
         )
 
+        // Ensure that the cache key cannot be calculated if the package is not in the Git repository.
+        do {
+            _ = try await cacheSystem.calculateCacheKey(of: cacheTarget)
+            XCTFail("A cache key should not be possible to calculate if the package is not in a repository.")
+        } catch let error as CacheSystem.Error {
+            XCTAssertEqual(error.errorDescription, "Repository version is not detected for \(descriptionPackage.name).")
+        } catch {
+            XCTFail("Wrong error type.")
+        }
+
+        // Ensure that the cache key is properly calculated when the package is in a repository with the correct tag."
+        let processExecutor: Executor = ProcessExecutor()
+        try await processExecutor.execute(["git", "init", tempTestingPackagePath.pathString])
+        try await processExecutor.execute(["git", "-C", tempTestingPackagePath.pathString, "add", tempTestingPackagePath.pathString])
+        try await processExecutor.execute(["git", "-C", tempTestingPackagePath.pathString, "commit", "-m", "Initial commit"])
+        try await processExecutor.execute(["git", "-C", tempTestingPackagePath.pathString, "tag", "v1.1"])
+
         let cacheKey = try await cacheSystem.calculateCacheKey(of: cacheTarget)
 
+        XCTAssertEqual(cacheKey.targetName, myTarget.name)
         XCTAssertEqual(cacheKey.pin.description, "1.1.0")
     }
 }
