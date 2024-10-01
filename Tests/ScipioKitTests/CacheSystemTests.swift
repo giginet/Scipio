@@ -74,6 +74,8 @@ final class CacheSystemTests: XCTestCase {
         XCTAssertEqual(rawString, expected)
     }
 
+    #if compiler(>=6.0)
+
     func testCacheKeyCalculationForRootPackageTarget() async throws {
         let fileSystem = localFileSystem
         let testingPackagePath = fixturePath.appendingPathComponent("TestingPackage")
@@ -139,4 +141,7 @@ final class CacheSystemTests: XCTestCase {
         XCTAssertEqual(cacheKey.targetName, myTarget.name)
         XCTAssertEqual(cacheKey.pin.description, "1.1.0")
     }
+
+    #endif
+
 }

@@ -272,12 +272,16 @@ struct CacheSystem: Sendable {
     }
 
     private func retrievePin(package: ResolvedPackage) throws -> PinsStore.Pin {
-        #if swift(>=5.10)
+        #if compiler(>=6.0)
         guard let pin = pinsStore.pins[package.identity] ?? package.pin else {
             throw Error.revisionNotDetected(package.manifest.displayName)
         }
+        #elseif swift(>=5.10)
+        guard let pin = pinsStore.pins[package.identity] else {
+            throw Error.revisionNotDetected(package.manifest.displayName)
+        }
         #else
-        guard let pin = pinsStore.pinsMap[package.identity] ?? package.pin else {
+        guard let pin = pinsStore.pinsMap[package.identity] else {
             throw Error.revisionNotDetected(package.manifest.displayName)
         }
         #endif
@@ -309,6 +313,8 @@ public struct VersionFileDecoder {
     }
 }
 
+#if compiler(>=6.0)
+
 fileprivate extension ResolvedPackage {
 
     var pin: PinsStore.Pin? {
@@ -333,3 +339,6 @@ fileprivate extension ResolvedPackage {
     }
 
 }
+
+#endif
+
