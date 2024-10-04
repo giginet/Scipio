@@ -71,7 +71,7 @@ struct FrameworkComponentsCollector {
             in: generatedFrameworkPath
         )
 
-        let publicHeaders = try collectPublicHeader()
+        let publicHeaders = try collectPublicHeaders()
 
         let resourceBundlePath = try collectResourceBundle(
             of: targetName,
@@ -165,7 +165,7 @@ struct FrameworkComponentsCollector {
     }
 
     /// Collects public headers of clangTarget
-    private func collectPublicHeader() throws -> Set<AbsolutePath>? {
+    private func collectPublicHeaders() throws -> Set<AbsolutePath>? {
         guard let clangModule = buildProduct.target.underlying as? ScipioClangModule else {
             return nil
         }
@@ -180,11 +180,14 @@ struct FrameworkComponentsCollector {
         // Sometimes, public headers include a file and its symlink both.
         // This situation raises a duplication error
         // So duplicated symlinks have to be omitted
-        let notDuplicatedSymlinks = symlinks.filter { path in
-            notSymlinks.allSatisfy { FileManager.default.contentsEqual(atPath: path.pathString, andPath: $0.pathString) }
-        }
+        let notDuplicatedSymlinks = symlinks
+            // `FileManager.contentsEqual` does not traverse symbolic links, but compares the links themselves.
+            // So we need to resolve the links beforehand.
             .map { $0.asURL.resolvingSymlinksInPath() }
             .map(\.absolutePath)
+            .filter { path in
+                notSymlinks.allSatisfy { !FileManager.default.contentsEqual(atPath: path.pathString, andPath: $0.pathString) }
+            }
 
         return Set(notSymlinks + notDuplicatedSymlinks)
     }
