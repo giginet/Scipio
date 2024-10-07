@@ -12,6 +12,7 @@ private let binaryPackagePath = fixturePath.appendingPathComponent("BinaryPackag
 private let resourcePackagePath = fixturePath.appendingPathComponent("ResourcePackage")
 private let usingBinaryPackagePath = fixturePath.appendingPathComponent("UsingBinaryPackage")
 private let clangPackagePath = fixturePath.appendingPathComponent("ClangPackage")
+private let clangPackageWithSymbolicLinkHeadersPath = fixturePath.appendingPathComponent("ClangPackageWithSymbolicLinkHeaders")
 private let clangPackageWithCustomModuleMapPath = fixturePath.appendingPathComponent("ClangPackageWithCustomModuleMap")
 private let clangPackageWithUmbrellaDirectoryPath = fixturePath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
 
@@ -129,6 +130,69 @@ final class RunnerTests: XCTestCase {
             XCTAssertTrue(
                 fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/some_lib.h").path),
                 "Should exist an umbrella header"
+            )
+
+            let moduleMapPath = framework.appendingPathComponent("Modules/module.modulemap").path
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: moduleMapPath),
+                "Should exist a modulemap"
+            )
+            let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: UTF8.self) })
+            XCTAssertEqual(
+                moduleMapContents,
+                """
+                framework module some_lib {
+                    umbrella header "some_lib.h"
+                    export *
+                }
+                """,
+                "modulemap should be generated"
+            )
+
+            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
+                          "Should create \(library).xcframework")
+            XCTAssertFalse(fileManager.fileExists(atPath: versionFile.path),
+                           "Should not create .\(library).version in create mode")
+        }
+    }
+
+    func testBuildClangPackageWithSymbolicLinkHeaders() async throws {
+        let runner = Runner(
+            mode: .createPackage,
+            options: .init(
+                baseBuildOptions: .init(isSimulatorSupported: false),
+                shouldOnlyUseVersionsFromResolvedFile: true
+            )
+        )
+        do {
+            try await runner.run(packageDirectory: clangPackageWithSymbolicLinkHeadersPath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+        }
+
+        for library in ["some_lib"] {
+            print(frameworkOutputDir)
+            let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
+            let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
+            let framework = xcFramework.appendingPathComponent("ios-arm64")
+                .appendingPathComponent("\(library).framework")
+
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/some_lib.h").path),
+                "Should exist an umbrella header"
+            )
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/a.h").path),
+                "Should exist a header from symbolic link"
+            )
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/b.h").path),
+                "Should exist another header from symbolic link"
+            )
+            XCTAssertFalse(
+                fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/some_lib_dupe.h").path),
+                "Should not exist a header from symbolic link which is duplicated to non-symbolic link one"
             )
 
             let moduleMapPath = framework.appendingPathComponent("Modules/module.modulemap").path
