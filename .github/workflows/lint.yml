@@ -16,7 +16,7 @@ jobs:
       DEVELOPER_DIR: "/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
     runs-on: macos-14
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install SwiftLint
       run: brew install swiftlint
     - name: SwiftLint

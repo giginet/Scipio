@@ -10,7 +10,7 @@ jobs:
   DocC:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build DocC
         run: |
           swift package --allow-writing-to-directory ./docs generate-documentation \
