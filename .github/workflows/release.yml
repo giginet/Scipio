@@ -12,7 +12,7 @@ jobs:
     name: Build and Upload Artifact Bundle
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Resolve Dependencies
         run: |
           swift package resolve
