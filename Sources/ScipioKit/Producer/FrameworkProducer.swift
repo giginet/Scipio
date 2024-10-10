@@ -237,7 +237,8 @@ struct FrameworkProducer {
             let compiler = PIFCompiler(
                 descriptionPackage: descriptionPackage,
                 buildOptions: buildOptions,
-                buildOptionsMatrix: buildOptionsMatrix
+                buildOptionsMatrix: buildOptionsMatrix,
+                toolchainEnvironment: toolchainEnvironment
             )
             try await compiler.createXCFramework(buildProduct: product,
                                                  outputDirectory: outputDir,

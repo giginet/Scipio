@@ -103,7 +103,8 @@ public struct Runner {
             buildOptionsMatrix: buildOptionsMatrix,
             cacheMode: options.cacheMode,
             overwrite: options.overwrite,
-            outputDir: outputDir
+            outputDir: outputDir,
+            toolchainEnvironment: options.toolchainEnvironment
         )
         do {
             try await producer.produce()
