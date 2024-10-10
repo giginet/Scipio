@@ -54,11 +54,11 @@ struct ToolchainGenerator {
         // Compute common arguments for clang and swift.
         var extraCCFlags: [String] = []
         var extraSwiftCFlags: [String] = []
-        let sdkPaths = try SwiftSDK.sdkPlatformFrameworkPaths(environment: [:])
-        extraCCFlags += ["-F", sdkPaths.fwk.pathString]
-        extraSwiftCFlags += ["-F", sdkPaths.fwk.pathString]
-        extraSwiftCFlags += ["-I", sdkPaths.lib.pathString]
-        extraSwiftCFlags += ["-L", sdkPaths.lib.pathString]
+        let macosSDKPlatformPaths = try await nonCachingSDKPlatformFrameworkPaths()
+        extraCCFlags += ["-F", macosSDKPlatformPaths.fwk.pathString]
+        extraSwiftCFlags += ["-F", macosSDKPlatformPaths.fwk.pathString]
+        extraSwiftCFlags += ["-I", macosSDKPlatformPaths.lib.pathString]
+        extraSwiftCFlags += ["-L", macosSDKPlatformPaths.lib.pathString]
 
         let buildFlags = BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
         #if compiler(>=6.0)
@@ -86,4 +86,37 @@ struct ToolchainGenerator {
         )
         #endif
     }
+}
+
+fileprivate extension ToolchainGenerator {
+
+    /// A non-caching environment-aware implementation of `SwiftSDK.sdkPlatformFrameworkPaths`
+    /// Returns `macosx` sdk platform framework path.
+    func nonCachingSDKPlatformFrameworkPaths() async throws -> (fwk: AbsolutePath, lib: AbsolutePath) {
+        let platformPath = try await executor.execute(
+            "/usr/bin/xcrun",
+            "--sdk",
+            "macosx",
+            "--show-sdk-platform-path"
+        )
+        .unwrapOutput()
+        .spm_chomp()
+
+        guard !platformPath.isEmpty else {
+            throw StringError("could not determine SDK platform path")
+        }
+
+        // For XCTest framework.
+        let fwk = try AbsolutePath(validating: platformPath).appending(
+            components: "Developer", "Library", "Frameworks"
+        )
+
+        // For XCTest Swift library.
+        let lib = try AbsolutePath(validating: platformPath).appending(
+            components: "Developer", "usr", "lib"
+        )
+
+        return (fwk, lib)
+    }
+
 }
