@@ -169,15 +169,9 @@ private struct PIFLibraryTargetModifier {
 
         let c99Name = pifTarget.name.spm_mangledToC99ExtendedIdentifier()
 
-        #if compiler(>=6.0)
         guard let resolvedTarget = descriptionPackage.graph.allModules.first(where: { $0.c99name == c99Name }) else {
             fatalError("Resolved Target named \(c99Name) is not found.")
         }
-        #else
-        guard let resolvedTarget = descriptionPackage.graph.allTargets.first(where: { $0.c99name == c99Name }) else {
-            fatalError("Resolved Target named \(c99Name) is not found.")
-        }
-        #endif
 
         guard let resolvedPackage = descriptionPackage.graph.package(for: resolvedTarget) else {
             fatalError("Could not find a package")
@@ -300,25 +294,12 @@ private struct PIFLibraryTargetModifier {
     }
 }
 
-#if compiler(>=6.0)
-
 extension PIF.TopLevelObject: @retroactive Decodable {
     public init(from decoder: Decoder) throws {
         var container = try decoder.unkeyedContainer()
         self.init(workspace: try container.decode(PIF.Workspace.self))
     }
 }
-
-#else
-
-extension PIF.TopLevelObject: Decodable {
-    public init(from decoder: Decoder) throws {
-        var container = try decoder.unkeyedContainer()
-        self.init(workspace: try container.decode(PIF.Workspace.self))
-    }
-}
-
-#endif
 
 extension AbsolutePath {
     fileprivate var moduleEscapedPathString: String {

@@ -1,11 +1,7 @@
 import Foundation
 import TSCUtility
-#if compiler(>=6.0)
 @_spi(SwiftPMInternal) import PackageModel
 @_spi(SwiftPMInternal) import struct Basics.Environment
-#else
-import PackageModel
-#endif
 import TSCBasic
 import struct Basics.Triple
 
@@ -26,16 +22,10 @@ struct ToolchainGenerator {
 
     func makeToolChain(sdk: SDK) async throws -> UserToolchain {
         let destination: SwiftSDK = try await makeDestination(sdk: sdk)
-        #if compiler(>=6.0)
         return try UserToolchain(
             swiftSDK: destination,
             environment: environment.map(Environment.init) ?? .current
         )
-        #elseif swift(>=5.10)
-        return try UserToolchain(swiftSDK: destination)
-        #else
-        return try UserToolchain(destination: destination)
-        #endif
     }
 
     private func makeDestination(
@@ -61,7 +51,6 @@ struct ToolchainGenerator {
         extraSwiftCFlags += ["-L", sdkPaths.lib.pathString]
 
         let buildFlags = BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
-        #if compiler(>=6.0)
         return SwiftSDK(
             hostTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
             targetTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
@@ -69,21 +58,5 @@ struct ToolchainGenerator {
             pathsConfiguration: .init(sdkRootPath: sdkPath.spmAbsolutePath),
             xctestSupport: .supported
         )
-        #elseif swift(>=5.10)
-        return SwiftSDK(
-            hostTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
-            targetTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
-            toolset: .init(toolchainBinDir: toolchainDirPath.spmAbsolutePath, buildFlags: buildFlags),
-            pathsConfiguration: .init(sdkRootPath: sdkPath.spmAbsolutePath)
-        )
-        #else
-        return Destination(
-            hostTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
-            targetTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
-            sdkRootDir: sdkPath.spmAbsolutePath,
-            toolchainBinDir: toolchainDirPath.spmAbsolutePath,
-            extraFlags: buildFlags
-        )
-        #endif
     }
 }

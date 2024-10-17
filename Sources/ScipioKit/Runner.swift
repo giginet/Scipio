@@ -44,12 +44,8 @@ public struct Runner {
         if fileURL.path.hasPrefix("/") {
             return try AbsolutePath(validating: fileURL.path)
         } else if let currentDirectory = fileSystem.currentWorkingDirectory {
-            #if swift(>=5.10)
             let scipioCurrentDirectory = try ScipioAbsolutePath(validating: currentDirectory.pathString)
             return try ScipioAbsolutePath(scipioCurrentDirectory, validating: fileURL.path)
-            #else
-            return ScipioAbsolutePath(currentDirectory, fileURL.path)
-            #endif
         } else {
             return try! AbsolutePath(validating: fileURL.path)
         }

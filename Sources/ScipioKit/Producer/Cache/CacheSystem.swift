@@ -79,8 +79,6 @@ extension PinsStore.PinState: Codable {
     }
 }
 
-#if compiler(>=6.0)
-
 extension PinsStore.PinState: @retroactive Hashable {
     public func hash(into hasher: inout Hasher) {
         switch self {
@@ -95,25 +93,6 @@ extension PinsStore.PinState: @retroactive Hashable {
         }
     }
 }
-
-#else
-
-extension PinsStore.PinState: Hashable {
-    public func hash(into hasher: inout Hasher) {
-        switch self {
-        case .revision(let revision):
-            hasher.combine(revision)
-        case .version(let version, let revision):
-            hasher.combine(version)
-            hasher.combine(revision)
-        case .branch(let branchName, let revision):
-            hasher.combine(branchName)
-            hasher.combine(revision)
-        }
-    }
-}
-
-#endif
 
 public struct SwiftPMCacheKey: CacheKey {
     public var targetName: String
@@ -272,19 +251,9 @@ struct CacheSystem: Sendable {
     }
 
     private func retrievePin(package: ResolvedPackage) throws -> PinsStore.Pin {
-        #if compiler(>=6.0)
         guard let pin = pinsStore.pins[package.identity] ?? package.makePinFromRevision() else {
             throw Error.revisionNotDetected(package.manifest.displayName)
         }
-        #elseif swift(>=5.10)
-        guard let pin = pinsStore.pins[package.identity] else {
-            throw Error.revisionNotDetected(package.manifest.displayName)
-        }
-        #else
-        guard let pin = pinsStore.pinsMap[package.identity] else {
-            throw Error.revisionNotDetected(package.manifest.displayName)
-        }
-        #endif
         return pin
     }
 
@@ -313,8 +282,6 @@ public struct VersionFileDecoder {
     }
 }
 
-#if compiler(>=6.0)
-
 extension ResolvedPackage {
     fileprivate func makePinFromRevision() -> PinsStore.Pin? {
         let repository = GitRepository(path: path)
@@ -337,5 +304,3 @@ extension ResolvedPackage {
         )
     }
 }
-
-#endif
