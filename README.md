@@ -2,11 +2,7 @@
 
 ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/giginet/Scipio/tests.yml?style=flat-square&logo=github)
 ![Swift 6.0](https://img.shields.io/badge/Swift-6.0-FA7343?logo=swift&style=flat-square)
-![Swift 5.10](https://img.shields.io/badge/Swift-5.10-FA7343?logo=swift&style=flat-square)
-![Swift 5.9](https://img.shields.io/badge/Swift-5.9-FA7343?logo=swift&style=flat-square)
-[![Xcode 16.0 Beta](https://img.shields.io/badge/Xcode-16.0-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)](https://developer.apple.com/xcode/)
-[![Xcode 15.4](https://img.shields.io/badge/Xcode-15.4-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)](https://developer.apple.com/xcode/)
-[![Xcode 15.2](https://img.shields.io/badge/Xcode-15.2-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)](https://developer.apple.com/xcode/)
+[![Xcode 16.0](https://img.shields.io/badge/Xcode-16.0-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)](https://developer.apple.com/xcode/)
 [![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-green?logo=swift&style=flat-square)](https://swift.org/package-manager/) 
 [![Documentation](https://img.shields.io/badge/Documentation-available-green?style=flat-square)](https://giginet.github.io/Scipio/documentation/scipio/)
 ![Platforms](https://img.shields.io/badge/Platform-iOS%7CmacOS%7CwatchOS%7CtvOS%7CvisionOS-lightgray?logo=apple&style=flat-square)
@@ -45,7 +41,7 @@ This mode is called `prepare` mode. See [Prepare All Dependencies for Your Appli
 #### Define `Package.swift` to describe your application's dependencies
 
 ```swift
-// swift-tools-version: 5.6
+// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -136,12 +132,11 @@ See [Convert Single Swift Package to XCFramework](https://giginet.github.io/Scip
 
 ## Supported Xcode and Swift version
 
-Currently, we support Swift 5.9, and 5.10.
+Currently, we support Swift 6.0.
 
 |    | Xcode      | Swift |
 |----|------------|-------|
-| ✅ | 15.3       | 5.10  |
-| ✅ | 15.0<=15.2 | 5.9   |
+| ✅ | 16.0       | 6.0  |
 
 ## Reliability
 
