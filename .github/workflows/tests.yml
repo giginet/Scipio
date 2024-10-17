@@ -12,8 +12,6 @@ jobs:
     strategy:
       matrix:
         xcode_version:
-          - "15.2" # 5.9
-          - "15.4" # 5.10
           - "16.0" # 6.0
     env: 
       DEVELOPER_DIR: "/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
