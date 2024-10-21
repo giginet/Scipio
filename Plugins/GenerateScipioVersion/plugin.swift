@@ -59,21 +59,3 @@ struct GenerateScipioVersion: BuildToolPlugin {
         return revision
     }
 }
-
-// Convert Foundation.URL to Path
-extension Command {
-    fileprivate static func prebuildCommand(
-        displayName: String?,
-        executable: URL,
-        arguments: [any CustomStringConvertible],
-        environment: [String : any CustomStringConvertible] = [:],
-        outputFilesDirectory: URL
-    ) -> PackagePlugin.Command {
-        .prebuildCommand(
-            displayName: displayName,
-            executable: Path(executable.path()),
-            arguments: arguments,
-            outputFilesDirectory: Path(outputFilesDirectory.path())
-        )
-    }
-}
