@@ -3,6 +3,7 @@ import ScipioStorage
 import TSCBasic
 import struct TSCUtility.Version
 import Algorithms
+// We may drop this annotation in SwiftPM's future release
 @preconcurrency import PackageGraph
 import PackageModel
 import SourceControl
