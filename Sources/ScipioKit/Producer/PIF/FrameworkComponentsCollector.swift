@@ -38,7 +38,7 @@ struct FrameworkComponentsCollector {
         sdk: SDK,
         buildOptions: BuildOptions,
         packageLocator: some PackageLocator,
-        fileSystem: any FileSystem
+        fileSystem: some FileSystem
     ) {
         self.buildProduct = buildProduct
         self.sdk = sdk

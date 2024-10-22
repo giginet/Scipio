@@ -17,7 +17,7 @@ struct XCBuildClient {
         configuration: BuildConfiguration,
         packageLocator: some PackageLocator,
         fileSystem: any FileSystem = localFileSystem,
-        executor: any Executor = ProcessExecutor(decoder: StandardOutputDecoder())
+        executor: some Executor = ProcessExecutor(decoder: StandardOutputDecoder())
     ) {
         self.buildProduct = buildProduct
         self.buildOptions = buildOptions
