@@ -5,6 +5,7 @@ import TSCBasic
 /// This assembler just relocates framework components into the framework structure
 struct FrameworkBundleAssembler {
     private let frameworkComponents: FrameworkComponents
+    private let keepPublicHeadersStructure: Bool
     private let outputDirectory: AbsolutePath
     private let fileSystem: any FileSystem
 
@@ -12,8 +13,14 @@ struct FrameworkBundleAssembler {
         outputDirectory.appending(component: "\(frameworkComponents.frameworkName).framework")
     }
 
-    init(frameworkComponents: FrameworkComponents, outputDirectory: AbsolutePath, fileSystem: some FileSystem) {
+    init(
+        frameworkComponents: FrameworkComponents,
+        keepPublicHeadersStructure: Bool,
+        outputDirectory: AbsolutePath,
+        fileSystem: some FileSystem
+    ) {
         self.frameworkComponents = frameworkComponents
+        self.keepPublicHeadersStructure = keepPublicHeadersStructure
         self.outputDirectory = outputDirectory
         self.fileSystem = fileSystem
     }
@@ -73,11 +80,46 @@ struct FrameworkBundleAssembler {
         try fileSystem.createDirectory(headerDir)
 
         for header in headers {
-            try fileSystem.copy(
-                from: header,
-                to: headerDir.appending(component: header.basename)
+            if keepPublicHeadersStructure, let includeDir = frameworkComponents.includeDir {
+                try copyHeaderKeepingStructure(
+                    header: header,
+                    includeDir: includeDir,
+                    into: headerDir
+                )
+            } else {
+                try fileSystem.copy(
+                    from: header,
+                    to: headerDir.appending(component: header.basename)
+                )
+            }
+        }
+    }
+
+    private func copyHeaderKeepingStructure(
+        header: AbsolutePath,
+        includeDir: AbsolutePath,
+        into headerDir: AbsolutePath
+    ) throws {
+        let subdirectoryComponents: [String] = if header.dirname.hasPrefix(includeDir.pathString) {
+            header.dirname.dropFirst(includeDir.pathString.count)
+                .split(separator: "/")
+                .map(String.init)
+        } else {
+            []
+        }
+
+        if !subdirectoryComponents.isEmpty {
+            try fileSystem.createDirectory(
+                headerDir.appending(components: subdirectoryComponents),
+                recursive: true
             )
         }
+        try fileSystem.copy(
+            from: header,
+            to: headerDir
+                .appending(components: subdirectoryComponents)
+                .appending(component: header.basename)
+        )
     }
 
     private func copyModules() throws {

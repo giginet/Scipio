@@ -8,6 +8,7 @@ struct FrameworkComponents {
     var binaryPath: AbsolutePath
     var infoPlistPath: AbsolutePath
     var swiftModulesPath: AbsolutePath?
+    var includeDir: AbsolutePath?
     var publicHeaderPaths: Set<AbsolutePath>?
     var bridgingHeaderPath: AbsolutePath?
     var modulemapPath: AbsolutePath?
@@ -85,6 +86,7 @@ struct FrameworkComponentsCollector {
             binaryPath: binaryPath,
             infoPlistPath: infoPlistPath,
             swiftModulesPath: swiftModulesPath,
+            includeDir: (buildProduct.target.underlying as? ScipioClangModule)?.includeDir.scipioAbsolutePath,
             publicHeaderPaths: publicHeaders,
             bridgingHeaderPath: bridgingHeaderPath,
             modulemapPath: frameworkModuleMapPath,
@@ -113,7 +115,7 @@ struct FrameworkComponentsCollector {
         let frameworkModuleMapPath = try modulemapGenerator.generate(
             resolvedTarget: buildProduct.target,
             sdk: sdk,
-            buildConfiguration: buildOptions.buildConfiguration
+            keepPublicHeadersStructure: buildOptions.keepPublicHeadersStructure
         )
         return frameworkModuleMapPath
     }
