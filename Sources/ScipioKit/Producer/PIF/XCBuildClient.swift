@@ -4,25 +4,25 @@ import PackageGraph
 import PackageModel
 
 struct XCBuildClient {
-    private let descriptionPackage: DescriptionPackage
     private let buildOptions: BuildOptions
     private let buildProduct: BuildProduct
     private let configuration: BuildConfiguration
+    private let packageLocator: any PackageLocator
     private let fileSystem: any FileSystem
     private let executor: any Executor
 
     init(
-        package: DescriptionPackage,
         buildProduct: BuildProduct,
         buildOptions: BuildOptions,
         configuration: BuildConfiguration,
+        packageLocator: some PackageLocator,
         fileSystem: any FileSystem = localFileSystem,
         executor: any Executor = ProcessExecutor(decoder: StandardOutputDecoder())
     ) {
-        self.descriptionPackage = package
         self.buildProduct = buildProduct
         self.buildOptions = buildOptions
         self.configuration = configuration
+        self.packageLocator = packageLocator
         self.fileSystem = fileSystem
         self.executor = executor
     }
@@ -58,7 +58,7 @@ struct XCBuildClient {
         try await executor.build(
             pifPath: pifPath,
             configuration: configuration,
-            derivedDataPath: descriptionPackage.derivedDataPath,
+            derivedDataPath: packageLocator.derivedDataPath,
             buildParametersPath: buildParametersPath,
             target: buildProduct.target
         )
@@ -74,16 +74,16 @@ struct XCBuildClient {
 
     private func assembleFramework(sdk: SDK) throws {
         let frameworkComponentsCollector = FrameworkComponentsCollector(
-            descriptionPackage: descriptionPackage,
             buildProduct: buildProduct,
             sdk: sdk,
             buildOptions: buildOptions,
+            packageLocator: packageLocator,
             fileSystem: fileSystem
         )
 
         let components = try frameworkComponentsCollector.collectComponents(sdk: sdk)
 
-        let frameworkOutputDir = descriptionPackage.assembledFrameworksDirectory(
+        let frameworkOutputDir = packageLocator.assembledFrameworksDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
             sdk: sdk
         )
@@ -98,7 +98,7 @@ struct XCBuildClient {
     }
 
     private func assembledFrameworkPath(target: ScipioResolvedModule, of sdk: SDK) throws -> AbsolutePath {
-        let assembledFrameworkDir = descriptionPackage.assembledFrameworksDirectory(
+        let assembledFrameworkDir = packageLocator.assembledFrameworksDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
             sdk: sdk
         )
