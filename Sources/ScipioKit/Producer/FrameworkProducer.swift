@@ -243,15 +243,9 @@ struct FrameworkProducer {
                                                  outputDirectory: outputDir,
                                                  overwrite: overwrite)
         case .binary:
-            #if compiler(>=6.0)
             guard let binaryTarget = product.target.underlying as? BinaryModule else {
                 fatalError("Unexpected failure")
             }
-            #else
-            guard let binaryTarget = product.target.underlyingTarget as? BinaryTarget else {
-                fatalError("Unexpected failure")
-            }
-            #endif
             let binaryExtractor = BinaryExtractor(
                 package: descriptionPackage,
                 outputDirectory: outputDir,

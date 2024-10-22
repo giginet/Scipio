@@ -121,11 +121,7 @@ struct DescriptionPackage {
         self.packageDirectory = packageDirectory
         self.mode = mode
 
-        #if swift(>=5.10)
         let toolchain = try UserToolchain(swiftSDK: try .hostSwiftSDK())
-        #else
-        let toolchain = try UserToolchain(destination: try .hostDestination())
-        #endif
         self.toolchain = toolchain
 
         let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
@@ -215,17 +211,10 @@ private final class BuildProductsResolver {
             products = try topologicalSort(products) { (product) in
                 return product.target.dependencies.flatMap { (dependency) -> [BuildProduct] in
                     switch dependency {
-                    #if compiler(>=6.0)
                     case .module(let module, conditions: _):
                         return [resolvedTargetToBuildProduct(module)]
                     case .product(let product, conditions: _):
                         return product.modules.map(resolvedTargetToBuildProduct)
-                    #else
-                    case .target(let target, conditions: _):
-                        return [resolvedTargetToBuildProduct(target)]
-                    case .product(let product, conditions: _):
-                        return product.targets.map(resolvedTargetToBuildProduct)
-                    #endif
                     }
                 }
             }
@@ -247,19 +236,11 @@ private final class BuildProductsResolver {
             let rootPackage = try fetchRootPackage()
             let productNamesToBuild = rootPackage.manifest.products.map { $0.name }
             let productsToBuild = rootPackage.products.filter { productNamesToBuild.contains($0.name) }
-            #if compiler(>=6.0)
             return productsToBuild.flatMap(\.modules)
-            #else
-            return productsToBuild.flatMap(\.targets)
-            #endif
         case .prepareDependencies:
             // In prepare mode, all targets should be built
             // In future update, users will be enable to specify targets want to build
-            #if compiler(>=6.0)
             return Array(try fetchRootPackage().modules)
-            #else
-            return try fetchRootPackage().targets
-            #endif
         }
     }
 
@@ -271,13 +252,8 @@ private final class BuildProductsResolver {
     }
 
     private func resolveBuildProduct(from rootTarget: ScipioResolvedModule) throws -> Set<BuildProduct> {
-        #if compiler(>=6.0)
         let dependencyProducts = Set(try rootTarget.recursiveModuleDependencies()
             .flatMap(buildProducts(from:)))
-        #else
-        let dependencyProducts = Set(try rootTarget.recursiveTargetDependencies()
-            .flatMap(buildProducts(from:)))
-        #endif
 
         switch descriptionPackage.mode {
         case .createPackage:
@@ -301,11 +277,7 @@ private final class BuildProductsResolver {
             return buildProducts
         }
 
-        #if compiler(>=6.0)
         let dependencyProducts = try target.recursiveDependencies().compactMap(\.module).flatMap(buildProducts(from:))
-        #else
-        let dependencyProducts = try target.recursiveDependencies().compactMap(\.target).flatMap(buildProducts(from:))
-        #endif
 
         let buildProducts = Set([rootTargetProduct] + dependencyProducts)
         buildProductsCache.updateValue(buildProducts, forKey: rootTargetProduct)
