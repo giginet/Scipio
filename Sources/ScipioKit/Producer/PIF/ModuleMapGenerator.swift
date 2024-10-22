@@ -11,7 +11,7 @@ struct FrameworkModuleMapGenerator {
         var configuration: BuildConfiguration
     }
 
-    private var descriptionPackage: DescriptionPackage
+    private var packageLocator: any PackageLocator
     private var fileSystem: any FileSystem
 
     enum Error: LocalizedError {
@@ -25,8 +25,8 @@ struct FrameworkModuleMapGenerator {
         }
     }
 
-    init(descriptionPackage: DescriptionPackage, fileSystem: any FileSystem) {
-        self.descriptionPackage = descriptionPackage
+    init(packageLocator: some PackageLocator, fileSystem: some FileSystem) {
+        self.packageLocator = packageLocator
         self.fileSystem = fileSystem
     }
 
@@ -118,7 +118,7 @@ struct FrameworkModuleMapGenerator {
     }
 
     private func constructGeneratedModuleMapPath(context: Context) throws -> AbsolutePath {
-        let generatedModuleMapPath = try descriptionPackage.generatedModuleMapPath(of: context.resolvedTarget, sdk: context.sdk)
+        let generatedModuleMapPath = try packageLocator.generatedModuleMapPath(of: context.resolvedTarget, sdk: context.sdk)
         return generatedModuleMapPath
     }
 

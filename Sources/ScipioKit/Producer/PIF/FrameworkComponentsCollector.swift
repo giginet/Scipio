@@ -27,23 +27,23 @@ struct FrameworkComponentsCollector {
         }
     }
 
-    private let descriptionPackage: DescriptionPackage
     private let buildProduct: BuildProduct
     private let sdk: SDK
     private let buildOptions: BuildOptions
+    private let packageLocator: any PackageLocator
     private let fileSystem: any FileSystem
 
     init(
-        descriptionPackage: DescriptionPackage,
         buildProduct: BuildProduct,
         sdk: SDK,
         buildOptions: BuildOptions,
-        fileSystem: any FileSystem
+        packageLocator: some PackageLocator,
+        fileSystem: some FileSystem
     ) {
-        self.descriptionPackage = descriptionPackage
         self.buildProduct = buildProduct
         self.sdk = sdk
         self.buildOptions = buildOptions
+        self.packageLocator = packageLocator
         self.fileSystem = fileSystem
     }
 
@@ -95,7 +95,7 @@ struct FrameworkComponentsCollector {
 
     /// Copy content data to the build artifacts
     private func copyModuleMapContentsToBuildArtifacts(_ data: Data) throws -> ScipioAbsolutePath {
-        let generatedModuleMapPath = try descriptionPackage.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
+        let generatedModuleMapPath = try packageLocator.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
 
         try fileSystem.writeFileContents(generatedModuleMapPath.spmAbsolutePath, data: data)
         return generatedModuleMapPath
@@ -103,7 +103,7 @@ struct FrameworkComponentsCollector {
 
     private func generateFrameworkModuleMap() throws -> AbsolutePath? {
         let modulemapGenerator = FrameworkModuleMapGenerator(
-            descriptionPackage: descriptionPackage,
+            packageLocator: packageLocator,
             fileSystem: fileSystem
         )
 
@@ -119,7 +119,7 @@ struct FrameworkComponentsCollector {
     }
 
     private func generatedFrameworkPath() -> AbsolutePath {
-        descriptionPackage.productsDirectory(
+        packageLocator.productsDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
             sdk: sdk
         )

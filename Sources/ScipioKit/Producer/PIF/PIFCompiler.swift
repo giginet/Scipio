@@ -54,10 +54,10 @@ struct PIFCompiler: Compiler {
         logger.info("📦 Building \(target.name) for \(sdkNames)")
 
         let xcBuildClient: XCBuildClient = .init(
-            package: descriptionPackage,
             buildProduct: buildProduct,
             buildOptions: buildOptions,
-            configuration: buildOptions.buildConfiguration
+            configuration: buildOptions.buildConfiguration,
+            packageLocator: descriptionPackage
         )
 
         for sdk in sdks {
