@@ -1,0 +1,90 @@
+import Foundation
+@testable import ScipioKit
+import Testing
+import TSCBasic
+
+private let fixturesPath = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent()
+    .appendingPathComponent("Resources")
+    .appendingPathComponent("Fixtures")
+private let clangPackageWithUmbrellaDirectoryPath = fixturesPath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
+
+private struct PackageLocatorMock: PackageLocator {
+    let packageDirectory: AbsolutePath
+}
+
+struct FrameworkModuleMapGeneratorTests {
+    let fileSystem = localFileSystem
+    let temporaryDirectory: AbsolutePath
+
+    init() throws {
+        self.temporaryDirectory = try fileSystem
+            .tempDirectory
+            .appending(components: "FrameworkModuleMapGeneratorTests")
+    }
+
+    @Test
+    func copyHeaders_keepPublicHeadersStructure_is_false() throws {
+        let outputDirectory = temporaryDirectory.appending(component: #function)
+
+        let generatedModuleMapContents = try generateModuleMap(
+            keepPublicHeadersStructure: false,
+            outputDirectory: outputDirectory
+        )
+        let expectedModuleMapContents = """
+framework module MyTarget {
+    header "a.h"
+    header "add.h"
+    header "b.h"
+    header "c.h"
+    header "my_target.h"
+    export *
+}
+"""
+        #expect(generatedModuleMapContents == expectedModuleMapContents)
+    }
+
+    @Test
+    func copyHeaders_keepPublicHeadersStructure_is_true() throws {
+        let outputDirectory = temporaryDirectory.appending(component: #function)
+
+        let generatedModuleMapContents = try generateModuleMap(
+            keepPublicHeadersStructure: true,
+            outputDirectory: outputDirectory
+        )
+        let expectedModuleMapContents = """
+framework module MyTarget {
+    header "a.h"
+    header "add.h"
+    header "b.h"
+    header "my_target.h"
+    header "subdir/c.h"
+    export *
+}
+"""
+        #expect(generatedModuleMapContents == expectedModuleMapContents)
+    }
+
+    private func generateModuleMap(keepPublicHeadersStructure: Bool, outputDirectory: AbsolutePath) throws -> String {
+        let packageLocator = PackageLocatorMock(packageDirectory: outputDirectory)
+        let generator = FrameworkModuleMapGenerator(
+            packageLocator: packageLocator,
+            fileSystem: fileSystem
+        )
+
+        let descriptionPackage = try DescriptionPackage(
+            packageDirectory: clangPackageWithUmbrellaDirectoryPath.absolutePath,
+            mode: .createPackage,
+            onlyUseVersionsFromResolvedFile: false
+        )
+        let generatedModuleMapPath = try generator.generate(
+            resolvedTarget: #require(descriptionPackage.graph.module(for: "MyTarget")),
+            sdk: SDK.macOS,
+            keepPublicHeadersStructure: keepPublicHeadersStructure
+        )
+
+        let generatedModuleMapData = try Data(contentsOf: #require(generatedModuleMapPath).asURL)
+        let generatedModuleMapContents = String(decoding: generatedModuleMapData, as: UTF8.self)
+        return generatedModuleMapContents
+    }
+}

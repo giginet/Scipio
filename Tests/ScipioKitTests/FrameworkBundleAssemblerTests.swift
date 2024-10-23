@@ -3,7 +3,7 @@ import Foundation
 import Testing
 import TSCBasic
 
-private let fixturePath = URL(fileURLWithPath: #filePath)
+private let fixturesPath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
     .appendingPathComponent("Resources")
     .appendingPathComponent("Fixtures")
@@ -43,7 +43,7 @@ struct FrameworkBundleAssemblerTests {
     }
 
     private func assembleFramework(keepPublicHeadersStructure: Bool, outputDirectory: AbsolutePath) throws {
-        let fixture = fixturePath.appendingPathComponent("FrameworkBundleAssemblerTests").absolutePath
+        let fixture = fixturesPath.appendingPathComponent("FrameworkBundleAssemblerTests").absolutePath
         let frameworkComponents = FrameworkComponents(
             frameworkName: "Foo",
             binaryPath: fixture.appending(components: "Foo.framework", "Foo"),
