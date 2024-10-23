@@ -29,7 +29,7 @@ final class CacheSystemTests: XCTestCase {
                 extraFlags: .init(swiftFlags: ["-D", "SOME_FLAG"]),
                 extraBuildParameters: ["SWIFT_OPTIMIZATION_LEVEL": "-Osize"],
                 enableLibraryEvolution: true,
-                keepPublicHeadersStructure: nil,
+                keepPublicHeadersStructure: false,
                 customFrameworkModuleMapContents: Data(customModuleMap.utf8)
             ),
             clangVersion: "clang-1400.0.29.102",
@@ -58,6 +58,7 @@ final class CacheSystemTests: XCTestCase {
             },
             "frameworkType" : "dynamic",
             "isDebugSymbolsEmbedded" : false,
+            "keepPublicHeadersStructure" : false,
             "sdks" : [
               "iOS"
             ]

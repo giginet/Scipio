@@ -90,7 +90,7 @@ struct XCBuildClient {
 
         let assembler = FrameworkBundleAssembler(
             frameworkComponents: components,
-            keepPublicHeadersStructure: buildOptions.keepPublicHeadersStructure ?? false,
+            keepPublicHeadersStructure: buildOptions.keepPublicHeadersStructure,
             outputDirectory: frameworkOutputDir,
             fileSystem: fileSystem
         )

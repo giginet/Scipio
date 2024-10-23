@@ -115,7 +115,7 @@ struct FrameworkComponentsCollector {
         let frameworkModuleMapPath = try modulemapGenerator.generate(
             resolvedTarget: buildProduct.target,
             sdk: sdk,
-            keepPublicHeadersStructure: buildOptions.keepPublicHeadersStructure ?? false
+            keepPublicHeadersStructure: buildOptions.keepPublicHeadersStructure
         )
         return frameworkModuleMapPath
     }
