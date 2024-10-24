@@ -24,7 +24,7 @@ struct FrameworkModuleMapGeneratorTests {
     }
 
     @Test
-    func copyHeaders_keepPublicHeadersStructure_is_false() throws {
+    func generate_keepPublicHeadersStructure_is_false() throws {
         let outputDirectory = temporaryDirectory.appending(component: #function)
 
         let generatedModuleMapContents = try generateModuleMap(
@@ -45,7 +45,7 @@ framework module MyTarget {
     }
 
     @Test
-    func copyHeaders_keepPublicHeadersStructure_is_true() throws {
+    func generate_keepPublicHeadersStructure_is_true() throws {
         let outputDirectory = temporaryDirectory.appending(component: #function)
 
         let generatedModuleMapContents = try generateModuleMap(
