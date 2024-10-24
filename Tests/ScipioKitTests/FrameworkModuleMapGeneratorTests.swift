@@ -26,6 +26,7 @@ struct FrameworkModuleMapGeneratorTests {
     @Test
     func generate_keepPublicHeadersStructure_is_false() throws {
         let outputDirectory = temporaryDirectory.appending(component: #function)
+        defer { try? fileSystem.removeFileTree(outputDirectory) }
 
         let generatedModuleMapContents = try generateModuleMap(
             keepPublicHeadersStructure: false,
@@ -47,6 +48,7 @@ framework module MyTarget {
     @Test
     func generate_keepPublicHeadersStructure_is_true() throws {
         let outputDirectory = temporaryDirectory.appending(component: #function)
+        defer { try? fileSystem.removeFileTree(outputDirectory) }
 
         let generatedModuleMapContents = try generateModuleMap(
             keepPublicHeadersStructure: true,

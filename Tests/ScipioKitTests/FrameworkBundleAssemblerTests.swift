@@ -21,7 +21,7 @@ struct FrameworkBundleAssemblerTests {
     @Test
     func copyHeaders_keepPublicHeadersStructure_is_false() throws {
         let outputDirectory = temporaryDirectory.appending(component: #function)
-        try fileSystem.removeFileTree(outputDirectory)
+        defer { try? fileSystem.removeFileTree(outputDirectory) }
 
         try assembleFramework(keepPublicHeadersStructure: false, outputDirectory: outputDirectory)
 
@@ -32,7 +32,7 @@ struct FrameworkBundleAssemblerTests {
     @Test
     func copyHeaders_keepPublicHeadersStructure_is_true() throws {
         let outputDirectory = temporaryDirectory.appending(component: #function)
-        try fileSystem.removeFileTree(outputDirectory)
+        defer { try? fileSystem.removeFileTree(outputDirectory) }
 
         try assembleFramework(keepPublicHeadersStructure: true, outputDirectory: outputDirectory)
 
