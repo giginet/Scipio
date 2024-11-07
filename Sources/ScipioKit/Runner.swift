@@ -219,6 +219,7 @@ extension Runner {
             case disabled
             case project
             case storage(any CacheStorage, Set<CacheActorKind>)
+            case storages([(storage: any CacheStorage, actors: Set<CacheActorKind>)])
         }
 
         public enum PlatformSpecifier: Equatable {
