@@ -245,7 +245,7 @@ struct CacheSystem: Sendable {
             buildOptions: buildOptions,
             clangVersion: clangVersion,
             xcodeVersion: xcodeVersion,
-            scipioVersion: currentScipioVersion
+            scipioVersion: "578ce98d236e79dad3e473cb11153e867be07174" // TODO: revert
         )
     }
 
