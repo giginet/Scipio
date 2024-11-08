@@ -16,17 +16,6 @@ struct FrameworkProducer {
     private let fileSystem: any FileSystem
     private let toolchainEnvironment: [String: String]?
 
-    private func cacheStorages(for actor: Runner.Options.CacheMode.CacheActorKind) -> [any CacheStorage]? {
-        switch cacheMode {
-        case .disabled, .project:
-            return nil
-        case .storage(let storage, let actors):
-            return actors.contains(actor) ? [storage] : nil
-        case .storages(let storages):
-            return storages.compactMap { $0.actors.contains(actor) ? $0.storage : nil }
-        }
-    }
-
     private var shouldGenerateVersionFile: Bool {
         // cacheMode is not disabled
         if case .disabled = cacheMode {
@@ -99,22 +88,17 @@ struct FrameworkProducer {
                 buildOptions: buildOptionsForProduct
             )
         })
-        let pinsStore = try descriptionPackage.workspace.pinsStore.load()
 
+        let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         let cacheSystem = CacheSystem(
             pinsStore: pinsStore,
             outputDirectory: outputDir
         )
-        let cacheEnabledTargets: Set<CacheSystem.CacheTarget>
-        if cacheMode.isConsumingCacheEnabled {
-            cacheEnabledTargets = await restoreAllAvailableCaches(
-                availableTargets: Set(allTargets),
-                cacheSystem: cacheSystem,
-                readableStorages: cacheStorages(for: .consumer)
-            )
-        } else {
-            cacheEnabledTargets = []
-        }
+
+        let cacheEnabledTargets = await restoreAllAvailableCachesIfNeeded(
+            availableTargets: Set(allTargets),
+            cacheSystem: cacheSystem
+        )
 
         let targetsToBuild = allTargets.subtracting(cacheEnabledTargets)
 
@@ -136,30 +120,41 @@ struct FrameworkProducer {
         }
     }
 
-    private func restoreAllAvailableCaches(
+    private func restoreAllAvailableCachesIfNeeded(
         availableTargets: Set<CacheSystem.CacheTarget>,
-        cacheSystem: CacheSystem,
-        readableStorages: [any CacheStorage]?
+        cacheSystem: CacheSystem
     ) async -> Set<CacheSystem.CacheTarget> {
-        guard let readableStorages, !readableStorages.isEmpty else {
-            // This is for `CacheMode.project`.
-            //
-            // In that case just checking whether the valid caches (already built frameworks under the project)
+        let cacheStorages: [any CacheStorage]
+
+        switch cacheMode {
+        case .disabled:
+            return []
+        case .project:
+            // For `.project`, just checking whether the valid caches (already built frameworks under the project)
             // exist or not (not restoring anything from external locations).
             return await restoreCachesForTargets(
                 availableTargets,
                 cacheSystem: cacheSystem,
                 cacheStorage: nil
             )
+        case .storage(let storage, let actors):
+            guard actors.contains(.consumer) else { return [] }
+            cacheStorages = [storage]
+        case .storages(let storages):
+            let storagesWithConsumer = storages.compactMap { storage, actors in
+                actors.contains(.consumer) ? storage : nil
+            }
+            guard !storagesWithConsumer.isEmpty else { return [] }
+            cacheStorages = storagesWithConsumer
         }
 
         var remainingTargets = availableTargets
         var restored: Set<CacheSystem.CacheTarget> = []
 
-        for index in readableStorages.indices {
-            let storage = readableStorages[index]
+        for index in cacheStorages.indices {
+            let storage = cacheStorages[index]
 
-            if index != readableStorages.startIndex {
+            if index != cacheStorages.startIndex {
                 logger.info("Falling back to \(storage)", metadata: .color(.green))
             }
 
@@ -331,21 +326,6 @@ struct FrameworkProducer {
             try await cacheSystem.generateVersionFile(for: target)
         } catch {
             logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
-        }
-    }
-}
-
-extension Runner.Options.CacheMode {
-    fileprivate var isConsumingCacheEnabled: Bool {
-        switch self {
-        case .disabled:
-            return false
-        case .project:
-            return true
-        case .storage(_, let actors):
-            return actors.contains(.consumer)
-        case .storages(let storages):
-            return storages.contains { $0.actors.contains(.consumer) }
         }
     }
 }
