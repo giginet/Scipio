@@ -108,7 +108,6 @@ struct CacheSystem: Sendable {
     static let defaultParalellNumber = 8
     private let pinsStore: PinsStore
     private let outputDirectory: URL
-    private let writableStorages: [any CacheStorage]
     private let fileSystem: any FileSystem
 
     struct CacheTarget: Hashable, Sendable {
@@ -139,23 +138,21 @@ struct CacheSystem: Sendable {
     init(
         pinsStore: PinsStore,
         outputDirectory: URL,
-        writableStorages: [any CacheStorage],
         fileSystem: any FileSystem = localFileSystem
     ) {
         self.pinsStore = pinsStore
         self.outputDirectory = outputDirectory
-        self.writableStorages = writableStorages
         self.fileSystem = fileSystem
     }
 
-    func cacheFrameworks(_ targets: Set<CacheTarget>) async {
-        guard !writableStorages.isEmpty else {
-            // About `CacheMode.project` which does not have any writableStorages, we don't need to do anything.
+    func cacheFrameworks(_ targets: Set<CacheTarget>, storages: [any CacheStorage]?) async {
+        guard let storages, !storages.isEmpty else {
+            // About `CacheMode.project` which is not tied to any (external) storages, we don't need to do anything.
             // The built frameworks under the project themselves are treated as valid caches.
             return
         }
 
-        for storage in writableStorages {
+        for storage in storages {
             await cacheFrameworks(targets, storage: storage)
         }
     }

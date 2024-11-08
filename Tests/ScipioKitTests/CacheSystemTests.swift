@@ -95,8 +95,7 @@ final class CacheSystemTests: XCTestCase {
         )
         let cacheSystem = CacheSystem(
             pinsStore: try descriptionPackage.workspace.pinsStore.load(),
-            outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks"),
-            writableStorages: []
+            outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks")
         )
         let testingPackage = descriptionPackage
             .graph

@@ -116,8 +116,7 @@ struct FrameworkProducer {
 
         let cacheSystem = CacheSystem(
             pinsStore: pinsStore,
-            outputDirectory: outputDir,
-            writableStorages: cacheStorages(for: .producer) ?? []
+            outputDirectory: outputDir
         )
         let cacheEnabledTargets: Set<CacheSystem.CacheTarget>
         if cacheMode.isConsumingCacheEnabled {
@@ -141,7 +140,10 @@ struct FrameworkProducer {
         }
 
         if isProducingCacheEnabled {
-            await cacheSystem.cacheFrameworks(Set(targetsToBuild))
+            await cacheSystem.cacheFrameworks(
+                Set(targetsToBuild),
+                storages: cacheStorages(for: .producer)
+            )
         }
 
         if shouldGenerateVersionFile {

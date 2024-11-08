@@ -277,8 +277,7 @@ final class RunnerTests: XCTestCase {
         let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         let cacheSystem = CacheSystem(
             pinsStore: pinsStore,
-            outputDirectory: frameworkOutputDir,
-            writableStorages: []
+            outputDirectory: frameworkOutputDir
         )
         let packages = descriptionPackage.graph.packages
             .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
@@ -436,8 +435,7 @@ final class RunnerTests: XCTestCase {
         let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         let cacheSystem = CacheSystem(
             pinsStore: pinsStore,
-            outputDirectory: frameworkOutputDir,
-            writableStorages: []
+            outputDirectory: frameworkOutputDir
         )
         let packages = descriptionPackage.graph.packages
             .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
