@@ -222,7 +222,7 @@ Otherwise, on your build script, you can use remote cache storage or your custom
 ```swift
 import ScipioS3Storage
 
-let s3Storage: some CacheStorage = ScipioS3Storage.S3Storage(...)
+let s3Storage: some CacheStorage = ScipioS3Storage.S3Storage(config: ...)
 let runner = Runner(
     mode: .prepareDependencies,
     options: .init(
@@ -230,7 +230,7 @@ let runner = Runner(
             buildConfiguration: .release,
             isSimulatorSupported: true
         ),
-        cacheStorage: .custom(myStorage, [.consumer])
+        cacheMode: .storage(s3Storage, [.consumer])
     )
 )
 ```
@@ -246,11 +246,10 @@ You can also implement your custom cache storage by implementing `CacheStorage` 
 
 There are two cache actors `consumer` and `producer`.
 
-You can specify it by a second argument of `.custom` cache storage.
+You can specify it by a second argument of `.storage` cache mode.
 
 `consumer` is an actor who can fetch cache from the cache storage.
 
 `producer` is an actor who attempt to save cache to the cache storage.
 
 When build artifacts are built, then it try to save them.
-
