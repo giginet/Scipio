@@ -154,8 +154,17 @@ struct FrameworkProducer {
         for index in cacheStorages.indices {
             let storage = cacheStorages[index]
 
-            if index != cacheStorages.startIndex {
-                logger.info("Falling back to \(storage)", metadata: .color(.green))
+            let logSuffix = "[\(index)] \(type(of: storage))"
+            if index == cacheStorages.startIndex {
+                logger.info(
+                    "▶️ Starting restoration with cache storage: \(logSuffix)",
+                    metadata: .color(.green)
+                )
+            } else {
+                logger.info(
+                    "⏭️ Falling back to next cache storage: \(logSuffix)",
+                    metadata: .color(.green)
+                )
             }
 
             let restoredPerStorage = await restoreCachesForTargets(
@@ -165,12 +174,18 @@ struct FrameworkProducer {
             )
             restored.formUnion(restoredPerStorage)
 
+            logger.info(
+                "⏸️ Restoration finished with cache storage: \(logSuffix)",
+                metadata: .color(.green)
+            )
+
             remainingTargets.subtract(restoredPerStorage)
             if remainingTargets.isEmpty {
                 break
             }
         }
 
+        logger.info("⏹️ Restoration finished", metadata: .color(.green))
         return restored
     }
 
