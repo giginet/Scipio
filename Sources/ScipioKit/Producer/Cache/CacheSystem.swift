@@ -145,13 +145,7 @@ struct CacheSystem: Sendable {
         self.fileSystem = fileSystem
     }
 
-    func cacheFrameworks(_ targets: Set<CacheTarget>, storages: [any CacheStorage]?) async {
-        guard let storages, !storages.isEmpty else {
-            // About `CacheMode.project` which is not tied to any (external) storages, we don't need to do anything.
-            // The built frameworks under the project themselves are treated as valid caches.
-            return
-        }
-
+    func cacheFrameworks(_ targets: Set<CacheTarget>, storages: [any CacheStorage]) async {
         for storage in storages {
             await cacheFrameworks(targets, storage: storage)
         }

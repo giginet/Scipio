@@ -27,19 +27,6 @@ struct FrameworkProducer {
         }
     }
 
-    private var isProducingCacheEnabled: Bool {
-        switch cacheMode {
-        case .disabled:
-            return false
-        case .project:
-            return true
-        case .storage(_, let actors):
-            return actors.contains(.producer)
-        case .storages(let storages):
-            return storages.contains { $0.actors.contains(.producer) }
-        }
-    }
-
     private var shouldGenerateVersionFile: Bool {
         // cacheMode is not disabled
         if case .disabled = cacheMode {
@@ -139,12 +126,7 @@ struct FrameworkProducer {
             )
         }
 
-        if isProducingCacheEnabled {
-            await cacheSystem.cacheFrameworks(
-                Set(targetsToBuild),
-                storages: cacheStorages(for: .producer)
-            )
-        }
+        await cacheFrameworksIfNeeded(Set(targetsToBuild), cacheSystem: cacheSystem)
 
         if shouldGenerateVersionFile {
             // Versionfiles should be generate for all targets
@@ -319,6 +301,29 @@ struct FrameworkProducer {
         }
 
         return []
+    }
+
+    private func cacheFrameworksIfNeeded(_ targets: Set<CacheSystem.CacheTarget>, cacheSystem: CacheSystem) async {
+        switch cacheMode {
+        case .disabled:
+            // no-op
+            break
+        case .project:
+            // For `.project` which is not tied to any (external) storages, we don't need to do anything.
+            // The built frameworks under the project themselves are treated as valid caches.
+            break
+        case .storage(let storage, let actors):
+            if actors.contains(.producer) {
+                await cacheSystem.cacheFrameworks(targets, storages: [storage])
+            }
+        case .storages(let storages):
+            let storagesWithProducer = storages.compactMap { storage, actors in
+                actors.contains(.producer) ? storage : nil
+            }
+            if !storagesWithProducer.isEmpty {
+                await cacheSystem.cacheFrameworks(targets, storages: storagesWithProducer)
+            }
+        }
     }
 
     private func generateVersionFile(for target: CacheSystem.CacheTarget, using cacheSystem: CacheSystem) async {
