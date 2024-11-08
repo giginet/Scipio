@@ -23,17 +23,15 @@ Here is a sample implementation.
 ```swift
 import ScipioS3Storage
 
-let config = S3StorageConfig(
-    authenticationMode: authorized(
-        accessKeyID: "MY_ACCESS_ID",
-        secretAccessKey: "MY_SECRET",
-        region: "ap-northeast-1",
-        endpoint: awsEndpoint,
-        shouldPublishObject: true
-    )
+let config = AuthorizedConfiguration(
+    bucket: "my-bucket",
+    region: "ap-northeast-1",
+    shouldPublishObject: true,
+    accessKeyID: "MY_ACCESS_ID",
+    secretAccessKey: "MY_SECRET"
 )
 
-let s3Storage = S3Storage(config: config)
+let s3Storage = S3Storage(config: .authorized(config))
 let runner = Runner(
     mode: .prepareDependencies,
     options: .init(
@@ -41,34 +39,39 @@ let runner = Runner(
             buildConfiguration: .release,
             isSimulatorSupported: true
         ),
-        cacheStorage: .custom(s3Storage, [.consumer])
+        cacheMode: .storage(s3Storage, [.consumer, .producer])
     )
 )
 ```
 
 ## Configuration
 
-You can configure cache storage by `S3StorageConfig`.
+You can configure cache storage by `S3StorageConfig` and `AuthorizedConfiguration`.
 
-### Authentication Mode
+### Configuration Type
 
-You can choose authentication mode from `authorized` and `usePublicURL`.
+You can choose configuration type from `authorized` and `publicURL`.
 
 #### authorized
 
-`authorized` mode requires access key ID and secret access key.
+`authorized` type is associated with `AuthorizedConfiguration` which requires the followings: 
 
-Generally, cache producer (e.g. CI job) should use this mode.
+- bucket
+- region
+- access key ID
+- secret access key
 
-#### usePublicURL
+Generally, cache producer (e.g. CI job) should use this type.
 
-`usePubicURL` mode doesn't require any credentials.
+##### shouldPublishObject
 
-In this mode, cache system will fetch caches by public URLs.
-It's useful that developers just using caches should use this mode.
-
-### shouldPublishObject
-
-If you set `shouldPublishObject` to `true`, caches will be published with public URLs when producing caches.
+If you set `AuthorizedConfiguration.shouldPublishObject` to `true`, caches will be published with public URLs when producing caches.
 
 You have to set `true` when producing caches when non-authorized consumers use caches.
+
+#### publicURL
+
+`publicURL` type doesn't require any credentials.
+
+In this type, cache system will fetch caches by public URLs.
+It's useful that developers just using caches should use this mode.
