@@ -346,10 +346,12 @@ final class RunnerTests: XCTestCase {
             XCTFail("Build should be succeeded. \(error.localizedDescription)")
         }
 
-        XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appendingPathComponent("ScipioTesting").path))
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: storageDir.appendingPathComponent("ScipioTesting").path),
+            "The framework should be cached to the cache storage"
+        )
 
         let outputFrameworkPath = frameworkOutputDir.appendingPathComponent("ScipioTesting.xcframework")
-
         try self.fileManager.removeItem(atPath: outputFrameworkPath.path)
 
         // Fetch from local storage
@@ -360,9 +362,69 @@ final class RunnerTests: XCTestCase {
             XCTFail("Build should be succeeded.")
         }
 
-        XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appendingPathComponent("ScipioTesting").path))
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: outputFrameworkPath.path),
+            "The framework should be restored from the cache storage"
+        )
 
         try fileManager.removeItem(at: storageDir)
+    }
+
+    func testCacheModeMultipleStorages() async throws {
+        let storage1CacheDir = tempDir.appending(path: "storage1", directoryHint: .isDirectory)
+        let storage1 = LocalCacheStorage(cacheDirectory: .custom(storage1CacheDir))
+        let storage1Dir = storage1CacheDir.appendingPathComponent("Scipio")
+
+        let storage2CacheDir = tempDir.appending(path: "storage2", directoryHint: .isDirectory)
+        let storage2 = LocalCacheStorage(cacheDirectory: .custom(storage2CacheDir))
+        let storage2Dir = storage2CacheDir.appendingPathComponent("Scipio")
+
+        let runner = Runner(
+            mode: .prepareDependencies,
+            options: .init(
+                shouldOnlyUseVersionsFromResolvedFile: true,
+                cacheMode: .storages([
+                    (storage1, [.consumer, .producer] as Set),
+                    (storage2, [.consumer, .producer] as Set),
+                ])
+            )
+        )
+        do {
+            try await runner.run(packageDirectory: testPackagePath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+        }
+
+        // The cache are stored into 2 storages
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: storage1Dir.appendingPathComponent("ScipioTesting").path),
+            "The framework should be cached to the 1st cache storage"
+        )
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: storage2Dir.appendingPathComponent("ScipioTesting").path),
+            "The framework should be cached to the 2nd cache storage as well"
+        )
+
+        let outputFrameworkPath = frameworkOutputDir.appendingPathComponent("ScipioTesting.xcframework")
+        try self.fileManager.removeItem(atPath: outputFrameworkPath.path)
+
+        // Remove the storage1's cache so storage2's cache should be used instead
+        do {
+            try fileManager.removeItem(at: storage1Dir.appendingPathComponent("ScipioTesting"))
+            try await runner.run(packageDirectory: testPackagePath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded.")
+        }
+
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: outputFrameworkPath.path),
+            "The framework should be restored from the 2nd cache storage"
+        )
+
+        try fileManager.removeItem(at: storage1CacheDir)
+        try fileManager.removeItem(at: storage2CacheDir)
     }
 
     func testExtractBinary() async throws {
