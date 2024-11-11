@@ -253,3 +253,30 @@ You can specify it by a second argument of `.storage` cache mode.
 `producer` is an actor who attempt to save cache to the cache storage.
 
 When build artifacts are built, then it try to save them.
+
+### Use multiple cache storages at the same time
+
+You can also use the `.storages` cache mode, which accepts multiple cache storages with different sets of cache actors:
+
+```swift
+import ScipioS3Storage
+
+let s3Storage: some CacheStorage = ScipioS3Storage.S3Storage(config: ...)
+let localCacheStorage: some CacheStorage = LocalCacheStorage()
+let runner = Runner(
+    mode: .prepareDependencies,
+    options: .init(
+        baseBuildOptions: .init(
+            buildConfiguration: .release,
+            isSimulatorSupported: true
+        ),
+        cacheMode: .storages([
+            (s3Storage, [.consumer] as Set),
+            (localCacheStorage, [.producer, .consumer] as Set),
+        ])
+    )
+)
+```
+
+In the sample above, if some frameworks' caches are not found on `s3Storage`, those are tried to be fetched from the next `localCacheStorage` then. The frameworks not found on `localCacheStorage` will be built and cached into it (since the storage is tied to `.producer` actor as well).
+ 
