@@ -328,8 +328,8 @@ final class RunnerTests: XCTestCase {
         }
     }
 
-    func testLocalStorage() async throws {
-        let storage = LocalCacheStorage(cacheDirectory: .custom(tempDir))
+    func testLocalDiskCacheStorage() async throws {
+        let storage = LocalDiskCacheStorage(cacheDirectory: .custom(tempDir))
         let storageDir = tempDir.appendingPathComponent("Scipio")
 
         let runner = Runner(
@@ -375,11 +375,11 @@ final class RunnerTests: XCTestCase {
 
     func testCacheModeMultipleStorages() async throws {
         let storage1CacheDir = tempDir.appending(path: "storage1", directoryHint: .isDirectory)
-        let storage1 = LocalCacheStorage(cacheDirectory: .custom(storage1CacheDir))
+        let storage1 = LocalDiskCacheStorage(cacheDirectory: .custom(storage1CacheDir))
         let storage1Dir = storage1CacheDir.appendingPathComponent("Scipio")
 
         let storage2CacheDir = tempDir.appending(path: "storage2", directoryHint: .isDirectory)
-        let storage2 = LocalCacheStorage(cacheDirectory: .custom(storage2CacheDir))
+        let storage2 = LocalDiskCacheStorage(cacheDirectory: .custom(storage2CacheDir))
         let storage2Dir = storage2CacheDir.appendingPathComponent("Scipio")
 
         let runner = Runner(

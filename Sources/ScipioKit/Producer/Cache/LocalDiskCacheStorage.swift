@@ -3,7 +3,7 @@ import ScipioStorage
 import PackageGraph
 import TSCBasic
 
-public struct LocalCacheStorage: CacheStorage {
+public struct LocalDiskCacheStorage: CacheStorage {
     private let fileSystem: any FileSystem
 
     public var parallelNumber: Int? { nil }

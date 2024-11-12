@@ -39,7 +39,7 @@ extension Scipio {
                 runnerCacheMode = .project
             case .local:
                 runnerCacheMode = .storage(.init(
-                    storage: LocalCacheStorage(),
+                    storage: LocalDiskCacheStorage(),
                     actors: [.consumer, .producer]
                 ))
             }
