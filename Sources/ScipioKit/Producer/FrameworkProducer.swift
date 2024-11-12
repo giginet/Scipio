@@ -137,9 +137,6 @@ struct FrameworkProducer {
                 from: nil,
                 cacheSystem: cacheSystem
             )
-        case .storage(let config):
-            guard config.actors.contains(.consumer) else { return [] }
-            cacheStorages = [config.storage]
         case .storages(let configs):
             let storagesWithConsumer = configs.compactMap { cachePolicy in
                 cachePolicy.actors.contains(.consumer) ? cachePolicy.storage : nil
@@ -322,10 +319,6 @@ struct FrameworkProducer {
             // For `.project` which is not tied to any (external) storages, we don't need to do anything.
             // The built frameworks under the project themselves are treated as valid caches.
             break
-        case .storage(let config):
-            if config.actors.contains(.producer) {
-                await cacheSystem.cacheFrameworks(targets, to: [config.storage])
-            }
         case .storages(let configs):
             let storagesWithProducer = configs.compactMap { cachePolicy in
                 cachePolicy.actors.contains(.producer) ? cachePolicy.storage : nil

@@ -228,8 +228,11 @@ extension Runner {
 
             case disabled
             case project
-            case storage(StorageConfig)
             case storages([StorageConfig])
+
+            public static func storage(_ config: StorageConfig) -> Self {
+                .storages([config])
+            }
         }
 
         public enum PlatformSpecifier: Equatable {
