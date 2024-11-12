@@ -132,10 +132,10 @@ struct FrameworkProducer {
         case .project:
             // For `.project`, just checking whether the valid caches (already built frameworks under the project)
             // exist or not (not restoring anything from external locations).
-            return await restoreCachesForTargets(
-                availableTargets,
-                cacheSystem: cacheSystem,
-                cacheStorage: nil
+            return await restoreCaches(
+                for: availableTargets,
+                from: nil,
+                cacheSystem: cacheSystem
             )
         case .storage(let config):
             guard config.actors.contains(.consumer) else { return [] }
@@ -167,10 +167,10 @@ struct FrameworkProducer {
                 )
             }
 
-            let restoredPerStorage = await restoreCachesForTargets(
-                remainingTargets,
-                cacheSystem: cacheSystem,
-                cacheStorage: storage
+            let restoredPerStorage = await restoreCaches(
+                for: remainingTargets,
+                from: storage,
+                cacheSystem: cacheSystem
             )
             restored.formUnion(restoredPerStorage)
 
@@ -189,10 +189,10 @@ struct FrameworkProducer {
         return restored
     }
 
-    private func restoreCachesForTargets(
-        _ targets: Set<CacheSystem.CacheTarget>,
-        cacheSystem: CacheSystem,
-        cacheStorage: (any CacheStorage)?
+    private func restoreCaches(
+        for targets: Set<CacheSystem.CacheTarget>,
+        from cacheStorage: (any CacheStorage)?,
+        cacheSystem: CacheSystem
     ) async -> Set<CacheSystem.CacheTarget> {
         let chunked = targets.chunks(ofCount: cacheStorage?.parallelNumber ?? CacheSystem.defaultParalellNumber)
 
@@ -324,14 +324,14 @@ struct FrameworkProducer {
             break
         case .storage(let config):
             if config.actors.contains(.producer) {
-                await cacheSystem.cacheFrameworks(targets, storages: [config.storage])
+                await cacheSystem.cacheFrameworks(targets, to: [config.storage])
             }
         case .storages(let configs):
             let storagesWithProducer = configs.compactMap { cachePolicy in
                 cachePolicy.actors.contains(.producer) ? cachePolicy.storage : nil
             }
             if !storagesWithProducer.isEmpty {
-                await cacheSystem.cacheFrameworks(targets, storages: storagesWithProducer)
+                await cacheSystem.cacheFrameworks(targets, to: storagesWithProducer)
             }
         }
     }

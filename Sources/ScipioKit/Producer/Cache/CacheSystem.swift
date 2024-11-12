@@ -145,13 +145,13 @@ struct CacheSystem: Sendable {
         self.fileSystem = fileSystem
     }
 
-    func cacheFrameworks(_ targets: Set<CacheTarget>, storages: [any CacheStorage]) async {
+    func cacheFrameworks(_ targets: Set<CacheTarget>, to storages: [any CacheStorage]) async {
         for storage in storages {
-            await cacheFrameworks(targets, storage: storage)
+            await cacheFrameworks(targets, to: storage)
         }
     }
 
-    private func cacheFrameworks(_ targets: Set<CacheTarget>, storage: any CacheStorage) async {
+    private func cacheFrameworks(_ targets: Set<CacheTarget>, to storage: any CacheStorage) async {
         let chunked = targets.chunks(ofCount: storage.parallelNumber ?? CacheSystem.defaultParalellNumber)
 
         let storageType = type(of: storage)
@@ -166,7 +166,7 @@ struct CacheSystem: Sendable {
                                 "🚀 Cache \(frameworkName) to cache storage: \(storageType)",
                                 metadata: .color(.green)
                             )
-                            try await cacheFramework(target, at: frameworkPath, storage: storage)
+                            try await cacheFramework(target, at: frameworkPath, to: storage)
                         } catch {
                             logger.warning("⚠️ Can't create caches for \(frameworkPath.path)")
                         }
@@ -177,7 +177,7 @@ struct CacheSystem: Sendable {
         }
     }
 
-    private func cacheFramework(_ target: CacheTarget, at frameworkPath: URL, storage: any CacheStorage) async throws {
+    private func cacheFramework(_ target: CacheTarget, at frameworkPath: URL, to storage: any CacheStorage) async throws {
         let cacheKey = try await calculateCacheKey(of: target)
 
         try await storage.cacheFramework(frameworkPath, for: cacheKey)
