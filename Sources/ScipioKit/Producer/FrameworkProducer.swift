@@ -95,12 +95,46 @@ struct FrameworkProducer {
             outputDirectory: outputDir
         )
 
-        let cacheEnabledTargets = await restoreAllAvailableCachesIfNeeded(
-            availableTargets: Set(allTargets),
-            cacheSystem: cacheSystem
-        )
+        let targetsToBuild: OrderedSet<CacheSystem.CacheTarget>
+        switch cacheMode {
+        case .project:
+            let valid = await validateExistingFrameworks(
+                availableTargets: Set(allTargets),
+                cacheSystem: cacheSystem
+            )
+            targetsToBuild = allTargets.subtracting(valid)
 
-        let targetsToBuild = allTargets.subtracting(cacheEnabledTargets)
+        case .storages(let configs):
+            if configs.isEmpty {
+                // no-op because cache is disabled
+                targetsToBuild = allTargets
+                break
+            }
+
+            let targets = Set(allTargets)
+
+            // Validate the existing frameworks in `outputDir` before restoration
+            let valid = await validateExistingFrameworks(
+                availableTargets: targets,
+                cacheSystem: cacheSystem
+            )
+
+            let storagesWithConsumer = configs.compactMap { config in
+                config.actors.contains(.consumer) ? config.storage : nil
+            }
+            if storagesWithConsumer.isEmpty {
+                // no-op
+                targetsToBuild = allTargets.subtracting(valid)
+            } else {
+                let restored = await restoreAllAvailableCachesIfNeeded(
+                    availableTargets: targets.subtracting(valid),
+                    cacheSystem: cacheSystem
+                )
+                targetsToBuild = allTargets
+                    .subtracting(valid)
+                    .subtracting(restored)
+            }
+        }
 
         for target in targetsToBuild {
             try await buildXCFrameworks(
@@ -120,6 +154,53 @@ struct FrameworkProducer {
         }
     }
 
+    private func validateExistingFrameworks(
+        availableTargets: Set<CacheSystem.CacheTarget>,
+        cacheSystem: CacheSystem
+    ) async -> Set<CacheSystem.CacheTarget> {
+        let chunked = availableTargets.chunks(ofCount: CacheSystem.defaultParalellNumber)
+
+        var validFrameworks: Set<CacheSystem.CacheTarget> = []
+        for chunk in chunked {
+            await withTaskGroup(of: CacheSystem.CacheTarget?.self) { group in
+                for target in chunk {
+                    group.addTask { [outputDir, fileSystem] in
+                        do {
+                            let product = target.buildProduct
+                            let frameworkName = product.frameworkName
+                            let outputPath = outputDir.appendingPathComponent(frameworkName)
+                            let exists = fileSystem.exists(outputPath.absolutePath)
+                            guard exists else { return nil }
+
+                            let expectedCacheKey = try await cacheSystem.calculateCacheKey(of: target)
+                            let isValidCache = await cacheSystem.existsValidCache(cacheKey: expectedCacheKey)
+                            guard isValidCache else {
+                                logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
+                                logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
+                                try fileSystem.removeFileTree(outputPath.absolutePath)
+
+                                return nil
+                            }
+
+                            let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
+                            logger.info(
+                                // swiftlint:disable:next line_length
+                                "✅ Valid \(product.target.name).xcframework (\(expectedCacheKeyHash)) exists. Skip restoring or building.", metadata: .color(.green)
+                            )
+                            return target
+                        } catch {
+                            return nil
+                        }
+                    }
+                }
+                for await case let target? in group {
+                    validFrameworks.insert(target)
+                }
+            }
+        }
+        return validFrameworks
+    }
+
     private func restoreAllAvailableCachesIfNeeded(
         availableTargets: Set<CacheSystem.CacheTarget>,
         cacheSystem: CacheSystem
@@ -128,18 +209,13 @@ struct FrameworkProducer {
 
         switch cacheMode {
         case .project:
-            // For `.project`, just checking whether the valid caches (already built frameworks under the project)
-            // exist or not (not restoring anything from external locations).
-            return await restoreCaches(
-                for: availableTargets,
-                from: nil,
-                cacheSystem: cacheSystem
-            )
+            // For `.project`, there is nothing to restore from external locations.
+            return []
         case .storages(let configs):
             guard !configs.isEmpty else { return [] }
 
-            let storagesWithConsumer = configs.compactMap { cachePolicy in
-                cachePolicy.actors.contains(.consumer) ? cachePolicy.storage : nil
+            let storagesWithConsumer = configs.compactMap { config in
+                config.actors.contains(.consumer) ? config.storage : nil
             }
             guard !storagesWithConsumer.isEmpty else { return [] }
             cacheStorages = storagesWithConsumer
@@ -188,10 +264,10 @@ struct FrameworkProducer {
 
     private func restoreCaches(
         for targets: Set<CacheSystem.CacheTarget>,
-        from cacheStorage: (any CacheStorage)?,
+        from cacheStorage: any CacheStorage,
         cacheSystem: CacheSystem
     ) async -> Set<CacheSystem.CacheTarget> {
-        let chunked = targets.chunks(ofCount: cacheStorage?.parallelNumber ?? CacheSystem.defaultParalellNumber)
+        let chunked = targets.chunks(ofCount: cacheStorage.parallelNumber ?? CacheSystem.defaultParalellNumber)
 
         var restored: Set<CacheSystem.CacheTarget> = []
         for chunk in chunked {
@@ -228,47 +304,27 @@ struct FrameworkProducer {
         func restore(
             target: CacheSystem.CacheTarget,
             cacheSystem: CacheSystem,
-            cacheStorage: (any CacheStorage)?
+            cacheStorage: any CacheStorage
         ) async throws -> Bool {
             let product = target.buildProduct
             let frameworkName = product.frameworkName
-            let outputPath = outputDir.appendingPathComponent(product.frameworkName)
-            let exists = fileSystem.exists(outputPath.absolutePath)
 
             let expectedCacheKey = try await cacheSystem.calculateCacheKey(of: target)
-            let isValidCache = await cacheSystem.existsValidCache(cacheKey: expectedCacheKey)
             let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
 
-            if isValidCache && exists {
-                logger.info(
-                    "✅ Valid \(product.target.name).xcframework (\(expectedCacheKeyHash)) is exists. Skip building.", metadata: .color(.green)
-                )
+            let restoreResult = await cacheSystem.restoreCacheIfPossible(target: target, storage: cacheStorage)
+            switch restoreResult {
+            case .succeeded:
+                logger.info("✅ Restore \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
                 return true
-            } else {
-                if exists {
-                    logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
-                    logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-                    try fileSystem.removeFileTree(outputPath.absolutePath)
+            case .failed(let error):
+                logger.warning("⚠️ Restoring \(frameworkName) (\(expectedCacheKeyHash)) is failed", metadata: .color(.yellow))
+                if let description = error?.errorDescription {
+                    logger.warning("\(description)", metadata: .color(.yellow))
                 }
-
-                guard let cacheStorage else {
-                    return false
-                }
-
-                let restoreResult = await cacheSystem.restoreCacheIfPossible(target: target, storage: cacheStorage)
-                switch restoreResult {
-                case .succeeded:
-                    logger.info("✅ Restore \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
-                    return true
-                case .failed(let error):
-                    logger.warning("⚠️ Restoring \(frameworkName) (\(expectedCacheKeyHash)) is failed", metadata: .color(.yellow))
-                    if let description = error?.errorDescription {
-                        logger.warning("\(description)", metadata: .color(.yellow))
-                    }
-                    return false
-                case .noCache:
-                    return false
-                }
+                return false
+            case .noCache:
+                return false
             }
         }
     }
@@ -319,8 +375,8 @@ struct FrameworkProducer {
         case .storages(let configs):
             guard !configs.isEmpty else { return }
 
-            let storagesWithProducer = configs.compactMap { cachePolicy in
-                cachePolicy.actors.contains(.producer) ? cachePolicy.storage : nil
+            let storagesWithProducer = configs.compactMap { config in
+                config.actors.contains(.producer) ? config.storage : nil
             }
             if !storagesWithProducer.isEmpty {
                 await cacheSystem.cacheFrameworks(targets, to: storagesWithProducer)
