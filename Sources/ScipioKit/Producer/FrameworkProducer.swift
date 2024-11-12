@@ -97,13 +97,6 @@ struct FrameworkProducer {
 
         let targetsToBuild: OrderedSet<CacheSystem.CacheTarget>
         switch cacheMode {
-        case .project:
-            let valid = await validateExistingFrameworks(
-                availableTargets: Set(allTargets),
-                cacheSystem: cacheSystem
-            )
-            targetsToBuild = allTargets.subtracting(valid)
-
         case .storages(let configs):
             if configs.isEmpty {
                 // no-op because cache is disabled
@@ -208,9 +201,6 @@ struct FrameworkProducer {
         let cacheStorages: [any CacheStorage]
 
         switch cacheMode {
-        case .project:
-            // For `.project`, there is nothing to restore from external locations.
-            return []
         case .storages(let configs):
             guard !configs.isEmpty else { return [] }
 
@@ -368,10 +358,6 @@ struct FrameworkProducer {
 
     private func cacheFrameworksIfNeeded(_ targets: Set<CacheSystem.CacheTarget>, cacheSystem: CacheSystem) async {
         switch cacheMode {
-        case .project:
-            // For `.project` which is not tied to any (external) storages, we don't need to do anything.
-            // The built frameworks under the project themselves are treated as valid caches.
-            break
         case .storages(let configs):
             guard !configs.isEmpty else { return }
 

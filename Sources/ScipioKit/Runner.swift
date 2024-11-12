@@ -226,10 +226,14 @@ extension Runner {
                 case consumer
             }
 
-            case project
             case storages([StorageConfig])
 
             public static let disabled: Self = .storages([])
+
+            public static let project: Self = .storages([
+                .init(storage: ProjectCacheStorage(), actors: [.producer]),
+            ])
+
             public static func storage(_ config: StorageConfig) -> Self {
                 .storages([config])
             }
