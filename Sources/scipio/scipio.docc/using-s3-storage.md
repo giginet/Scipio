@@ -39,7 +39,9 @@ let runner = Runner(
             buildConfiguration: .release,
             isSimulatorSupported: true
         ),
-        cacheMode: .storage(s3Storage, [.consumer, .producer])
+        cachePolicies: [
+            .init(storage: s3Storage, actors: [.consumer, .producer]),
+        ]
     )
 )
 ```

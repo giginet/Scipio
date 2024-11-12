@@ -153,7 +153,7 @@ let runner = Runner(
         ],
         enableLibraryEvolution: false
         ),
-    cacheMode: .project,
+    cachePolicies: [.project],
     overwrite: true,
     verbose: true
 )
@@ -230,7 +230,9 @@ let runner = Runner(
             buildConfiguration: .release,
             isSimulatorSupported: true
         ),
-        cacheMode: .storage(s3Storage, [.consumer])
+        cachePolicies: [
+            .init(storage: s3Storage, actors: [.consumer]),
+        ]
     )
 )
 ```
@@ -246,7 +248,7 @@ You can also implement your custom cache storage by implementing `CacheStorage` 
 
 There are two cache actors `consumer` and `producer`.
 
-You can specify it by a second argument of `.storage` cache mode.
+You can specify it by `Runner.Options.CachePolicy.actors`.
 
 `consumer` is an actor who can fetch cache from the cache storage.
 
@@ -254,9 +256,9 @@ You can specify it by a second argument of `.storage` cache mode.
 
 When build artifacts are built, then it try to save them.
 
-### Use multiple cache storages at the same time
+### Use multiple cache policies at the same time
 
-You can also use the `.storages` cache mode, which accepts multiple cache storages with different sets of cache actors:
+You can also use multiple cache policies, which accepts multiple cache storages with different sets of cache actors:
 
 ```swift
 import ScipioS3Storage
@@ -270,10 +272,10 @@ let runner = Runner(
             buildConfiguration: .release,
             isSimulatorSupported: true
         ),
-        cacheMode: .storages([
-            (s3Storage, [.consumer] as Set),
-            (localCacheStorage, [.producer, .consumer] as Set),
-        ])
+        cachePolicies: [
+            .init(storage: s3Storage, actors: [.consumer]),
+            .init(storage: localCacheStorage, actors: [.producer, .consumer]),
+        ]
     )
 )
 ```
