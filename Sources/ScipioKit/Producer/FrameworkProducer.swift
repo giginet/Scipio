@@ -18,7 +18,7 @@ struct FrameworkProducer {
 
     private var shouldGenerateVersionFile: Bool {
         // cacheMode is not disabled
-        if case .disabled = cacheMode {
+        if case .storages(let configs) = cacheMode, configs.isEmpty {
             return false
         }
 
@@ -127,8 +127,6 @@ struct FrameworkProducer {
         let cacheStorages: [any CacheStorage]
 
         switch cacheMode {
-        case .disabled:
-            return []
         case .project:
             // For `.project`, just checking whether the valid caches (already built frameworks under the project)
             // exist or not (not restoring anything from external locations).
@@ -138,6 +136,8 @@ struct FrameworkProducer {
                 cacheSystem: cacheSystem
             )
         case .storages(let configs):
+            guard !configs.isEmpty else { return [] }
+
             let storagesWithConsumer = configs.compactMap { cachePolicy in
                 cachePolicy.actors.contains(.consumer) ? cachePolicy.storage : nil
             }
@@ -312,14 +312,13 @@ struct FrameworkProducer {
 
     private func cacheFrameworksIfNeeded(_ targets: Set<CacheSystem.CacheTarget>, cacheSystem: CacheSystem) async {
         switch cacheMode {
-        case .disabled:
-            // no-op
-            break
         case .project:
             // For `.project` which is not tied to any (external) storages, we don't need to do anything.
             // The built frameworks under the project themselves are treated as valid caches.
             break
         case .storages(let configs):
+            guard !configs.isEmpty else { return }
+
             let storagesWithProducer = configs.compactMap { cachePolicy in
                 cachePolicy.actors.contains(.producer) ? cachePolicy.storage : nil
             }
