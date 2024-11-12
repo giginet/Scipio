@@ -30,6 +30,11 @@ First, use SwiftPM to resolve dependencies and checkout repositories. After that
 
 See [Scipio Official Documentation](https://giginet.github.io/Scipio/documentation/scipio) for detail.
 
+### Installation
+
+The easiest way to install Scipio is to use [nest](https://github.com/mtj0928/nest).
+`nest install giginet/Scipio`
+
 ### Prepare all dependencies for your application
 
 The concept of Scipio, all dependencies wanted to be used in your application should be defined in one Package manifest.
