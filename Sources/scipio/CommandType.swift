@@ -3,7 +3,7 @@ import ScipioKit
 
 enum CommandType {
     case create(platformSpecifier: Runner.Options.PlatformSpecifier)
-    case prepare(cacheMode: Runner.Options.CacheMode)
+    case prepare(cachePolicies: [Runner.Options.CachePolicy])
 
     var mode: Runner.Mode {
         switch self {
@@ -23,12 +23,12 @@ enum CommandType {
         }
     }
 
-    var cacheMode: Runner.Options.CacheMode {
+    var cachePolicies: [Runner.Options.CachePolicy] {
         switch self {
         case .create:
-            return .disabled
-        case .prepare(let cacheMode):
-            return cacheMode
+            return []
+        case .prepare(let cachePolicies):
+            return cachePolicies
         }
     }
 }
@@ -51,19 +51,19 @@ extension Runner {
         let runnerOptions = Runner.Options(
             baseBuildOptions: baseBuildOptions,
             shouldOnlyUseVersionsFromResolvedFile: buildOptions.shouldOnlyUseVersionsFromResolvedFile,
-            cacheMode: Self.cacheMode(from: commandType),
+            cachePolicies: Self.cachePolicies(from: commandType),
             overwrite: buildOptions.overwrite,
             verbose: globalOptions.verbose
         )
         self.init(mode: commandType.mode, options: runnerOptions)
     }
 
-    private static func cacheMode(from commandType: CommandType) -> Runner.Options.CacheMode {
+    private static func cachePolicies(from commandType: CommandType) -> [Runner.Options.CachePolicy] {
         switch commandType {
         case .create:
-            return .disabled
-        case .prepare(let cacheMode):
-            return cacheMode
+            return []
+        case .prepare(let cachePolicies):
+            return cachePolicies
         }
     }
 

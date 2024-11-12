@@ -10,15 +10,15 @@ struct FrameworkProducer {
     private let descriptionPackage: DescriptionPackage
     private let baseBuildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
-    private let cacheMode: Runner.Options.CacheMode
+    private let cachePolicies: [Runner.Options.CachePolicy]
     private let overwrite: Bool
     private let outputDir: URL
     private let fileSystem: any FileSystem
     private let toolchainEnvironment: [String: String]?
 
     private var shouldGenerateVersionFile: Bool {
-        // cacheMode is not disabled
-        if case .storages(let configs) = cacheMode, configs.isEmpty {
+        // cache is not disabled
+        guard !cachePolicies.isEmpty else {
             return false
         }
 
@@ -33,7 +33,7 @@ struct FrameworkProducer {
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
-        cacheMode: Runner.Options.CacheMode,
+        cachePolicies: [Runner.Options.CachePolicy],
         overwrite: Bool,
         outputDir: URL,
         toolchainEnvironment: [String: String]? = nil,
@@ -42,7 +42,7 @@ struct FrameworkProducer {
         self.descriptionPackage = descriptionPackage
         self.baseBuildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
-        self.cacheMode = cacheMode
+        self.cachePolicies = cachePolicies
         self.overwrite = overwrite
         self.outputDir = outputDir
         self.toolchainEnvironment = toolchainEnvironment
@@ -96,14 +96,10 @@ struct FrameworkProducer {
         )
 
         let targetsToBuild: OrderedSet<CacheSystem.CacheTarget>
-        switch cacheMode {
-        case .storages(let configs):
-            if configs.isEmpty {
-                // no-op because cache is disabled
-                targetsToBuild = allTargets
-                break
-            }
-
+        if cachePolicies.isEmpty {
+            // no-op because cache is disabled
+            targetsToBuild = allTargets
+        } else {
             let targets = Set(allTargets)
 
             // Validate the existing frameworks in `outputDir` before restoration
@@ -112,15 +108,14 @@ struct FrameworkProducer {
                 cacheSystem: cacheSystem
             )
 
-            let storagesWithConsumer = configs.compactMap { config in
-                config.actors.contains(.consumer) ? config.storage : nil
-            }
+            let storagesWithConsumer = cachePolicies.storages(for: .consumer)
             if storagesWithConsumer.isEmpty {
                 // no-op
                 targetsToBuild = allTargets.subtracting(valid)
             } else {
                 let restored = await restoreAllAvailableCachesIfNeeded(
                     availableTargets: targets.subtracting(valid),
+                    to: storagesWithConsumer,
                     cacheSystem: cacheSystem
                 )
                 targetsToBuild = allTargets
@@ -196,29 +191,17 @@ struct FrameworkProducer {
 
     private func restoreAllAvailableCachesIfNeeded(
         availableTargets: Set<CacheSystem.CacheTarget>,
+        to storages: [any CacheStorage],
         cacheSystem: CacheSystem
     ) async -> Set<CacheSystem.CacheTarget> {
-        let cacheStorages: [any CacheStorage]
-
-        switch cacheMode {
-        case .storages(let configs):
-            guard !configs.isEmpty else { return [] }
-
-            let storagesWithConsumer = configs.compactMap { config in
-                config.actors.contains(.consumer) ? config.storage : nil
-            }
-            guard !storagesWithConsumer.isEmpty else { return [] }
-            cacheStorages = storagesWithConsumer
-        }
-
         var remainingTargets = availableTargets
         var restored: Set<CacheSystem.CacheTarget> = []
 
-        for index in cacheStorages.indices {
-            let storage = cacheStorages[index]
+        for index in storages.indices {
+            let storage = storages[index]
 
             let logSuffix = "[\(index)] \(type(of: storage))"
-            if index == cacheStorages.startIndex {
+            if index == storages.startIndex {
                 logger.info(
                     "▶️ Starting restoration with cache storage: \(logSuffix)",
                     metadata: .color(.green)
@@ -357,16 +340,9 @@ struct FrameworkProducer {
     }
 
     private func cacheFrameworksIfNeeded(_ targets: Set<CacheSystem.CacheTarget>, cacheSystem: CacheSystem) async {
-        switch cacheMode {
-        case .storages(let configs):
-            guard !configs.isEmpty else { return }
-
-            let storagesWithProducer = configs.compactMap { config in
-                config.actors.contains(.producer) ? config.storage : nil
-            }
-            if !storagesWithProducer.isEmpty {
-                await cacheSystem.cacheFrameworks(targets, to: storagesWithProducer)
-            }
+        let storagesWithProducer = cachePolicies.storages(for: .producer)
+        if !storagesWithProducer.isEmpty {
+            await cacheSystem.cacheFrameworks(targets, to: storagesWithProducer)
         }
     }
 
@@ -375,6 +351,16 @@ struct FrameworkProducer {
             try await cacheSystem.generateVersionFile(for: target)
         } catch {
             logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
+        }
+    }
+}
+
+extension [Runner.Options.CachePolicy] {
+    fileprivate func storages(for actor: Runner.Options.CachePolicy.CacheActorKind) -> [any CacheStorage] {
+        reduce(into: []) { result, cachePolicy in
+            if cachePolicy.actors.contains(actor) {
+                result.append(cachePolicy.storage)
+            }
         }
     }
 }

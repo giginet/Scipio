@@ -306,7 +306,7 @@ final class RunnerTests: XCTestCase {
             options: .init(
                 baseBuildOptions: .init(enableLibraryEvolution: true),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .project
+                cachePolicies: [.project]
             )
         )
         do {
@@ -336,10 +336,9 @@ final class RunnerTests: XCTestCase {
             mode: .prepareDependencies,
             options: .init(
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .storage(.init(
-                    storage: storage,
-                    actors: [.consumer, .producer]
-                ))
+                cachePolicies: [
+                    .init(storage: storage, actors: [.consumer, .producer]),
+                ]
             )
         )
         do {
@@ -373,7 +372,7 @@ final class RunnerTests: XCTestCase {
         try fileManager.removeItem(at: storageDir)
     }
 
-    func testCacheModeMultipleStorages() async throws {
+    func testMultipleCachePolicies() async throws {
         let storage1CacheDir = tempDir.appending(path: "storage1", directoryHint: .isDirectory)
         let storage1 = LocalDiskCacheStorage(cacheDirectory: .custom(storage1CacheDir))
         let storage1Dir = storage1CacheDir.appendingPathComponent("Scipio")
@@ -386,10 +385,10 @@ final class RunnerTests: XCTestCase {
             mode: .prepareDependencies,
             options: .init(
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .storages([
+                cachePolicies: [
                     .init(storage: storage1, actors: [.consumer, .producer]),
                     .init(storage: storage2, actors: [.consumer, .producer]),
-                ])
+                ]
             )
         )
         do {
@@ -441,7 +440,7 @@ final class RunnerTests: XCTestCase {
                     frameworkType: .dynamic
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .project,
+                cachePolicies: [.project],
                 overwrite: false,
                 verbose: false)
         )
@@ -468,7 +467,7 @@ final class RunnerTests: XCTestCase {
                     frameworkType: .dynamic
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .project,
+                cachePolicies: [.project],
                 overwrite: false,
                 verbose: false)
         )
@@ -539,7 +538,7 @@ final class RunnerTests: XCTestCase {
                     enableLibraryEvolution: true
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .project,
+                cachePolicies: [.project],
                 overwrite: false,
                 verbose: false)
         )
@@ -575,7 +574,7 @@ final class RunnerTests: XCTestCase {
                     ),
                 ],
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .project,
+                cachePolicies: [.project],
                 overwrite: false,
                 verbose: false)
         )
@@ -613,7 +612,7 @@ final class RunnerTests: XCTestCase {
                     isSimulatorSupported: true
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .disabled
+                cachePolicies: []
             )
         )
 
@@ -656,7 +655,7 @@ final class RunnerTests: XCTestCase {
                     frameworkType: .mergeable
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .disabled
+                cachePolicies: []
             )
         )
 

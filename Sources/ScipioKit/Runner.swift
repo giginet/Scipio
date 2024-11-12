@@ -97,7 +97,7 @@ public struct Runner {
             descriptionPackage: descriptionPackage,
             buildOptions: buildOptions,
             buildOptionsMatrix: buildOptionsMatrix,
-            cacheMode: options.cacheMode,
+            cachePolicies: options.cachePolicies,
             overwrite: options.overwrite,
             outputDir: outputDir
         )
@@ -208,17 +208,7 @@ extension Runner {
             public var buildOptionsMatrix: [String: TargetBuildOptions]
         }
 
-        public enum CacheMode: Sendable {
-            public struct StorageConfig: Sendable {
-                public let storage: any CacheStorage
-                public let actors: Set<CacheActorKind>
-
-                public init(storage: any CacheStorage, actors: Set<CacheActorKind>) {
-                    self.storage = storage
-                    self.actors = actors
-                }
-            }
-
+        public struct CachePolicy: Sendable {
             public enum CacheActorKind: Sendable {
                 // Save built product to cacheStorage
                 case producer
@@ -226,17 +216,23 @@ extension Runner {
                 case consumer
             }
 
-            case storages([StorageConfig])
+            public let storage: any CacheStorage
+            public let actors: Set<CacheActorKind>
 
-            public static let disabled: Self = .storages([])
-
-            public static let project: Self = .storages([
-                .init(storage: ProjectCacheStorage(), actors: [.producer]),
-            ])
-
-            public static func storage(_ config: StorageConfig) -> Self {
-                .storages([config])
+            public init(storage: any CacheStorage, actors: Set<CacheActorKind>) {
+                self.storage = storage
+                self.actors = actors
             }
+
+            public static let project = Self(
+                storage: ProjectCacheStorage(),
+                actors: [.producer]
+            )
+
+            public static let localDisk = Self(
+                storage: LocalDiskCacheStorage(),
+                actors: [.producer, .consumer]
+            )
         }
 
         public enum PlatformSpecifier: Equatable {
@@ -255,7 +251,7 @@ extension Runner {
 
         public var buildOptionsContainer: BuildOptionsContainer
         public var shouldOnlyUseVersionsFromResolvedFile: Bool
-        public var cacheMode: CacheMode
+        public var cachePolicies: [CachePolicy]
         public var overwrite: Bool
         public var verbose: Bool
         public var toolchainEnvironment: [String: String]?
@@ -264,7 +260,7 @@ extension Runner {
             baseBuildOptions: BuildOptions = .init(),
             buildOptionsMatrix: [String: TargetBuildOptions] = [:],
             shouldOnlyUseVersionsFromResolvedFile: Bool = false,
-            cacheMode: CacheMode = .project,
+            cachePolicies: [CachePolicy] = [.project],
             overwrite: Bool = false,
             verbose: Bool = false,
             toolchainEnvironment: [String: String]? = nil
@@ -274,7 +270,7 @@ extension Runner {
                 buildOptionsMatrix: buildOptionsMatrix
             )
             self.shouldOnlyUseVersionsFromResolvedFile = shouldOnlyUseVersionsFromResolvedFile
-            self.cacheMode = cacheMode
+            self.cachePolicies = cachePolicies
             self.overwrite = overwrite
             self.verbose = verbose
             self.toolchainEnvironment = toolchainEnvironment
