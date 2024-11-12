@@ -200,7 +200,7 @@ struct FrameworkProducer {
         for index in storages.indices {
             let storage = storages[index]
 
-            let logSuffix = "[\(index)] \(type(of: storage))"
+            let logSuffix = "[\(index)] \(storage.displayName)"
             if index == storages.startIndex {
                 logger.info(
                     "▶️ Starting restoration with cache storage: \(logSuffix)",

@@ -154,7 +154,7 @@ struct CacheSystem: Sendable {
     private func cacheFrameworks(_ targets: Set<CacheTarget>, to storage: any CacheStorage) async {
         let chunked = targets.chunks(ofCount: storage.parallelNumber ?? CacheSystem.defaultParalellNumber)
 
-        let storageType = type(of: storage)
+        let storageName = storage.displayName
         for chunk in chunked {
             await withTaskGroup(of: Void.self) { group in
                 for target in chunk {
@@ -163,7 +163,7 @@ struct CacheSystem: Sendable {
                         let frameworkPath = outputDirectory.appendingPathComponent(frameworkName)
                         do {
                             logger.info(
-                                "🚀 Cache \(frameworkName) to cache storage: \(storageType)",
+                                "🚀 Cache \(frameworkName) to cache storage: \(storageName)",
                                 metadata: .color(.green)
                             )
                             try await cacheFramework(target, at: frameworkPath, to: storage)
