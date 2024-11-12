@@ -209,6 +209,16 @@ extension Runner {
         }
 
         public enum CacheMode: Sendable {
+            public struct StorageConfig: Sendable {
+                public let storage: any CacheStorage
+                public let actors: Set<CacheActorKind>
+
+                public init(storage: any CacheStorage, actors: Set<CacheActorKind>) {
+                    self.storage = storage
+                    self.actors = actors
+                }
+            }
+
             public enum CacheActorKind: Sendable {
                 // Save built product to cacheStorage
                 case producer
@@ -218,8 +228,8 @@ extension Runner {
 
             case disabled
             case project
-            case storage(any CacheStorage, Set<CacheActorKind>)
-            case storages([(storage: any CacheStorage, actors: Set<CacheActorKind>)])
+            case storage(StorageConfig)
+            case storages([StorageConfig])
         }
 
         public enum PlatformSpecifier: Equatable {

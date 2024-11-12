@@ -336,7 +336,10 @@ final class RunnerTests: XCTestCase {
             mode: .prepareDependencies,
             options: .init(
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .storage(storage, [.consumer, .producer])
+                cacheMode: .storage(.init(
+                    storage: storage,
+                    actors: [.consumer, .producer]
+                ))
             )
         )
         do {
@@ -384,8 +387,8 @@ final class RunnerTests: XCTestCase {
             options: .init(
                 shouldOnlyUseVersionsFromResolvedFile: true,
                 cacheMode: .storages([
-                    (storage1, [.consumer, .producer] as Set),
-                    (storage2, [.consumer, .producer] as Set),
+                    .init(storage: storage1, actors: [.consumer, .producer]),
+                    .init(storage: storage2, actors: [.consumer, .producer]),
                 ])
             )
         )

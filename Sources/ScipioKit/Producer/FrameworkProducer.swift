@@ -137,12 +137,12 @@ struct FrameworkProducer {
                 cacheSystem: cacheSystem,
                 cacheStorage: nil
             )
-        case .storage(let storage, let actors):
-            guard actors.contains(.consumer) else { return [] }
-            cacheStorages = [storage]
-        case .storages(let storages):
-            let storagesWithConsumer = storages.compactMap { storage, actors in
-                actors.contains(.consumer) ? storage : nil
+        case .storage(let config):
+            guard config.actors.contains(.consumer) else { return [] }
+            cacheStorages = [config.storage]
+        case .storages(let configs):
+            let storagesWithConsumer = configs.compactMap { cachePolicy in
+                cachePolicy.actors.contains(.consumer) ? cachePolicy.storage : nil
             }
             guard !storagesWithConsumer.isEmpty else { return [] }
             cacheStorages = storagesWithConsumer
@@ -322,13 +322,13 @@ struct FrameworkProducer {
             // For `.project` which is not tied to any (external) storages, we don't need to do anything.
             // The built frameworks under the project themselves are treated as valid caches.
             break
-        case .storage(let storage, let actors):
-            if actors.contains(.producer) {
-                await cacheSystem.cacheFrameworks(targets, storages: [storage])
+        case .storage(let config):
+            if config.actors.contains(.producer) {
+                await cacheSystem.cacheFrameworks(targets, storages: [config.storage])
             }
-        case .storages(let storages):
-            let storagesWithProducer = storages.compactMap { storage, actors in
-                actors.contains(.producer) ? storage : nil
+        case .storages(let configs):
+            let storagesWithProducer = configs.compactMap { cachePolicy in
+                cachePolicy.actors.contains(.producer) ? cachePolicy.storage : nil
             }
             if !storagesWithProducer.isEmpty {
                 await cacheSystem.cacheFrameworks(targets, storages: storagesWithProducer)

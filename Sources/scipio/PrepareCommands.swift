@@ -38,7 +38,10 @@ extension Scipio {
             case .project:
                 runnerCacheMode = .project
             case .local:
-                runnerCacheMode = .storage(LocalCacheStorage(), [.consumer, .producer])
+                runnerCacheMode = .storage(.init(
+                    storage: LocalCacheStorage(),
+                    actors: [.consumer, .producer]
+                ))
             }
 
             let runner = Runner(
