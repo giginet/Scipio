@@ -54,11 +54,11 @@ struct ToolchainGenerator {
         // Compute common arguments for clang and swift.
         var extraCCFlags: [String] = []
         var extraSwiftCFlags: [String] = []
-        let macosSDKPlatformPaths = try await nonCachingSDKPlatformFrameworkPaths()
-        extraCCFlags += ["-F", macosSDKPlatformPaths.fwk.pathString]
-        extraSwiftCFlags += ["-F", macosSDKPlatformPaths.fwk.pathString]
-        extraSwiftCFlags += ["-I", macosSDKPlatformPaths.lib.pathString]
-        extraSwiftCFlags += ["-L", macosSDKPlatformPaths.lib.pathString]
+        let macosSDKPlatformPaths = try await resolveSDKPlatformFrameworkPaths()
+        extraCCFlags += ["-F", macosSDKPlatformPaths.frameworkPath.pathString]
+        extraSwiftCFlags += ["-F", macosSDKPlatformPaths.frameworkPath.pathString]
+        extraSwiftCFlags += ["-I", macosSDKPlatformPaths.frameworkPath.pathString]
+        extraSwiftCFlags += ["-L", macosSDKPlatformPaths.frameworkPath.pathString]
 
         let buildFlags = BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
         #if compiler(>=6.0)
@@ -92,7 +92,7 @@ fileprivate extension ToolchainGenerator {
 
     /// A non-caching environment-aware implementation of `SwiftSDK.sdkPlatformFrameworkPaths`
     /// Returns `macosx` sdk platform framework path.
-    func nonCachingSDKPlatformFrameworkPaths() async throws -> (fwk: AbsolutePath, lib: AbsolutePath) {
+    func resolveSDKPlatformFrameworkPaths() async throws -> (frameworkPath: AbsolutePath, libPath: AbsolutePath) {
         let platformPath = try await executor.execute(
             "/usr/bin/xcrun",
             "--sdk",
@@ -107,16 +107,16 @@ fileprivate extension ToolchainGenerator {
         }
 
         // For XCTest framework.
-        let fwk = try AbsolutePath(validating: platformPath).appending(
+        let frameworkPath = try AbsolutePath(validating: platformPath).appending(
             components: "Developer", "Library", "Frameworks"
         )
 
         // For XCTest Swift library.
-        let lib = try AbsolutePath(validating: platformPath).appending(
+        let libPath = try AbsolutePath(validating: platformPath).appending(
             components: "Developer", "usr", "lib"
         )
 
-        return (fwk, lib)
+        return (frameworkPath, libPath)
     }
 
 }
