@@ -29,7 +29,7 @@ struct ToolchainGenerator {
         #if compiler(>=6.0)
         return try UserToolchain(
             swiftSDK: destination,
-            environment: environment.map(Environment.init) ?? .current
+            environment: environment.asSwiftPMEnvironment
         )
         #elseif swift(>=5.10)
         return try UserToolchain(swiftSDK: destination)

@@ -117,12 +117,23 @@ struct DescriptionPackage {
     /// Then, use package versions only from existing Package.resolved.
     ///   If it is `true`, Package.resolved never be updated.
     ///   Instead, the resolving will fail if the Package.resolved is mis-matched with the workspace.
-    init(packageDirectory: ScipioAbsolutePath, mode: Runner.Mode, onlyUseVersionsFromResolvedFile: Bool) throws {
+    init(
+        packageDirectory: ScipioAbsolutePath,
+        mode: Runner.Mode,
+        onlyUseVersionsFromResolvedFile: Bool,
+        toolchainEnvironment: ToolchainEnvironment? = nil
+    ) throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
 
         #if swift(>=5.10)
-        let toolchain = try UserToolchain(swiftSDK: try .hostSwiftSDK())
+        let toolchain = try UserToolchain(
+            swiftSDK: try .hostSwiftSDK(
+                toolchainEnvironment?.toolchainBinPath,
+                environment: toolchainEnvironment.asSwiftPMEnvironment
+            ),
+            environment: toolchainEnvironment.asSwiftPMEnvironment
+        )
         #else
         let toolchain = try UserToolchain(destination: try .hostDestination())
         #endif

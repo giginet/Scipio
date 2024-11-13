@@ -10,7 +10,7 @@ struct PIFCompiler: Compiler {
     private let fileSystem: any FileSystem
     private let executor: any Executor
     private let buildOptionsMatrix: [String: BuildOptions]
-    private let toolchainEnvironment: [String: String]?
+    private let toolchainEnvironment: ToolchainEnvironment?
 
     private let buildParametersGenerator: BuildParametersGenerator
 
@@ -18,7 +18,7 @@ struct PIFCompiler: Compiler {
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
-        toolchainEnvironment: [String: String]? = nil,
+        toolchainEnvironment: ToolchainEnvironment? = nil,
         fileSystem: any FileSystem = TSCBasic.localFileSystem,
         executor: any Executor = ProcessExecutor()
     ) {
