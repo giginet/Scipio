@@ -18,19 +18,22 @@ final class CacheSystemTests: XCTestCase {
     """
 
     func testEncodeCacheKey() throws {
-        let cacheKey = SwiftPMCacheKey(targetName: "MyTarget",
-                                       pin: .revision("111111111"),
-                                       buildOptions: .init(buildConfiguration: .release,
-                                                           isDebugSymbolsEmbedded: false,
-                                                           frameworkType: .dynamic,
-                                                           sdks: [.iOS],
-                                                           extraFlags: .init(swiftFlags: ["-D", "SOME_FLAG"]),
-                                                           extraBuildParameters: ["SWIFT_OPTIMIZATION_LEVEL": "-Osize"],
-                                                           enableLibraryEvolution: true,
-                                                           customFrameworkModuleMapContents: Data(customModuleMap.utf8)
-                                                          ),
-                                       clangVersion: "clang-1400.0.29.102",
-                                       xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d")
+        let cacheKey = SwiftPMCacheKey(
+            targetName: "MyTarget",
+            pin: .revision("111111111"),
+            buildOptions: .init(
+                buildConfiguration: .release,
+                isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
+                sdks: [.iOS],
+                extraFlags: .init(swiftFlags: ["-D", "SOME_FLAG"]),
+                extraBuildParameters: ["SWIFT_OPTIMIZATION_LEVEL": "-Osize"],
+                enableLibraryEvolution: true,
+                keepPublicHeadersStructure: false,
+                customFrameworkModuleMapContents: Data(customModuleMap.utf8)
+            ),
+            clangVersion: "clang-1400.0.29.102",
+            xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d")
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
@@ -55,6 +58,7 @@ final class CacheSystemTests: XCTestCase {
             },
             "frameworkType" : "dynamic",
             "isDebugSymbolsEmbedded" : false,
+            "keepPublicHeadersStructure" : false,
             "sdks" : [
               "iOS"
             ]
@@ -73,8 +77,6 @@ final class CacheSystemTests: XCTestCase {
         // swiftlint:enable line_length
         XCTAssertEqual(rawString, expected)
     }
-
-    #if compiler(>=6.0)
 
     func testCacheKeyCalculationForRootPackageTarget() async throws {
         let fileSystem = localFileSystem
@@ -115,6 +117,7 @@ final class CacheSystemTests: XCTestCase {
                 extraFlags: nil,
                 extraBuildParameters: nil,
                 enableLibraryEvolution: false,
+                keepPublicHeadersStructure: false,
                 customFrameworkModuleMapContents: nil
             )
         )
@@ -141,7 +144,4 @@ final class CacheSystemTests: XCTestCase {
         XCTAssertEqual(cacheKey.targetName, myTarget.name)
         XCTAssertEqual(cacheKey.pin.description, "1.1.0")
     }
-
-    #endif
-
 }

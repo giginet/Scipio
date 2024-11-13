@@ -780,6 +780,7 @@ extension BuildOptions {
         extraFlags: nil,
         extraBuildParameters: nil,
         enableLibraryEvolution: true,
+        keepPublicHeadersStructure: false,
         customFrameworkModuleMapContents: nil
     )
 }

@@ -3,11 +3,11 @@ import Workspace
 import TSCBasic
 import PackageModel
 import PackageLoading
-// We can drop this annotation with SwiftPM release/6.0
+// We may drop this annotation in SwiftPM's future release
 @preconcurrency import PackageGraph
 import Basics
 
-struct DescriptionPackage {
+struct DescriptionPackage: PackageLocator {
     let mode: Runner.Mode
     let packageDirectory: ScipioAbsolutePath
     private let toolchain: UserToolchain
@@ -35,59 +35,8 @@ struct DescriptionPackage {
         manifest.displayName
     }
 
-    var buildDirectory: ScipioAbsolutePath {
-        packageDirectory.appending(component: ".build")
-    }
-
-    var workspaceDirectory: ScipioAbsolutePath {
-        buildDirectory.appending(component: "scipio")
-    }
-
     var supportedSDKs: Set<SDK> {
         Set(manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:)))
-    }
-
-    var derivedDataPath: ScipioAbsolutePath {
-        workspaceDirectory.appending(component: "DerivedData")
-    }
-
-    func generatedModuleMapPath(of target: ScipioResolvedModule, sdk: SDK) throws -> ScipioAbsolutePath {
-        let relativePath = try TSCBasic.RelativePath(validating: "ModuleMapsForFramework/\(sdk.settingValue)")
-        return workspaceDirectory
-            .appending(relativePath)
-            .appending(component: target.modulemapName)
-    }
-
-    /// Returns an Products directory path
-    /// It should be the default setting of `TARGET_BUILD_DIR`
-    func productsDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> ScipioAbsolutePath {
-        let intermediateDirectoryName = productDirectoryName(
-            buildConfiguration: buildConfiguration,
-            sdk: sdk
-        )
-        return derivedDataPath.appending(components: ["Products", intermediateDirectoryName])
-    }
-
-    /// Returns a directory path which contains assembled frameworks
-    var assembledFrameworksRootDirectory: ScipioAbsolutePath {
-        workspaceDirectory.appending(component: "AssembledFrameworks")
-    }
-
-    /// Returns a directory path of the assembled frameworks path for the specific Configuration/Platform
-    func assembledFrameworksDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> ScipioAbsolutePath {
-        let intermediateDirName = productDirectoryName(buildConfiguration: buildConfiguration, sdk: sdk)
-        return assembledFrameworksRootDirectory
-            .appending(component: intermediateDirName)
-    }
-
-    /// Returns an intermediate directory name in the Products dir.
-    /// e.g. `Debug` / `Debug-iphoneos`
-    private func productDirectoryName(buildConfiguration: BuildConfiguration, sdk: SDK) -> String {
-        if sdk == .macOS {
-            return buildConfiguration.settingsValue
-        } else {
-            return "\(buildConfiguration.settingsValue)-\(sdk.settingValue)"
-        }
     }
 
     // MARK: Initializer
@@ -125,19 +74,13 @@ struct DescriptionPackage {
     ) throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
-
-        #if swift(>=5.10)
-        let toolchain = try UserToolchain(
+        self.toolchain = try UserToolchain(
             swiftSDK: try .hostSwiftSDK(
                 toolchainEnvironment?.toolchainBinPath,
                 environment: toolchainEnvironment.asSwiftPMEnvironment
             ),
             environment: toolchainEnvironment.asSwiftPMEnvironment
         )
-        #else
-        let toolchain = try UserToolchain(destination: try .hostDestination())
-        #endif
-        self.toolchain = toolchain
 
         let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
         let scope = makeObservabilitySystem().topScope
@@ -226,17 +169,10 @@ private final class BuildProductsResolver {
             products = try topologicalSort(products) { (product) in
                 return product.target.dependencies.flatMap { (dependency) -> [BuildProduct] in
                     switch dependency {
-                    #if compiler(>=6.0)
                     case .module(let module, conditions: _):
                         return [resolvedTargetToBuildProduct(module)]
                     case .product(let product, conditions: _):
                         return product.modules.map(resolvedTargetToBuildProduct)
-                    #else
-                    case .target(let target, conditions: _):
-                        return [resolvedTargetToBuildProduct(target)]
-                    case .product(let product, conditions: _):
-                        return product.targets.map(resolvedTargetToBuildProduct)
-                    #endif
                     }
                 }
             }
@@ -258,19 +194,11 @@ private final class BuildProductsResolver {
             let rootPackage = try fetchRootPackage()
             let productNamesToBuild = rootPackage.manifest.products.map { $0.name }
             let productsToBuild = rootPackage.products.filter { productNamesToBuild.contains($0.name) }
-            #if compiler(>=6.0)
             return productsToBuild.flatMap(\.modules)
-            #else
-            return productsToBuild.flatMap(\.targets)
-            #endif
         case .prepareDependencies:
             // In prepare mode, all targets should be built
             // In future update, users will be enable to specify targets want to build
-            #if compiler(>=6.0)
             return Array(try fetchRootPackage().modules)
-            #else
-            return try fetchRootPackage().targets
-            #endif
         }
     }
 
@@ -282,13 +210,8 @@ private final class BuildProductsResolver {
     }
 
     private func resolveBuildProduct(from rootTarget: ScipioResolvedModule) throws -> Set<BuildProduct> {
-        #if compiler(>=6.0)
         let dependencyProducts = Set(try rootTarget.recursiveModuleDependencies()
             .flatMap(buildProducts(from:)))
-        #else
-        let dependencyProducts = Set(try rootTarget.recursiveTargetDependencies()
-            .flatMap(buildProducts(from:)))
-        #endif
 
         switch descriptionPackage.mode {
         case .createPackage:
@@ -312,11 +235,7 @@ private final class BuildProductsResolver {
             return buildProducts
         }
 
-        #if compiler(>=6.0)
         let dependencyProducts = try target.recursiveDependencies().compactMap(\.module).flatMap(buildProducts(from:))
-        #else
-        let dependencyProducts = try target.recursiveDependencies().compactMap(\.target).flatMap(buildProducts(from:))
-        #endif
 
         let buildProducts = Set([rootTargetProduct] + dependencyProducts)
         buildProductsCache.updateValue(buildProducts, forKey: rootTargetProduct)

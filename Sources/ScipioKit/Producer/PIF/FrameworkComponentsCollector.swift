@@ -8,6 +8,7 @@ struct FrameworkComponents {
     var binaryPath: AbsolutePath
     var infoPlistPath: AbsolutePath
     var swiftModulesPath: AbsolutePath?
+    var includeDir: AbsolutePath?
     var publicHeaderPaths: Set<AbsolutePath>?
     var bridgingHeaderPath: AbsolutePath?
     var modulemapPath: AbsolutePath?
@@ -27,23 +28,23 @@ struct FrameworkComponentsCollector {
         }
     }
 
-    private let descriptionPackage: DescriptionPackage
     private let buildProduct: BuildProduct
     private let sdk: SDK
     private let buildOptions: BuildOptions
+    private let packageLocator: any PackageLocator
     private let fileSystem: any FileSystem
 
     init(
-        descriptionPackage: DescriptionPackage,
         buildProduct: BuildProduct,
         sdk: SDK,
         buildOptions: BuildOptions,
-        fileSystem: any FileSystem
+        packageLocator: some PackageLocator,
+        fileSystem: some FileSystem
     ) {
-        self.descriptionPackage = descriptionPackage
         self.buildProduct = buildProduct
         self.sdk = sdk
         self.buildOptions = buildOptions
+        self.packageLocator = packageLocator
         self.fileSystem = fileSystem
     }
 
@@ -85,6 +86,7 @@ struct FrameworkComponentsCollector {
             binaryPath: binaryPath,
             infoPlistPath: infoPlistPath,
             swiftModulesPath: swiftModulesPath,
+            includeDir: (buildProduct.target.underlying as? ScipioClangModule)?.includeDir.scipioAbsolutePath,
             publicHeaderPaths: publicHeaders,
             bridgingHeaderPath: bridgingHeaderPath,
             modulemapPath: frameworkModuleMapPath,
@@ -95,7 +97,7 @@ struct FrameworkComponentsCollector {
 
     /// Copy content data to the build artifacts
     private func copyModuleMapContentsToBuildArtifacts(_ data: Data) throws -> ScipioAbsolutePath {
-        let generatedModuleMapPath = try descriptionPackage.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
+        let generatedModuleMapPath = try packageLocator.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
 
         try fileSystem.writeFileContents(generatedModuleMapPath.spmAbsolutePath, data: data)
         return generatedModuleMapPath
@@ -103,7 +105,7 @@ struct FrameworkComponentsCollector {
 
     private func generateFrameworkModuleMap() throws -> AbsolutePath? {
         let modulemapGenerator = FrameworkModuleMapGenerator(
-            descriptionPackage: descriptionPackage,
+            packageLocator: packageLocator,
             fileSystem: fileSystem
         )
 
@@ -113,13 +115,13 @@ struct FrameworkComponentsCollector {
         let frameworkModuleMapPath = try modulemapGenerator.generate(
             resolvedTarget: buildProduct.target,
             sdk: sdk,
-            buildConfiguration: buildOptions.buildConfiguration
+            keepPublicHeadersStructure: buildOptions.keepPublicHeadersStructure
         )
         return frameworkModuleMapPath
     }
 
     private func generatedFrameworkPath() -> AbsolutePath {
-        descriptionPackage.productsDirectory(
+        packageLocator.productsDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
             sdk: sdk
         )

@@ -139,10 +139,8 @@ private final class _Executor {
             case .cancelled:
                 log(level: .error, target: target, task: task.taskID, "cancelled")
             }
-        #if swift(>=5.10)
         case .unknown:
             break
-        #endif
         }
     }
 

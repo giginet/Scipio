@@ -8,10 +8,10 @@ struct FrameworkModuleMapGenerator {
     private struct Context {
         var resolvedTarget: ScipioResolvedModule
         var sdk: SDK
-        var configuration: BuildConfiguration
+        var keepPublicHeadersStructure: Bool
     }
 
-    private var descriptionPackage: DescriptionPackage
+    private var packageLocator: any PackageLocator
     private var fileSystem: any FileSystem
 
     enum Error: LocalizedError {
@@ -25,13 +25,21 @@ struct FrameworkModuleMapGenerator {
         }
     }
 
-    init(descriptionPackage: DescriptionPackage, fileSystem: any FileSystem) {
-        self.descriptionPackage = descriptionPackage
+    init(packageLocator: some PackageLocator, fileSystem: some FileSystem) {
+        self.packageLocator = packageLocator
         self.fileSystem = fileSystem
     }
 
-    func generate(resolvedTarget: ScipioResolvedModule, sdk: SDK, buildConfiguration: BuildConfiguration) throws -> AbsolutePath? {
-        let context = Context(resolvedTarget: resolvedTarget, sdk: sdk, configuration: buildConfiguration)
+    func generate(
+        resolvedTarget: ScipioResolvedModule,
+        sdk: SDK,
+        keepPublicHeadersStructure: Bool
+    ) throws -> AbsolutePath? {
+        let context = Context(
+            resolvedTarget: resolvedTarget,
+            sdk: sdk,
+            keepPublicHeadersStructure: keepPublicHeadersStructure
+        )
 
         if let clangTarget = resolvedTarget.underlying as? ScipioClangModule {
             switch clangTarget.moduleMapType {
@@ -66,7 +74,13 @@ struct FrameworkModuleMapGenerator {
                 .joined()
             case .umbrellaDirectory(let directoryPath):
                 let headers = try walkDirectoryContents(of: directoryPath.scipioAbsolutePath)
-                let declarations = headers.map { "    header \"\($0)\"" }
+                let declarations = headers.map { header in
+                    generateHeaderEntry(
+                        for: header,
+                        of: directoryPath.scipioAbsolutePath,
+                        keepPublicHeadersStructure: context.keepPublicHeadersStructure
+                    )
+                }
 
                 return ([
                     "framework module \(context.resolvedTarget.c99name) {",
@@ -92,14 +106,35 @@ struct FrameworkModuleMapGenerator {
         }
     }
 
-    private func walkDirectoryContents(of directoryPath: AbsolutePath) throws -> Set<String> {
+    private func walkDirectoryContents(of directoryPath: AbsolutePath) throws -> Set<AbsolutePath> {
         try fileSystem.getDirectoryContents(directoryPath).reduce(into: Set()) { headers, file in
             let path = directoryPath.appending(component: file)
             if fileSystem.isDirectory(path) {
                 headers.formUnion(try walkDirectoryContents(of: path))
             } else if file.hasSuffix(".h") {
-                headers.insert(file)
+                headers.insert(path)
             }
+        }
+    }
+
+    private func generateHeaderEntry(
+        for header: AbsolutePath,
+        of directoryPath: AbsolutePath,
+        keepPublicHeadersStructure: Bool
+    ) -> String {
+        if keepPublicHeadersStructure {
+            let subdirectoryComponents: [String] = if header.dirname.hasPrefix(directoryPath.pathString) {
+                header.dirname.dropFirst(directoryPath.pathString.count)
+                    .split(separator: "/")
+                    .map(String.init)
+            } else {
+                []
+            }
+
+            let path = (subdirectoryComponents + [header.basename]).joined(separator: "/")
+            return "    header \"\(path)\""
+        } else {
+            return "    header \"\(header.basename)\""
         }
     }
 
@@ -118,7 +153,7 @@ struct FrameworkModuleMapGenerator {
     }
 
     private func constructGeneratedModuleMapPath(context: Context) throws -> AbsolutePath {
-        let generatedModuleMapPath = try descriptionPackage.generatedModuleMapPath(of: context.resolvedTarget, sdk: context.sdk)
+        let generatedModuleMapPath = try packageLocator.generatedModuleMapPath(of: context.resolvedTarget, sdk: context.sdk)
         return generatedModuleMapPath
     }
 
