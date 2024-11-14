@@ -232,14 +232,13 @@ extension Runner {
             )
 
             /// The cache policy for saving to and restoring from the system cache directory `~/Library/Caches/Scipio`.
-            public static let localDisk: Self = _localDisk(baseURL: nil)
+            public static let localDisk: Self = Self(
+                storage: LocalDiskCacheStorage(baseURL: nil),
+                actors: [.producer, .consumer]
+            )
 
             /// The cache policy for saving to and restoring from the custom cache directory `baseURL.appendingPath("Scipio")`.
             public static func localDisk(baseURL: URL) -> Self {
-                _localDisk(baseURL: baseURL)
-            }
-
-            private static func _localDisk(baseURL: URL?) -> Self {
                 Self(
                     storage: LocalDiskCacheStorage(baseURL: baseURL),
                     actors: [.producer, .consumer]

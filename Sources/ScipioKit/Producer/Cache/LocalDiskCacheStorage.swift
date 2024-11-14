@@ -16,7 +16,7 @@ struct LocalDiskCacheStorage: CacheStorage {
 
     /// - Parameters:
     ///   - baseURL: The base url for the local disk cache. When it is nil, the system cache directory (`~/Library/Caches`) will be used.
-    init(baseURL: URL?, fileSystem: FileSystem = localFileSystem) {
+    init(baseURL: URL? = nil, fileSystem: FileSystem = localFileSystem) {
         self.baseURL = baseURL
         self.fileSystem = fileSystem
     }
