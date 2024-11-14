@@ -297,6 +297,7 @@ struct FrameworkProducer {
                 }
                 return false
             case .noCache:
+                logger.info("ℹ️ Cache not found for \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
                 return false
             }
         }
