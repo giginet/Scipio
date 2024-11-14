@@ -226,6 +226,7 @@ struct FrameworkProducer {
             )
 
             remainingTargets.subtract(restoredPerStorage)
+            // If all frameworks are successfully restored, we don't need to proceed to next cache storage.
             if remainingTargets.isEmpty {
                 break
             }
