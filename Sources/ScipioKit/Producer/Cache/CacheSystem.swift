@@ -245,10 +245,7 @@ struct CacheSystem: Sendable {
             buildOptions: buildOptions,
             clangVersion: clangVersion,
             xcodeVersion: xcodeVersion,
-            // Making the cache key compatible with 0.24.0 temporarily for easier debugging.
-            //
-            // TODO: revert this before merging
-            scipioVersion: "578ce98d236e79dad3e473cb11153e867be07174"
+            scipioVersion: currentScipioVersion
         )
     }
 
