@@ -219,7 +219,7 @@ extension Runner {
             public let storage: any CacheStorage
             public let actors: Set<CacheActorKind>
 
-            public init(storage: any CacheStorage, actors: Set<CacheActorKind>) {
+            public init(storage: some CacheStorage, actors: Set<CacheActorKind>) {
                 self.storage = storage
                 self.actors = actors
             }
