@@ -264,7 +264,6 @@ You can also use multiple cache policies, which accepts multiple cache storages 
 import ScipioS3Storage
 
 let s3Storage: some CacheStorage = ScipioS3Storage.S3Storage(config: ...)
-let localCacheStorage: some CacheStorage = LocalCacheStorage()
 let runner = Runner(
     mode: .prepareDependencies,
     options: .init(
@@ -274,11 +273,11 @@ let runner = Runner(
         ),
         cachePolicies: [
             .init(storage: s3Storage, actors: [.consumer]),
-            .init(storage: localCacheStorage, actors: [.producer, .consumer]),
+            .localDisk,
         ]
     )
 )
 ```
 
-In the sample above, if some frameworks' caches are not found on `s3Storage`, those are tried to be fetched from the next `localCacheStorage` then. The frameworks not found on `localCacheStorage` will be built and cached into it (since the storage is tied to `.producer` actor as well).
+In the sample above, if some frameworks' caches are not found on `s3Storage`, those are tried to be fetched from the next `.localDisk` cache policie's storage then. The frameworks not found on the storage of `.localDisk` cache policy will be built and cached into it (since the storage is tied to `.producer` actor).
  

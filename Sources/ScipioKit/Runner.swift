@@ -224,15 +224,26 @@ extension Runner {
                 self.actors = actors
             }
 
-            public static let project = Self(
+            /// The cache policy which treats built frameworks under the project's output directory (e.g. `XCFrameworks`)
+            /// as valid caches, but does not saving to / restoring from any external locations.
+            public static let project: Self = Self(
                 storage: ProjectCacheStorage(),
                 actors: [.producer]
             )
 
-            public static let localDisk = Self(
-                storage: LocalDiskCacheStorage(),
+            /// The cache policy for saving to and restoring from the system cache directory `~/Library/Caches/Scipio`.
+            public static let localDisk: Self = Self(
+                storage: LocalDiskCacheStorage(baseURL: nil),
                 actors: [.producer, .consumer]
             )
+
+            /// The cache policy for saving to and restoring from the custom cache directory `baseURL.appendingPath("Scipio")`.
+            public static func localDisk(baseURL: URL) -> Self {
+                Self(
+                    storage: LocalDiskCacheStorage(baseURL: baseURL),
+                    actors: [.producer, .consumer]
+                )
+            }
         }
 
         public enum PlatformSpecifier: Equatable {
