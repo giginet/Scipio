@@ -34,7 +34,7 @@ extension Scipio {
             let runnerCachePolicies: [Runner.Options.CachePolicy]
             switch cachePolicy {
             case .disabled:
-                runnerCachePolicies = []
+                runnerCachePolicies = .disabled
             case .project:
                 runnerCachePolicies = [.project]
             case .local:

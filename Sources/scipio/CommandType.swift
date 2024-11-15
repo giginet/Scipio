@@ -26,7 +26,7 @@ enum CommandType {
     var cachePolicies: [Runner.Options.CachePolicy] {
         switch self {
         case .create:
-            return []
+            return .disabled
         case .prepare(let cachePolicies):
             return cachePolicies
         }
@@ -61,7 +61,7 @@ extension Runner {
     private static func cachePolicies(from commandType: CommandType) -> [Runner.Options.CachePolicy] {
         switch commandType {
         case .create:
-            return []
+            return .disabled
         case .prepare(let cachePolicies):
             return cachePolicies
         }

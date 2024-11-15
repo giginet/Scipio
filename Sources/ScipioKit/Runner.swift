@@ -397,3 +397,7 @@ extension Runner.Options.BuildOptionsContainer {
         }
     }
 }
+
+extension [Runner.Options.CachePolicy] {
+    public static let disabled: Self = []
+}

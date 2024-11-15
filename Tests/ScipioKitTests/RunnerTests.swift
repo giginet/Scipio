@@ -612,7 +612,7 @@ final class RunnerTests: XCTestCase {
                     isSimulatorSupported: true
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cachePolicies: []
+                cachePolicies: .disabled
             )
         )
 
@@ -655,7 +655,7 @@ final class RunnerTests: XCTestCase {
                     frameworkType: .mergeable
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cachePolicies: []
+                cachePolicies: .disabled
             )
         )
 
