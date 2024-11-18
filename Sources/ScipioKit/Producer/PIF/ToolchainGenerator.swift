@@ -24,7 +24,7 @@ struct ToolchainGenerator {
         let destination: SwiftSDK = try await makeDestination(sdk: sdk)
         return try UserToolchain(
             swiftSDK: destination,
-            environment: environment?.asSwiftPMEnvironment ?? .current
+            environment: environment.asSwiftPMEnvironment
         )
     }
 

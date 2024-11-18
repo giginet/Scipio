@@ -77,9 +77,9 @@ struct DescriptionPackage: PackageLocator {
         self.toolchain = try UserToolchain(
             swiftSDK: try .hostSwiftSDK(
                 toolchainEnvironment?.toolchainBinPath,
-                environment: toolchainEnvironment?.asSwiftPMEnvironment ?? .current
+                environment: toolchainEnvironment.asSwiftPMEnvironment
             ),
-            environment: toolchainEnvironment?.asSwiftPMEnvironment ?? .current
+            environment: toolchainEnvironment.asSwiftPMEnvironment
         )
 
         let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
