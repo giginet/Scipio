@@ -8,7 +8,7 @@ env:
   DEVELOPER_DIR: "/Applications/Xcode_16.0.app/Contents/Developer"
 jobs:
   DocC:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - name: Build DocC
