@@ -47,8 +47,8 @@ struct ToolchainGenerator {
         let macosSDKPlatformPaths = try await resolveSDKPlatformFrameworkPaths()
         extraCCFlags += ["-F", macosSDKPlatformPaths.frameworkPath.pathString]
         extraSwiftCFlags += ["-F", macosSDKPlatformPaths.frameworkPath.pathString]
-        extraSwiftCFlags += ["-I", macosSDKPlatformPaths.frameworkPath.pathString]
-        extraSwiftCFlags += ["-L", macosSDKPlatformPaths.frameworkPath.pathString]
+        extraSwiftCFlags += ["-I", macosSDKPlatformPaths.libPath.pathString]
+        extraSwiftCFlags += ["-L", macosSDKPlatformPaths.libPath.pathString]
 
         let buildFlags = BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
         return SwiftSDK(
