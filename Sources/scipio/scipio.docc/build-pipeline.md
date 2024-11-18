@@ -153,7 +153,7 @@ let runner = Runner(
         ],
         enableLibraryEvolution: false
         ),
-    cacheMode: .project,
+    cachePolicies: [.project],
     overwrite: true,
     verbose: true
 )
@@ -230,7 +230,9 @@ let runner = Runner(
             buildConfiguration: .release,
             isSimulatorSupported: true
         ),
-        cacheMode: .storage(s3Storage, [.consumer])
+        cachePolicies: [
+            .init(storage: s3Storage, actors: [.consumer]),
+        ]
     )
 )
 ```
@@ -246,10 +248,36 @@ You can also implement your custom cache storage by implementing `CacheStorage` 
 
 There are two cache actors `consumer` and `producer`.
 
-You can specify it by a second argument of `.storage` cache mode.
+You can specify it by `Runner.Options.CachePolicy.actors`.
 
 `consumer` is an actor who can fetch cache from the cache storage.
 
 `producer` is an actor who attempt to save cache to the cache storage.
 
 When build artifacts are built, then it try to save them.
+
+### Use multiple cache policies at the same time
+
+You can also use multiple cache policies, which accepts multiple cache storages with different sets of cache actors:
+
+```swift
+import ScipioS3Storage
+
+let s3Storage: some CacheStorage = ScipioS3Storage.S3Storage(config: ...)
+let runner = Runner(
+    mode: .prepareDependencies,
+    options: .init(
+        baseBuildOptions: .init(
+            buildConfiguration: .release,
+            isSimulatorSupported: true
+        ),
+        cachePolicies: [
+            .init(storage: s3Storage, actors: [.consumer]),
+            .localDisk,
+        ]
+    )
+)
+```
+
+In the sample above, if some frameworks' caches are not found on `s3Storage`, those are tried to be fetched from the next `.localDisk` cache policie's storage then. The frameworks not found on the storage of `.localDisk` cache policy will be built and cached into it (since the storage is tied to `.producer` actor).
+ 

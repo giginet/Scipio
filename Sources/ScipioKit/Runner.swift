@@ -98,7 +98,7 @@ public struct Runner {
             descriptionPackage: descriptionPackage,
             buildOptions: buildOptions,
             buildOptionsMatrix: buildOptionsMatrix,
-            cacheMode: options.cacheMode,
+            cachePolicies: options.cachePolicies,
             overwrite: options.overwrite,
             outputDir: outputDir,
             toolchainEnvironment: options.toolchainEnvironment
@@ -210,7 +210,7 @@ extension Runner {
             public var buildOptionsMatrix: [String: TargetBuildOptions]
         }
 
-        public enum CacheMode: Sendable {
+        public struct CachePolicy: Sendable {
             public enum CacheActorKind: Sendable {
                 // Save built product to cacheStorage
                 case producer
@@ -218,9 +218,32 @@ extension Runner {
                 case consumer
             }
 
-            case disabled
-            case project
-            case storage(any CacheStorage, Set<CacheActorKind>)
+            public let storage: any CacheStorage
+            public let actors: Set<CacheActorKind>
+
+            public init(storage: some CacheStorage, actors: Set<CacheActorKind>) {
+                self.storage = storage
+                self.actors = actors
+            }
+
+            private init(_ storage: LocalDiskCacheStorage) {
+                self.init(storage: storage, actors: [.producer, .consumer])
+            }
+
+            /// The cache policy which treats built frameworks under the project's output directory (e.g. `XCFrameworks`)
+            /// as valid caches, but does not saving to / restoring from any external locations.
+            public static let project: Self = Self(
+                storage: ProjectCacheStorage(),
+                actors: [.producer]
+            )
+
+            /// The cache policy for saving to and restoring from the system cache directory `~/Library/Caches/Scipio`.
+            public static let localDisk: Self = Self(LocalDiskCacheStorage(baseURL: nil))
+
+            /// The cache policy for saving to and restoring from the custom cache directory `baseURL.appendingPath("Scipio")`.
+            public static func localDisk(baseURL: URL) -> Self {
+                Self(LocalDiskCacheStorage(baseURL: baseURL))
+            }
         }
 
         public enum PlatformSpecifier: Equatable {
@@ -239,7 +262,7 @@ extension Runner {
 
         public var buildOptionsContainer: BuildOptionsContainer
         public var shouldOnlyUseVersionsFromResolvedFile: Bool
-        public var cacheMode: CacheMode
+        public var cachePolicies: [CachePolicy]
         public var overwrite: Bool
         public var verbose: Bool
         public var toolchainEnvironment: ToolchainEnvironment?
@@ -248,7 +271,7 @@ extension Runner {
             baseBuildOptions: BuildOptions = .init(),
             buildOptionsMatrix: [String: TargetBuildOptions] = [:],
             shouldOnlyUseVersionsFromResolvedFile: Bool = false,
-            cacheMode: CacheMode = .project,
+            cachePolicies: [CachePolicy] = [.project],
             overwrite: Bool = false,
             verbose: Bool = false,
             toolchainEnvironment: ToolchainEnvironment? = nil
@@ -258,7 +281,7 @@ extension Runner {
                 buildOptionsMatrix: buildOptionsMatrix
             )
             self.shouldOnlyUseVersionsFromResolvedFile = shouldOnlyUseVersionsFromResolvedFile
-            self.cacheMode = cacheMode
+            self.cachePolicies = cachePolicies
             self.overwrite = overwrite
             self.verbose = verbose
             self.toolchainEnvironment = toolchainEnvironment
@@ -375,4 +398,8 @@ extension Runner.Options.BuildOptionsContainer {
                 .makeBuildOptions(descriptionPackage: descriptionPackage)
         }
     }
+}
+
+extension [Runner.Options.CachePolicy] {
+    public static let disabled: Self = []
 }

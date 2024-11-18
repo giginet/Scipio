@@ -31,18 +31,18 @@ extension Scipio {
             let logLevel: Logger.Level = globalOptions.verbose ? .trace : .info
             LoggingSystem.bootstrap(logLevel: logLevel)
 
-            let runnerCacheMode: Runner.Options.CacheMode
+            let runnerCachePolicies: [Runner.Options.CachePolicy]
             switch cachePolicy {
             case .disabled:
-                runnerCacheMode = .disabled
+                runnerCachePolicies = .disabled
             case .project:
-                runnerCacheMode = .project
+                runnerCachePolicies = [.project]
             case .local:
-                runnerCacheMode = .storage(LocalCacheStorage(), [.consumer, .producer])
+                runnerCachePolicies = [.localDisk]
             }
 
             let runner = Runner(
-                commandType: .prepare(cacheMode: runnerCacheMode),
+                commandType: .prepare(cachePolicies: runnerCachePolicies),
                 buildOptions: buildOptions,
                 globalOptions: globalOptions
             )

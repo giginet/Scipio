@@ -10,31 +10,15 @@ struct FrameworkProducer {
     private let descriptionPackage: DescriptionPackage
     private let baseBuildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
-    private let cacheMode: Runner.Options.CacheMode
+    private let cachePolicies: [Runner.Options.CachePolicy]
     private let overwrite: Bool
     private let outputDir: URL
     private let fileSystem: any FileSystem
     private let toolchainEnvironment: ToolchainEnvironment?
 
-    private var cacheStorage: (any CacheStorage)? {
-        switch cacheMode {
-        case .disabled, .project: return nil
-        case .storage(let storage, _): return storage
-        }
-    }
-
-    private var isProducingCacheEnabled: Bool {
-        switch cacheMode {
-        case .disabled: return false
-        case .project: return true
-        case .storage(_, let actors):
-            return actors.contains(.producer)
-        }
-    }
-
     private var shouldGenerateVersionFile: Bool {
-        // cacheMode is not disabled
-        if case .disabled = cacheMode {
+        // cache is not disabled
+        guard !cachePolicies.isEmpty else {
             return false
         }
 
@@ -49,7 +33,7 @@ struct FrameworkProducer {
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
-        cacheMode: Runner.Options.CacheMode,
+        cachePolicies: [Runner.Options.CachePolicy],
         overwrite: Bool,
         outputDir: URL,
         toolchainEnvironment: ToolchainEnvironment? = nil,
@@ -58,7 +42,7 @@ struct FrameworkProducer {
         self.descriptionPackage = descriptionPackage
         self.baseBuildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
-        self.cacheMode = cacheMode
+        self.cachePolicies = cachePolicies
         self.overwrite = overwrite
         self.outputDir = outputDir
         self.toolchainEnvironment = toolchainEnvironment
@@ -108,12 +92,14 @@ struct FrameworkProducer {
         let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         let cacheSystem = CacheSystem(
             pinsStore: pinsStore,
-            outputDirectory: outputDir,
-            storage: cacheStorage
+            outputDirectory: outputDir
         )
 
         let targetsToBuild: OrderedSet<CacheSystem.CacheTarget>
-        if cacheMode.isConsumingCacheEnabled {
+        if cachePolicies.isEmpty {
+            // no-op because cache is disabled
+            targetsToBuild = allTargets
+        } else {
             let targets = Set(allTargets)
 
             // Validate the existing frameworks in `outputDir` before restoration
@@ -122,16 +108,20 @@ struct FrameworkProducer {
                 cacheSystem: cacheSystem
             )
 
-            let restored = await restoreAllAvailableCaches(
-                availableTargets: targets.subtracting(valid),
-                cacheSystem: cacheSystem
-            )
-
-            targetsToBuild = allTargets
-                .subtracting(valid)
-                .subtracting(restored)
-        } else {
-            targetsToBuild = allTargets
+            let storagesWithConsumer = cachePolicies.storages(for: .consumer)
+            if storagesWithConsumer.isEmpty {
+                // no-op
+                targetsToBuild = allTargets.subtracting(valid)
+            } else {
+                let restored = await restoreAllAvailableCachesIfNeeded(
+                    availableTargets: targets.subtracting(valid),
+                    to: storagesWithConsumer,
+                    cacheSystem: cacheSystem
+                )
+                targetsToBuild = allTargets
+                    .subtracting(valid)
+                    .subtracting(restored)
+            }
         }
 
         for target in targetsToBuild {
@@ -142,9 +132,7 @@ struct FrameworkProducer {
             )
         }
 
-        if isProducingCacheEnabled {
-            await cacheSystem.cacheFrameworks(Set(targetsToBuild))
-        }
+        await cacheFrameworksIfNeeded(Set(targetsToBuild), cacheSystem: cacheSystem)
 
         if shouldGenerateVersionFile {
             // Versionfiles should be generate for all targets
@@ -167,13 +155,20 @@ struct FrameworkProducer {
                     group.addTask { [outputDir, fileSystem] in
                         do {
                             let product = target.buildProduct
-                            let outputPath = outputDir.appendingPathComponent(product.frameworkName)
+                            let frameworkName = product.frameworkName
+                            let outputPath = outputDir.appendingPathComponent(frameworkName)
                             let exists = fileSystem.exists(outputPath.absolutePath)
                             guard exists else { return nil }
 
                             let expectedCacheKey = try await cacheSystem.calculateCacheKey(of: target)
                             let isValidCache = await cacheSystem.existsValidCache(cacheKey: expectedCacheKey)
-                            guard isValidCache else { return nil }
+                            guard isValidCache else {
+                                logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
+                                logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
+                                try fileSystem.removeFileTree(outputPath.absolutePath)
+
+                                return nil
+                            }
 
                             let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
                             logger.info(
@@ -194,11 +189,59 @@ struct FrameworkProducer {
         return validFrameworks
     }
 
-    private func restoreAllAvailableCaches(
+    private func restoreAllAvailableCachesIfNeeded(
         availableTargets: Set<CacheSystem.CacheTarget>,
+        to storages: [any CacheStorage],
         cacheSystem: CacheSystem
     ) async -> Set<CacheSystem.CacheTarget> {
-        let chunked = availableTargets.chunks(ofCount: cacheStorage?.parallelNumber ?? CacheSystem.defaultParalellNumber)
+        var remainingTargets = availableTargets
+        var restored: Set<CacheSystem.CacheTarget> = []
+
+        for index in storages.indices {
+            let storage = storages[index]
+
+            let logSuffix = "[\(index)] \(storage.displayName)"
+            if index == storages.startIndex {
+                logger.info(
+                    "▶️ Starting restoration with cache storage: \(logSuffix)",
+                    metadata: .color(.green)
+                )
+            } else {
+                logger.info(
+                    "⏭️ Falling back to next cache storage: \(logSuffix)",
+                    metadata: .color(.green)
+                )
+            }
+
+            let restoredPerStorage = await restoreCaches(
+                for: remainingTargets,
+                from: storage,
+                cacheSystem: cacheSystem
+            )
+            restored.formUnion(restoredPerStorage)
+
+            logger.info(
+                "⏸️ Restoration finished with cache storage: \(logSuffix)",
+                metadata: .color(.green)
+            )
+
+            remainingTargets.subtract(restoredPerStorage)
+            // If all frameworks are successfully restored, we don't need to proceed to next cache storage.
+            if remainingTargets.isEmpty {
+                break
+            }
+        }
+
+        logger.info("⏹️ Restoration finished", metadata: .color(.green))
+        return restored
+    }
+
+    private func restoreCaches(
+        for targets: Set<CacheSystem.CacheTarget>,
+        from cacheStorage: any CacheStorage,
+        cacheSystem: CacheSystem
+    ) async -> Set<CacheSystem.CacheTarget> {
+        let chunked = targets.chunks(ofCount: cacheStorage.parallelNumber ?? CacheSystem.defaultParalellNumber)
 
         var restored: Set<CacheSystem.CacheTarget> = []
         for chunk in chunked {
@@ -209,7 +252,8 @@ struct FrameworkProducer {
                         do {
                             let restored = try await restorer.restore(
                                 target: target,
-                                cacheSystem: cacheSystem
+                                cacheSystem: cacheSystem,
+                                cacheStorage: cacheStorage
                             )
                             return restored ? target : nil
                         } catch {
@@ -233,23 +277,16 @@ struct FrameworkProducer {
         // Return true if pre-built artifact is available (already existing or restored from cache)
         func restore(
             target: CacheSystem.CacheTarget,
-            cacheSystem: CacheSystem
+            cacheSystem: CacheSystem,
+            cacheStorage: any CacheStorage
         ) async throws -> Bool {
             let product = target.buildProduct
             let frameworkName = product.frameworkName
-            let outputPath = outputDir.appendingPathComponent(frameworkName)
-            let exists = fileSystem.exists(outputPath.absolutePath)
 
             let expectedCacheKey = try await cacheSystem.calculateCacheKey(of: target)
             let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
 
-            if exists {
-                logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
-                logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-                try fileSystem.removeFileTree(outputPath.absolutePath)
-            }
-
-            let restoreResult = await cacheSystem.restoreCacheIfPossible(target: target)
+            let restoreResult = await cacheSystem.restoreCacheIfPossible(target: target, storage: cacheStorage)
             switch restoreResult {
             case .succeeded:
                 logger.info("✅ Restore \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
@@ -261,6 +298,7 @@ struct FrameworkProducer {
                 }
                 return false
             case .noCache:
+                logger.info("ℹ️ Cache not found for \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
                 return false
             }
         }
@@ -304,6 +342,13 @@ struct FrameworkProducer {
         return []
     }
 
+    private func cacheFrameworksIfNeeded(_ targets: Set<CacheSystem.CacheTarget>, cacheSystem: CacheSystem) async {
+        let storagesWithProducer = cachePolicies.storages(for: .producer)
+        if !storagesWithProducer.isEmpty {
+            await cacheSystem.cacheFrameworks(targets, to: storagesWithProducer)
+        }
+    }
+
     private func generateVersionFile(for target: CacheSystem.CacheTarget, using cacheSystem: CacheSystem) async {
         do {
             try await cacheSystem.generateVersionFile(for: target)
@@ -313,13 +358,12 @@ struct FrameworkProducer {
     }
 }
 
-extension Runner.Options.CacheMode {
-    fileprivate var isConsumingCacheEnabled: Bool {
-        switch self {
-        case .disabled: return false
-        case .project: return true
-        case .storage(_, let actors):
-            return actors.contains(.consumer)
+extension [Runner.Options.CachePolicy] {
+    fileprivate func storages(for actor: Runner.Options.CachePolicy.CacheActorKind) -> [any CacheStorage] {
+        reduce(into: []) { result, cachePolicy in
+            if cachePolicy.actors.contains(actor) {
+                result.append(cachePolicy.storage)
+            }
         }
     }
 }

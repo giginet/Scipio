@@ -277,8 +277,7 @@ final class RunnerTests: XCTestCase {
         let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         let cacheSystem = CacheSystem(
             pinsStore: pinsStore,
-            outputDirectory: frameworkOutputDir,
-            storage: nil
+            outputDirectory: frameworkOutputDir
         )
         let packages = descriptionPackage.graph.packages
             .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
@@ -307,7 +306,7 @@ final class RunnerTests: XCTestCase {
             options: .init(
                 baseBuildOptions: .init(enableLibraryEvolution: true),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .project
+                cachePolicies: [.project]
             )
         )
         do {
@@ -329,15 +328,17 @@ final class RunnerTests: XCTestCase {
         }
     }
 
-    func testLocalStorage() async throws {
-        let storage = LocalCacheStorage(cacheDirectory: .custom(tempDir))
+    func testLocalDiskCacheStorage() async throws {
+        let storage = LocalDiskCacheStorage(baseURL: tempDir)
         let storageDir = tempDir.appendingPathComponent("Scipio")
 
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .storage(storage, [.consumer, .producer])
+                cachePolicies: [
+                    .init(storage: storage, actors: [.consumer, .producer]),
+                ]
             )
         )
         do {
@@ -347,10 +348,12 @@ final class RunnerTests: XCTestCase {
             XCTFail("Build should be succeeded. \(error.localizedDescription)")
         }
 
-        XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appendingPathComponent("ScipioTesting").path))
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: storageDir.appendingPathComponent("ScipioTesting").path),
+            "The framework should be cached to the cache storage"
+        )
 
         let outputFrameworkPath = frameworkOutputDir.appendingPathComponent("ScipioTesting.xcframework")
-
         try self.fileManager.removeItem(atPath: outputFrameworkPath.path)
 
         // Fetch from local storage
@@ -361,9 +364,69 @@ final class RunnerTests: XCTestCase {
             XCTFail("Build should be succeeded.")
         }
 
-        XCTAssertTrue(fileManager.fileExists(atPath: storageDir.appendingPathComponent("ScipioTesting").path))
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: outputFrameworkPath.path),
+            "The framework should be restored from the cache storage"
+        )
 
         try fileManager.removeItem(at: storageDir)
+    }
+
+    func testMultipleCachePolicies() async throws {
+        let storage1CacheDir = tempDir.appending(path: "storage1", directoryHint: .isDirectory)
+        let storage1 = LocalDiskCacheStorage(baseURL: storage1CacheDir)
+        let storage1Dir = storage1CacheDir.appendingPathComponent("Scipio")
+
+        let storage2CacheDir = tempDir.appending(path: "storage2", directoryHint: .isDirectory)
+        let storage2 = LocalDiskCacheStorage(baseURL: storage2CacheDir)
+        let storage2Dir = storage2CacheDir.appendingPathComponent("Scipio")
+
+        let runner = Runner(
+            mode: .prepareDependencies,
+            options: .init(
+                shouldOnlyUseVersionsFromResolvedFile: true,
+                cachePolicies: [
+                    .init(storage: storage1, actors: [.consumer, .producer]),
+                    .init(storage: storage2, actors: [.consumer, .producer]),
+                ]
+            )
+        )
+        do {
+            try await runner.run(packageDirectory: testPackagePath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+        }
+
+        // The cache are stored into 2 storages
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: storage1Dir.appendingPathComponent("ScipioTesting").path),
+            "The framework should be cached to the 1st cache storage"
+        )
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: storage2Dir.appendingPathComponent("ScipioTesting").path),
+            "The framework should be cached to the 2nd cache storage as well"
+        )
+
+        let outputFrameworkPath = frameworkOutputDir.appendingPathComponent("ScipioTesting.xcframework")
+        try self.fileManager.removeItem(atPath: outputFrameworkPath.path)
+
+        // Remove the storage1's cache so storage2's cache should be used instead
+        do {
+            try fileManager.removeItem(at: storage1Dir.appendingPathComponent("ScipioTesting"))
+            try await runner.run(packageDirectory: testPackagePath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded.")
+        }
+
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: outputFrameworkPath.path),
+            "The framework should be restored from the 2nd cache storage"
+        )
+
+        try fileManager.removeItem(at: storage1CacheDir)
+        try fileManager.removeItem(at: storage2CacheDir)
     }
 
     func testExtractBinary() async throws {
@@ -377,7 +440,7 @@ final class RunnerTests: XCTestCase {
                     frameworkType: .dynamic
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .project,
+                cachePolicies: [.project],
                 overwrite: false,
                 verbose: false)
         )
@@ -404,7 +467,7 @@ final class RunnerTests: XCTestCase {
                     frameworkType: .dynamic
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .project,
+                cachePolicies: [.project],
                 overwrite: false,
                 verbose: false)
         )
@@ -436,8 +499,7 @@ final class RunnerTests: XCTestCase {
         let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         let cacheSystem = CacheSystem(
             pinsStore: pinsStore,
-            outputDirectory: frameworkOutputDir,
-            storage: nil
+            outputDirectory: frameworkOutputDir
         )
         let packages = descriptionPackage.graph.packages
             .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
@@ -476,7 +538,7 @@ final class RunnerTests: XCTestCase {
                     enableLibraryEvolution: true
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .project,
+                cachePolicies: [.project],
                 overwrite: false,
                 verbose: false)
         )
@@ -512,7 +574,7 @@ final class RunnerTests: XCTestCase {
                     ),
                 ],
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .project,
+                cachePolicies: [.project],
                 overwrite: false,
                 verbose: false)
         )
@@ -550,7 +612,7 @@ final class RunnerTests: XCTestCase {
                     isSimulatorSupported: true
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .disabled
+                cachePolicies: .disabled
             )
         )
 
@@ -593,7 +655,7 @@ final class RunnerTests: XCTestCase {
                     frameworkType: .mergeable
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .disabled
+                cachePolicies: .disabled
             )
         )
 

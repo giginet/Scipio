@@ -108,7 +108,7 @@ final class IntegrationTests: XCTestCase {
                 ),
                 buildOptionsMatrix: buildOptionsMatrix,
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cacheMode: .disabled,
+                cachePolicies: .disabled,
                 overwrite: true,
                 verbose: false
             )

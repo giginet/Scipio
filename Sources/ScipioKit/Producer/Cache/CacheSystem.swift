@@ -108,7 +108,6 @@ struct CacheSystem: Sendable {
     static let defaultParalellNumber = 8
     private let pinsStore: PinsStore
     private let outputDirectory: URL
-    private let storage: (any CacheStorage)?
     private let fileSystem: any FileSystem
 
     struct CacheTarget: Hashable, Sendable {
@@ -139,18 +138,23 @@ struct CacheSystem: Sendable {
     init(
         pinsStore: PinsStore,
         outputDirectory: URL,
-        storage: (any CacheStorage)?,
         fileSystem: any FileSystem = localFileSystem
     ) {
         self.pinsStore = pinsStore
         self.outputDirectory = outputDirectory
-        self.storage = storage
         self.fileSystem = fileSystem
     }
 
-    func cacheFrameworks(_ targets: Set<CacheTarget>) async {
-        let chunked = targets.chunks(ofCount: storage?.parallelNumber ?? CacheSystem.defaultParalellNumber)
+    func cacheFrameworks(_ targets: Set<CacheTarget>, to storages: [any CacheStorage]) async {
+        for storage in storages {
+            await cacheFrameworks(targets, to: storage)
+        }
+    }
 
+    private func cacheFrameworks(_ targets: Set<CacheTarget>, to storage: some CacheStorage) async {
+        let chunked = targets.chunks(ofCount: storage.parallelNumber ?? CacheSystem.defaultParalellNumber)
+
+        let storageName = storage.displayName
         for chunk in chunked {
             await withTaskGroup(of: Void.self) { group in
                 for target in chunk {
@@ -159,10 +163,10 @@ struct CacheSystem: Sendable {
                         let frameworkPath = outputDirectory.appendingPathComponent(frameworkName)
                         do {
                             logger.info(
-                                "🚀 Cache \(frameworkName) to cache storage",
+                                "🚀 Cache \(frameworkName) to cache storage: \(storageName)",
                                 metadata: .color(.green)
                             )
-                            try await cacheFramework(target, at: frameworkPath)
+                            try await cacheFramework(target, at: frameworkPath, to: storage)
                         } catch {
                             logger.warning("⚠️ Can't create caches for \(frameworkPath.path)")
                         }
@@ -173,10 +177,10 @@ struct CacheSystem: Sendable {
         }
     }
 
-    private func cacheFramework(_ target: CacheTarget, at frameworkPath: URL) async throws {
+    private func cacheFramework(_ target: CacheTarget, at frameworkPath: URL, to storage: any CacheStorage) async throws {
         let cacheKey = try await calculateCacheKey(of: target)
 
-        try await storage?.cacheFramework(frameworkPath, for: cacheKey)
+        try await storage.cacheFramework(frameworkPath, for: cacheKey)
     }
 
     func generateVersionFile(for target: CacheTarget) async throws {
@@ -210,8 +214,8 @@ struct CacheSystem: Sendable {
         case failed(LocalizedError?)
         case noCache
     }
-    func restoreCacheIfPossible(target: CacheTarget) async -> RestoreResult {
-        guard let storage = storage else { return .noCache }
+
+    func restoreCacheIfPossible(target: CacheTarget, storage: some CacheStorage) async -> RestoreResult {
         do {
             let cacheKey = try await calculateCacheKey(of: target)
             if try await storage.existsValidCache(for: cacheKey) {
@@ -223,12 +227,6 @@ struct CacheSystem: Sendable {
         } catch {
             return .failed(error as? LocalizedError)
         }
-    }
-
-    private func fetchArtifacts(target: CacheTarget, to destination: URL) async throws {
-        guard let storage = storage else { return }
-        let cacheKey = try await calculateCacheKey(of: target)
-        try await storage.fetchArtifacts(for: cacheKey, to: destination)
     }
 
     func calculateCacheKey(of target: CacheTarget) async throws -> SwiftPMCacheKey {
