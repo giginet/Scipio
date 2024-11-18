@@ -24,7 +24,7 @@ struct ToolchainGenerator {
         let destination: SwiftSDK = try await makeDestination(sdk: sdk)
         return try UserToolchain(
             swiftSDK: destination,
-            environment: environment.map(Environment.init) ?? .current
+            environment: environment?.asSwiftPMEnvironment ?? .current
         )
     }
 
@@ -44,11 +44,11 @@ struct ToolchainGenerator {
         // Compute common arguments for clang and swift.
         var extraCCFlags: [String] = []
         var extraSwiftCFlags: [String] = []
-        let sdkPaths = try SwiftSDK.sdkPlatformFrameworkPaths(environment: [:])
-        extraCCFlags += ["-F", sdkPaths.fwk.pathString]
-        extraSwiftCFlags += ["-F", sdkPaths.fwk.pathString]
-        extraSwiftCFlags += ["-I", sdkPaths.lib.pathString]
-        extraSwiftCFlags += ["-L", sdkPaths.lib.pathString]
+        let macosSDKPlatformPaths = try await resolveSDKPlatformFrameworkPaths()
+        extraCCFlags += ["-F", macosSDKPlatformPaths.frameworkPath.pathString]
+        extraSwiftCFlags += ["-F", macosSDKPlatformPaths.frameworkPath.pathString]
+        extraSwiftCFlags += ["-I", macosSDKPlatformPaths.libPath.pathString]
+        extraSwiftCFlags += ["-L", macosSDKPlatformPaths.libPath.pathString]
 
         let buildFlags = BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
         return SwiftSDK(
@@ -59,4 +59,39 @@ struct ToolchainGenerator {
             xctestSupport: .supported
         )
     }
+}
+
+extension ToolchainGenerator {
+
+    /// A non-caching environment-aware implementation of `SwiftSDK.sdkPlatformFrameworkPaths`
+    /// This implementation is based on the original SwiftPM
+    /// https://github.com/swiftlang/swift-package-manager/blob/release/6.0/Sources/PackageModel/SwiftSDKs/SwiftSDK.swift#L592-L595
+    /// Returns `macosx` sdk platform framework path.
+    fileprivate func resolveSDKPlatformFrameworkPaths() async throws -> (frameworkPath: AbsolutePath, libPath: AbsolutePath) {
+        let platformPath = try await executor.execute(
+            "/usr/bin/xcrun",
+            "--sdk",
+            "macosx",
+            "--show-sdk-platform-path"
+        )
+        .unwrapOutput()
+        .spm_chomp()
+
+        guard !platformPath.isEmpty else {
+            throw StringError("could not determine SDK platform path")
+        }
+
+        // For XCTest framework.
+        let frameworkPath = try AbsolutePath(validating: platformPath).appending(
+            components: "Developer", "Library", "Frameworks"
+        )
+
+        // For XCTest Swift library.
+        let libPath = try AbsolutePath(validating: platformPath).appending(
+            components: "Developer", "usr", "lib"
+        )
+
+        return (frameworkPath, libPath)
+    }
+
 }

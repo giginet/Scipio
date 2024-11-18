@@ -74,7 +74,8 @@ public struct Runner {
             descriptionPackage = try DescriptionPackage(
                 packageDirectory: packagePath,
                 mode: mode,
-                onlyUseVersionsFromResolvedFile: false
+                onlyUseVersionsFromResolvedFile: false,
+                toolchainEnvironment: options.toolchainEnvironment
             )
         } catch {
             throw Error.invalidPackage(packageDirectory)
@@ -99,7 +100,8 @@ public struct Runner {
             buildOptionsMatrix: buildOptionsMatrix,
             cacheMode: options.cacheMode,
             overwrite: options.overwrite,
-            outputDir: outputDir
+            outputDir: outputDir,
+            toolchainEnvironment: options.toolchainEnvironment
         )
         do {
             try await producer.produce()
@@ -240,7 +242,7 @@ extension Runner {
         public var cacheMode: CacheMode
         public var overwrite: Bool
         public var verbose: Bool
-        public var toolchainEnvironment: [String: String]?
+        public var toolchainEnvironment: ToolchainEnvironment?
 
         public init(
             baseBuildOptions: BuildOptions = .init(),
@@ -249,7 +251,7 @@ extension Runner {
             cacheMode: CacheMode = .project,
             overwrite: Bool = false,
             verbose: Bool = false,
-            toolchainEnvironment: [String: String]? = nil
+            toolchainEnvironment: ToolchainEnvironment? = nil
         ) {
             self.buildOptionsContainer = BuildOptionsContainer(
                 baseBuildOptions: baseBuildOptions,
