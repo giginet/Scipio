@@ -61,11 +61,13 @@ struct ToolchainGenerator {
     }
 }
 
-fileprivate extension ToolchainGenerator {
+extension ToolchainGenerator {
 
     /// A non-caching environment-aware implementation of `SwiftSDK.sdkPlatformFrameworkPaths`
+    /// This implementation is based on the original SwiftPM
+    /// https://github.com/swiftlang/swift-package-manager/blob/release/6.0/Sources/PackageModel/SwiftSDKs/SwiftSDK.swift#L592-L595
     /// Returns `macosx` sdk platform framework path.
-    func resolveSDKPlatformFrameworkPaths() async throws -> (frameworkPath: AbsolutePath, libPath: AbsolutePath) {
+    fileprivate func resolveSDKPlatformFrameworkPaths() async throws -> (frameworkPath: AbsolutePath, libPath: AbsolutePath) {
         let platformPath = try await executor.execute(
             "/usr/bin/xcrun",
             "--sdk",
