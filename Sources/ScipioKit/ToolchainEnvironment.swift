@@ -14,6 +14,6 @@ extension ToolchainEnvironment {
     }
 }
 
-extension ToolchainEnvironment? {
-    var asSwiftPMEnvironment: Environment { map(Environment.init) ?? Environment.current }
+extension ToolchainEnvironment {
+    var asSwiftPMEnvironment: Environment { Environment(self) }
 }
