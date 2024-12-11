@@ -22,7 +22,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: Run Tests
       run: |
-        swift test --verbose
+        swift test
       env:
         ENABLE_INTEGRATION_TESTS: 1
         IS_CI: 1
