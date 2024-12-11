@@ -81,7 +81,7 @@ final class CacheSystemTests: XCTestCase {
     func testCacheKeyCalculationForRootPackageTarget() async throws {
         let fileSystem = localFileSystem
         let testingPackagePath = fixturePath.appendingPathComponent("TestingPackage")
-        let tempTestingPackagePath = testingPackagePath.absolutePath.parentDirectory.appending(component: "temp_TestingPackage")
+        let tempTestingPackagePath = try fileSystem.tempDirectory.appending(component: "temp_TestingPackage").scipioAbsolutePath
 
         try fileSystem.removeFileTree(tempTestingPackagePath)
         try fileSystem.copy(from: testingPackagePath.absolutePath, to: tempTestingPackagePath)
