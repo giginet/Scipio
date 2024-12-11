@@ -9,7 +9,7 @@ import Basics
 
 struct DescriptionPackage: PackageLocator {
     let mode: Runner.Mode
-    let packageDirectory: ScipioAbsolutePath
+    let packageDirectory: TSCAbsolutePath
     private let toolchain: UserToolchain
     let workspace: Workspace
     let graph: ModulesGraph
@@ -41,7 +41,7 @@ struct DescriptionPackage: PackageLocator {
 
     // MARK: Initializer
 
-    private static func makeWorkspace(toolchain: UserToolchain, packagePath: ScipioAbsolutePath) throws -> Workspace {
+    private static func makeWorkspace(toolchain: UserToolchain, packagePath: TSCAbsolutePath) throws -> Workspace {
         var workspaceConfiguration: WorkspaceConfiguration = .default
         // override default configuration to treat XIB files
         workspaceConfiguration.additionalFileRules = FileRuleDescription.xcbuildFileTypes
@@ -67,7 +67,7 @@ struct DescriptionPackage: PackageLocator {
     ///   If it is `true`, Package.resolved never be updated.
     ///   Instead, the resolving will fail if the Package.resolved is mis-matched with the workspace.
     init(
-        packageDirectory: ScipioAbsolutePath,
+        packageDirectory: TSCAbsolutePath,
         mode: Runner.Mode,
         onlyUseVersionsFromResolvedFile: Bool,
         toolchainEnvironment: ToolchainEnvironment? = nil

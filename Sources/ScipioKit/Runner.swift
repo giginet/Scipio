@@ -1,6 +1,6 @@
 import Foundation
 import ScipioStorage
-import struct TSCBasic.AbsolutePath
+import Basics
 import protocol TSCBasic.FileSystem
 import var TSCBasic.localFileSystem
 
@@ -40,14 +40,14 @@ public struct Runner {
         self.fileSystem = fileSystem
     }
 
-    private func resolveURL(_ fileURL: URL) throws -> ScipioAbsolutePath {
+    private func resolveURL(_ fileURL: URL) throws -> TSCAbsolutePath {
         if fileURL.path.hasPrefix("/") {
-            return try AbsolutePath(validating: fileURL.path)
+            return try TSCAbsolutePath(validating: fileURL.path)
         } else if let currentDirectory = fileSystem.currentWorkingDirectory {
-            let scipioCurrentDirectory = try ScipioAbsolutePath(validating: currentDirectory.pathString)
-            return try ScipioAbsolutePath(scipioCurrentDirectory, validating: fileURL.path)
+            let scipioCurrentDirectory = try TSCAbsolutePath(validating: currentDirectory.pathString)
+            return try TSCAbsolutePath(scipioCurrentDirectory, validating: fileURL.path)
         } else {
-            return try! AbsolutePath(validating: fileURL.path)
+            return try! TSCAbsolutePath(validating: fileURL.path)
         }
     }
 
