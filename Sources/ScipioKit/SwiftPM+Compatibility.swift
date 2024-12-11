@@ -1,6 +1,5 @@
 import Foundation
 import PackageGraph
-import TSCBasic
 import Basics
 import PackageModel
 
@@ -10,18 +9,17 @@ import PackageModel
 // These has almost identical feature and interface. Unfortunately, Scipio still uses TSC versions of them 
 // so It's better to remove TSC dependencies from Scipio.
 // At this moment, we just provides utils to bridge them at this time as below.
-typealias ScipioAbsolutePath = TSCBasic.AbsolutePath
 typealias SwiftPMAbsolutePath = Basics.AbsolutePath
 
-extension ScipioAbsolutePath {
+extension TSCAbsolutePath {
     var spmAbsolutePath: SwiftPMAbsolutePath {
-        try! SwiftPMAbsolutePath(validating: pathString)
+        SwiftPMAbsolutePath(self)
     }
 }
 
 extension SwiftPMAbsolutePath {
-    var scipioAbsolutePath: ScipioAbsolutePath {
-        try! ScipioAbsolutePath(validating: pathString)
+    var scipioAbsolutePath: TSCAbsolutePath {
+        try! TSCAbsolutePath(validating: pathString)
     }
 }
 

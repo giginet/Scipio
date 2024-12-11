@@ -1,24 +1,24 @@
 import Foundation
-import TSCBasic
+import Basics
 import PackageModel
 
 /// FileLists to assemble a framework bundle
 struct FrameworkComponents {
     var frameworkName: String
-    var binaryPath: AbsolutePath
-    var infoPlistPath: AbsolutePath
-    var swiftModulesPath: AbsolutePath?
-    var includeDir: AbsolutePath?
-    var publicHeaderPaths: Set<AbsolutePath>?
-    var bridgingHeaderPath: AbsolutePath?
-    var modulemapPath: AbsolutePath?
-    var resourceBundlePath: AbsolutePath?
+    var binaryPath: TSCAbsolutePath
+    var infoPlistPath: TSCAbsolutePath
+    var swiftModulesPath: TSCAbsolutePath?
+    var includeDir: TSCAbsolutePath?
+    var publicHeaderPaths: Set<TSCAbsolutePath>?
+    var bridgingHeaderPath: TSCAbsolutePath?
+    var modulemapPath: TSCAbsolutePath?
+    var resourceBundlePath: TSCAbsolutePath?
 }
 
 /// A collector to collect framework components from a DerivedData dir
 struct FrameworkComponentsCollector {
     enum Error: LocalizedError {
-        case infoPlistNotFound(frameworkBundlePath: AbsolutePath)
+        case infoPlistNotFound(frameworkBundlePath: TSCAbsolutePath)
 
         var errorDescription: String? {
             switch self {
@@ -49,7 +49,7 @@ struct FrameworkComponentsCollector {
     }
 
     func collectComponents(sdk: SDK) throws -> FrameworkComponents {
-        let frameworkModuleMapPath: AbsolutePath?
+        let frameworkModuleMapPath: TSCAbsolutePath?
         if let customFrameworkModuleMapContents = buildOptions.customFrameworkModuleMapContents {
             logger.info("📝 Using custom modulemap for \(buildProduct.target.name)(\(sdk.displayName))")
             frameworkModuleMapPath = try copyModuleMapContentsToBuildArtifacts(customFrameworkModuleMapContents)
@@ -96,14 +96,14 @@ struct FrameworkComponentsCollector {
     }
 
     /// Copy content data to the build artifacts
-    private func copyModuleMapContentsToBuildArtifacts(_ data: Data) throws -> ScipioAbsolutePath {
+    private func copyModuleMapContentsToBuildArtifacts(_ data: Data) throws -> TSCAbsolutePath {
         let generatedModuleMapPath = try packageLocator.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
 
         try fileSystem.writeFileContents(generatedModuleMapPath.spmAbsolutePath, data: data)
         return generatedModuleMapPath
     }
 
-    private func generateFrameworkModuleMap() throws -> AbsolutePath? {
+    private func generateFrameworkModuleMap() throws -> TSCAbsolutePath? {
         let modulemapGenerator = FrameworkModuleMapGenerator(
             packageLocator: packageLocator,
             fileSystem: fileSystem
@@ -120,7 +120,7 @@ struct FrameworkComponentsCollector {
         return frameworkModuleMapPath
     }
 
-    private func generatedFrameworkPath() -> AbsolutePath {
+    private func generatedFrameworkPath() -> TSCAbsolutePath {
         packageLocator.productsDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
             sdk: sdk
@@ -128,7 +128,7 @@ struct FrameworkComponentsCollector {
         .appending(component: "\(buildProduct.target.c99name).framework")
     }
 
-    private func collectInfoPlist(in frameworkBundlePath: AbsolutePath) throws -> AbsolutePath {
+    private func collectInfoPlist(in frameworkBundlePath: TSCAbsolutePath) throws -> TSCAbsolutePath {
         let infoPlistLocationCandidates = [
             // In a regular framework bundle, Info.plist should be on its root
             frameworkBundlePath.appending(component: "Info.plist"),
@@ -142,7 +142,7 @@ struct FrameworkComponentsCollector {
     }
 
     /// Collects *.swiftmodules* in a generated framework bundle
-    private func collectSwiftModules(of targetName: String, in frameworkPath: AbsolutePath) throws -> AbsolutePath? {
+    private func collectSwiftModules(of targetName: String, in frameworkPath: TSCAbsolutePath) throws -> TSCAbsolutePath? {
         let swiftModulesPath = frameworkPath.appending(
             components: "Modules", "\(targetName).swiftmodule"
         )
@@ -154,7 +154,7 @@ struct FrameworkComponentsCollector {
     }
 
     /// Collects a bridging header in a generated framework bundle
-    private func collectBridgingHeader(of targetName: String, in frameworkPath: AbsolutePath) throws -> AbsolutePath? {
+    private func collectBridgingHeader(of targetName: String, in frameworkPath: TSCAbsolutePath) throws -> TSCAbsolutePath? {
         let generatedBridgingHeader = frameworkPath.appending(
             components: "Headers", "\(targetName)-Swift.h"
         )
@@ -167,7 +167,7 @@ struct FrameworkComponentsCollector {
     }
 
     /// Collects public headers of clangTarget
-    private func collectPublicHeaders() throws -> Set<AbsolutePath>? {
+    private func collectPublicHeaders() throws -> Set<TSCAbsolutePath>? {
         guard let clangModule = buildProduct.target.underlying as? ScipioClangModule else {
             return nil
         }
@@ -194,7 +194,7 @@ struct FrameworkComponentsCollector {
         return Set(notSymlinks + notDuplicatedSymlinks)
     }
 
-    private func collectResourceBundle(of targetName: String, in frameworkPath: AbsolutePath) throws -> AbsolutePath? {
+    private func collectResourceBundle(of targetName: String, in frameworkPath: TSCAbsolutePath) throws -> TSCAbsolutePath? {
         let bundleFileName = try fileSystem.getDirectoryContents(frameworkPath).first { $0.hasSuffix(".bundle") }
         return bundleFileName.flatMap { frameworkPath.appending(component: $0) }
     }

@@ -1,25 +1,26 @@
+import Basics
 import TSCBasic
 import PackageModel
 
 /// Holds the packageDirectory Scipio works on, and defines some path-related functionalities.
 protocol PackageLocator {
-    var packageDirectory: ScipioAbsolutePath { get }
+    var packageDirectory: TSCAbsolutePath { get }
 }
 
 extension PackageLocator {
-    var buildDirectory: ScipioAbsolutePath {
+    var buildDirectory: TSCAbsolutePath {
         packageDirectory.appending(component: ".build")
     }
 
-    var workspaceDirectory: ScipioAbsolutePath {
+    var workspaceDirectory: TSCAbsolutePath {
         buildDirectory.appending(component: "scipio")
     }
 
-    var derivedDataPath: ScipioAbsolutePath {
+    var derivedDataPath: TSCAbsolutePath {
         workspaceDirectory.appending(component: "DerivedData")
     }
 
-    func generatedModuleMapPath(of target: ScipioResolvedModule, sdk: SDK) throws -> ScipioAbsolutePath {
+    func generatedModuleMapPath(of target: ScipioResolvedModule, sdk: SDK) throws -> TSCAbsolutePath {
         let relativePath = try TSCBasic.RelativePath(validating: "ModuleMapsForFramework/\(sdk.settingValue)")
         return workspaceDirectory
             .appending(relativePath)
@@ -28,7 +29,7 @@ extension PackageLocator {
 
     /// Returns an Products directory path
     /// It should be the default setting of `TARGET_BUILD_DIR`
-    func productsDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> ScipioAbsolutePath {
+    func productsDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> TSCAbsolutePath {
         let intermediateDirectoryName = productDirectoryName(
             buildConfiguration: buildConfiguration,
             sdk: sdk
@@ -37,12 +38,12 @@ extension PackageLocator {
     }
 
     /// Returns a directory path which contains assembled frameworks
-    var assembledFrameworksRootDirectory: ScipioAbsolutePath {
+    var assembledFrameworksRootDirectory: TSCAbsolutePath {
         workspaceDirectory.appending(component: "AssembledFrameworks")
     }
 
     /// Returns a directory path of the assembled frameworks path for the specific Configuration/Platform
-    func assembledFrameworksDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> ScipioAbsolutePath {
+    func assembledFrameworksDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> TSCAbsolutePath {
         let intermediateDirName = productDirectoryName(buildConfiguration: buildConfiguration, sdk: sdk)
         return assembledFrameworksRootDirectory
             .appending(component: intermediateDirName)
