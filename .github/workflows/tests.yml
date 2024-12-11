@@ -20,6 +20,9 @@ jobs:
     - name: Get swift version
       run: swift --version
     - uses: actions/checkout@v4
+    - name: Build
+      run: |
+        swift build
     - name: Run Tests
       run: |
         swift test
