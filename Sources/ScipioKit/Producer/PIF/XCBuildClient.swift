@@ -1,5 +1,6 @@
 import Foundation
-import TSCBasic
+import Basics
+import var TSCBasic.localFileSystem
 import PackageGraph
 import PackageModel
 
@@ -16,7 +17,7 @@ struct XCBuildClient {
         buildOptions: BuildOptions,
         configuration: BuildConfiguration,
         packageLocator: some PackageLocator,
-        fileSystem: any FileSystem = localFileSystem,
+        fileSystem: any FileSystem = TSCBasic.localFileSystem,
         executor: some Executor = ProcessExecutor(decoder: StandardOutputDecoder())
     ) {
         self.buildProduct = buildProduct
@@ -27,19 +28,19 @@ struct XCBuildClient {
         self.executor = executor
     }
 
-    private func fetchXCBuildPath() async throws -> AbsolutePath {
+    private func fetchXCBuildPath() async throws -> TSCAbsolutePath {
         let developerDirPath = try await fetchDeveloperDirPath()
-        let relativePath = try RelativePath(validating: "../SharedFrameworks/XCBuild.framework/Versions/A/Support/xcbuild")
+        let relativePath = try TSCRelativePath(validating: "../SharedFrameworks/XCBuild.framework/Versions/A/Support/xcbuild")
         return developerDirPath.appending(relativePath)
     }
 
-    private func fetchDeveloperDirPath() async throws -> AbsolutePath {
+    private func fetchDeveloperDirPath() async throws -> TSCAbsolutePath {
         let result = try await executor.execute(
             "/usr/bin/xcrun",
             "xcode-select",
             "-p"
         )
-        return try AbsolutePath(validating: try result.unwrapOutput())
+        return try TSCAbsolutePath(validating: try result.unwrapOutput())
     }
 
     private var productTargetName: String {
@@ -49,8 +50,8 @@ struct XCBuildClient {
 
     func buildFramework(
         sdk: SDK,
-        pifPath: AbsolutePath,
-        buildParametersPath: AbsolutePath
+        pifPath: TSCAbsolutePath,
+        buildParametersPath: TSCAbsolutePath
     ) async throws {
         let xcbuildPath = try await fetchXCBuildPath()
 
@@ -98,7 +99,7 @@ struct XCBuildClient {
         try assembler.assemble()
     }
 
-    private func assembledFrameworkPath(target: ScipioResolvedModule, of sdk: SDK) throws -> AbsolutePath {
+    private func assembledFrameworkPath(target: ScipioResolvedModule, of sdk: SDK) throws -> TSCAbsolutePath {
         let assembledFrameworkDir = packageLocator.assembledFrameworksDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
             sdk: sdk
@@ -107,7 +108,11 @@ struct XCBuildClient {
             .appending(component: "\(buildProduct.target.c99name).framework")
     }
 
-    func createXCFramework(sdks: Set<SDK>, debugSymbols: [SDK: [AbsolutePath]]?, outputPath: AbsolutePath) async throws {
+    func createXCFramework(
+        sdks: Set<SDK>,
+        debugSymbols: [SDK: [TSCAbsolutePath]]?,
+        outputPath: TSCAbsolutePath
+    ) async throws {
         let xcbuildPath = try await fetchXCBuildPath()
 
         let additionalArguments = try buildCreateXCFrameworkArguments(
@@ -124,7 +129,11 @@ struct XCBuildClient {
         try await executor.execute(arguments)
     }
 
-    private func buildCreateXCFrameworkArguments(sdks: Set<SDK>, debugSymbols: [SDK: [AbsolutePath]]?, outputPath: AbsolutePath) throws -> [String] {
+    private func buildCreateXCFrameworkArguments(
+        sdks: Set<SDK>,
+        debugSymbols: [SDK: [TSCAbsolutePath]]?,
+        outputPath: TSCAbsolutePath
+    ) throws -> [String] {
         let frameworksWithDebugSymbolArguments: [String] = try sdks.reduce([]) { arguments, sdk in
             let path = try assembledFrameworkPath(target: buildProduct.target, of: sdk)
             var result = arguments + ["-framework", path.pathString]
