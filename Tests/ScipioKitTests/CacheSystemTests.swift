@@ -2,6 +2,7 @@ import Foundation
 @testable import ScipioKit
 import XCTest
 import Basics
+import PackageModel
 
 private let fixturePath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
@@ -19,6 +20,7 @@ final class CacheSystemTests: XCTestCase {
 
     func testEncodeCacheKey() throws {
         let cacheKey = SwiftPMCacheKey(
+            packageIdentity: PackageIdentity.plain("MyPackage"),
             targetName: "MyTarget",
             pin: .revision("111111111"),
             buildOptions: .init(
@@ -64,6 +66,7 @@ final class CacheSystemTests: XCTestCase {
             ]
           },
           "clangVersion" : "clang-1400.0.29.102",
+          "packageIdentity" : "MyPackage",
           "pin" : {
             "revision" : "111111111"
           },

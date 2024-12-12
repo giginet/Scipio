@@ -96,6 +96,7 @@ extension PinsStore.PinState: @retroactive Hashable {
 }
 
 public struct SwiftPMCacheKey: CacheKey {
+    public var packageIdentity: PackageIdentity
     public var targetName: String
     public var pin: PinsStore.PinState
     var buildOptions: BuildOptions
@@ -230,6 +231,7 @@ struct CacheSystem: Sendable {
     }
 
     func calculateCacheKey(of target: CacheTarget) async throws -> SwiftPMCacheKey {
+        let packageIdentity = target.buildProduct.package.identity
         let targetName = target.buildProduct.target.name
         let pin = try retrievePin(package: target.buildProduct.package)
         let buildOptions = target.buildOptions
@@ -240,6 +242,7 @@ struct CacheSystem: Sendable {
             throw Error.xcodeVersionNotDetected
         }
         return SwiftPMCacheKey(
+            packageIdentity: packageIdentity,
             targetName: targetName,
             pin: pin.state,
             buildOptions: buildOptions,
