@@ -1,5 +1,5 @@
 import Foundation
-import TSCBasic
+import Basics
 
 struct InfoPlistGenerator {
     private let fileSystem: any FileSystem
@@ -8,7 +8,7 @@ struct InfoPlistGenerator {
         self.fileSystem = fileSystem
     }
 
-    func generateForResourceBundle(at path: AbsolutePath) throws {
+    func generateForResourceBundle(at path: TSCAbsolutePath) throws {
         let body = resourceBundleBody
         try fileSystem.writeFileContents(path.spmAbsolutePath, string: body)
     }

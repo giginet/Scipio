@@ -1,5 +1,6 @@
 import Foundation
-import TSCBasic
+import Basics
+import struct TSCBasic.ByteString
 import XCBuildSupport
 import SPMBuildCore
 
@@ -30,12 +31,12 @@ struct BuildParametersGenerator {
     private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem
 
-    init(buildOptions: BuildOptions, fileSystem: any FileSystem = TSCBasic.localFileSystem) {
+    init(buildOptions: BuildOptions, fileSystem: any FileSystem = localFileSystem) {
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
     }
 
-    func generate(for sdk: SDK, buildParameters: BuildParameters, destinationDir: AbsolutePath) throws -> AbsolutePath {
+    func generate(for sdk: SDK, buildParameters: BuildParameters, destinationDir: TSCAbsolutePath) throws -> TSCAbsolutePath {
         let targetArchitecture = buildParameters.triple.arch?.rawValue ?? "arm64"
 
         // Generate the run destination parameters.

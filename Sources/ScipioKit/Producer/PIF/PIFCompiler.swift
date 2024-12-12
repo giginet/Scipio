@@ -3,7 +3,6 @@ import PackageModel
 import SPMBuildCore
 import PackageGraph
 import Basics
-import var TSCBasic.localFileSystem
 
 struct PIFCompiler: Compiler {
     let descriptionPackage: DescriptionPackage
@@ -20,7 +19,7 @@ struct PIFCompiler: Compiler {
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
         toolchainEnvironment: ToolchainEnvironment? = nil,
-        fileSystem: any FileSystem = TSCBasic.localFileSystem,
+        fileSystem: any FileSystem = localFileSystem,
         executor: any Executor = ProcessExecutor()
     ) {
         self.descriptionPackage = descriptionPackage

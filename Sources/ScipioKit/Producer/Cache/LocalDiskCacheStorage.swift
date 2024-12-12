@@ -1,7 +1,7 @@
 import Foundation
 import ScipioStorage
 import PackageGraph
-import TSCBasic
+import Basics
 
 struct LocalDiskCacheStorage: CacheStorage {
     private let fileSystem: any FileSystem

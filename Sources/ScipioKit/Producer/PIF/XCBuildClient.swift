@@ -1,6 +1,5 @@
 import Foundation
 import Basics
-import var TSCBasic.localFileSystem
 import PackageGraph
 import PackageModel
 
@@ -17,7 +16,7 @@ struct XCBuildClient {
         buildOptions: BuildOptions,
         configuration: BuildConfiguration,
         packageLocator: some PackageLocator,
-        fileSystem: any FileSystem = TSCBasic.localFileSystem,
+        fileSystem: any FileSystem = localFileSystem,
         executor: some Executor = ProcessExecutor(decoder: StandardOutputDecoder())
     ) {
         self.buildProduct = buildProduct

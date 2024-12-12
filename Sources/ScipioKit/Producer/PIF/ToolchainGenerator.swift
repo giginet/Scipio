@@ -2,16 +2,15 @@ import Foundation
 import TSCUtility
 @_spi(SwiftPMInternal) import PackageModel
 @_spi(SwiftPMInternal) import struct Basics.Environment
-import TSCBasic
-import struct Basics.Triple
+import Basics
 
 struct ToolchainGenerator {
-    private let toolchainDirPath: AbsolutePath
+    private let toolchainDirPath: TSCAbsolutePath
     private let environment: [String: String]?
     private let executor: any Executor
 
     init(
-        toolchainDirPath: AbsolutePath,
+        toolchainDirPath: TSCAbsolutePath,
         environment: [String: String]? = nil,
         executor: any Executor = ProcessExecutor()
     ) {
@@ -39,7 +38,7 @@ struct ToolchainGenerator {
         )
             .unwrapOutput()
             .spm_chomp()
-        let sdkPath = try AbsolutePath(validating: sdkPathString)
+        let sdkPath = try TSCAbsolutePath(validating: sdkPathString)
 
         // Compute common arguments for clang and swift.
         var extraCCFlags: [String] = []

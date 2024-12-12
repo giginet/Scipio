@@ -4,7 +4,7 @@ import PackageGraph
 import PackageModel
 import Collections
 import protocol TSCBasic.FileSystem
-import var TSCBasic.localFileSystem
+import Basics
 
 struct FrameworkProducer {
     private let descriptionPackage: DescriptionPackage

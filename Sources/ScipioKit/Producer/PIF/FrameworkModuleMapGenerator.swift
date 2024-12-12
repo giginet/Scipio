@@ -1,5 +1,5 @@
 import Foundation
-import TSCBasic
+import Basics
 import PackageGraph
 import PackageModel
 
@@ -15,7 +15,7 @@ struct FrameworkModuleMapGenerator {
     private var fileSystem: any FileSystem
 
     enum Error: LocalizedError {
-        case unableToLoadCustomModuleMap(AbsolutePath)
+        case unableToLoadCustomModuleMap(TSCAbsolutePath)
 
         var errorDescription: String? {
             switch self {
@@ -34,7 +34,7 @@ struct FrameworkModuleMapGenerator {
         resolvedTarget: ScipioResolvedModule,
         sdk: SDK,
         keepPublicHeadersStructure: Bool
-    ) throws -> AbsolutePath? {
+    ) throws -> TSCAbsolutePath? {
         let context = Context(
             resolvedTarget: resolvedTarget,
             sdk: sdk,
@@ -106,7 +106,7 @@ struct FrameworkModuleMapGenerator {
         }
     }
 
-    private func walkDirectoryContents(of directoryPath: AbsolutePath) throws -> Set<AbsolutePath> {
+    private func walkDirectoryContents(of directoryPath: TSCAbsolutePath) throws -> Set<TSCAbsolutePath> {
         try fileSystem.getDirectoryContents(directoryPath).reduce(into: Set()) { headers, file in
             let path = directoryPath.appending(component: file)
             if fileSystem.isDirectory(path) {
@@ -118,8 +118,8 @@ struct FrameworkModuleMapGenerator {
     }
 
     private func generateHeaderEntry(
-        for header: AbsolutePath,
-        of directoryPath: AbsolutePath,
+        for header: TSCAbsolutePath,
+        of directoryPath: TSCAbsolutePath,
         keepPublicHeadersStructure: Bool
     ) -> String {
         if keepPublicHeadersStructure {
@@ -144,7 +144,7 @@ struct FrameworkModuleMapGenerator {
             .map { "    link framework \"\($0)\"" }
     }
 
-    private func generateModuleMapFile(context: Context, outputPath: AbsolutePath) throws {
+    private func generateModuleMapFile(context: Context, outputPath: TSCAbsolutePath) throws {
         let dirPath = outputPath.parentDirectory
         try fileSystem.createDirectory(dirPath, recursive: true)
 
@@ -152,12 +152,12 @@ struct FrameworkModuleMapGenerator {
         try fileSystem.writeFileContents(outputPath.spmAbsolutePath, string: contents)
     }
 
-    private func constructGeneratedModuleMapPath(context: Context) throws -> AbsolutePath {
+    private func constructGeneratedModuleMapPath(context: Context) throws -> TSCAbsolutePath {
         let generatedModuleMapPath = try packageLocator.generatedModuleMapPath(of: context.resolvedTarget, sdk: context.sdk)
         return generatedModuleMapPath
     }
 
-    private func convertCustomModuleMapForFramework(_ customModuleMap: AbsolutePath) throws -> String {
+    private func convertCustomModuleMapForFramework(_ customModuleMap: TSCAbsolutePath) throws -> String {
         // Sometimes, targets have their custom modulemaps.
         // However, these are not for frameworks
         // This process converts them to modulemaps for frameworks

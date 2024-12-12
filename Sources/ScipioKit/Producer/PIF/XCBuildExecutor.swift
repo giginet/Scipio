@@ -1,18 +1,18 @@
 import Logging
-import TSCBasic
+import Basics
 import PackageGraph
 import XCBuildSupport
 import Algorithms
 
 struct XCBuildExecutor {
 
-    var xcbuildPath: AbsolutePath
+    var xcbuildPath: TSCAbsolutePath
 
     func build(
-        pifPath: AbsolutePath,
+        pifPath: TSCAbsolutePath,
         configuration: BuildConfiguration,
-        derivedDataPath: AbsolutePath,
-        buildParametersPath: AbsolutePath,
+        derivedDataPath: TSCAbsolutePath,
+        buildParametersPath: TSCAbsolutePath,
         target: ScipioResolvedModule
     ) async throws {
         let executor = _Executor(args: [
