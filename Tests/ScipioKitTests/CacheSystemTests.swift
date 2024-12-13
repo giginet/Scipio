@@ -2,7 +2,6 @@ import Foundation
 @testable import ScipioKit
 import XCTest
 import Basics
-import PackageModel
 
 private let fixturePath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
@@ -20,7 +19,7 @@ final class CacheSystemTests: XCTestCase {
 
     func testEncodeCacheKey() throws {
         let cacheKey = SwiftPMCacheKey(
-            packageIdentity: PackageIdentity.plain("MyPackage"),
+            canonicalPackageLocation: "/path/to/MyPackage",
             targetName: "MyTarget",
             pin: .revision("111111111"),
             buildOptions: .init(
@@ -65,8 +64,8 @@ final class CacheSystemTests: XCTestCase {
               "iOS"
             ]
           },
+          "canonicalPackageLocation" : "\\/path\\/to\\/MyPackage",
           "clangVersion" : "clang-1400.0.29.102",
-          "packageIdentity" : "MyPackage",
           "pin" : {
             "revision" : "111111111"
           },
@@ -79,6 +78,78 @@ final class CacheSystemTests: XCTestCase {
         """
         // swiftlint:enable line_length
         XCTAssertEqual(rawString, expected)
+    }
+
+    func testCacheKeyForRemoteAndLocalPackageDifference() async throws {
+        let fileSystem = localFileSystem
+
+        let tempDir = try fileSystem.tempDirectory.appending(#function)
+        try fileSystem.removeFileTree(tempDir)
+        try fileSystem.createDirectory(tempDir)
+
+        defer { try? fileSystem.removeFileTree(tempDir) }
+
+        let tempCacheKeyTestsDir = tempDir.appending(component: "CacheKeyTests").scipioAbsolutePath
+        try fileSystem.copy(
+            from: fixturePath.appending(component: "CacheKeyTests").absolutePath,
+            to: tempCacheKeyTestsDir
+        )
+
+        // For local package consumption
+        let executor = ProcessExecutor()
+        _ = try await executor.execute([
+            "git",
+            "clone",
+            "https://github.com/giginet/scipio-testing",
+            tempDir.appending(component: "scipio-testing").pathString,
+            "-b",
+            "3.0.0",
+            "--depth",
+            "1",
+        ])
+
+        func scipioTestingCacheKey(fixture: String) async throws -> SwiftPMCacheKey {
+            let descriptionPackage = try DescriptionPackage(
+                packageDirectory: tempCacheKeyTestsDir.appending(component: fixture),
+                mode: .createPackage,
+                onlyUseVersionsFromResolvedFile: false
+            )
+            let package = descriptionPackage
+                .graph
+                .packages
+                .first { $0.manifest.displayName == "scipio-testing" }!
+            let target = package.modules.first { $0.name == "ScipioTesting" }!
+            let cacheTarget = CacheSystem.CacheTarget(
+                buildProduct: BuildProduct(
+                    package: package,
+                    target: target
+                ),
+                buildOptions: BuildOptions(
+                    buildConfiguration: .release,
+                    isDebugSymbolsEmbedded: false,
+                    frameworkType: .dynamic,
+                    sdks: [.iOS, .iOSSimulator],
+                    extraFlags: nil,
+                    extraBuildParameters: nil,
+                    enableLibraryEvolution: false,
+                    keepPublicHeadersStructure: false,
+                    customFrameworkModuleMapContents: nil
+                )
+            )
+
+            let cacheSystem = CacheSystem(
+                pinsStore: try descriptionPackage.workspace.pinsStore.load(),
+                outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks")
+            )
+            return try await cacheSystem.calculateCacheKey(of: cacheTarget)
+        }
+
+        let scipioTestingRemote = try await scipioTestingCacheKey(fixture: "AsRemotePackage")
+        let scipioTestingLocal = try await scipioTestingCacheKey(fixture: "AsLocalPackage")
+
+        XCTAssertNotEqual(scipioTestingRemote.canonicalPackageLocation, scipioTestingLocal.canonicalPackageLocation)
+        XCTAssertEqual(scipioTestingRemote.targetName, scipioTestingLocal.targetName)
+        XCTAssertEqual(scipioTestingRemote.pin, scipioTestingLocal.pin)
     }
 
     func testCacheKeyCalculationForRootPackageTarget() async throws {
