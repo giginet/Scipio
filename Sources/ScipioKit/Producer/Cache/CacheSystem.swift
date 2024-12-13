@@ -1,6 +1,6 @@
 import Foundation
 import ScipioStorage
-import TSCBasic
+import Basics
 import struct TSCUtility.Version
 import Algorithms
 // We may drop this annotation in SwiftPM's future release

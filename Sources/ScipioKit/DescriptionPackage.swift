@@ -1,11 +1,13 @@
 import Foundation
 import Workspace
-import TSCBasic
+import Basics
+import enum TSCBasic.GraphError
+import func TSCBasic.topologicalSort
+import Collections
 import PackageModel
 import PackageLoading
 // We may drop this annotation in SwiftPM's future release
 @preconcurrency import PackageGraph
-import Basics
 
 struct DescriptionPackage: PackageLocator {
     let mode: Runner.Mode
@@ -46,7 +48,7 @@ struct DescriptionPackage: PackageLocator {
         // override default configuration to treat XIB files
         workspaceConfiguration.additionalFileRules = FileRuleDescription.xcbuildFileTypes
 
-        let fileSystem = TSCBasic.localFileSystem
+        let fileSystem = Basics.localFileSystem
         let authorizationProvider = try Workspace.Configuration.Authorization.default
             .makeAuthorizationProvider(fileSystem: fileSystem, observabilityScope: makeObservabilitySystem().topScope)
         let workspace = try Workspace(
@@ -71,7 +73,7 @@ struct DescriptionPackage: PackageLocator {
         mode: Runner.Mode,
         onlyUseVersionsFromResolvedFile: Bool,
         toolchainEnvironment: ToolchainEnvironment? = nil
-    ) throws {
+    ) async throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
         self.toolchain = try UserToolchain(
@@ -91,13 +93,10 @@ struct DescriptionPackage: PackageLocator {
             forceResolvedVersions: onlyUseVersionsFromResolvedFile,
             observabilityScope: scope
         )
-        self.manifest = try tsc_await {
-            workspace.loadRootManifest(
-                at: packageDirectory.spmAbsolutePath,
-                observabilityScope: scope,
-                completion: $0
-            )
-        }
+        self.manifest = try await workspace.loadRootManifest(
+            at: packageDirectory.spmAbsolutePath,
+            observabilityScope: scope
+        )
         self.workspace = workspace
     }
 }
@@ -178,8 +177,10 @@ private final class BuildProductsResolver {
             }
         } catch {
             switch error {
-            case GraphError.unexpectedCycle: throw DescriptionPackage.Error.cycleDetected
-            default: throw error
+            case GraphError.unexpectedCycle:
+                throw DescriptionPackage.Error.cycleDetected
+            default:
+                throw error
             }
         }
 

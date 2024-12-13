@@ -8,13 +8,13 @@ private let fixturePath = URL(fileURLWithPath: #filePath)
     .appendingPathComponent("Fixtures")
 
 final class DescriptionPackageTests: XCTestCase {
-    func testDescriptionPackage() throws {
+    func testDescriptionPackage() async throws {
         let rootPath = fixturePath.appendingPathComponent("TestingPackage")
-        let package = try XCTUnwrap(try DescriptionPackage(
+        let package = try await DescriptionPackage(
             packageDirectory: rootPath.absolutePath,
             mode: .prepareDependencies,
             onlyUseVersionsFromResolvedFile: false
-        ))
+        )
         XCTAssertEqual(package.name, "TestingPackage")
 
         let packageNames = package.graph.packages.map(\.manifest.displayName)
@@ -31,13 +31,13 @@ final class DescriptionPackageTests: XCTestCase {
         )
     }
 
-    func testBuildProductsInPrepareMode() throws {
+    func testBuildProductsInPrepareMode() async throws {
         let rootPath = fixturePath.appendingPathComponent("IntegrationTestPackage")
-        let package = try XCTUnwrap(try DescriptionPackage(
+        let package = try await DescriptionPackage(
             packageDirectory: rootPath.absolutePath,
             mode: .prepareDependencies,
             onlyUseVersionsFromResolvedFile: false
-        ))
+        )
         XCTAssertEqual(package.name, "IntegrationTestPackage")
 
         XCTAssertEqual(
@@ -64,13 +64,13 @@ final class DescriptionPackageTests: XCTestCase {
         )
     }
 
-    func testBuildProductsInCreateMode() throws {
+    func testBuildProductsInCreateMode() async throws {
         let rootPath = fixturePath.appendingPathComponent("TestingPackage")
-        let package = try XCTUnwrap(try DescriptionPackage(
+        let package = try await DescriptionPackage(
             packageDirectory: rootPath.absolutePath,
             mode: .createPackage,
             onlyUseVersionsFromResolvedFile: false
-        ))
+        )
         XCTAssertEqual(package.name, "TestingPackage")
 
         XCTAssertEqual(
@@ -85,13 +85,13 @@ final class DescriptionPackageTests: XCTestCase {
         )
     }
 
-    func testBinaryBuildProductsInCreateMode() throws {
+    func testBinaryBuildProductsInCreateMode() async throws {
         let rootPath = fixturePath.appendingPathComponent("BinaryPackage")
-        let package = try XCTUnwrap(try DescriptionPackage(
+        let package = try await DescriptionPackage(
             packageDirectory: rootPath.absolutePath,
             mode: .createPackage,
             onlyUseVersionsFromResolvedFile: false
-        ))
+        )
         XCTAssertEqual(package.name, "BinaryPackage")
         XCTAssertEqual(
             Set(try package.resolveBuildProducts().map(\.target.name)),

@@ -1,12 +1,12 @@
 import Foundation
 import XCTest
 @testable import ScipioKit
-import TSCBasic
+import Basics
 
 final class InfoPlistGeneratorTests: XCTestCase {
     let fileSystem = localFileSystem
     lazy var generator = InfoPlistGenerator(fileSystem: fileSystem)
-    var temporaryPath: AbsolutePath!
+    var temporaryPath: TSCAbsolutePath!
 
     override func setUp() async throws {
         try await super.setUp()

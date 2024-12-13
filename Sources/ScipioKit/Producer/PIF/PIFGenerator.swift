@@ -1,5 +1,5 @@
 import Foundation
-import TSCBasic
+import Basics
 import SPMBuildCore
 import PackageModel
 import PackageGraph
@@ -35,7 +35,7 @@ struct PIFGenerator {
         buildParameters: BuildParameters,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
-        fileSystem: any FileSystem = TSCBasic.localFileSystem
+        fileSystem: any FileSystem = localFileSystem
     ) throws {
         self.descriptionPackage = package
         self.buildParameters = buildParameters
@@ -58,7 +58,7 @@ struct PIFGenerator {
         return try jsonDecoder.decode(PIF.TopLevelObject.self, from: data)
     }
 
-    func generateJSON(for sdk: SDK) throws -> AbsolutePath {
+    func generateJSON(for sdk: SDK) throws -> TSCAbsolutePath {
         let topLevelObject = modify(try generatePIF(), for: sdk)
 
         try PIF.sign(topLevelObject.workspace)

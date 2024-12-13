@@ -2,7 +2,6 @@ import Foundation
 import ScipioStorage
 import Basics
 import protocol TSCBasic.FileSystem
-import var TSCBasic.localFileSystem
 
 public typealias PlatformMatrix = [String: Set<SDK>]
 
@@ -71,7 +70,7 @@ public struct Runner {
 
         logger.info("🔁 Resolving Dependencies...")
         do {
-            descriptionPackage = try DescriptionPackage(
+            descriptionPackage = try await DescriptionPackage(
                 packageDirectory: packagePath,
                 mode: mode,
                 onlyUseVersionsFromResolvedFile: false,

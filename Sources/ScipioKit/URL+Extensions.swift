@@ -1,9 +1,9 @@
 import Foundation
-import TSCBasic
+import Basics
 
 extension URL {
-    var absolutePath: AbsolutePath {
+    var absolutePath: TSCAbsolutePath {
         precondition(absoluteURL.isFileURL)
-        return try! AbsolutePath(validating: path)
+        return try! TSCAbsolutePath(validating: path)
     }
 }

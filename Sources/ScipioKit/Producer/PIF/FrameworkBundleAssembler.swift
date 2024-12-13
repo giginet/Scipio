@@ -1,22 +1,22 @@
 import Foundation
-import TSCBasic
+import Basics
 
 /// A assembler to generate framework bundle
 /// This assembler just relocates framework components into the framework structure
 struct FrameworkBundleAssembler {
     private let frameworkComponents: FrameworkComponents
     private let keepPublicHeadersStructure: Bool
-    private let outputDirectory: AbsolutePath
+    private let outputDirectory: TSCAbsolutePath
     private let fileSystem: any FileSystem
 
-    private var frameworkBundlePath: AbsolutePath {
+    private var frameworkBundlePath: TSCAbsolutePath {
         outputDirectory.appending(component: "\(frameworkComponents.frameworkName).framework")
     }
 
     init(
         frameworkComponents: FrameworkComponents,
         keepPublicHeadersStructure: Bool,
-        outputDirectory: AbsolutePath,
+        outputDirectory: TSCAbsolutePath,
         fileSystem: some FileSystem
     ) {
         self.frameworkComponents = frameworkComponents
@@ -26,7 +26,7 @@ struct FrameworkBundleAssembler {
     }
 
     @discardableResult
-    func assemble() throws -> AbsolutePath {
+    func assemble() throws -> TSCAbsolutePath {
         try fileSystem.createDirectory(frameworkBundlePath, recursive: true)
 
         try copyInfoPlist()
@@ -96,9 +96,9 @@ struct FrameworkBundleAssembler {
     }
 
     private func copyHeaderKeepingStructure(
-        header: AbsolutePath,
-        includeDir: AbsolutePath,
-        into headerDir: AbsolutePath
+        header: TSCAbsolutePath,
+        includeDir: TSCAbsolutePath,
+        into headerDir: TSCAbsolutePath
     ) throws {
         let subdirectoryComponents: [String] = if header.dirname.hasPrefix(includeDir.pathString) {
             header.dirname.dropFirst(includeDir.pathString.count)

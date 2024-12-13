@@ -1,7 +1,7 @@
 import Foundation
 import PackageGraph
 import PackageModel
-import TSCBasic
+import Basics
 
 struct BinaryExtractor {
     var package: DescriptionPackage
