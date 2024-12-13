@@ -96,9 +96,10 @@ extension PinsStore.PinState: @retroactive Hashable {
 }
 
 public struct SwiftPMCacheKey: CacheKey {
-    public var canonicalPackageLocation: String
-    public var targetName: String
+    /// The canonical repository URL the manifest was loaded from, for local packages only.
+    public var localPackageCanonicalLocation: String?
     public var pin: PinsStore.PinState
+    public var targetName: String
     var buildOptions: BuildOptions
     public var clangVersion: String
     public var xcodeVersion: XcodeVersion
@@ -231,9 +232,18 @@ struct CacheSystem: Sendable {
     }
 
     func calculateCacheKey(of target: CacheTarget) async throws -> SwiftPMCacheKey {
-        let canonicalPackageLocation = target.buildProduct.package.manifest.canonicalPackageLocation
+        let package = target.buildProduct.package
+
+        let localPackageCanonicalLocation: String? = switch package.manifest.packageKind {
+        case .fileSystem, .localSourceControl:
+            package.manifest.canonicalPackageLocation.description
+        case .root, .remoteSourceControl, .registry:
+            nil
+        }
+
+        let pin = try retrievePin(package: package)
+
         let targetName = target.buildProduct.target.name
-        let pin = try retrievePin(package: target.buildProduct.package)
         let buildOptions = target.buildOptions
         guard let clangVersion = try await ClangChecker().fetchClangVersion() else {
             throw Error.compilerVersionNotDetected
@@ -242,9 +252,9 @@ struct CacheSystem: Sendable {
             throw Error.xcodeVersionNotDetected
         }
         return SwiftPMCacheKey(
-            canonicalPackageLocation: canonicalPackageLocation.description,
-            targetName: targetName,
+            localPackageCanonicalLocation: localPackageCanonicalLocation,
             pin: pin.state,
+            targetName: targetName,
             buildOptions: buildOptions,
             clangVersion: clangVersion,
             xcodeVersion: xcodeVersion,

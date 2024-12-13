@@ -2,6 +2,7 @@ import Foundation
 @testable import ScipioKit
 import XCTest
 import Basics
+import struct PackageModel.CanonicalPackageLocation
 
 private let fixturePath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
@@ -19,9 +20,9 @@ final class CacheSystemTests: XCTestCase {
 
     func testEncodeCacheKey() throws {
         let cacheKey = SwiftPMCacheKey(
-            canonicalPackageLocation: "/path/to/MyPackage",
-            targetName: "MyTarget",
+            localPackageCanonicalLocation: "/path/to/MyPackage",
             pin: .revision("111111111"),
+            targetName: "MyTarget",
             buildOptions: .init(
                 buildConfiguration: .release,
                 isDebugSymbolsEmbedded: false,
@@ -64,8 +65,8 @@ final class CacheSystemTests: XCTestCase {
               "iOS"
             ]
           },
-          "canonicalPackageLocation" : "\\/path\\/to\\/MyPackage",
           "clangVersion" : "clang-1400.0.29.102",
+          "localPackageCanonicalLocation" : "\\/path\\/to\\/MyPackage",
           "pin" : {
             "revision" : "111111111"
           },
@@ -147,7 +148,11 @@ final class CacheSystemTests: XCTestCase {
         let scipioTestingRemote = try await scipioTestingCacheKey(fixture: "AsRemotePackage")
         let scipioTestingLocal = try await scipioTestingCacheKey(fixture: "AsLocalPackage")
 
-        XCTAssertNotEqual(scipioTestingRemote.canonicalPackageLocation, scipioTestingLocal.canonicalPackageLocation)
+        XCTAssertNil(scipioTestingRemote.localPackageCanonicalLocation)
+        XCTAssertEqual(
+            scipioTestingLocal.localPackageCanonicalLocation,
+            CanonicalPackageLocation(tempDir.appending(component: "scipio-testing").pathString).description
+        )
         XCTAssertEqual(scipioTestingRemote.targetName, scipioTestingLocal.targetName)
         XCTAssertEqual(scipioTestingRemote.pin, scipioTestingLocal.pin)
     }
