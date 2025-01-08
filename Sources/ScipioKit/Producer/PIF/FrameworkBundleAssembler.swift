@@ -189,7 +189,7 @@ extension FrameworkBundleAssembler {
                 if let resourceBundleName = sourceFrameworkResourceBundlePath?.basename {
                     let resourceBundlePath = destinationResourcesPath.appending(component: resourceBundleName)
                     // macOS-style resource bundles have "Contents/Resources" directory.
-                    try movePrivacyInfoIfNeeded(
+                    try extractPrivacyInfoFromEmbeddedResourceBundleToFrameworkIfExists(
                         resourceBundlePath: resourceBundlePath,
                         relativePrivacyInfoPath: TSCRelativePath(validating: "Contents/Resources/PrivacyInfo.xcprivacy")
                     )
@@ -199,7 +199,7 @@ extension FrameworkBundleAssembler {
                 let copiedResourceBundlePath = try copyResourceBundle()
 
                 if let copiedResourceBundlePath {
-                    try movePrivacyInfoIfNeeded(
+                    try extractPrivacyInfoFromEmbeddedResourceBundleToFrameworkIfExists(
                         resourceBundlePath: copiedResourceBundlePath,
                         relativePrivacyInfoPath: TSCRelativePath(validating: "PrivacyInfo.xcprivacy")
                     )
@@ -224,10 +224,10 @@ extension FrameworkBundleAssembler {
             }
         }
 
-        /// Moves PrivacyInfo.xcprivacy to expected location (if exists in the resource bundle)
+        /// Extracts PrivacyInfo.xcprivacy to expected location (if exists in the resource bundle).
         ///
         /// ref: https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk#Add-a-privacy-manifest-to-your-framework
-        private func movePrivacyInfoIfNeeded(
+        private func extractPrivacyInfoFromEmbeddedResourceBundleToFrameworkIfExists(
             resourceBundlePath: TSCAbsolutePath,
             relativePrivacyInfoPath: TSCRelativePath
         ) throws {
