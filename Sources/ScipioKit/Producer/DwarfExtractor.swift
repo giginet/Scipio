@@ -2,17 +2,6 @@ import Foundation
 import PackageGraph
 import Basics
 
-struct DebugSymbol {
-    var dSYMPath: TSCAbsolutePath
-    var target: ScipioResolvedModule
-    var sdk: SDK
-    var buildConfiguration: BuildConfiguration
-
-    var dwarfPath: TSCAbsolutePath {
-        dSYMPath.appending(components: "Contents", "Resources", "DWARF", target.name)
-    }
-}
-
 struct DwarfExtractor<E: Executor> {
     private let executor: E
 
@@ -21,6 +10,10 @@ struct DwarfExtractor<E: Executor> {
     }
 
     typealias Arch = String
+
+    func dwarfPath(for target: ScipioResolvedModule, dSYMPath: TSCAbsolutePath) -> TSCAbsolutePath {
+        dSYMPath.appending(components: "Contents", "Resources", "DWARF", target.name)
+    }
 
     func dump(dwarfPath: TSCAbsolutePath) async throws -> [Arch: UUID] {
         let result = try await executor.execute("/usr/bin/xcrun", "dwarfdump", "--uuid", dwarfPath.pathString)
