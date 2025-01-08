@@ -621,9 +621,15 @@ final class RunnerTests: XCTestCase {
 
         let xcFramework = frameworkOutputDir.appendingPathComponent("ResourcePackage.xcframework")
         for arch in ["ios-arm64", "ios-arm64_x86_64-simulator"] {
-            let bundlePath = xcFramework
+            let frameworkPath = xcFramework
                 .appendingPathComponent(arch)
                 .appendingPathComponent("ResourcePackage.framework")
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: frameworkPath.appendingPathComponent("PrivacyInfo.xcprivacy").path),
+                "PrivacyInfo.xcprivacy should be located at the expected location"
+            )
+
+            let bundlePath = frameworkPath
                 .appendingPathComponent("ResourcePackage_ResourcePackage.bundle")
             XCTAssertTrue(
                 fileManager.fileExists(atPath: bundlePath.path),

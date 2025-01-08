@@ -5,6 +5,7 @@ import PackageModel
 /// FileLists to assemble a framework bundle
 struct FrameworkComponents {
     var frameworkName: String
+    var frameworkPath: TSCAbsolutePath
     var binaryPath: TSCAbsolutePath
     var infoPlistPath: TSCAbsolutePath
     var swiftModulesPath: TSCAbsolutePath?
@@ -34,6 +35,8 @@ struct FrameworkComponentsCollector {
     private let packageLocator: any PackageLocator
     private let fileSystem: any FileSystem
 
+    private let productsDirectory: TSCAbsolutePath
+
     init(
         buildProduct: BuildProduct,
         sdk: SDK,
@@ -46,6 +49,11 @@ struct FrameworkComponentsCollector {
         self.buildOptions = buildOptions
         self.packageLocator = packageLocator
         self.fileSystem = fileSystem
+
+        productsDirectory = packageLocator.productsDirectory(
+            buildConfiguration: buildOptions.buildConfiguration,
+            sdk: sdk
+        )
     }
 
     func collectComponents(sdk: SDK) throws -> FrameworkComponents {
@@ -74,15 +82,13 @@ struct FrameworkComponentsCollector {
 
         let publicHeaders = try collectPublicHeaders()
 
-        let resourceBundlePath = try collectResourceBundle(
-            of: targetName,
-            in: generatedFrameworkPath
-        )
+        let resourceBundlePath = generatedResourceBundlePath()
 
         let infoPlistPath = try collectInfoPlist(in: generatedFrameworkPath)
 
         let components = FrameworkComponents(
             frameworkName: buildProduct.target.name.packageNamed(),
+            frameworkPath: generatedFrameworkPath,
             binaryPath: binaryPath,
             infoPlistPath: infoPlistPath,
             swiftModulesPath: swiftModulesPath,
@@ -121,11 +127,14 @@ struct FrameworkComponentsCollector {
     }
 
     private func generatedFrameworkPath() -> TSCAbsolutePath {
-        packageLocator.productsDirectory(
-            buildConfiguration: buildOptions.buildConfiguration,
-            sdk: sdk
-        )
-        .appending(component: "\(buildProduct.target.c99name).framework")
+        productsDirectory.appending(component: "\(buildProduct.target.c99name).framework")
+    }
+
+    private func generatedResourceBundlePath() -> TSCAbsolutePath? {
+        guard let bundleName = buildProduct.target.underlying.bundleName else { return nil }
+
+        let path = productsDirectory.appending(component: "\(bundleName).bundle")
+        return fileSystem.exists(path) ? path : nil
     }
 
     private func collectInfoPlist(in frameworkBundlePath: TSCAbsolutePath) throws -> TSCAbsolutePath {
@@ -192,10 +201,5 @@ struct FrameworkComponentsCollector {
             }
 
         return Set(notSymlinks + notDuplicatedSymlinks)
-    }
-
-    private func collectResourceBundle(of targetName: String, in frameworkPath: TSCAbsolutePath) throws -> TSCAbsolutePath? {
-        let bundleFileName = try fileSystem.getDirectoryContents(frameworkPath).first { $0.hasSuffix(".bundle") }
-        return bundleFileName.flatMap { frameworkPath.appending(component: $0) }
     }
 }

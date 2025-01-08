@@ -29,8 +29,6 @@ struct FrameworkBundleAssembler {
     func assemble() throws -> TSCAbsolutePath {
         try fileSystem.createDirectory(frameworkBundlePath, recursive: true)
 
-        try copyInfoPlist()
-
         try copyBinary()
 
         try copyHeaders()
@@ -40,12 +38,6 @@ struct FrameworkBundleAssembler {
         try copyResources()
 
         return frameworkBundlePath
-    }
-
-    private func copyInfoPlist() throws {
-        let sourcePath = frameworkComponents.infoPlistPath
-        let destinationPath = frameworkBundlePath.appending(component: "Info.plist")
-        try fileSystem.copy(from: sourcePath, to: destinationPath)
     }
 
     private func copyBinary() throws {
@@ -155,9 +147,66 @@ struct FrameworkBundleAssembler {
     }
 
     private func copyResources() throws {
-        if let resourceBundlePath = frameworkComponents.resourceBundlePath {
-            let destinationPath = frameworkBundlePath.appending(component: resourceBundlePath.basename)
-            try fileSystem.copy(from: resourceBundlePath, to: destinationPath)
+        func copyInfoPlist() throws {
+            let sourcePath = frameworkComponents.infoPlistPath
+            let destinationPath = frameworkBundlePath.appending(component: "Info.plist")
+            try fileSystem.copy(from: sourcePath, to: destinationPath)
+        }
+
+        /// Retruns the resulting, copied resource bundle path.
+        func copyResourceBundle() throws -> TSCAbsolutePath? {
+            if let sourcePath = frameworkComponents.resourceBundlePath {
+                let destinationPath = frameworkBundlePath.appending(component: sourcePath.basename)
+                try fileSystem.copy(from: sourcePath, to: destinationPath)
+                return destinationPath
+            } else {
+                return nil
+            }
+        }
+
+        // Move PrivacyInfo.xcprivacy to expected location (if exists in the resource bundle)
+        //
+        // ref: https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk#Add-a-privacy-manifest-to-your-framework
+        func movePrivacyInfoIfNeeded(
+            resourceBundlePath: TSCAbsolutePath,
+            relativePrivacyInfoPath: TSCRelativePath
+        ) throws {
+            let privacyInfoPath = resourceBundlePath.appending(relativePrivacyInfoPath)
+            if fileSystem.exists(privacyInfoPath) {
+                try fileSystem.move(
+                    from: privacyInfoPath,
+                    to: resourceBundlePath.parentDirectory.appending(component: relativePrivacyInfoPath.basename)
+                )
+            }
+        }
+
+        let sourceResourcesPath = frameworkComponents.frameworkPath.appending(component: "Resources")
+        if fileSystem.exists(sourceResourcesPath, followSymlink: true) {
+            // This is a macOS-style (Versioned) framework, so copy entire Resources directory
+            let destinationResourcesPath = frameworkBundlePath.appending(component: "Resources")
+            try fileSystem.copy(
+                from: sourceResourcesPath.asURL.resolvingSymlinksInPath().absolutePath,
+                to: destinationResourcesPath
+            )
+
+            if let resourceBundleName = frameworkComponents.resourceBundlePath?.basename {
+                let resourceBundlePath = destinationResourcesPath.appending(component: resourceBundleName)
+                // macOS-style resource bundles have "Contents/Resources" directory.
+                try movePrivacyInfoIfNeeded(
+                    resourceBundlePath: resourceBundlePath,
+                    relativePrivacyInfoPath: TSCRelativePath(validating: "Contents/Resources/PrivacyInfo.xcprivacy")
+                )
+            }
+        } else {
+            try copyInfoPlist()
+            let copiedResourceBundlePath = try copyResourceBundle()
+
+            if let copiedResourceBundlePath {
+                try movePrivacyInfoIfNeeded(
+                    resourceBundlePath: copiedResourceBundlePath,
+                    relativePrivacyInfoPath: TSCRelativePath(validating: "PrivacyInfo.xcprivacy")
+                )
+            }
         }
     }
 }

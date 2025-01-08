@@ -46,6 +46,7 @@ struct FrameworkBundleAssemblerTests {
         let fixture = fixturesPath.appendingPathComponent("FrameworkBundleAssemblerTests").absolutePath
         let frameworkComponents = FrameworkComponents(
             frameworkName: "Foo",
+            frameworkPath: fixture.appending(component: "Foo.framework"),
             binaryPath: fixture.appending(components: "Foo.framework", "Foo"),
             infoPlistPath: fixture.appending(components: "Foo.framework", "Info.plist"),
             includeDir: fixture.appending(components: "include"),
