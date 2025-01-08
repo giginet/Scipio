@@ -153,7 +153,7 @@ struct FrameworkBundleAssembler {
             try fileSystem.copy(from: sourcePath, to: destinationPath)
         }
 
-        /// Retruns the resulting, copied resource bundle path.
+        /// Returns the resulting, copied resource bundle path.
         func copyResourceBundle() throws -> TSCAbsolutePath? {
             if let sourcePath = frameworkComponents.resourceBundlePath {
                 let destinationPath = frameworkBundlePath.appending(component: sourcePath.basename)
@@ -164,9 +164,9 @@ struct FrameworkBundleAssembler {
             }
         }
 
-        // Move PrivacyInfo.xcprivacy to expected location (if exists in the resource bundle)
-        //
-        // ref: https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk#Add-a-privacy-manifest-to-your-framework
+        /// Moves PrivacyInfo.xcprivacy to expected location (if exists in the resource bundle)
+        ///
+        /// ref: https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk#Add-a-privacy-manifest-to-your-framework
         func movePrivacyInfoIfNeeded(
             resourceBundlePath: TSCAbsolutePath,
             relativePrivacyInfoPath: TSCRelativePath
