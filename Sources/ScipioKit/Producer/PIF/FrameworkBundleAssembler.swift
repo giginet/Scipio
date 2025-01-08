@@ -35,7 +35,14 @@ struct FrameworkBundleAssembler {
 
         try copyModules()
 
-        try copyResources()
+        let resourcesProcessor = ResourcesProcessor(
+            sourceFrameworkBundlePath: frameworkComponents.frameworkPath,
+            sourceFrameworkInfoPlistPath: frameworkComponents.infoPlistPath,
+            sourceFrameworkResourceBundlePath: frameworkComponents.resourceBundlePath,
+            destinationFrameworkBundlePath: frameworkBundlePath,
+            fileSystem: fileSystem
+        )
+        try resourcesProcessor.copyResources()
 
         return frameworkBundlePath
     }
@@ -145,18 +152,71 @@ struct FrameworkBundleAssembler {
             )
         }
     }
+}
 
-    private func copyResources() throws {
-        func copyInfoPlist() throws {
-            let sourcePath = frameworkComponents.infoPlistPath
-            let destinationPath = frameworkBundlePath.appending(component: "Info.plist")
+extension FrameworkBundleAssembler {
+    struct ResourcesProcessor {
+        private let sourceFrameworkBundlePath: TSCAbsolutePath
+        private let sourceFrameworkInfoPlistPath: TSCAbsolutePath
+        private let sourceFrameworkResourceBundlePath: TSCAbsolutePath?
+        private let destinationFrameworkBundlePath: TSCAbsolutePath
+        private let fileSystem: any FileSystem
+
+        init(
+            sourceFrameworkBundlePath: TSCAbsolutePath,
+            sourceFrameworkInfoPlistPath: TSCAbsolutePath,
+            sourceFrameworkResourceBundlePath: TSCAbsolutePath?,
+            destinationFrameworkBundlePath: TSCAbsolutePath,
+            fileSystem: any FileSystem
+        ) {
+            self.sourceFrameworkBundlePath = sourceFrameworkBundlePath
+            self.sourceFrameworkInfoPlistPath = sourceFrameworkInfoPlistPath
+            self.sourceFrameworkResourceBundlePath = sourceFrameworkResourceBundlePath
+            self.destinationFrameworkBundlePath = destinationFrameworkBundlePath
+            self.fileSystem = fileSystem
+        }
+
+        func copyResources() throws {
+            let sourceResourcesPath = sourceFrameworkBundlePath.appending(component: "Resources")
+            if fileSystem.exists(sourceResourcesPath, followSymlink: true) {
+                // This is a macOS-style (Versioned) framework, so copy entire Resources directory
+                let destinationResourcesPath = destinationFrameworkBundlePath.appending(component: "Resources")
+                try fileSystem.copy(
+                    from: sourceResourcesPath.asURL.resolvingSymlinksInPath().absolutePath,
+                    to: destinationResourcesPath
+                )
+
+                if let resourceBundleName = sourceFrameworkResourceBundlePath?.basename {
+                    let resourceBundlePath = destinationResourcesPath.appending(component: resourceBundleName)
+                    // macOS-style resource bundles have "Contents/Resources" directory.
+                    try movePrivacyInfoIfNeeded(
+                        resourceBundlePath: resourceBundlePath,
+                        relativePrivacyInfoPath: TSCRelativePath(validating: "Contents/Resources/PrivacyInfo.xcprivacy")
+                    )
+                }
+            } else {
+                try copyInfoPlist()
+                let copiedResourceBundlePath = try copyResourceBundle()
+
+                if let copiedResourceBundlePath {
+                    try movePrivacyInfoIfNeeded(
+                        resourceBundlePath: copiedResourceBundlePath,
+                        relativePrivacyInfoPath: TSCRelativePath(validating: "PrivacyInfo.xcprivacy")
+                    )
+                }
+            }
+        }
+
+        private func copyInfoPlist() throws {
+            let sourcePath = sourceFrameworkInfoPlistPath
+            let destinationPath = destinationFrameworkBundlePath.appending(component: "Info.plist")
             try fileSystem.copy(from: sourcePath, to: destinationPath)
         }
 
         /// Returns the resulting, copied resource bundle path.
-        func copyResourceBundle() throws -> TSCAbsolutePath? {
-            if let sourcePath = frameworkComponents.resourceBundlePath {
-                let destinationPath = frameworkBundlePath.appending(component: sourcePath.basename)
+        private func copyResourceBundle() throws -> TSCAbsolutePath? {
+            if let sourcePath = sourceFrameworkResourceBundlePath {
+                let destinationPath = destinationFrameworkBundlePath.appending(component: sourcePath.basename)
                 try fileSystem.copy(from: sourcePath, to: destinationPath)
                 return destinationPath
             } else {
@@ -167,7 +227,7 @@ struct FrameworkBundleAssembler {
         /// Moves PrivacyInfo.xcprivacy to expected location (if exists in the resource bundle)
         ///
         /// ref: https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk#Add-a-privacy-manifest-to-your-framework
-        func movePrivacyInfoIfNeeded(
+        private func movePrivacyInfoIfNeeded(
             resourceBundlePath: TSCAbsolutePath,
             relativePrivacyInfoPath: TSCRelativePath
         ) throws {
@@ -176,35 +236,6 @@ struct FrameworkBundleAssembler {
                 try fileSystem.move(
                     from: privacyInfoPath,
                     to: resourceBundlePath.parentDirectory.appending(component: relativePrivacyInfoPath.basename)
-                )
-            }
-        }
-
-        let sourceResourcesPath = frameworkComponents.frameworkPath.appending(component: "Resources")
-        if fileSystem.exists(sourceResourcesPath, followSymlink: true) {
-            // This is a macOS-style (Versioned) framework, so copy entire Resources directory
-            let destinationResourcesPath = frameworkBundlePath.appending(component: "Resources")
-            try fileSystem.copy(
-                from: sourceResourcesPath.asURL.resolvingSymlinksInPath().absolutePath,
-                to: destinationResourcesPath
-            )
-
-            if let resourceBundleName = frameworkComponents.resourceBundlePath?.basename {
-                let resourceBundlePath = destinationResourcesPath.appending(component: resourceBundleName)
-                // macOS-style resource bundles have "Contents/Resources" directory.
-                try movePrivacyInfoIfNeeded(
-                    resourceBundlePath: resourceBundlePath,
-                    relativePrivacyInfoPath: TSCRelativePath(validating: "Contents/Resources/PrivacyInfo.xcprivacy")
-                )
-            }
-        } else {
-            try copyInfoPlist()
-            let copiedResourceBundlePath = try copyResourceBundle()
-
-            if let copiedResourceBundlePath {
-                try movePrivacyInfoIfNeeded(
-                    resourceBundlePath: copiedResourceBundlePath,
-                    relativePrivacyInfoPath: TSCRelativePath(validating: "PrivacyInfo.xcprivacy")
                 )
             }
         }
