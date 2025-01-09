@@ -45,6 +45,7 @@ struct FrameworkBundleAssemblerTests {
     private func assembleFramework(keepPublicHeadersStructure: Bool, outputDirectory: TSCAbsolutePath) throws {
         let fixture = fixturesPath.appendingPathComponent("FrameworkBundleAssemblerTests").absolutePath
         let frameworkComponents = FrameworkComponents(
+            isVersionedBundle: false,
             frameworkName: "Foo",
             frameworkPath: fixture.appending(component: "Foo.framework"),
             binaryPath: fixture.appending(components: "Foo.framework", "Foo"),

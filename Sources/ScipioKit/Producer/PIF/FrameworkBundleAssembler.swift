@@ -36,6 +36,7 @@ struct FrameworkBundleAssembler {
         try copyModules()
 
         let resourcesProcessor = ResourcesProcessor(
+            isVersionedBundle: frameworkComponents.isVersionedBundle,
             sourceFrameworkBundlePath: frameworkComponents.frameworkPath,
             sourceFrameworkInfoPlistPath: frameworkComponents.infoPlistPath,
             sourceFrameworkResourceBundlePath: frameworkComponents.resourceBundlePath,
@@ -156,6 +157,7 @@ struct FrameworkBundleAssembler {
 
 extension FrameworkBundleAssembler {
     struct ResourcesProcessor {
+        private let isVersionedBundle: Bool
         private let sourceFrameworkBundlePath: TSCAbsolutePath
         private let sourceFrameworkInfoPlistPath: TSCAbsolutePath
         private let sourceFrameworkResourceBundlePath: TSCAbsolutePath?
@@ -163,12 +165,14 @@ extension FrameworkBundleAssembler {
         private let fileSystem: any FileSystem
 
         init(
+            isVersionedBundle: Bool,
             sourceFrameworkBundlePath: TSCAbsolutePath,
             sourceFrameworkInfoPlistPath: TSCAbsolutePath,
             sourceFrameworkResourceBundlePath: TSCAbsolutePath?,
             destinationFrameworkBundlePath: TSCAbsolutePath,
             fileSystem: any FileSystem
         ) {
+            self.isVersionedBundle = isVersionedBundle
             self.sourceFrameworkBundlePath = sourceFrameworkBundlePath
             self.sourceFrameworkInfoPlistPath = sourceFrameworkInfoPlistPath
             self.sourceFrameworkResourceBundlePath = sourceFrameworkResourceBundlePath
@@ -177,10 +181,10 @@ extension FrameworkBundleAssembler {
         }
 
         func copyResources() throws {
-            let sourceResourcesPath = sourceFrameworkBundlePath.appending(component: "Resources")
-            if fileSystem.exists(sourceResourcesPath, followSymlink: true) {
+            if isVersionedBundle {
                 // The framework is a versioned bundle, so copy entire Resources directory
                 // instead of copying its Info.plist and resrouce bundle separately.
+                let sourceResourcesPath = sourceFrameworkBundlePath.appending(component: "Resources")
                 let destinationResourcesPath = destinationFrameworkBundlePath.appending(component: "Resources")
                 try fileSystem.copy(
                     from: sourceResourcesPath.asURL.resolvingSymlinksInPath().absolutePath,
