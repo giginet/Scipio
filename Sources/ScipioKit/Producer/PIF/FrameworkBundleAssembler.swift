@@ -179,7 +179,8 @@ extension FrameworkBundleAssembler {
         func copyResources() throws {
             let sourceResourcesPath = sourceFrameworkBundlePath.appending(component: "Resources")
             if fileSystem.exists(sourceResourcesPath, followSymlink: true) {
-                // This is a macOS-style (Versioned) framework, so copy entire Resources directory
+                // The framework is a versioned bundle, so copy entire Resources directory
+                // instead of copying its Info.plist and resrouce bundle separately.
                 let destinationResourcesPath = destinationFrameworkBundlePath.appending(component: "Resources")
                 try fileSystem.copy(
                     from: sourceResourcesPath.asURL.resolvingSymlinksInPath().absolutePath,
@@ -188,7 +189,7 @@ extension FrameworkBundleAssembler {
 
                 if let resourceBundleName = sourceFrameworkResourceBundlePath?.basename {
                     let resourceBundlePath = destinationResourcesPath.appending(component: resourceBundleName)
-                    // macOS-style resource bundles have "Contents/Resources" directory.
+                    // A resource bundle of versioned bundle framework has "Contents/Resources" directory.
                     try extractPrivacyInfoFromEmbeddedResourceBundleToFrameworkIfExists(
                         resourceBundlePath: resourceBundlePath,
                         relativePrivacyInfoPath: TSCRelativePath(validating: "Contents/Resources/PrivacyInfo.xcprivacy")
