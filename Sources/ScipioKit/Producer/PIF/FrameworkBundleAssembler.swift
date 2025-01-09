@@ -39,7 +39,7 @@ struct FrameworkBundleAssembler {
             isVersionedBundle: frameworkComponents.isVersionedBundle,
             sourceFrameworkBundlePath: frameworkComponents.frameworkPath,
             sourceFrameworkInfoPlistPath: frameworkComponents.infoPlistPath,
-            sourceFrameworkResourceBundlePath: frameworkComponents.resourceBundlePath,
+            sourceResourceBundlePath: frameworkComponents.resourceBundlePath,
             destinationFrameworkBundlePath: frameworkBundlePath,
             fileSystem: fileSystem
         )
@@ -160,7 +160,7 @@ extension FrameworkBundleAssembler {
         private let isVersionedBundle: Bool
         private let sourceFrameworkBundlePath: TSCAbsolutePath
         private let sourceFrameworkInfoPlistPath: TSCAbsolutePath
-        private let sourceFrameworkResourceBundlePath: TSCAbsolutePath?
+        private let sourceResourceBundlePath: TSCAbsolutePath?
         private let destinationFrameworkBundlePath: TSCAbsolutePath
         private let fileSystem: any FileSystem
 
@@ -168,14 +168,14 @@ extension FrameworkBundleAssembler {
             isVersionedBundle: Bool,
             sourceFrameworkBundlePath: TSCAbsolutePath,
             sourceFrameworkInfoPlistPath: TSCAbsolutePath,
-            sourceFrameworkResourceBundlePath: TSCAbsolutePath?,
+            sourceResourceBundlePath: TSCAbsolutePath?,
             destinationFrameworkBundlePath: TSCAbsolutePath,
             fileSystem: any FileSystem
         ) {
             self.isVersionedBundle = isVersionedBundle
             self.sourceFrameworkBundlePath = sourceFrameworkBundlePath
             self.sourceFrameworkInfoPlistPath = sourceFrameworkInfoPlistPath
-            self.sourceFrameworkResourceBundlePath = sourceFrameworkResourceBundlePath
+            self.sourceResourceBundlePath = sourceResourceBundlePath
             self.destinationFrameworkBundlePath = destinationFrameworkBundlePath
             self.fileSystem = fileSystem
         }
@@ -191,7 +191,7 @@ extension FrameworkBundleAssembler {
                     to: destinationResourcesPath
                 )
 
-                if let resourceBundleName = sourceFrameworkResourceBundlePath?.basename {
+                if let resourceBundleName = sourceResourceBundlePath?.basename {
                     let resourceBundlePath = destinationResourcesPath.appending(component: resourceBundleName)
                     // A resource bundle of versioned bundle framework has "Contents/Resources" directory.
                     try extractPrivacyInfoFromEmbeddedResourceBundleToFrameworkIfExists(
@@ -220,7 +220,7 @@ extension FrameworkBundleAssembler {
 
         /// Returns the resulting, copied resource bundle path.
         private func copyResourceBundle() throws -> TSCAbsolutePath? {
-            if let sourcePath = sourceFrameworkResourceBundlePath {
+            if let sourcePath = sourceResourceBundlePath {
                 let destinationPath = destinationFrameworkBundlePath.appending(component: sourcePath.basename)
                 try fileSystem.copy(from: sourcePath, to: destinationPath)
                 return destinationPath
