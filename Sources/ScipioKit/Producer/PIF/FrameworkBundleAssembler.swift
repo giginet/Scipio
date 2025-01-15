@@ -183,7 +183,7 @@ extension FrameworkBundleAssembler {
         func copyResources() throws {
             if isVersionedBundle {
                 // The framework is a versioned bundle, so copy entire Resources directory
-                // instead of copying its Info.plist and resrouce bundle separately.
+                // instead of copying its Info.plist and resource bundle separately.
                 let sourceResourcesPath = sourceFrameworkBundlePath.appending(component: "Resources")
                 let destinationResourcesPath = destinationFrameworkBundlePath.appending(component: "Resources")
                 try fileSystem.copy(
