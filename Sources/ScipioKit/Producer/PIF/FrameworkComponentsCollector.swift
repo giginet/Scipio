@@ -6,6 +6,8 @@ import PackageModel
 struct FrameworkComponents {
     /// Whether the built framework is a versioned bundle or not.
     ///
+    /// In general, frameworks for macOS would be this format.
+    ///
     /// - seealso: https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html
     var isVersionedBundle: Bool
     var frameworkName: String
