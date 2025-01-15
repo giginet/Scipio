@@ -158,7 +158,7 @@ extension FrameworkBundleAssembler {
     struct ResourcesProcessor {
         private let fileSystem: any FileSystem
 
-        init(fileSystem: any FileSystem) {
+        init(fileSystem: some FileSystem) {
             self.fileSystem = fileSystem
         }
 
