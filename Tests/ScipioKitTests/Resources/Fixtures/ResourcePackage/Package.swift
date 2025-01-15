@@ -21,6 +21,7 @@ let package = Package(
             dependencies: [
             ],
             resources: [
+                .copy("Resources/PrivacyInfo.xcprivacy"),
                 .process("Resources/giginet.png"),
             ]
         )

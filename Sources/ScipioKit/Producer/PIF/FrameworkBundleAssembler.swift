@@ -29,23 +29,24 @@ struct FrameworkBundleAssembler {
     func assemble() throws -> TSCAbsolutePath {
         try fileSystem.createDirectory(frameworkBundlePath, recursive: true)
 
-        try copyInfoPlist()
-
         try copyBinary()
 
         try copyHeaders()
 
         try copyModules()
 
-        try copyResources()
+        let resourcesProcessor = ResourcesProcessor(fileSystem: fileSystem)
+        try resourcesProcessor.copyResources(
+            sourceContext: .init(
+                isFrameworkVersionedBundle: frameworkComponents.isVersionedBundle,
+                frameworkBundlePath: frameworkComponents.frameworkPath,
+                frameworkInfoPlistPath: frameworkComponents.infoPlistPath,
+                resourceBundlePath: frameworkComponents.resourceBundlePath
+            ),
+            destinationFrameworkBundlePath: frameworkBundlePath
+        )
 
         return frameworkBundlePath
-    }
-
-    private func copyInfoPlist() throws {
-        let sourcePath = frameworkComponents.infoPlistPath
-        let destinationPath = frameworkBundlePath.appending(component: "Info.plist")
-        try fileSystem.copy(from: sourcePath, to: destinationPath)
     }
 
     private func copyBinary() throws {
@@ -153,11 +154,101 @@ struct FrameworkBundleAssembler {
             )
         }
     }
+}
 
-    private func copyResources() throws {
-        if let resourceBundlePath = frameworkComponents.resourceBundlePath {
-            let destinationPath = frameworkBundlePath.appending(component: resourceBundlePath.basename)
-            try fileSystem.copy(from: resourceBundlePath, to: destinationPath)
+extension FrameworkBundleAssembler {
+    struct ResourcesProcessor {
+        struct SourceContext {
+            let isFrameworkVersionedBundle: Bool
+            let frameworkBundlePath: TSCAbsolutePath
+            let frameworkInfoPlistPath: TSCAbsolutePath
+            let resourceBundlePath: TSCAbsolutePath?
+        }
+
+        private let fileSystem: any FileSystem
+
+        init(fileSystem: some FileSystem) {
+            self.fileSystem = fileSystem
+        }
+
+        func copyResources(
+            sourceContext: SourceContext,
+            destinationFrameworkBundlePath: TSCAbsolutePath
+        ) throws {
+            if sourceContext.isFrameworkVersionedBundle {
+                // The framework is a versioned bundle, so copy entire Resources directory
+                // instead of copying its Info.plist and resource bundle separately.
+                let sourceResourcesPath = sourceContext.frameworkBundlePath.appending(component: "Resources")
+                let destinationResourcesPath = destinationFrameworkBundlePath.appending(component: "Resources")
+                try fileSystem.copy(
+                    from: sourceResourcesPath.asURL.resolvingSymlinksInPath().absolutePath,
+                    to: destinationResourcesPath
+                )
+
+                if let resourceBundleName = sourceContext.resourceBundlePath?.basename {
+                    let resourceBundlePath = destinationResourcesPath.appending(component: resourceBundleName)
+                    // A resource bundle of versioned bundle framework has "Contents/Resources" directory.
+                    try extractPrivacyInfoIfExists(
+                        from: TSCRelativePath(validating: "Contents/Resources/PrivacyInfo.xcprivacy"),
+                        in: resourceBundlePath
+                    )
+                }
+            } else {
+                try copyInfoPlist(
+                    sourceContext: sourceContext,
+                    destinationFrameworkBundlePath: destinationFrameworkBundlePath
+                )
+                let copiedResourceBundlePath = try copyResourceBundle(
+                    sourceContext: sourceContext,
+                    destinationFrameworkBundlePath: destinationFrameworkBundlePath
+                )
+
+                if let copiedResourceBundlePath {
+                    try extractPrivacyInfoIfExists(
+                        from: TSCRelativePath(validating: "PrivacyInfo.xcprivacy"),
+                        in: copiedResourceBundlePath
+                    )
+                }
+            }
+        }
+
+        private func copyInfoPlist(
+            sourceContext: SourceContext,
+            destinationFrameworkBundlePath: TSCAbsolutePath
+        ) throws {
+            let sourcePath = sourceContext.frameworkInfoPlistPath
+            let destinationPath = destinationFrameworkBundlePath.appending(component: "Info.plist")
+            try fileSystem.copy(from: sourcePath, to: destinationPath)
+        }
+
+        /// Returns the resulting, copied resource bundle path.
+        private func copyResourceBundle(
+            sourceContext: SourceContext,
+            destinationFrameworkBundlePath: TSCAbsolutePath
+        ) throws -> TSCAbsolutePath? {
+            if let sourcePath = sourceContext.resourceBundlePath {
+                let destinationPath = destinationFrameworkBundlePath.appending(component: sourcePath.basename)
+                try fileSystem.copy(from: sourcePath, to: destinationPath)
+                return destinationPath
+            } else {
+                return nil
+            }
+        }
+
+        /// Extracts PrivacyInfo.xcprivacy to expected location (if exists in the resource bundle).
+        ///
+        /// - seealso: https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk#Add-a-privacy-manifest-to-your-framework
+        private func extractPrivacyInfoIfExists(
+            from relativePrivacyInfoPath: TSCRelativePath,
+            in resourceBundlePath: TSCAbsolutePath
+        ) throws {
+            let privacyInfoPath = resourceBundlePath.appending(relativePrivacyInfoPath)
+            if fileSystem.exists(privacyInfoPath) {
+                try fileSystem.move(
+                    from: privacyInfoPath,
+                    to: resourceBundlePath.parentDirectory.appending(component: relativePrivacyInfoPath.basename)
+                )
+            }
         }
     }
 }

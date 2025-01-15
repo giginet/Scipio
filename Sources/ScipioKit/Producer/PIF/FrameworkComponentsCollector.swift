@@ -4,7 +4,14 @@ import PackageModel
 
 /// FileLists to assemble a framework bundle
 struct FrameworkComponents {
+    /// Whether the built framework is a versioned bundle or not.
+    ///
+    /// In general, frameworks for macOS would be this format.
+    ///
+    /// - seealso: https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html
+    var isVersionedBundle: Bool
     var frameworkName: String
+    var frameworkPath: TSCAbsolutePath
     var binaryPath: TSCAbsolutePath
     var infoPlistPath: TSCAbsolutePath
     var swiftModulesPath: TSCAbsolutePath?
@@ -34,6 +41,8 @@ struct FrameworkComponentsCollector {
     private let packageLocator: any PackageLocator
     private let fileSystem: any FileSystem
 
+    private let productsDirectory: TSCAbsolutePath
+
     init(
         buildProduct: BuildProduct,
         sdk: SDK,
@@ -46,6 +55,11 @@ struct FrameworkComponentsCollector {
         self.buildOptions = buildOptions
         self.packageLocator = packageLocator
         self.fileSystem = fileSystem
+
+        productsDirectory = packageLocator.productsDirectory(
+            buildConfiguration: buildOptions.buildConfiguration,
+            sdk: sdk
+        )
     }
 
     func collectComponents(sdk: SDK) throws -> FrameworkComponents {
@@ -59,6 +73,11 @@ struct FrameworkComponentsCollector {
 
         let targetName = buildProduct.target.c99name
         let generatedFrameworkPath = generatedFrameworkPath()
+
+        let isVersionedBundle = fileSystem.exists(
+            generatedFrameworkPath.appending(component: "Resources"),
+            followSymlink: true
+        )
 
         let binaryPath = generatedFrameworkPath.appending(component: targetName)
 
@@ -74,15 +93,17 @@ struct FrameworkComponentsCollector {
 
         let publicHeaders = try collectPublicHeaders()
 
-        let resourceBundlePath = try collectResourceBundle(
-            of: targetName,
-            in: generatedFrameworkPath
+        let resourceBundlePath = generatedResourceBundlePath()
+
+        let infoPlistPath = try collectInfoPlist(
+            in: generatedFrameworkPath,
+            isVersionedBundle: isVersionedBundle
         )
 
-        let infoPlistPath = try collectInfoPlist(in: generatedFrameworkPath)
-
         let components = FrameworkComponents(
+            isVersionedBundle: isVersionedBundle,
             frameworkName: buildProduct.target.name.packageNamed(),
+            frameworkPath: generatedFrameworkPath,
             binaryPath: binaryPath,
             infoPlistPath: infoPlistPath,
             swiftModulesPath: swiftModulesPath,
@@ -121,24 +142,33 @@ struct FrameworkComponentsCollector {
     }
 
     private func generatedFrameworkPath() -> TSCAbsolutePath {
-        packageLocator.productsDirectory(
-            buildConfiguration: buildOptions.buildConfiguration,
-            sdk: sdk
-        )
-        .appending(component: "\(buildProduct.target.c99name).framework")
+        productsDirectory.appending(component: "\(buildProduct.target.c99name).framework")
     }
 
-    private func collectInfoPlist(in frameworkBundlePath: TSCAbsolutePath) throws -> TSCAbsolutePath {
-        let infoPlistLocationCandidates = [
-            // In a regular framework bundle, Info.plist should be on its root
-            frameworkBundlePath.appending(component: "Info.plist"),
+    private func generatedResourceBundlePath() -> TSCAbsolutePath? {
+        guard let bundleName = buildProduct.target.underlying.bundleName else { return nil }
+
+        let path = productsDirectory.appending(component: "\(bundleName).bundle")
+        return fileSystem.exists(path) ? path : nil
+    }
+
+    private func collectInfoPlist(
+        in frameworkBundlePath: TSCAbsolutePath,
+        isVersionedBundle: Bool
+    ) throws -> TSCAbsolutePath {
+        let infoPlistLocation = if isVersionedBundle {
             // In a versioned framework bundle (for macOS), Info.plist should be in Resources
-            frameworkBundlePath.appending(components: "Resources", "Info.plist"),
-        ]
-        guard let infoPlistPath = infoPlistLocationCandidates.first(where: fileSystem.exists(_:)) else {
+            frameworkBundlePath.appending(components: "Resources", "Info.plist")
+        } else {
+            // In a regular framework bundle, Info.plist should be on its root
+            frameworkBundlePath.appending(component: "Info.plist")
+        }
+
+        if fileSystem.exists(infoPlistLocation) {
+            return infoPlistLocation
+        } else {
             throw Error.infoPlistNotFound(frameworkBundlePath: frameworkBundlePath)
         }
-        return infoPlistPath
     }
 
     /// Collects *.swiftmodules* in a generated framework bundle
@@ -192,10 +222,5 @@ struct FrameworkComponentsCollector {
             }
 
         return Set(notSymlinks + notDuplicatedSymlinks)
-    }
-
-    private func collectResourceBundle(of targetName: String, in frameworkPath: TSCAbsolutePath) throws -> TSCAbsolutePath? {
-        let bundleFileName = try fileSystem.getDirectoryContents(frameworkPath).first { $0.hasSuffix(".bundle") }
-        return bundleFileName.flatMap { frameworkPath.appending(component: $0) }
     }
 }

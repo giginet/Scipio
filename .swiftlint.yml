@@ -10,7 +10,9 @@ disabled_rules:
   - todo
   - cyclomatic_complexity
   - optional_data_string_conversion
-line_length: 150
+line_length:
+  warning: 150
+  ignores_comments: true
 file_length: 600
 nesting:
   type_level: 3
