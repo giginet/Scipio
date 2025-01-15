@@ -37,10 +37,12 @@ struct FrameworkBundleAssembler {
 
         let resourcesProcessor = ResourcesProcessor(fileSystem: fileSystem)
         try resourcesProcessor.copyResources(
-            isFrameworkVersionedBundle: frameworkComponents.isVersionedBundle,
-            sourceFrameworkBundlePath: frameworkComponents.frameworkPath,
-            sourceFrameworkInfoPlistPath: frameworkComponents.infoPlistPath,
-            sourceResourceBundlePath: frameworkComponents.resourceBundlePath,
+            sourceContext: .init(
+                isFrameworkVersionedBundle: frameworkComponents.isVersionedBundle,
+                frameworkBundlePath: frameworkComponents.frameworkPath,
+                frameworkInfoPlistPath: frameworkComponents.infoPlistPath,
+                resourceBundlePath: frameworkComponents.resourceBundlePath
+            ),
             destinationFrameworkBundlePath: frameworkBundlePath
         )
 
@@ -156,6 +158,13 @@ struct FrameworkBundleAssembler {
 
 extension FrameworkBundleAssembler {
     struct ResourcesProcessor {
+        struct SourceContext {
+            let isFrameworkVersionedBundle: Bool
+            let frameworkBundlePath: TSCAbsolutePath
+            let frameworkInfoPlistPath: TSCAbsolutePath
+            let resourceBundlePath: TSCAbsolutePath?
+        }
+
         private let fileSystem: any FileSystem
 
         init(fileSystem: some FileSystem) {
@@ -163,23 +172,20 @@ extension FrameworkBundleAssembler {
         }
 
         func copyResources(
-            isFrameworkVersionedBundle: Bool,
-            sourceFrameworkBundlePath: TSCAbsolutePath,
-            sourceFrameworkInfoPlistPath: TSCAbsolutePath,
-            sourceResourceBundlePath: TSCAbsolutePath?,
+            sourceContext: SourceContext,
             destinationFrameworkBundlePath: TSCAbsolutePath
         ) throws {
-            if isFrameworkVersionedBundle {
+            if sourceContext.isFrameworkVersionedBundle {
                 // The framework is a versioned bundle, so copy entire Resources directory
                 // instead of copying its Info.plist and resource bundle separately.
-                let sourceResourcesPath = sourceFrameworkBundlePath.appending(component: "Resources")
+                let sourceResourcesPath = sourceContext.frameworkBundlePath.appending(component: "Resources")
                 let destinationResourcesPath = destinationFrameworkBundlePath.appending(component: "Resources")
                 try fileSystem.copy(
                     from: sourceResourcesPath.asURL.resolvingSymlinksInPath().absolutePath,
                     to: destinationResourcesPath
                 )
 
-                if let resourceBundleName = sourceResourceBundlePath?.basename {
+                if let resourceBundleName = sourceContext.resourceBundlePath?.basename {
                     let resourceBundlePath = destinationResourcesPath.appending(component: resourceBundleName)
                     // A resource bundle of versioned bundle framework has "Contents/Resources" directory.
                     try extractPrivacyInfoFromEmbeddedResourceBundleToFrameworkIfExists(
@@ -189,12 +195,11 @@ extension FrameworkBundleAssembler {
                 }
             } else {
                 try copyInfoPlist(
-                    sourceFrameworkBundlePath: sourceFrameworkBundlePath,
-                    sourceFrameworkInfoPlistPath: sourceFrameworkInfoPlistPath,
+                    sourceContext: sourceContext,
                     destinationFrameworkBundlePath: destinationFrameworkBundlePath
                 )
                 let copiedResourceBundlePath = try copyResourceBundle(
-                    sourceResourceBundlePath: sourceResourceBundlePath,
+                    sourceContext: sourceContext,
                     destinationFrameworkBundlePath: destinationFrameworkBundlePath
                 )
 
@@ -208,21 +213,20 @@ extension FrameworkBundleAssembler {
         }
 
         private func copyInfoPlist(
-            sourceFrameworkBundlePath: TSCAbsolutePath,
-            sourceFrameworkInfoPlistPath: TSCAbsolutePath,
+            sourceContext: SourceContext,
             destinationFrameworkBundlePath: TSCAbsolutePath
         ) throws {
-            let sourcePath = sourceFrameworkInfoPlistPath
+            let sourcePath = sourceContext.frameworkInfoPlistPath
             let destinationPath = destinationFrameworkBundlePath.appending(component: "Info.plist")
             try fileSystem.copy(from: sourcePath, to: destinationPath)
         }
 
         /// Returns the resulting, copied resource bundle path.
         private func copyResourceBundle(
-            sourceResourceBundlePath: TSCAbsolutePath?,
+            sourceContext: SourceContext,
             destinationFrameworkBundlePath: TSCAbsolutePath
         ) throws -> TSCAbsolutePath? {
-            if let sourcePath = sourceResourceBundlePath {
+            if let sourcePath = sourceContext.resourceBundlePath {
                 let destinationPath = destinationFrameworkBundlePath.appending(component: sourcePath.basename)
                 try fileSystem.copy(from: sourcePath, to: destinationPath)
                 return destinationPath
