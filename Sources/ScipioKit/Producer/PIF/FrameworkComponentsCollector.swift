@@ -6,7 +6,7 @@ import PackageModel
 struct FrameworkComponents {
     /// Whether the built framework is a versioned bundle or not.
     ///
-    /// ref: https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html
+    /// - seealso: https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html
     var isVersionedBundle: Bool
     var frameworkName: String
     var frameworkPath: TSCAbsolutePath

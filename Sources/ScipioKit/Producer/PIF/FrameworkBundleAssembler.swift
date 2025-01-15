@@ -233,7 +233,7 @@ extension FrameworkBundleAssembler {
 
         /// Extracts PrivacyInfo.xcprivacy to expected location (if exists in the resource bundle).
         ///
-        /// ref: https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk#Add-a-privacy-manifest-to-your-framework
+        /// - seealso: https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk#Add-a-privacy-manifest-to-your-framework
         private func extractPrivacyInfoFromEmbeddedResourceBundleToFrameworkIfExists(
             resourceBundlePath: TSCAbsolutePath,
             relativePrivacyInfoPath: TSCRelativePath
