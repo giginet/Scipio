@@ -188,9 +188,9 @@ extension FrameworkBundleAssembler {
                 if let resourceBundleName = sourceContext.resourceBundlePath?.basename {
                     let resourceBundlePath = destinationResourcesPath.appending(component: resourceBundleName)
                     // A resource bundle of versioned bundle framework has "Contents/Resources" directory.
-                    try extractPrivacyInfoFromEmbeddedResourceBundleToFrameworkIfExists(
-                        resourceBundlePath: resourceBundlePath,
-                        relativePrivacyInfoPath: TSCRelativePath(validating: "Contents/Resources/PrivacyInfo.xcprivacy")
+                    try extractPrivacyInfoIfExists(
+                        from: TSCRelativePath(validating: "Contents/Resources/PrivacyInfo.xcprivacy"),
+                        in: resourceBundlePath
                     )
                 }
             } else {
@@ -204,9 +204,9 @@ extension FrameworkBundleAssembler {
                 )
 
                 if let copiedResourceBundlePath {
-                    try extractPrivacyInfoFromEmbeddedResourceBundleToFrameworkIfExists(
-                        resourceBundlePath: copiedResourceBundlePath,
-                        relativePrivacyInfoPath: TSCRelativePath(validating: "PrivacyInfo.xcprivacy")
+                    try extractPrivacyInfoIfExists(
+                        from: TSCRelativePath(validating: "PrivacyInfo.xcprivacy"),
+                        in: copiedResourceBundlePath
                     )
                 }
             }
@@ -238,9 +238,9 @@ extension FrameworkBundleAssembler {
         /// Extracts PrivacyInfo.xcprivacy to expected location (if exists in the resource bundle).
         ///
         /// - seealso: https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk#Add-a-privacy-manifest-to-your-framework
-        private func extractPrivacyInfoFromEmbeddedResourceBundleToFrameworkIfExists(
-            resourceBundlePath: TSCAbsolutePath,
-            relativePrivacyInfoPath: TSCRelativePath
+        private func extractPrivacyInfoIfExists(
+            from relativePrivacyInfoPath: TSCRelativePath,
+            in resourceBundlePath: TSCAbsolutePath
         ) throws {
             let privacyInfoPath = resourceBundlePath.appending(relativePrivacyInfoPath)
             if fileSystem.exists(privacyInfoPath) {
