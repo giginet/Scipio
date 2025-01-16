@@ -1,6 +1,12 @@
 on: 
   release:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build and upload artifact bundle for'
+        required: true
+        default: ${{ github.ref_name }}
 
 name: Upload Artifact Bundle to Release
 env: 
@@ -21,7 +27,7 @@ jobs:
           swift build --disable-sandbox -c release --arch arm64
           swift build --disable-sandbox -c release --arch x86_64
       - name: Get Current Tag
-        run: echo "TAG_NAME=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+        run: echo "TAG_NAME=${{ inputs.tag || github.ref_name }}" >> $GITHUB_ENV
       - name: Make Artifact Bundle
         run: |
           swift package --allow-writing-to-package-directory generate-artifact-bundle \
