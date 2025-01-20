@@ -2,7 +2,7 @@
 
 ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/giginet/Scipio/tests.yml?style=flat-square&logo=github)
 ![Swift 6.0](https://img.shields.io/badge/Swift-6.0-FA7343?logo=swift&style=flat-square)
-[![Xcode 16.0](https://img.shields.io/badge/Xcode-16.0-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)](https://developer.apple.com/xcode/)
+[![Xcode 16.2](https://img.shields.io/badge/Xcode-16.2-16C5032a?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)](https://developer.apple.com/xcode/)
 [![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-green?logo=swift&style=flat-square)](https://swift.org/package-manager/) 
 [![Documentation](https://img.shields.io/badge/Documentation-available-green?style=flat-square)](https://giginet.github.io/Scipio/documentation/scipio/)
 ![Platforms](https://img.shields.io/badge/Platform-iOS%7CmacOS%7CwatchOS%7CtvOS%7CvisionOS-lightgray?logo=apple&style=flat-square)
@@ -144,7 +144,7 @@ Currently, we support Swift 6.0.
 
 |    | Xcode      | Swift |
 |----|------------|-------|
-| ✅ | 16.0       | 6.0  |
+| ✅ | 16.2       | 6.0  |
 
 ## Reliability
 
