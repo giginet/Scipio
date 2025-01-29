@@ -73,7 +73,7 @@ public struct Runner {
             descriptionPackage = try await DescriptionPackage(
                 packageDirectory: packagePath,
                 mode: mode,
-                onlyUseVersionsFromResolvedFile: false,
+                onlyUseVersionsFromResolvedFile: options.shouldOnlyUseVersionsFromResolvedFile,
                 toolchainEnvironment: options.toolchainEnvironment
             )
         } catch {
