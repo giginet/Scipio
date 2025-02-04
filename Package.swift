@@ -33,7 +33,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-algorithms.git",
                  from: "1.0.0"),
         .package(url: "https://github.com/onevcat/Rainbow",
-                 .upToNextMinor(from: "4.0.1")),
+                 from: "4.0.1"),
         .package(url: "https://github.com/giginet/scipio-cache-storage.git",
                  from: "1.0.0"),
     ],
