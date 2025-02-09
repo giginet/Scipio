@@ -1,5 +1,6 @@
 import Foundation
 import Basics
+import PIFKit
 import SPMBuildCore
 import PackageModel
 import PackageGraph
@@ -47,7 +48,7 @@ struct PIFGenerator {
         self.fileSystem = fileSystem
     }
 
-    private func buildPIF() async throws -> ScipioPIF {
+    private func buildPIFManipulator() async throws -> PIFManipulator {
         let commands = [
             "/usr/bin/xcrun",
             "swift",
@@ -58,13 +59,13 @@ struct PIFGenerator {
         ]
         let jsonString = try await executor.execute(commands).unwrapOutput()
         let data = jsonString.data(using: .utf8)!
-        return try ScipioPIF(jsonData: data)
+        return try PIFManipulator(jsonData: data)
     }
 
     func generateJSON(for sdk: SDK) async throws -> TSCAbsolutePath {
-        let pif = try await buildPIF()
+        let manipulator = try await buildPIFManipulator()
 
-        let newJSONData = try pif.dump()
+        let newJSONData = try manipulator.dump()
         
         let path = descriptionPackage.workspaceDirectory
             .appending(component: "manifest-\(descriptionPackage.name)-\(sdk.settingValue).pif")
