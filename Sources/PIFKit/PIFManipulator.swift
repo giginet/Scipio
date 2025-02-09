@@ -11,20 +11,23 @@ package class PIFManipulator {
     package struct BuildConfigurationUpdaterContext {
         package var targetName: String
         package var buildConfiguration: BuildConfiguration
+        package var name: String {
+            buildConfiguration.name
+        }
     }
     
     package func updateBuildSettings(_ modifier: (BuildConfigurationUpdaterContext) -> BuildConfiguration) throws {
         for (index, pifObject) in topLevelObject.arrayValue.enumerated() {
-            if pifObject["type"].stringValue == "target", let targetName = pifObject["name"].string {
+            if pifObject["type"].stringValue == "target", let targetName = pifObject["contents"]["name"].string {
                 guard let buildConfigrationsJSON = pifObject["contents"]["buildConfigurations"].array else {
                     continue
                 }
                 let buildConfigurations = try buildConfigrationsJSON.compactMap(BuildConfiguration.init(from:))
                 
-                let newBuildConfigurations = try buildConfigurations.map { buildConfiguration in
+                let newBuildConfigurations = buildConfigurations.map { buildConfiguration in
                     let context = BuildConfigurationUpdaterContext(
                         targetName: targetName,
-                        buildConfiguration: try BuildConfiguration(from: pifObject["buildConfiguration"])
+                        buildConfiguration: buildConfiguration
                     )
                     return modifier(context)
                 }

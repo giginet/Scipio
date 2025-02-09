@@ -9,17 +9,17 @@ package struct BuildConfiguration: Codable, Equatable {
     }
     
     package struct ImpartedBuildProperties: Sendable, Codable, Equatable {
-        package let buildSettings: [String: MacroExpressionValue]
+        package var buildSettings: [String: MacroExpressionValue]
 
         package init(buildSettings: [String: MacroExpressionValue]) {
             self.buildSettings = buildSettings
         }
     }
 
-    package let name: String
-    package let buildSettings: [String: MacroExpressionValue]
-    package let baseConfigurationFileReferenceGUID: String?
-    package let impartedBuildProperties: ImpartedBuildProperties
+    package var name: String
+    package var buildSettings: [String: MacroExpressionValue]
+    package var baseConfigurationFileReferenceGUID: String?
+    package var impartedBuildProperties: ImpartedBuildProperties
 }
 
 
