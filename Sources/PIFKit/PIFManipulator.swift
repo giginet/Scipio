@@ -15,11 +15,19 @@ package class PIFManipulator {
             }
             
             modifier(&target)
-            topLevelObject[index]["contents"] = try target.toJSON()
+            topLevelObject[index]["contents"]["productTypeIdentifier"].string = target.productType?.rawValue
+            topLevelObject[index]["contents"]["buildConfigurations"].arrayObject = target.buildConfigurations.compactMap { try? $0.toJSON() }
         }
     }
     
     package func dump() throws -> Data {
         try topLevelObject.rawData(options: [.prettyPrinted])
+    }
+}
+
+extension BuildConfiguration {
+    fileprivate func toJSON(using encoder: JSONEncoder = JSONEncoder()) throws -> JSON {
+        let data = try encoder.encode(self)
+        return try JSON(data: data)
     }
 }

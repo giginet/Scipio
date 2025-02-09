@@ -76,3 +76,25 @@ extension BuildConfiguration.MacroExpressionValue: ExpressibleByArrayLiteral {
         self = .stringList(elements)
     }
 }
+
+extension BuildConfiguration.MacroExpressionValue {
+    package mutating func append(_ appendingValues: [String]) {
+        self = .stringList(self.values + appendingValues)
+    }
+    
+    package mutating func append(_ appendingValue: String) {
+        append([appendingValue])
+    }
+    
+    private var values: [String] {
+        switch self {
+        case .bool(let value):
+            return [value ? "YES" : "NO"]
+        case .string(let value):
+            return [value]
+        case .stringList(let value):
+            return value
+            
+        }
+    }
+}
