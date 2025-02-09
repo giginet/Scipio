@@ -65,7 +65,8 @@ struct PIFCompiler: Compiler {
             let buildParameters = try makeBuildParameters(toolchain: toolchain)
 
             let generator = try PIFGenerator(
-                package: descriptionPackage,
+                packageName: descriptionPackage.name,
+                packageLocator: descriptionPackage,
                 buildParameters: buildParameters,
                 buildOptions: buildOptions,
                 buildOptionsMatrix: buildOptionsMatrix

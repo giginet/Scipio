@@ -7,7 +7,8 @@ import PackageGraph
 import XCBuildSupport
 
 struct PIFGenerator {
-    private let descriptionPackage: DescriptionPackage
+    private let packageName: String
+    private let packageLocator: any PackageLocator
     private let buildParameters: BuildParameters
     private let buildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
@@ -15,14 +16,16 @@ struct PIFGenerator {
     private let fileSystem: any FileSystem
 
     init(
-        package: DescriptionPackage,
+        packageName: String,
+        packageLocator: some PackageLocator,
         buildParameters: BuildParameters,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
         executor: some Executor = ProcessExecutor(),
         fileSystem: any FileSystem = localFileSystem
     ) throws {
-        self.descriptionPackage = package
+        self.packageName = packageName
+        self.packageLocator = packageLocator
         self.buildParameters = buildParameters
         self.buildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
@@ -37,7 +40,7 @@ struct PIFGenerator {
             "package",
             "dump-pif",
             "--package-path",
-            descriptionPackage.packageDirectory.pathString,
+            packageLocator.packageDirectory.pathString,
         ]
         let jsonString = try await executor.execute(commands).unwrapOutput()
         let data = jsonString.data(using: .utf8)!
@@ -53,8 +56,8 @@ struct PIFGenerator {
 
         let newJSONData = try manipulator.dump()
         
-        let path = descriptionPackage.workspaceDirectory
-            .appending(component: "manifest-\(descriptionPackage.name)-\(sdk.settingValue).pif")
+        let path = packageLocator.workspaceDirectory
+            .appending(component: "manifest-\(packageName)-\(sdk.settingValue).pif")
         try fileSystem.writeFileContents(path.spmAbsolutePath, data: newJSONData)
         return path
     }
@@ -134,7 +137,7 @@ struct PIFGenerator {
         // So a bridging header will be generated in frameworks bundle even if `SWIFT_OBJC_INTERFACE_HEADER_DIR` was specified.
         // So it's need to replace `MODULEMAP_FILE_CONTENTS` to an absolute path.
         // Bridging Headers will be generated inside generated frameworks
-        let productsDirectory = descriptionPackage.productsDirectory(
+        let productsDirectory = packageLocator.productsDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
             sdk: sdk
         )
@@ -168,7 +171,7 @@ struct PIFGenerator {
         assert(target.productType == .bundle, "This method must be called for Resource bundles")
 
         let infoPlistGenerator = InfoPlistGenerator(fileSystem: fileSystem)
-        let infoPlistPath = descriptionPackage.workspaceDirectory.appending(component: "Info-\(target.name).plist")
+        let infoPlistPath = packageLocator.workspaceDirectory.appending(component: "Info-\(target.name).plist")
         do {
             try infoPlistGenerator.generateForResourceBundle(at: infoPlistPath)
         } catch {
