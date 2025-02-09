@@ -64,9 +64,8 @@ struct PIFGenerator {
         case .objectFile:
             updateObjectFileTarget(&target, sdk: sdk)
         case .bundle:
-            break
+            generateInfoPlistForResource(for: &target)
         default:
-//            generateInfoPlistForResource(for: target)
             break
         }
     }
@@ -94,6 +93,7 @@ struct PIFGenerator {
         configuration.buildSettings["SKIP_INSTALL"] = false
         configuration.buildSettings["INSTALL_PATH"] = "/usr/local/lib"
         configuration.buildSettings["ONLY_ACTIVE_ARCH"] = false
+        configuration.buildSettings["SDKROOT"] = .string(sdk.settingValue)
 
         configuration.buildSettings["GENERATE_INFOPLIST_FILE"] = true
         // These values are required to ship built frameworks to AppStore as embedded frameworks
@@ -163,33 +163,27 @@ struct PIFGenerator {
         createOrUpdateFlags(for: "OTHER_SWIFT_FLAGS", to: \.swiftFlags)
         createOrUpdateFlags(for: "OTHER_LDFLAGS", to: \.linkerFlags)
     }
-//
-//    private func generateInfoPlistForResource(for pifTarget: PIF.Target) {
-//        assert(pifTarget.supportedType == .resourceBundle, "This method must be called for Resource bundles")
-//
-//        let infoPlistGenerator = InfoPlistGenerator(fileSystem: fileSystem)
-//        let infoPlistPath = descriptionPackage.workspaceDirectory.appending(component: "Info-\(pifTarget.productName).plist")
-//        do {
-//            try infoPlistGenerator.generateForResourceBundle(at: infoPlistPath)
-//        } catch {
-//            fatalError("Could not generate Info.plist file")
-//        }
-//
-//        let newConfigurations = pifTarget.buildConfigurations.map { original in
-//            var configuration = original
-//            var settings = configuration.buildSettings
-//
-//            // For resource bundle targets, generating Info.plist automatically in default.
-//            // However, generated Info.plist causes code signing issue when submitting to AppStore.
-//            // `CFBundleExecutable` is not allowed for Info.plist contains in resource bundles.
-//            // So generating a Info.plist and set this
-//            settings[.GENERATE_INFOPLIST_FILE] = "NO"
-//            settings[.INFOPLIST_FILE] = infoPlistPath.pathString
-//
-//            configuration.buildSettings = settings
-//            return configuration
-//        }
-//
-//        pifTarget.buildConfigurations = newConfigurations
-//    }
+
+    private func generateInfoPlistForResource(for target: inout PIFKit.Target) {
+        assert(target.productType == .bundle, "This method must be called for Resource bundles")
+
+        let infoPlistGenerator = InfoPlistGenerator(fileSystem: fileSystem)
+        let infoPlistPath = descriptionPackage.workspaceDirectory.appending(component: "Info-\(target.name).plist")
+        do {
+            try infoPlistGenerator.generateForResourceBundle(at: infoPlistPath)
+        } catch {
+            fatalError("Could not generate Info.plist file")
+        }
+
+        target.buildConfigurations = target.buildConfigurations.map { buildConfiguration in
+            var mutableConfiguration = buildConfiguration
+            // For resource bundle targets, generating Info.plist automatically in default.
+            // However, generated Info.plist causes code signing issue when submitting to AppStore.
+            // `CFBundleExecutable` is not allowed for Info.plist contains in resource bundles.
+            // So generating a Info.plist and set this
+            mutableConfiguration.buildSettings["GENERATE_INFOPLIST_FILE"] = false
+            mutableConfiguration.buildSettings["INFOPLIST_FILE"] = .string(infoPlistPath.pathString)
+            return mutableConfiguration
+        }
+    }
 }
