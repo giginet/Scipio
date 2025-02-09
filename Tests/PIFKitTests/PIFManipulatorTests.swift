@@ -5,6 +5,28 @@ import Testing
 @Suite
 struct PIFManipulatorTests {
     @Test
+    func canUpdateProductTypes() throws {
+        let jsonData = try #require(FixtureLoader.load(named: "SimplePackage.pif"))
+        let manipulator = try PIFManipulator(jsonData: jsonData)
+        
+        var detectedTargets: [String] = []
+        try manipulator.updateTargets { target in
+            detectedTargets.append(target.name)
+            
+            var modified = target
+            modified.productType = .application
+            
+            return modified
+        }
+        
+        let dumpedData = try manipulator.dump()
+        let dumpedString = try #require(String(data: dumpedData, encoding: .utf8))
+        
+        #expect(dumpedString.contains("product-type.application"))
+        #expect(detectedTargets.count == 5)
+    }
+    
+    @Test
     func canUpdateBuildConfiguration() throws {
         let jsonData = try #require(FixtureLoader.load(named: "SimplePackage.pif"))
         let fixtureString = try #require(String(data: jsonData, encoding: .utf8))
@@ -12,12 +34,11 @@ struct PIFManipulatorTests {
         
         #expect(!fixtureString.contains("MY_VALUE"))
         
-        var detectedTargets: [String] = []
-        try manipulator.updateBuildSettings { context in
-            detectedTargets.append(context.targetName)
+        try manipulator.updateTargets { target in
+            var modified = target
             
-            var modified = context.buildConfiguration
-            modified.buildSettings["MY_VALUE"] = "TEST"
+            modified.buildConfigurations[0].buildSettings["MY_VALUE"] = "YES"
+            modified.buildConfigurations[1].buildSettings["MY_VALUE"] = "YES"
             
             return modified
         }
@@ -26,6 +47,5 @@ struct PIFManipulatorTests {
         let dumpedString = try #require(String(data: dumpedData, encoding: .utf8))
         
         #expect(dumpedString.contains("MY_VALUE"))
-        #expect(detectedTargets.count == 10)
     }
 }

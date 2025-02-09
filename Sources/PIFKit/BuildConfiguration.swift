@@ -1,7 +1,7 @@
 import Foundation
 import SwiftyJSON
 
-package struct BuildConfiguration: Codable, Equatable {
+package struct BuildConfiguration: Codable, Equatable, JSONConvertible {
     package enum MacroExpressionValue: Sendable, Codable, Equatable {
         case bool(Bool)
         case string(String)
@@ -21,7 +21,6 @@ package struct BuildConfiguration: Codable, Equatable {
     package var baseConfigurationFileReferenceGUID: String?
     package var impartedBuildProperties: ImpartedBuildProperties
 }
-
 
 
 extension BuildConfiguration.MacroExpressionValue {
@@ -57,14 +56,6 @@ extension BuildConfiguration.MacroExpressionValue {
         } else {
             throw DecodingError.unknownBuildSettingsValue
         }
-    }
-}
-
-extension BuildConfiguration {
-    init(from json: JSON) throws {
-        let decoder = JSONDecoder()
-        let data = try json.rawData()
-        self = try decoder.decode(BuildConfiguration.self, from: data)
     }
 }
 
