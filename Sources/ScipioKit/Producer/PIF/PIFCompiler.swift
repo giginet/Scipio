@@ -70,7 +70,7 @@ struct PIFCompiler: Compiler {
                 buildOptions: buildOptions,
                 buildOptionsMatrix: buildOptionsMatrix
             )
-            let pifPath = try generator.generateJSON(for: sdk)
+            let pifPath = try await generator.generateJSON(for: sdk)
             let buildParametersPath = try buildParametersGenerator.generate(
                 for: sdk,
                 buildParameters: buildParameters,

@@ -28,6 +28,7 @@ struct PIFGenerator {
     private let buildParameters: BuildParameters
     private let buildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
+    private let executor: any Executor
     private let fileSystem: any FileSystem
 
     init(
@@ -35,31 +36,34 @@ struct PIFGenerator {
         buildParameters: BuildParameters,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
+        executor: some Executor = ProcessExecutor(),
         fileSystem: any FileSystem = localFileSystem
     ) throws {
         self.descriptionPackage = package
         self.buildParameters = buildParameters
         self.buildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
+        self.executor = executor
         self.fileSystem = fileSystem
     }
 
-    private func generatePIF() throws -> PIF.TopLevelObject {
-        // A constructor of PIFBuilder is concealed. So use JSON is only way to get PIF structs.
-        let jsonString = try PIFBuilder.generatePIF(
-            buildParameters: buildParameters,
-            packageGraph: descriptionPackage.graph,
-            fileSystem: localFileSystem,
-            observabilityScope: makeObservabilitySystem().topScope,
-            preservePIFModelStructure: true
-        )
+    private func generatePIF() async throws -> PIF.TopLevelObject {
+        let commands = [
+            "/usr/bin/xcrun",
+            "swift",
+            "package",
+            "dump-pif",
+            "--package-path",
+            descriptionPackage.packageDirectory.pathString,
+        ]
+        let jsonString = try await executor.execute(commands).unwrapOutput()
         let data = jsonString.data(using: .utf8)!
         let jsonDecoder = JSONDecoder.makeWithDefaults()
         return try jsonDecoder.decode(PIF.TopLevelObject.self, from: data)
     }
 
-    func generateJSON(for sdk: SDK) throws -> TSCAbsolutePath {
-        let topLevelObject = modify(try generatePIF(), for: sdk)
+    func generateJSON(for sdk: SDK) async throws -> TSCAbsolutePath {
+        let topLevelObject = modify(try await generatePIF(), for: sdk)
 
         try PIF.sign(topLevelObject.workspace)
         let encoder = JSONEncoder.makeWithDefaults()
