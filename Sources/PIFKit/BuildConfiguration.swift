@@ -1,6 +1,7 @@
 import Foundation
 import SwiftyJSON
 
+/// A build configuration for a target.
 package struct BuildConfiguration: Codable, Equatable, JSONConvertible {
     package enum MacroExpressionValue: Sendable, Codable, Equatable {
         case bool(Bool)

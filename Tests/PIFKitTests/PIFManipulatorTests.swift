@@ -10,7 +10,7 @@ struct PIFManipulatorTests {
         let manipulator = try PIFManipulator(jsonData: jsonData)
         
         var detectedTargets: [String] = []
-        try manipulator.updateTargets { target in
+        manipulator.updateTargets { target in
             detectedTargets.append(target.name)
             
             target.productType = .application
@@ -31,7 +31,7 @@ struct PIFManipulatorTests {
         
         #expect(!fixtureString.contains("MY_VALUE"))
         
-        try manipulator.updateTargets { target in
+        manipulator.updateTargets { target in
             target.buildConfigurations[0].buildSettings["MY_VALUE"] = "YES"
             target.buildConfigurations[1].buildSettings["MY_VALUE"] = "YES"
         }
