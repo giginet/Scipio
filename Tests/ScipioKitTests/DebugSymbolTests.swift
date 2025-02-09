@@ -19,7 +19,7 @@ struct DwarfExtractorTests {
                 "armv7": "AD019F0E-1318-3F9F-92B6-9F95FBEBBE6F",
                 "arm64": "BB59C973-06AC-388F-8EC1-FA3701C9E264",
             ]
-        )
+        ),
     ])
     func extractDwarfDump(argument: (fixture: String, expectedUUIDs: [String: String])) async throws {
         let executor = StubbableExecutor { arguments in

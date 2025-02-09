@@ -33,11 +33,11 @@ struct ClangChecker<E: Executor> {
     }
 
     private func parseClangVersion(from outputString: String) -> String? {
-        let regex = /Apple clang version .+ \((.+)\)/
+        let regex = /Apple clang version .+ \((?<version>.+)\)/
         guard let result = try? regex.firstMatch(in: outputString) else {
             return nil
         }
-        return String(result.output.1)
+        return String(result.output.version)
     }
 }
 

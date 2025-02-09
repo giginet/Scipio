@@ -24,15 +24,15 @@ struct DwarfExtractor<E: Executor> {
     }
 
     private func parseUUIDs(from outputString: String) -> [Arch: UUID] {
-        let regex = /([0-9A-F]{8}\-[0-9A-F]{4}\-[0-9A-F]{4}\-[0-9A-F]{4}\-[0-9A-F]{12}) \((.+)\)/
+        let regex = /(?<uuid>[0-9A-F]{8}\-[0-9A-F]{4}\-[0-9A-F]{4}\-[0-9A-F]{4}\-[0-9A-F]{12}) \((?<arch>.+)\)/
         let results = outputString.matches(of: regex)
 
-        return results.compactMap { result -> (String, UUID)? in
-            guard let uuid = UUID(uuidString: String(result.output.1)) else { return nil }
-            return (String(result.output.2), uuid)
+        return results.compactMap { result -> (arch: String, uuid: UUID)? in
+            guard let uuid = UUID(uuidString: String(result.output.uuid)) else { return nil }
+            return (String(result.output.arch), uuid)
         }
         .reduce(into: [:]) { dictionary, element in
-            dictionary[element.0] = element.1
+            dictionary[element.arch] = element.uuid
         }
     }
 }
