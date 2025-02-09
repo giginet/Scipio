@@ -77,7 +77,7 @@ extension BuildConfiguration.MacroExpressionValue: ExpressibleByArrayLiteral {
     }
 }
 
-extension BuildConfiguration.MacroExpressionValue {
+extension BuildConfiguration.MacroExpressionValue? {
     package mutating func append(_ appendingValues: [String]) {
         self = .stringList(self.values + appendingValues)
     }
@@ -94,7 +94,8 @@ extension BuildConfiguration.MacroExpressionValue {
             return [value]
         case .stringList(let value):
             return value
-            
+        case .none:
+            return ["$(inherited)"]
         }
     }
 }

@@ -110,19 +110,19 @@ struct PIFGenerator {
             configuration.buildSettings["MACH_O_TYPE"] = "staticlib"
         }
 
-        configuration.buildSettings["LIBRARY_SEARCH_PATHS", default: ["$(inherited)"]]
+        configuration.buildSettings["LIBRARY_SEARCH_PATHS"]
             .append("\(toolchainLibDir.pathString)/swift/\(sdk.settingValue)")
 
         // Enable to emit swiftinterface
         if buildOptions.enableLibraryEvolution {
-            configuration.buildSettings["OTHER_SWIFT_FLAGS", default: ["$(inherited)"]]
+            configuration.buildSettings["OTHER_SWIFT_FLAGS"]
                 .append("-enable-library-evolution")
             configuration.buildSettings["SWIFT_EMIT_MODULE_INTERFACE"] = "YES"
         }
         configuration.buildSettings["SWIFT_INSTALL_OBJC_HEADER"] = "YES"
 
         if frameworkType == .mergeable {
-            configuration.buildSettings["OTHER_LDFLAGS", default: ["$(inherited)"]]
+            configuration.buildSettings["OTHER_LDFLAGS"]
                 .append("-Wl,-make_mergeable")
         }
 
@@ -154,7 +154,7 @@ struct PIFGenerator {
     private func appendExtraFlagsByBuildOptionsMatrix(to configuration: inout PIFKit.BuildConfiguration, target: PIFKit.Target) {
         func createOrUpdateFlags(for key: String, to keyPath: KeyPath<ExtraFlags, [String]?>) {
             if let extraFlags = self.buildOptionsMatrix[target.name]?.extraFlags?[keyPath: keyPath] {
-                configuration.buildSettings[key, default: ["$(inherited)"]].append(extraFlags)
+                configuration.buildSettings[key].append(extraFlags)
             }
         }
 
