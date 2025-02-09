@@ -49,19 +49,19 @@ struct PIFGenerator {
 
     func generateJSON(for sdk: SDK) async throws -> TSCAbsolutePath {
         let manipulator = try await buildPIFManipulator()
-        
+
         manipulator.updateTargets { target in
             updateTarget(&target, sdk: sdk)
         }
 
         let newJSONData = try manipulator.dump()
-        
+
         let path = packageLocator.workspaceDirectory
             .appending(component: "manifest-\(packageName)-\(sdk.settingValue).pif")
         try fileSystem.writeFileContents(path.spmAbsolutePath, data: newJSONData)
         return path
     }
-    
+
     private func updateTarget(_ target: inout PIFKit.Target, sdk: SDK) {
         switch target.productType {
         case .objectFile:
@@ -72,20 +72,20 @@ struct PIFGenerator {
             break
         }
     }
-    
+
     private func updateObjectFileTarget(_ target: inout PIFKit.Target, sdk: SDK) {
         target.productType = .framework
-        
-        for i in 0..<target.buildConfigurations.count {
-            updateBuildConfiguration(&target.buildConfigurations[i], target: target, sdk: sdk)
+
+        for index in 0..<target.buildConfigurations.count {
+            updateBuildConfiguration(&target.buildConfigurations[index], target: target, sdk: sdk)
         }
     }
-    
+
     private func updateBuildConfiguration(_ configuration: inout PIFKit.BuildConfiguration, target: PIFKit.Target, sdk: SDK) {
         let name = target.name
         let c99Name = name.spm_mangledToC99ExtendedIdentifier()
         let toolchainLibDir = (try? buildParameters.toolchain.toolchainLibDir) ?? .root
-        
+
         configuration.buildSettings["PRODUCT_NAME"] = "$(EXECUTABLE_NAME:c99extidentifier)"
         configuration.buildSettings["PRODUCT_MODULE_NAME"] = "$(EXECUTABLE_NAME:c99extidentifier)"
         configuration.buildSettings["EXECUTABLE_NAME"] = .string(c99Name)

@@ -4,13 +4,13 @@ import SwiftyJSON
 /// Manipulates PIF JSON data
 package class PIFManipulator {
     private var topLevelObject: JSON
-    
+
     /// Initialize PIFManipulator with JSON data
     /// - Parameters jsonData: JSON data
     package init(jsonData: Data) throws {
         self.topLevelObject = try JSON(data: jsonData)
     }
-    
+
     /// Update targets in PIF JSON data
     /// - Parameters modifier: Closure to modify Target
     package func updateTargets(_ modifier: (inout Target) -> Void) {
@@ -18,18 +18,18 @@ package class PIFManipulator {
             guard topLevelObject[index]["type"].stringValue == "target", var target = try? Target(from: topLevelObject[index]["contents"]) else {
                 continue
             }
-            
+
             modifier(&target)
             apply(target, to: &topLevelObject[index])
         }
     }
-    
+
     /// Dump manipulating JSON data
     /// - Returns: JSON data
     package func dump() throws -> Data {
         try topLevelObject.rawData(options: [.prettyPrinted])
     }
-    
+
     /// Apply target to JSON object
     /// Currently, Target is a subset of an actual PIF target. So, we have to apply only the properties that are present in the Target.
     /// - Parameters target: Target to apply
@@ -39,7 +39,7 @@ package class PIFManipulator {
         pifObject["contents"]["productTypeIdentifier"].string = target.productType?.rawValue
         pifObject["contents"]["buildConfigurations"].arrayObject = target.buildConfigurations.compactMap { try? $0.toJSON() }
     }
-        
+
 }
 
 extension BuildConfiguration {

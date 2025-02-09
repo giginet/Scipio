@@ -13,11 +13,11 @@ package struct Target: Sendable, Codable, Equatable, JSONConvertible {
         case bundle = "com.apple.product-type.bundle"
         case packageProduct = "packageProduct"
     }
-    
+
     package var name: String
     package var buildConfigurations: [BuildConfiguration]
     package var productType: ProductType?
-    
+
     enum CodingKeys: String, CodingKey {
         case name
         case buildConfigurations

@@ -8,7 +8,7 @@ package struct BuildConfiguration: Codable, Equatable, JSONConvertible {
         case string(String)
         case stringList([String])
     }
-    
+
     package struct ImpartedBuildProperties: Sendable, Codable, Equatable {
         package var buildSettings: [String: MacroExpressionValue]
 
@@ -23,12 +23,11 @@ package struct BuildConfiguration: Codable, Equatable, JSONConvertible {
     package var impartedBuildProperties: ImpartedBuildProperties
 }
 
-
 extension BuildConfiguration.MacroExpressionValue {
     package enum DecodingError: Error {
         case unknownBuildSettingsValue
     }
-    
+
     package func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
         switch self {
@@ -40,10 +39,10 @@ extension BuildConfiguration.MacroExpressionValue {
             try container.encode(value)
         }
     }
-    
+
     package init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
-        
+
         if let stringValue = try? container.decode(String.self) {
             if stringValue == "YES" {
                 self = .bool(true)
@@ -82,11 +81,11 @@ extension BuildConfiguration.MacroExpressionValue? {
     package mutating func append(_ appendingValues: [String]) {
         self = .stringList(self.values + appendingValues)
     }
-    
+
     package mutating func append(_ appendingValue: String) {
         append([appendingValue])
     }
-    
+
     private var values: [String] {
         switch self {
         case .bool(let value):
