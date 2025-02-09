@@ -33,12 +33,11 @@ struct ClangChecker<E: Executor> {
     }
 
     private func parseClangVersion(from outputString: String) -> String? {
-        // TODO Use modern regex
-        let regex = try! NSRegularExpression(pattern: "Apple\\sclang\\sversion\\s.+\\s\\((?<version>.+)\\)")
-        return regex.matches(in: outputString, range: NSRange(location: 0, length: outputString.utf16.count)).compactMap { match -> String? in
-            guard let version = match.captured(by: "version", in: outputString) else { return nil }
-            return version
-        }.first
+        let regex = /Apple clang version .+ \((?<version>.+)\)/
+        guard let result = try? regex.firstMatch(in: outputString) else {
+            return nil
+        }
+        return String(result.output.version)
     }
 }
 
