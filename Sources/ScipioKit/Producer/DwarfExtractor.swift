@@ -36,13 +36,3 @@ struct DwarfExtractor<E: Executor> {
         }
     }
 }
-
-extension NSTextCheckingResult {
-    func captured(by name: String, in originalText: String) -> String? {
-        let range = range(withName: name)
-        guard let swiftyRange = Range(range, in: originalText) else {
-            return nil
-        }
-        return String(originalText[swiftyRange])
-    }
-}
