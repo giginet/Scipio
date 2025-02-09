@@ -47,7 +47,7 @@ struct PIFGenerator {
         self.fileSystem = fileSystem
     }
 
-    private func generatePIF() async throws -> PIF.TopLevelObject {
+    private func buildPIF() async throws -> ScipioPIF {
         let commands = [
             "/usr/bin/xcrun",
             "swift",
@@ -58,18 +58,14 @@ struct PIFGenerator {
         ]
         let jsonString = try await executor.execute(commands).unwrapOutput()
         let data = jsonString.data(using: .utf8)!
-        let jsonDecoder = JSONDecoder.makeWithDefaults()
-        return try jsonDecoder.decode(PIF.TopLevelObject.self, from: data)
+        return try ScipioPIF(jsonData: data)
     }
 
     func generateJSON(for sdk: SDK) async throws -> TSCAbsolutePath {
-        let topLevelObject = modify(try await generatePIF(), for: sdk)
+        let pif = try await buildPIF()
 
-        try PIF.sign(topLevelObject.workspace)
-        let encoder = JSONEncoder.makeWithDefaults()
-        encoder.userInfo[.encodeForXCBuild] = true
-
-        let newJSONData = try encoder.encode(topLevelObject)
+        let newJSONData = try pif.dump()
+        
         let path = descriptionPackage.workspaceDirectory
             .appending(component: "manifest-\(descriptionPackage.name)-\(sdk.settingValue).pif")
         try fileSystem.writeFileContents(path.spmAbsolutePath, data: newJSONData)
