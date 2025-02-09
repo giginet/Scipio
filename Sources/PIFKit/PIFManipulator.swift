@@ -8,14 +8,14 @@ package class PIFManipulator {
         self.topLevelObject = try JSON(data: jsonData)
     }
     
-    package func updateTargets(_ modifier: (Target) -> Target) throws {
+    package func updateTargets(_ modifier: (inout Target) -> Void) throws {
         for (index, pifObject) in topLevelObject.arrayValue.enumerated() {
-            guard pifObject["type"].stringValue == "target", let target = try? Target(from: pifObject["contents"]) else {
+            guard pifObject["type"].stringValue == "target", var target = try? Target(from: pifObject["contents"]) else {
                 continue
             }
             
-            let modifiedTarget = modifier(target)
-            topLevelObject[index]["contents"] = try modifiedTarget.toJSON()
+            modifier(&target)
+            topLevelObject[index]["contents"] = try target.toJSON()
         }
     }
     

@@ -13,10 +13,7 @@ struct PIFManipulatorTests {
         try manipulator.updateTargets { target in
             detectedTargets.append(target.name)
             
-            var modified = target
-            modified.productType = .application
-            
-            return modified
+            target.productType = .application
         }
         
         let dumpedData = try manipulator.dump()
@@ -35,12 +32,8 @@ struct PIFManipulatorTests {
         #expect(!fixtureString.contains("MY_VALUE"))
         
         try manipulator.updateTargets { target in
-            var modified = target
-            
-            modified.buildConfigurations[0].buildSettings["MY_VALUE"] = "YES"
-            modified.buildConfigurations[1].buildSettings["MY_VALUE"] = "YES"
-            
-            return modified
+            target.buildConfigurations[0].buildSettings["MY_VALUE"] = "YES"
+            target.buildConfigurations[1].buildSettings["MY_VALUE"] = "YES"
         }
         
         let dumpedData = try manipulator.dump()
