@@ -24,16 +24,16 @@ struct DwarfExtractor<E: Executor> {
     }
 
     private func parseUUIDs(from outputString: String) -> [Arch: UUID] {
-        // TODO Use modern Regex
-        let regex = try! NSRegularExpression(
-            pattern: "(?<uuid>[0-9A-F]{8}\\-[0-9A-F]{4}\\-[0-9A-F]{4}\\-[0-9A-F]{4}\\-[0-9A-F]{12})\\s\\((?<arch>.+)\\)"
-        )
-        return regex.matches(in: outputString, range: NSRange(location: 0, length: outputString.utf16.count)).compactMap { match -> (String, UUID)? in
-            guard let uuidString = match.captured(by: "uuid", in: outputString), let uuid = UUID(uuidString: uuidString) else { return nil }
-            guard let arch = match.captured(by: "arch", in: outputString) else { return nil }
-            return (arch, uuid)
+        let regex = /([0-9A-F]{8}\-[0-9A-F]{4}\-[0-9A-F]{4}\-[0-9A-F]{4}\-[0-9A-F]{12}) \((.+)\)/
+        let results = outputString.matches(of: regex)
+
+        return results.compactMap { result -> (String, UUID)? in
+            guard let uuid = UUID(uuidString: String(result.output.1)) else { return nil }
+            return (String(result.output.2), uuid)
         }
-        .reduce(into: [:]) { (dict, element: (String, UUID)) in dict[element.0] = element.1 }
+        .reduce(into: [:]) { dictionary, element in
+            dictionary[element.0] = element.1
+        }
     }
 }
 
