@@ -71,3 +71,21 @@ extension BuildConfiguration {
         self = try decoder.decode(BuildConfiguration.self, from: data)
     }
 }
+
+extension BuildConfiguration.MacroExpressionValue: ExpressibleByStringLiteral {
+    package init(stringLiteral value: String) {
+        self = .string(value)
+    }
+}
+
+extension BuildConfiguration.MacroExpressionValue: ExpressibleByBooleanLiteral {
+    package init(booleanLiteral value: Bool) {
+        self = .bool(value)
+    }
+}
+
+extension BuildConfiguration.MacroExpressionValue: ExpressibleByArrayLiteral {
+    package init(arrayLiteral elements: String...) {
+        self = .stringList(elements)
+    }
+}
