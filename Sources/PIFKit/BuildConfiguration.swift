@@ -1,14 +1,14 @@
 import Foundation
 import SwiftyJSON
 
-package struct BuildConfiguration: Codable {
+package struct BuildConfiguration: Codable, Equatable {
     package enum MacroExpressionValue: Sendable, Codable, Equatable {
         case bool(Bool)
         case string(String)
         case stringList([String])
     }
     
-    package struct ImpartedBuildProperties: Sendable, Codable {
+    package struct ImpartedBuildProperties: Sendable, Codable, Equatable {
         package let buildSettings: [String: MacroExpressionValue]
 
         package init(buildSettings: [String: MacroExpressionValue]) {
@@ -29,20 +29,16 @@ extension BuildConfiguration.MacroExpressionValue {
         case unknownBuildSettingsValue
     }
     
-    fileprivate var settingsValue: String {
-        switch self {
-        case .bool(let value):
-            return value ? "YES" : "NO"
-        case .string(let value):
-            return value
-        case .stringList(let value):
-            return value.joined(separator: " ")
-        }
-    }
-    
     package func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
-        try container.encode(settingsValue)
+        switch self {
+        case .bool(let value):
+            try container.encode(value ? "YES" : "NO")
+        case .string(let value):
+            try container.encode(value)
+        case .stringList(let value):
+            try container.encode(value)
+        }
     }
     
     package init(from decoder: any Decoder) throws {
