@@ -83,12 +83,11 @@ struct PIFGenerator {
 
     private func updateBuildConfiguration(_ configuration: inout PIFKit.BuildConfiguration, target: PIFKit.Target, sdk: SDK) {
         let name = target.name
-        let c99Name = name.spm_mangledToC99ExtendedIdentifier()
         let toolchainLibDir = (try? buildParameters.toolchain.toolchainLibDir) ?? .root
 
         configuration.buildSettings["PRODUCT_NAME"] = "$(EXECUTABLE_NAME:c99extidentifier)"
         configuration.buildSettings["PRODUCT_MODULE_NAME"] = "$(EXECUTABLE_NAME:c99extidentifier)"
-        configuration.buildSettings["EXECUTABLE_NAME"] = .string(c99Name)
+        configuration.buildSettings["EXECUTABLE_NAME"] = .string(target.c99Name)
         configuration.buildSettings["TARGET_NAME"] = .string(name)
         configuration.buildSettings["PRODUCT_BUNDLE_IDENTIFIER"] = .string(name.spm_mangledToBundleIdentifier())
         configuration.buildSettings["CLANG_ENABLE_MODULES"] = true
@@ -137,22 +136,8 @@ struct PIFGenerator {
         // So a bridging header will be generated in frameworks bundle even if `SWIFT_OBJC_INTERFACE_HEADER_DIR` was specified.
         // So it's need to replace `MODULEMAP_FILE_CONTENTS` to an absolute path.
         if case .string(let moduleMapFileContents) = configuration.buildSettings["MODULEMAP_FILE_CONTENTS"],
-            moduleMapFileContents.contains("-Swift.h") {
-            // Bridging Headers will be generated inside generated frameworks
-            let productsDirectory = packageLocator.productsDirectory(
-                buildConfiguration: buildOptions.buildConfiguration,
-                sdk: sdk
-            )
-            let bridgingHeaderFullPath = productsDirectory.appending(
-                components: ["\(c99Name).framework", "Headers", "\(name)-Swift.h"]
-            )
-
-            configuration.buildSettings["MODULEMAP_FILE_CONTENTS"] = .string("""
-            module \(c99Name) {
-                header "\(bridgingHeaderFullPath.pathString)"
-                export *
-            }
-            """)
+           moduleMapFileContents.contains("\(target.name)-Swift.h") {
+            resolveModuleMapPath(of: target, configuration: &configuration, sdk: sdk)
         }
     }
 
@@ -168,6 +153,28 @@ struct PIFGenerator {
         createOrUpdateFlags(for: "OTHER_CPLUSPLUSFLAGS", to: \.cxxFlags)
         createOrUpdateFlags(for: "OTHER_SWIFT_FLAGS", to: \.swiftFlags)
         createOrUpdateFlags(for: "OTHER_LDFLAGS", to: \.linkerFlags)
+    }
+
+    /// Resolve Bridging Header path to absolute path.
+    /// - Parameters target: Target to resolve modulemap path
+    /// - Parameters configuration: BuildConfiguration to update
+    /// - Parameters sdk: SDK to resolve module
+    private func resolveModuleMapPath(of target: PIFKit.Target, configuration: inout PIFKit.BuildConfiguration, sdk: SDK) {
+        // Bridging Headers will be generated inside generated frameworks
+        let productsDirectory = packageLocator.productsDirectory(
+            buildConfiguration: buildOptions.buildConfiguration,
+            sdk: sdk
+        )
+        let bridgingHeaderFullPath = productsDirectory.appending(
+            components: ["\(target.c99Name).framework", "Headers", "\(target.name)-Swift.h"]
+        )
+
+        configuration.buildSettings["MODULEMAP_FILE_CONTENTS"] = .string("""
+        module \(target.c99Name) {
+            header "\(bridgingHeaderFullPath.pathString)"
+            export *
+        }
+        """)
     }
 
     private func generateInfoPlistForResource(for target: inout PIFKit.Target) {
@@ -191,5 +198,11 @@ struct PIFGenerator {
             mutableConfiguration.buildSettings["INFOPLIST_FILE"] = .string(infoPlistPath.pathString)
             return mutableConfiguration
         }
+    }
+}
+
+extension PIFKit.Target {
+    fileprivate var c99Name: String {
+        name.spm_mangledToC99ExtendedIdentifier()
     }
 }
