@@ -124,21 +124,19 @@ struct FrameworkProducer {
             }
         }
 
-        for target in targetsToBuild {
-            try await buildXCFrameworks(
-                target,
-                outputDir: outputDir,
-                buildOptionsMatrix: buildOptionsMatrix
-            )
-        }
+        let (builtTargets, error) = await buildTargets(targetsToBuild)
 
-        await cacheFrameworksIfNeeded(Set(targetsToBuild), cacheSystem: cacheSystem)
+        await cacheFrameworksIfNeeded(Set(builtTargets), cacheSystem: cacheSystem)
 
         if shouldGenerateVersionFile {
             // Versionfiles should be generate for all targets
-            for target in allTargets {
+            for target in builtTargets {
                 await generateVersionFile(for: target, using: cacheSystem)
             }
+        }
+
+        if let error {
+            throw error
         }
     }
 
@@ -301,6 +299,26 @@ struct FrameworkProducer {
                 logger.info("ℹ️ Cache not found for \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
                 return false
             }
+        }
+    }
+
+    private func buildTargets(
+        _ targets: OrderedSet<CacheSystem.CacheTarget>
+    ) async -> (OrderedSet<CacheSystem.CacheTarget>, (any Error)?) {
+        var builtTargets = OrderedSet<CacheSystem.CacheTarget>()
+
+        do {
+            for target in targets {
+                try await buildXCFrameworks(
+                    target,
+                    outputDir: outputDir,
+                    buildOptionsMatrix: buildOptionsMatrix
+                )
+                builtTargets.append(target)
+            }
+            return (builtTargets, nil)
+        } catch {
+            return (builtTargets, error)
         }
     }
 
