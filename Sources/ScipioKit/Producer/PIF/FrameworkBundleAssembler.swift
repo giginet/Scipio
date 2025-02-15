@@ -25,6 +25,7 @@ struct FrameworkBundleAssembler {
         self.fileSystem = fileSystem
     }
 
+    @discardableResult
     func assemble() throws -> URL {
         try fileSystem.createDirectory(frameworkBundlePath, recursive: true)
 

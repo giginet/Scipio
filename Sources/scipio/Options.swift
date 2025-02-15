@@ -45,6 +45,11 @@ struct BuildOptionGroup: ParsableArguments {
     @Flag(name: [.customShort("f", allowingJoined: false), .long],
           help: "Whether overwrite generated frameworks or not")
     var overwrite: Bool = false
+    
+    @Flag(name: [.customLong("--strip-debug-symbol")],
+          inversion: .prefixedNo,
+          help: "Whether to strip debug symbol or not")
+    var shouldStripDWARFSymbols: Bool = false
 }
 
 extension FrameworkType: ExpressibleByArgument { }

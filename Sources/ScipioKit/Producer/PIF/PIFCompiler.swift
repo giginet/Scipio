@@ -60,7 +60,7 @@ struct PIFCompiler: Compiler {
             packageLocator: descriptionPackage
         )
         
-        let debugSymbolStripper = DebugSymbolStripper(executor: executor)
+        let debugSymbolStripper = DWARFSymbolStripper(executor: executor)
 
         for sdk in sdks {
             let toolchain = try await makeToolchain(for: sdk)
@@ -85,9 +85,12 @@ struct PIFCompiler: Compiler {
                     pifPath: pifPath,
                     buildParametersPath: buildParametersPath
                 )
-                let binaryPath = frameworkBundlePath.appending(component: buildProduct.frameworkName)
                 
-                try await debugSymbolStripper.stripDebugSymbol(binaryPath)
+                if buildOptions.stripDWARFSymbols {
+                    logger.info("🐛Stripping debug symbols")
+                    let binaryPath = frameworkBundlePath.appending(component: buildProduct.frameworkName)
+                    try await debugSymbolStripper.stripDebugSymbol(binaryPath)
+                }
             } catch {
                 logger.error("Unable to build for \(sdk.displayName)", metadata: .color(.red))
                 logger.error(error)
