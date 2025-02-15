@@ -132,7 +132,7 @@ extension Runner {
             public var keepPublicHeadersStructure: Bool
             /// An option indicates use custom modulemaps for distributionb
             public var frameworkModuleMapGenerationPolicy: FrameworkModuleMapGenerationPolicy
-            /// Whether to strip debug symbols or not
+            /// Whether to strip DWARF symbols or not
             public var stripDWARFSymbols: Bool
 
             public init(
@@ -174,6 +174,8 @@ extension Runner {
             /// If this is false or nil, public headers are copied to Headers directory flattened (default).
             public var keepPublicHeadersStructure: Bool?
             public var frameworkModuleMapGenerationPolicy: FrameworkModuleMapGenerationPolicy?
+            /// Whether to strip DWARF symbols or not
+            public var stripDWARFSymbols: Bool?
 
             public init(
                 buildConfiguration: BuildConfiguration? = nil,
@@ -185,7 +187,8 @@ extension Runner {
                 extraBuildParameters: [String: String]? = nil,
                 enableLibraryEvolution: Bool? = nil,
                 keepPublicHeadersStructure: Bool? = nil,
-                frameworkModuleMapGenerationPolicy: FrameworkModuleMapGenerationPolicy? = nil
+                frameworkModuleMapGenerationPolicy: FrameworkModuleMapGenerationPolicy? = nil,
+                stripDWARFSymbols: Bool? = nil
             ) {
                 self.buildConfiguration = buildConfiguration
                 self.platforms = platforms
@@ -197,6 +200,7 @@ extension Runner {
                 self.enableLibraryEvolution = enableLibraryEvolution
                 self.keepPublicHeadersStructure = keepPublicHeadersStructure
                 self.frameworkModuleMapGenerationPolicy = frameworkModuleMapGenerationPolicy
+                self.stripDWARFSymbols = stripDWARFSymbols
             }
         }
 
@@ -335,7 +339,7 @@ extension Runner.Options.BuildOptions {
             enableLibraryEvolution: enableLibraryEvolution,
             keepPublicHeadersStructure: keepPublicHeadersStructure,
             customFrameworkModuleMapContents: customFrameworkModuleMapContents,
-            stripDWARFSymbols: false
+            stripDWARFSymbols: stripDWARFSymbols
         )
     }
 
@@ -386,7 +390,8 @@ extension Runner.Options.BuildOptions {
             frameworkModuleMapGenerationPolicy: fetch(
                 \.frameworkModuleMapGenerationPolicy,
                  by: \.frameworkModuleMapGenerationPolicy
-            )
+            ),
+            stripDWARFSymbols: fetch(\.stripDWARFSymbols, by: \.stripDWARFSymbols)
         )
     }
 }
