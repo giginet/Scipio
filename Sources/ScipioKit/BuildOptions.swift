@@ -40,7 +40,7 @@ struct BuildOptions: Hashable, Codable, Sendable {
     /// - Note: It have to store the actual file contents rather than its path,
     /// because the cache key should change when the file contents change.
     let customFrameworkModuleMapContents: Data?
-    
+
     /// Whether DWARF symbols are stripped from the final binary.
     /// The compiler will embed DWARF information in the final binary.
     /// However, it contains absolute path of the build machine, so it's not suitable for distribution.

@@ -59,7 +59,7 @@ struct PIFCompiler: Compiler {
             configuration: buildOptions.buildConfiguration,
             packageLocator: descriptionPackage
         )
-        
+
         let debugSymbolStripper = DWARFSymbolStripper(executor: executor)
 
         for sdk in sdks {
@@ -85,7 +85,7 @@ struct PIFCompiler: Compiler {
                     pifPath: pifPath,
                     buildParametersPath: buildParametersPath
                 )
-                
+
                 if buildOptions.stripDWARFSymbols {
                     logger.info("🐛Stripping debug symbols")
                     let binaryPath = frameworkBundlePath.appending(component: buildProduct.target.c99name)

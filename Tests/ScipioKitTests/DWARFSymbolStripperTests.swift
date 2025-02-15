@@ -11,7 +11,7 @@ struct DWARFSymbolStripperTests {
         fileManager.temporaryDirectory.appending(components: "me.giginet.Scipio", "XCFrameworks")
     }
     private let fileManager: FileManager = .default
-    
+
     @Test("can strip DWARF symbols")
     func canStripDWARFSymbols() async throws {
         defer { try? fileManager.removeItem(at: frameworkOutputDir) }
@@ -29,12 +29,12 @@ struct DWARFSymbolStripperTests {
             packageDirectory: clangPackagePath,
             frameworkOutputDir: .custom(frameworkOutputDir)
         )
-        
+
         let binaryPath = frameworkOutputDir.appending(
             components: "some_lib.xcframework", "ios-arm64", "some_lib.framework", "some_lib"
         )
         #expect(fileManager.fileExists(atPath: binaryPath.path(percentEncoded: false)))
-        
+
         let executor = ProcessExecutor()
         let dwarfDumpExecutionResult = try await executor.execute(
             "/usr/bin/xcrun", "dwarfdump", "--debug-info", binaryPath.path(percentEncoded: false)
@@ -42,7 +42,7 @@ struct DWARFSymbolStripperTests {
         let output = try dwarfDumpExecutionResult
             .unwrapOutput()
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         #expect(output.contains(/\.debug_info\scontents:$/), "The built binary should have empty debug_info section")
         #expect(!output.contains(/\.pcm/), "PCM path should not contain .pcm files")
     }
