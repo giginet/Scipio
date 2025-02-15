@@ -1,6 +1,7 @@
 import Foundation
 
-struct DebugSymbolStripper {
+/// Strip debug symbols from a binary.
+struct DWARFSymbolStripper {
     private let executor: any Executor
     
     init(executor: some Executor) {
