@@ -64,7 +64,8 @@ final class CacheSystemTests: XCTestCase {
             "keepPublicHeadersStructure" : false,
             "sdks" : [
               "iOS"
-            ]
+            ],
+            "stripDWARFSymbols" : false
           },
           "clangVersion" : "clang-1400.0.29.102",
           "localPackageCanonicalLocation" : "\\/path\\/to\\/MyPackage",
