@@ -59,6 +59,8 @@ struct PIFCompiler: Compiler {
             configuration: buildOptions.buildConfiguration,
             packageLocator: descriptionPackage
         )
+        
+        let debugSymbolStripper = DebugSymbolStripper(executor: executor)
 
         for sdk in sdks {
             let toolchain = try await makeToolchain(for: sdk)
@@ -78,11 +80,14 @@ struct PIFCompiler: Compiler {
             )
 
             do {
-                try await xcBuildClient.buildFramework(
+                let frameworkBundlePath = try await xcBuildClient.buildFramework(
                     sdk: sdk,
                     pifPath: pifPath,
                     buildParametersPath: buildParametersPath
                 )
+                let binaryPath = frameworkBundlePath.appending(component: buildProduct.frameworkName)
+                
+                try await debugSymbolStripper.stripDebugSymbol(binaryPath)
             } catch {
                 logger.error("Unable to build for \(sdk.displayName)", metadata: .color(.red))
                 logger.error(error)
