@@ -45,7 +45,7 @@ struct BuildOptionGroup: ParsableArguments {
     @Flag(name: [.customShort("f", allowingJoined: false), .long],
           help: "Whether overwrite generated frameworks or not")
     var overwrite: Bool = false
-    
+
     @Flag(name: [.customLong("--strip-dwarf-symbols")],
           inversion: .prefixedNo,
           help: "Whether to strip DWARF symbol from built binary or not")
