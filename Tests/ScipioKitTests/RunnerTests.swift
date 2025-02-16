@@ -36,7 +36,7 @@ final class RunnerTests: XCTestCase {
     private let plistDecoder: PropertyListDecoder = .init()
 
     override static func setUp() {
-        LoggingSystem.bootstrap { _ in SwiftLogNoOpLogHandler() }
+        LoggingSystem.bootstrap(logLevel: .info)
 
         super.setUp()
     }
