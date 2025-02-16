@@ -1,7 +1,6 @@
 import Foundation
 import Testing
 @testable import ScipioKit
-import Logging
 
 private let fixturePath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
@@ -14,8 +13,6 @@ struct PartialCacheTests {
     private let frameworkOutputDir: URL
 
     init() throws {
-        LoggingSystem.bootstrap { _ in SwiftLogNoOpLogHandler() }
-
         tempDir = fileManager.temporaryDirectory
         frameworkOutputDir = tempDir.appendingPathComponent("XCFrameworks")
         try fileManager.createDirectory(at: frameworkOutputDir, withIntermediateDirectories: true)
