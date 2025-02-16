@@ -272,7 +272,7 @@ extension Runner {
             shouldOnlyUseVersionsFromResolvedFile: Bool = false,
             cachePolicies: [CachePolicy] = [.project],
             overwrite: Bool = false,
-            verbose: Bool = false,
+            verbose: Bool = true,
             toolchainEnvironment: ToolchainEnvironment? = nil
         ) {
             self.buildOptionsContainer = BuildOptionsContainer(
