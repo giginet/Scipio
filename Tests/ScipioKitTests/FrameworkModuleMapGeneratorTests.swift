@@ -13,6 +13,7 @@ private struct PackageLocatorMock: PackageLocator {
     let packageDirectory: TSCAbsolutePath
 }
 
+@Suite(.serialized)
 struct FrameworkModuleMapGeneratorTests {
     let fileSystem = localFileSystem
     let temporaryDirectory: TSCAbsolutePath

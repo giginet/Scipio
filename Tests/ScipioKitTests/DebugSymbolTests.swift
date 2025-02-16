@@ -2,6 +2,7 @@ import Foundation
 @testable import ScipioKit
 import Testing
 
+@Suite(.serialized)
 struct DwarfExtractorTests {
     @Test(arguments: [
         (
