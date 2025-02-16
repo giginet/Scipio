@@ -124,7 +124,13 @@ struct FrameworkProducer {
             }
         }
 
-        let (builtTargets, error) = await buildTargets(targetsToBuild)
+        let targetBuildResult = await buildTargets(targetsToBuild)
+
+        let builtTargets: OrderedSet<CacheSystem.CacheTarget> = switch targetBuildResult {
+            case .completed(builtTargets: let builtTargets),
+                 .interrupted(builtTargets: let builtTargets, error: _):
+                builtTargets
+            }
 
         await cacheFrameworksIfNeeded(Set(builtTargets), cacheSystem: cacheSystem)
 
@@ -135,7 +141,7 @@ struct FrameworkProducer {
             }
         }
 
-        if let error {
+        if case .interrupted(builtTargets: _, error: let error) = targetBuildResult {
             throw error
         }
     }
@@ -302,9 +308,7 @@ struct FrameworkProducer {
         }
     }
 
-    private func buildTargets(
-        _ targets: OrderedSet<CacheSystem.CacheTarget>
-    ) async -> (OrderedSet<CacheSystem.CacheTarget>, (any Error)?) {
+    private func buildTargets(_ targets: OrderedSet<CacheSystem.CacheTarget>) async -> TargetBuildResult {
         var builtTargets = OrderedSet<CacheSystem.CacheTarget>()
 
         do {
@@ -316,10 +320,15 @@ struct FrameworkProducer {
                 )
                 builtTargets.append(target)
             }
-            return (builtTargets, nil)
+            return .completed(builtTargets: builtTargets)
         } catch {
-            return (builtTargets, error)
+            return .interrupted(builtTargets: builtTargets, error: error)
         }
+    }
+
+    private enum TargetBuildResult {
+        case interrupted(builtTargets: OrderedSet<CacheSystem.CacheTarget>, error: any Error)
+        case completed(builtTargets: OrderedSet<CacheSystem.CacheTarget>)
     }
 
     @discardableResult
