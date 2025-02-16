@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import ScipioKit
 
-@Suite
+@Suite(.serialized)
 struct DWARFSymbolStripperTests {
     private let clangPackagePath = URL(filePath: #filePath)
         .deletingLastPathComponent()
