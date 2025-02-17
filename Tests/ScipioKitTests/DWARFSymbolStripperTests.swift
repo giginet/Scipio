@@ -32,12 +32,12 @@ struct DWARFSymbolStripperTests {
 
         let binaryPath = frameworkOutputDir.appending(
             components: "some_lib.xcframework", "ios-arm64", "some_lib.framework", "some_lib"
-        )
-        #expect(fileManager.fileExists(atPath: binaryPath.path(percentEncoded: false)))
+        ).path(percentEncoded: false)
+        #expect(fileManager.fileExists(atPath: binaryPath))
 
         let executor = ProcessExecutor()
         let dwarfDumpExecutionResult = try await executor.execute(
-            "/usr/bin/xcrun", "dwarfdump", "--debug-info", binaryPath.path(percentEncoded: false)
+            "/usr/bin/xcrun", "dwarfdump", "--debug-info", binaryPath
         )
         let output = try dwarfDumpExecutionResult
             .unwrapOutput()
