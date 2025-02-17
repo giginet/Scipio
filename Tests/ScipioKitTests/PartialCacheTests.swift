@@ -7,6 +7,7 @@ private let fixturePath = URL(fileURLWithPath: #filePath)
     .appendingPathComponent("Resources")
     .appendingPathComponent("Fixtures")
 
+@Suite(.serialized)
 struct PartialCacheTests {
     private let fileManager: FileManager = .default
     private let tempDir: URL
