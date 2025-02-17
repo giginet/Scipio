@@ -38,6 +38,11 @@ struct BuildOptionGroup: ParsableArguments {
           help: "Whether to enable Library Evolution feature or not")
     var shouldEnableLibraryEvolution = false
 
+    @Flag(name: [.customLong("--strip-dwarf-symbols")],
+          inversion: .prefixedNo,
+          help: "Whether to strip DWARF symbol from built binary or not")
+    var shouldStripDWARFSymbols: Bool = false
+
     @Flag(name: [.customLong("only-use-versions-from-resolved-file")],
           help: "Whether to disable updating Package.resolved automatically")
     var shouldOnlyUseVersionsFromResolvedFile: Bool = false
@@ -45,11 +50,6 @@ struct BuildOptionGroup: ParsableArguments {
     @Flag(name: [.customShort("f", allowingJoined: false), .long],
           help: "Whether overwrite generated frameworks or not")
     var overwrite: Bool = false
-
-    @Flag(name: [.customLong("--strip-dwarf-symbols")],
-          inversion: .prefixedNo,
-          help: "Whether to strip DWARF symbol from built binary or not")
-    var shouldStripDWARFSymbols: Bool = false
 }
 
 extension FrameworkType: ExpressibleByArgument { }
