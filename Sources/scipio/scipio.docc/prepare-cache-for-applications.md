@@ -95,8 +95,8 @@ All XCFrameworks are generated into `MyAppDependencies/XCFramework` by default.
 | -\-support-simulators                   | Whether also building for simulators of each SDKs or not            | -                          |
 | -\-cache-policy                         | How to reuse built frameworks                                       | project                    |
 | -\-enable-library-evolution             | Whether to enable Library Evolution feature or not                  | -                          |
-| -\-only-use-versions-from-resolved-file | Whether to disable updating Package.resolved automatically          | false                      |
 | -\-strip-dwarf-symbols                  | Whether to strip DWARF symbols from built binary or not              | false                      |
+| -\-only-use-versions-from-resolved-file | Whether to disable updating Package.resolved automatically          | false                      |
 
 
 See `--help` for details.
