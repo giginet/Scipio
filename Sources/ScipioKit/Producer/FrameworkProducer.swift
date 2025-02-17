@@ -127,8 +127,8 @@ struct FrameworkProducer {
         let targetBuildResult = await buildTargets(targetsToBuild)
 
         let builtTargets: OrderedSet<CacheSystem.CacheTarget> = switch targetBuildResult {
-            case .completed(builtTargets: let builtTargets),
-                 .interrupted(builtTargets: let builtTargets, error: _):
+            case .completed(let builtTargets),
+                 .interrupted(let builtTargets, _):
                 builtTargets
             }
 
@@ -141,7 +141,7 @@ struct FrameworkProducer {
             }
         }
 
-        if case .interrupted(builtTargets: _, error: let error) = targetBuildResult {
+        if case .interrupted(_, error) = targetBuildResult {
             throw error
         }
     }
