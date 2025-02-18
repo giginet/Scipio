@@ -40,7 +40,7 @@ struct BuildOptionGroup: ParsableArguments {
 
     @Flag(name: [.customLong("--strip-dwarf-symbols")],
           inversion: .prefixedNo,
-          help: "Whether to strip DWARF symbol from built binary or not")
+          help: "Whether to strip DWARF symbol from static built binary or not")
     var shouldStripDWARFSymbols: Bool = false
 
     @Flag(name: [.customLong("only-use-versions-from-resolved-file")],
