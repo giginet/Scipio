@@ -141,7 +141,7 @@ struct FrameworkProducer {
             }
         }
 
-        if case .interrupted(_, error) = targetBuildResult {
+        if case .interrupted(_, let error) = targetBuildResult {
             throw error
         }
     }
