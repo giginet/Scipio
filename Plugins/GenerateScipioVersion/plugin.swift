@@ -4,8 +4,8 @@ import PackagePlugin
 @main
 struct GenerateScipioVersion: BuildToolPlugin {
     func createBuildCommands(context: PluginContext, target: Target) async throws -> [Command] {
-        let zshPath = URL(filePath: "/bin/zsh") // execute dummy command
-        
+        let bashPath = URL(filePath: "/bin/bash") // execute dummy command
+
         let generatedSourceDir = context.pluginWorkDirectoryURL
         
         let generatedSourcePath = generatedSourceDir
@@ -28,7 +28,7 @@ struct GenerateScipioVersion: BuildToolPlugin {
         return [
             .prebuildCommand(
                 displayName: "Generate Scipio Version",
-                executable: zshPath,
+                executable: bashPath,
                 arguments: [],
                 outputFilesDirectory: generatedSourceDir
             ),
