@@ -47,7 +47,7 @@ extension Runner {
             isDebugSymbolsEmbedded: buildOptions.embedDebugSymbols,
             frameworkType: buildOptions.frameworkType,
             enableLibraryEvolution: buildOptions.shouldEnableLibraryEvolution,
-            stripDWARFSymbols: buildOptions.shouldStripDWARFSymbols
+            stripStaticDWARFSymbols: buildOptions.shouldStripDWARFSymbols
         )
         let runnerOptions = Runner.Options(
             baseBuildOptions: baseBuildOptions,

@@ -855,6 +855,6 @@ extension BuildOptions {
         enableLibraryEvolution: true,
         keepPublicHeadersStructure: false,
         customFrameworkModuleMapContents: nil,
-        stripDWARFSymbols: false
+        stripStaticDWARFSymbols: false
     )
 }

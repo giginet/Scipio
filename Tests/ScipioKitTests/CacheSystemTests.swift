@@ -33,7 +33,7 @@ final class CacheSystemTests: XCTestCase {
                 enableLibraryEvolution: true,
                 keepPublicHeadersStructure: false,
                 customFrameworkModuleMapContents: Data(customModuleMap.utf8),
-                stripDWARFSymbols: false
+                stripStaticDWARFSymbols: false
             ),
             clangVersion: "clang-1400.0.29.102",
             xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d")
@@ -65,7 +65,7 @@ final class CacheSystemTests: XCTestCase {
             "sdks" : [
               "iOS"
             ],
-            "stripDWARFSymbols" : false
+            "stripStaticDWARFSymbols" : false
           },
           "clangVersion" : "clang-1400.0.29.102",
           "localPackageCanonicalLocation" : "\\/path\\/to\\/MyPackage",
@@ -137,7 +137,7 @@ final class CacheSystemTests: XCTestCase {
                     enableLibraryEvolution: false,
                     keepPublicHeadersStructure: false,
                     customFrameworkModuleMapContents: nil,
-                    stripDWARFSymbols: false
+                    stripStaticDWARFSymbols: false
                 )
             )
 
@@ -200,7 +200,7 @@ final class CacheSystemTests: XCTestCase {
                 enableLibraryEvolution: false,
                 keepPublicHeadersStructure: false,
                 customFrameworkModuleMapContents: nil,
-                stripDWARFSymbols: false
+                stripStaticDWARFSymbols: false
             )
         )
 

@@ -38,7 +38,7 @@ struct BuildOptionGroup: ParsableArguments {
           help: "Whether to enable Library Evolution feature or not")
     var shouldEnableLibraryEvolution = false
 
-    @Flag(name: [.customLong("--strip-dwarf-symbols")],
+    @Flag(name: [.customLong("--strip-static-lib-dwarf-symbols")],
           inversion: .prefixedNo,
           help: "Whether to strip DWARF symbol from static built binary or not")
     var shouldStripDWARFSymbols: Bool = false

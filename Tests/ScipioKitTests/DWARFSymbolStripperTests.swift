@@ -21,7 +21,7 @@ struct DWARFSymbolStripperTests {
                 baseBuildOptions: .init(
                     buildConfiguration: .debug,
                     frameworkType: .static,
-                    stripDWARFSymbols: true
+                    stripStaticDWARFSymbols: true
                 )
             )
         )
