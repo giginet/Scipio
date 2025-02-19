@@ -8,6 +8,7 @@ private let fixturesPath = URL(fileURLWithPath: #filePath)
     .appendingPathComponent("Resources")
     .appendingPathComponent("Fixtures")
 
+@Suite(.serialized)
 struct FrameworkBundleAssemblerTests {
     let fileSystem = localFileSystem
     let temporaryDirectory: TSCAbsolutePath

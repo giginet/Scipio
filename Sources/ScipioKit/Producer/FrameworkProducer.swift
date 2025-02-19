@@ -124,21 +124,25 @@ struct FrameworkProducer {
             }
         }
 
-        for target in targetsToBuild {
-            try await buildXCFrameworks(
-                target,
-                outputDir: outputDir,
-                buildOptionsMatrix: buildOptionsMatrix
-            )
-        }
+        let targetBuildResult = await buildTargets(targetsToBuild)
 
-        await cacheFrameworksIfNeeded(Set(targetsToBuild), cacheSystem: cacheSystem)
+        let builtTargets: OrderedSet<CacheSystem.CacheTarget> = switch targetBuildResult {
+            case .completed(let builtTargets),
+                 .interrupted(let builtTargets, _):
+                builtTargets
+            }
+
+        await cacheFrameworksIfNeeded(Set(builtTargets), cacheSystem: cacheSystem)
 
         if shouldGenerateVersionFile {
             // Versionfiles should be generate for all targets
-            for target in allTargets {
+            for target in builtTargets {
                 await generateVersionFile(for: target, using: cacheSystem)
             }
+        }
+
+        if case .interrupted(_, let error) = targetBuildResult {
+            throw error
         }
     }
 
@@ -302,6 +306,29 @@ struct FrameworkProducer {
                 return false
             }
         }
+    }
+
+    private func buildTargets(_ targets: OrderedSet<CacheSystem.CacheTarget>) async -> TargetBuildResult {
+        var builtTargets = OrderedSet<CacheSystem.CacheTarget>()
+
+        do {
+            for target in targets {
+                try await buildXCFrameworks(
+                    target,
+                    outputDir: outputDir,
+                    buildOptionsMatrix: buildOptionsMatrix
+                )
+                builtTargets.append(target)
+            }
+            return .completed(builtTargets: builtTargets)
+        } catch {
+            return .interrupted(builtTargets: builtTargets, error: error)
+        }
+    }
+
+    private enum TargetBuildResult {
+        case interrupted(builtTargets: OrderedSet<CacheSystem.CacheTarget>, error: any Error)
+        case completed(builtTargets: OrderedSet<CacheSystem.CacheTarget>)
     }
 
     @discardableResult
