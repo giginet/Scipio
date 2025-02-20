@@ -9,6 +9,7 @@ on:
       - '*'
 jobs:
   Tests:
+    timeout-minutes: 15
     strategy:
       matrix:
         xcode_version:
