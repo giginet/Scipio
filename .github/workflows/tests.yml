@@ -26,7 +26,7 @@ jobs:
         swift build
     - name: Run Tests
       run: |
-        swift test
+        swift test --no-parallel
       env:
         ENABLE_INTEGRATION_TESTS: 1
         IS_CI: 1
