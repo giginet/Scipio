@@ -38,6 +38,11 @@ struct BuildOptionGroup: ParsableArguments {
           help: "Whether to enable Library Evolution feature or not")
     var shouldEnableLibraryEvolution = false
 
+    @Flag(name: [.customLong("--strip-dwarf-symbols")],
+          inversion: .prefixedNo,
+          help: "Whether to strip DWARF symbol from static built binary or not")
+    var shouldStripDWARFSymbols: Bool = false
+
     @Flag(name: [.customLong("only-use-versions-from-resolved-file")],
           help: "Whether to disable updating Package.resolved automatically")
     var shouldOnlyUseVersionsFromResolvedFile: Bool = false

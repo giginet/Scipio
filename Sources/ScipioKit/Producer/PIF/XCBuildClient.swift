@@ -51,7 +51,7 @@ struct XCBuildClient {
         sdk: SDK,
         pifPath: TSCAbsolutePath,
         buildParametersPath: TSCAbsolutePath
-    ) async throws {
+    ) async throws -> URL {
         let xcbuildPath = try await fetchXCBuildPath()
 
         let executor = XCBuildExecutor(xcbuildPath: xcbuildPath)
@@ -63,16 +63,14 @@ struct XCBuildClient {
             target: buildProduct.target
         )
 
-        try assembleFramework(sdk: sdk)
-
-        // Copy modulemap to built frameworks
-        // xcbuild generates modulemap for each frameworks
-        // However, these are not includes in Frameworks
-        // So they should be copied into frameworks manually.
-//        try copyModulemap(for: sdk)
+        let frameworkBundlePath = try assembleFramework(sdk: sdk)
+        return frameworkBundlePath
     }
 
-    private func assembleFramework(sdk: SDK) throws {
+    /// Assemble framework from build artifacts
+    /// - Parameter sdk: SDK
+    /// - Returns: Path to assembled framework bundle
+    private func assembleFramework(sdk: SDK) throws -> URL {
         let frameworkComponentsCollector = FrameworkComponentsCollector(
             buildProduct: buildProduct,
             sdk: sdk,
@@ -95,7 +93,7 @@ struct XCBuildClient {
             fileSystem: fileSystem
         )
 
-        try assembler.assemble()
+        return try assembler.assemble()
     }
 
     private func assembledFrameworkPath(target: ScipioResolvedModule, of sdk: SDK) throws -> TSCAbsolutePath {

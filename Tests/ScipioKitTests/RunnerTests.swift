@@ -849,6 +849,7 @@ extension BuildOptions {
         extraBuildParameters: nil,
         enableLibraryEvolution: true,
         keepPublicHeadersStructure: false,
-        customFrameworkModuleMapContents: nil
+        customFrameworkModuleMapContents: nil,
+        stripDWARFSymbols: false
     )
 }
