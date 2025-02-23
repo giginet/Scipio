@@ -1,3 +1,4 @@
+import Foundation
 import Logging
 import Basics
 import PackageGraph
@@ -6,7 +7,7 @@ import Algorithms
 
 struct XCBuildExecutor {
 
-    var xcbuildPath: TSCAbsolutePath
+    var xcbuildPath: URL
 
     func build(
         pifPath: TSCAbsolutePath,
@@ -16,7 +17,7 @@ struct XCBuildExecutor {
         target: ScipioResolvedModule
     ) async throws {
         let executor = _Executor(args: [
-            xcbuildPath.pathString,
+            xcbuildPath.path(percentEncoded: false),
             "build",
             pifPath.pathString,
             "--configuration",
