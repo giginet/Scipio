@@ -87,7 +87,7 @@ struct PIFCompiler: Compiler {
                 )
 
                 if buildOptions.stripDWARFSymbols && buildOptions.frameworkType == .static {
-                    logger.info("🐛 Stripping debug symbols")
+                    logger.debug("🐛 Stripping debug symbols of \(target.name) (\(sdk.displayName))")
                     let binaryPath = frameworkBundlePath.appending(component: buildProduct.target.c99name)
                     try await debugSymbolStripper.stripDebugSymbol(binaryPath)
                 }
