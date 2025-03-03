@@ -6,16 +6,16 @@ import PackageModel
 struct XCBuildClient {
     enum Error: LocalizedError {
         case xcbuildNotFound
-        
+
         var errorDescription: String? {
             switch self {
             case .xcbuildNotFound:
                 return "xcbuild not found"
-                
+
             }
         }
     }
-    
+
     private let buildOptions: BuildOptions
     private let buildProduct: BuildProduct
     private let configuration: BuildConfiguration
@@ -41,12 +41,12 @@ struct XCBuildClient {
 
     private func fetchXCBuildPath() async throws -> URL {
         let developerDirPath = try await fetchDeveloperDirPath()
-        
+
         let xcBuildPathCandidates = [
             "../SharedFrameworks/XCBuild.framework/Versions/A/Support/xcbuild", // < Xcode 16.3
             "../SharedFrameworks/SwiftBuild.framework/Versions/A/Support/swbuild", // >= Xcode 16.3
         ]
-        
+
         let foundXCBuildPath = xcBuildPathCandidates.map { relativePath in
             developerDirPath.appending(path: relativePath).standardizedFileURL
         }.first { path in
@@ -55,7 +55,7 @@ struct XCBuildClient {
         guard let foundXCBuildPath else {
             throw Error.xcbuildNotFound
         }
-        
+
         return foundXCBuildPath
     }
 
