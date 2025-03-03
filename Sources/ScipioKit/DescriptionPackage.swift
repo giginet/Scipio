@@ -86,6 +86,7 @@ struct DescriptionPackage: PackageLocator {
 
         let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
         let scope = makeObservabilitySystem().topScope
+#if compiler(>=6.1)
         self.graph = try await workspace.loadPackageGraph(
             rootInput: PackageGraphRootInput(packages: [packageDirectory.spmAbsolutePath]),
             // This option is same with resolver option `--disable-automatic-resolution`
@@ -93,6 +94,15 @@ struct DescriptionPackage: PackageLocator {
             forceResolvedVersions: onlyUseVersionsFromResolvedFile,
             observabilityScope: scope
         )
+#else
+        self.graph = try workspace.loadPackageGraph(
+            rootInput: PackageGraphRootInput(packages: [packageDirectory.spmAbsolutePath]),
+            // This option is same with resolver option `--disable-automatic-resolution`
+            // Never update Package.resolved of the package
+            forceResolvedVersions: onlyUseVersionsFromResolvedFile,
+            observabilityScope: scope
+        )
+#endif
         self.manifest = try await workspace.loadRootManifest(
             at: packageDirectory.spmAbsolutePath,
             observabilityScope: scope
