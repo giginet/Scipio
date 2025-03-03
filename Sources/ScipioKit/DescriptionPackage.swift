@@ -86,7 +86,7 @@ struct DescriptionPackage: PackageLocator {
 
         let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
         let scope = makeObservabilitySystem().topScope
-        self.graph = try workspace.loadPackageGraph(
+        self.graph = try await workspace.loadPackageGraph(
             rootInput: PackageGraphRootInput(packages: [packageDirectory.spmAbsolutePath]),
             // This option is same with resolver option `--disable-automatic-resolution`
             // Never update Package.resolved of the package
