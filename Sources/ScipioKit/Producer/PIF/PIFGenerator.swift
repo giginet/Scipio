@@ -207,8 +207,9 @@ private struct PIFLibraryTargetModifier {
 
         let toolchainLibDir = (try? buildParameters.toolchain.toolchainLibDir) ?? .root
 
-        settings[.PRODUCT_NAME] = c99Name
-        settings[.PRODUCT_MODULE_NAME] = c99Name
+        settings[.PRODUCT_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
+        settings[.PRODUCT_MODULE_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
+        settings[.EXECUTABLE_NAME] = c99Name
         settings[.TARGET_NAME] = name
         settings[.PRODUCT_BUNDLE_IDENTIFIER] = name.spm_mangledToBundleIdentifier()
         settings[.CLANG_ENABLE_MODULES] = "YES"
