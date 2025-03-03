@@ -14,7 +14,7 @@ jobs:
       matrix:
         xcode_version:
           - "16.2" # 6.0
-          # - "16,3" # 6.1 GitHub Actions does not support this version yet
+          # - "16.3" # 6.1 GitHub Actions does not support this version yet
     env: 
       DEVELOPER_DIR: "/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
     runs-on: macos-15
