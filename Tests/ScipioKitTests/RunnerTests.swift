@@ -566,7 +566,12 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                baseBuildOptions: .init(isSimulatorSupported: true),
+                baseBuildOptions: .init(
+                    isSimulatorSupported: true,
+                    extraBuildParameters: [
+                        "EXCLUDED_ARCHS": "i386",
+                    ]
+                ),
                 buildOptionsMatrix: [
                     "ScipioTesting": .init(
                         platforms: .specific([.iOS, .watchOS]),
@@ -596,7 +601,7 @@ final class RunnerTests: XCTestCase {
                     "Info.plist",
                     "watchos-arm64_arm64_32_armv7k",
                     "ios-arm64_x86_64-simulator",
-                    "watchos-arm64_i386_x86_64-simulator",
+                    "watchos-arm64_x86_64-simulator",
                     "ios-arm64",
                 ]
             )
