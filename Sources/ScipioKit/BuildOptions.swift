@@ -14,7 +14,7 @@ struct BuildOptions: Hashable, Codable, Sendable {
         enableLibraryEvolution: Bool,
         keepPublicHeadersStructure: Bool,
         customFrameworkModuleMapContents: Data?,
-        stripDWARFSymbols: Bool
+        stripStaticDWARFSymbols: Bool
     ) {
         self.buildConfiguration = buildConfiguration
         self.isDebugSymbolsEmbedded = isDebugSymbolsEmbedded
@@ -25,7 +25,7 @@ struct BuildOptions: Hashable, Codable, Sendable {
         self.enableLibraryEvolution = enableLibraryEvolution
         self.keepPublicHeadersStructure = keepPublicHeadersStructure
         self.customFrameworkModuleMapContents = customFrameworkModuleMapContents
-        self.stripDWARFSymbols = stripDWARFSymbols
+        self.stripStaticDWARFSymbols = stripStaticDWARFSymbols
     }
 
     let buildConfiguration: BuildConfiguration
@@ -47,7 +47,7 @@ struct BuildOptions: Hashable, Codable, Sendable {
     /// It causes a problem when the debugger loads the symbols. (e.g. *.pcm is not found)
     /// If you set the option, you should use dSYM file for debugging instead.
     /// Set `DEBUG_INFORMATION_FORMAT = dwarf-with-dsym` to make dSYM instead of embedding debug symbols.
-    let stripDWARFSymbols: Bool
+    let stripStaticDWARFSymbols: Bool
 }
 
 public struct ExtraFlags: Hashable, Codable, Sendable {
