@@ -185,13 +185,8 @@ private final class BuildProductsResolver {
                     }
                 }
             }
-        } catch {
-            switch error {
-            case GraphError.unexpectedCycle:
-                throw DescriptionPackage.Error.cycleDetected
-            default:
-                throw error
-            }
+        } catch GraphError.unexpectedCycle {
+            throw DescriptionPackage.Error.cycleDetected
         }
 
         return OrderedSet(products.reversed())
