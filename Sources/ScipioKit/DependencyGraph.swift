@@ -83,7 +83,7 @@ extension DependencyGraph {
     ///     C → E
     /// ```
     /// If the node `B` is removed, `A` is connected to `C` and `D`
-    ///```
+    /// ```
     /// A → D
     /// ↓   ↓
     /// C → E
@@ -103,7 +103,7 @@ extension DependencyGraph {
     ///     C → E
     /// ```
     /// If the node `B` is removed, `A` is connected to `C` and `D`
-    ///```
+    /// ```
     /// A → D
     /// ↓   ↓
     /// C → E
