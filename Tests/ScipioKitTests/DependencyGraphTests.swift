@@ -128,6 +128,7 @@ struct DependencyGraphTests {
 //     ↓   ↓
 //     c → e
 private enum TestValue: String, Hashable, CaseIterable {
+    // swiftlint:disable:next identifier_name
     case a, b, c, d, e, f, g
 
     var children: [TestValue] {
