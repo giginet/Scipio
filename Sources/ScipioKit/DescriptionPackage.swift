@@ -112,9 +112,9 @@ struct DescriptionPackage: PackageLocator {
 }
 
 extension DescriptionPackage {
-    func resolveBuildProducts() throws -> OrderedSet<BuildProduct> {
+    func resolveBuildProductDependencyGraph() throws -> DependencyGraph<BuildProduct> {
         let resolver = BuildProductsResolver(descriptionPackage: self)
-        return try resolver.resolveBuildProducts()
+        return try resolver.resolveBuildProductDependencyGraph()
     }
 }
 
@@ -162,34 +162,14 @@ private final class BuildProductsResolver {
         self.descriptionPackage = descriptionPackage
     }
 
-    func resolveBuildProducts() throws -> OrderedSet<BuildProduct> {
+    func resolveBuildProductDependencyGraph() throws -> DependencyGraph<BuildProduct> {
         let targetsToBuild = try targetsToBuild()
-        var products = try targetsToBuild.flatMap(resolveBuildProduct(from:))
-
-        let productMap: [String: BuildProduct] = Dictionary(products.map { ($0.target.name, $0) }) { $1 }
-        func resolvedTargetToBuildProduct(_ target: ScipioResolvedModule) -> BuildProduct {
-            guard let product = productMap[target.name] else {
-                preconditionFailure("The dependency target (\(target.name)) was not found in the build target list")
-            }
-            return product
-        }
-
-        do {
-            products = try topologicalSort(products) { (product) in
-                return product.target.dependencies.flatMap { (dependency) -> [BuildProduct] in
-                    switch dependency {
-                    case .module(let module, conditions: _):
-                        return [resolvedTargetToBuildProduct(module)]
-                    case .product(let product, conditions: _):
-                        return product.modules.map(resolvedTargetToBuildProduct)
-                    }
-                }
-            }
-        } catch GraphError.unexpectedCycle {
-            throw DescriptionPackage.Error.cycleDetected
-        }
-
-        return OrderedSet(products.reversed())
+        let products = try targetsToBuild.flatMap(resolveBuildProduct(from:))
+        return try DependencyGraph<BuildProduct>.resolve(
+            Set(products),
+            id: \.target.id,
+            childIDs: { $0.target.dependencies.flatMap(\.moduleIDs) }
+        )
     }
 
     private func targetsToBuild() throws -> [ScipioResolvedModule] {
@@ -247,5 +227,15 @@ private final class BuildProductsResolver {
         buildProductsCache.updateValue(buildProducts, forKey: rootTargetProduct)
 
         return buildProducts
+    }
+}
+
+extension ResolvedModule.Dependency {
+    fileprivate var moduleIDs: [ResolvedModule.ID] {
+        let moduleIDs = switch self {
+        case .module(let module, _): [module.id]
+        case .product(let product, _): product.modules.map(\.id)
+        }
+        return moduleIDs
     }
 }
