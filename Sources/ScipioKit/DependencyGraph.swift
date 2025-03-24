@@ -74,7 +74,7 @@ extension DependencyGraph {
 
     /// Removes nodes which have the given values.
     ///
-    /// When an intermediate node is removed, the parent nodes and the chile nodes are connected.
+    /// When an intermediate node is removed, the parent nodes and the child nodes are connected.
     ///
     /// This is an example.
     /// ```
@@ -94,7 +94,7 @@ extension DependencyGraph {
 
     /// Removes nodes which have the given values.
     ///
-    /// When an intermediate node is removed, the parent nodes and the chile nodes are connected.
+    /// When an intermediate node is removed, the parent nodes and the child nodes are connected.
     ///
     /// This is an example.
     /// ```
