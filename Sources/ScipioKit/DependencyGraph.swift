@@ -1,6 +1,6 @@
 import Foundation
 
-/// A graph indicating dependencies between nods.
+/// A graph indicating dependencies between nodes.
 /// The graph means that the parent node depends on the child nodes.
 struct DependencyGraph<Value: Equatable> {
     /// Root nodes which are not depended on by the other nodes.
