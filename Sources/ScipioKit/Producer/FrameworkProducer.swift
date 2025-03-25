@@ -309,7 +309,7 @@ struct FrameworkProducer {
 
         do {
             var targets = targets
-            while let leafNode = targets.leafs().first {
+            while let leafNode = targets.leafs.first {
                 let buildTarget = leafNode.value
                 try await buildXCFrameworks(
                     buildTarget,

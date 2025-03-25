@@ -91,7 +91,7 @@ struct DependencyGraphTests {
     @Test
     func leafs() throws {
         let graph = try DependencyGraph.resolve(Set(TestValue.allCases), id: \.self, childIDs: { $0.children })
-        #expect(Set(graph.leafs().map(\.value)) == [.e, .g])
+        #expect(Set(graph.leafs.map(\.value)) == [.e, .g])
     }
 
     @Test
@@ -120,7 +120,7 @@ struct DependencyGraphTests {
         #expect(fNode.parents.isEmpty)
         #expect(fNode.children.isEmpty)
 
-        #expect(Set(graph.leafs().map(\.value)) == [.e, .f])
+        #expect(Set(graph.leafs.map(\.value)) == [.e, .f])
     }
 }
 

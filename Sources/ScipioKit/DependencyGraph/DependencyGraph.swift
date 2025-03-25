@@ -41,7 +41,7 @@ struct DependencyGraph<Value: Equatable> {
 
 extension DependencyGraph {
     /// All leaf nodes in this graph.
-    func leafs() -> [Node] {
+    var leafs: [Node] {
         allNodes.filter { $0.children.isEmpty }
     }
 
