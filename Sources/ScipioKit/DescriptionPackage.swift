@@ -249,11 +249,11 @@ extension ResolvedModule.Dependency {
     }
 #else
     fileprivate var moduleNames: [String] {
-        let moduleIDs = switch self {
+        let moduleNames = switch self {
         case .module(let module, _): [module.name]
         case .product(let product, _): product.modules.map(\.name)
         }
-        return moduleIDs
+        return moduleNames
     }
 #endif
 }
