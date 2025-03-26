@@ -3,7 +3,7 @@ import Workspace
 import Basics
 import enum TSCBasic.GraphError
 import func TSCBasic.topologicalSort
-import Collections
+import func TSCBasic.topologicalSort
 import PackageModel
 import PackageLoading
 // We may drop this annotation in SwiftPM's future release
