@@ -41,7 +41,7 @@ final class DescriptionPackageTests: XCTestCase {
         XCTAssertEqual(package.name, "IntegrationTestPackage")
 
         XCTAssertEqual(
-            try package.resolveBuildProducts().map(\.target.name).sorted(),
+            try package.resolveBuildProductDependencyGraph().allNodes.map(\.value.target.name).sorted(),
             [
                 "Atomics",
                 "CNIOAtomics",
@@ -73,16 +73,20 @@ final class DescriptionPackageTests: XCTestCase {
         )
         XCTAssertEqual(package.name, "TestingPackage")
 
-        XCTAssertEqual(
-            try package.resolveBuildProducts().map(\.target.name),
-            [
-                "Logging",
-                "MyTarget",
-                "ExecutableTarget",
-                "MyPlugin",
-            ],
-            "Order of the resolved products should be correct"
-        )
+        let graph = try package.resolveBuildProductDependencyGraph()
+            .map { $0.target.name }
+
+        let myPluginNode = try XCTUnwrap(graph.rootNodes.first)
+        XCTAssertEqual(myPluginNode.value, "MyPlugin")
+
+        let executableTargetNode = try XCTUnwrap(myPluginNode.children.first)
+        XCTAssertEqual(executableTargetNode.value, "ExecutableTarget")
+
+        let myTargetNode = try XCTUnwrap(executableTargetNode.children.first)
+        XCTAssertEqual(myTargetNode.value, "MyTarget")
+
+        let loggingNode = try XCTUnwrap(myTargetNode.children.first)
+        XCTAssertEqual(loggingNode.value, "Logging")
     }
 
     func testBinaryBuildProductsInCreateMode() async throws {
@@ -94,7 +98,7 @@ final class DescriptionPackageTests: XCTestCase {
         )
         XCTAssertEqual(package.name, "BinaryPackage")
         XCTAssertEqual(
-            Set(try package.resolveBuildProducts().map(\.target.name)),
+            Set(try package.resolveBuildProductDependencyGraph().allNodes.map(\.value.target.name)),
             ["SomeBinary"]
         )
     }

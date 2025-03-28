@@ -52,10 +52,10 @@ struct FrameworkProducer {
     func produce() async throws {
         try await clean()
 
-        let targets = try descriptionPackage.resolveBuildProducts()
-        try await processAllTargets(
-            buildProducts: targets.filter { [.library, .binary].contains($0.target.type) }
-        )
+        let buildProductDependencyGraph = try descriptionPackage.resolveBuildProductDependencyGraph()
+            .filter { [.library, .binary].contains($0.target.type) }
+
+        try await processAllTargets(buildProductDependencyGraph: buildProductDependencyGraph)
     }
 
     private func overriddenBuildOption(for buildProduct: BuildProduct) -> BuildOptions {
@@ -72,22 +72,18 @@ struct FrameworkProducer {
         }
     }
 
-    private func processAllTargets(buildProducts: [BuildProduct]) async throws {
-        guard !buildProducts.isEmpty else {
+    private func processAllTargets(buildProductDependencyGraph: DependencyGraph<BuildProduct>) async throws {
+        guard !buildProductDependencyGraph.rootNodes.isEmpty else {
             return
         }
 
-        let allTargets = OrderedSet(buildProducts.compactMap { buildProduct -> CacheSystem.CacheTarget? in
-            guard [.library, .binary].contains(buildProduct.target.type) else {
-                assertionFailure("Invalid target type")
-                return nil
-            }
+        var targetGraph = buildProductDependencyGraph.map { buildProduct in
             let buildOptionsForProduct = overriddenBuildOption(for: buildProduct)
             return CacheSystem.CacheTarget(
                 buildProduct: buildProduct,
                 buildOptions: buildOptionsForProduct
             )
-        })
+        }
 
         let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         let cacheSystem = CacheSystem(
@@ -95,12 +91,12 @@ struct FrameworkProducer {
             outputDirectory: outputDir
         )
 
-        let targetsToBuild: OrderedSet<CacheSystem.CacheTarget>
+        let dependencyGraphToBuild: DependencyGraph<CacheSystem.CacheTarget>
         if cachePolicies.isEmpty {
             // no-op because cache is disabled
-            targetsToBuild = allTargets
+            dependencyGraphToBuild = targetGraph
         } else {
-            let targets = Set(allTargets)
+            let targets = Set(targetGraph.allNodes.map(\.value))
 
             // Validate the existing frameworks in `outputDir` before restoration
             let valid = await validateExistingFrameworks(
@@ -111,20 +107,20 @@ struct FrameworkProducer {
             let storagesWithConsumer = cachePolicies.storages(for: .consumer)
             if storagesWithConsumer.isEmpty {
                 // no-op
-                targetsToBuild = allTargets.subtracting(valid)
+                targetGraph.remove(valid)
             } else {
                 let restored = await restoreAllAvailableCachesIfNeeded(
                     availableTargets: targets.subtracting(valid),
                     to: storagesWithConsumer,
                     cacheSystem: cacheSystem
                 )
-                targetsToBuild = allTargets
-                    .subtracting(valid)
-                    .subtracting(restored)
+                let skipTargets = valid.union(restored)
+                targetGraph.remove(skipTargets)
             }
+            dependencyGraphToBuild = targetGraph
         }
 
-        let targetBuildResult = await buildTargets(targetsToBuild)
+        let targetBuildResult = await buildTargets(dependencyGraphToBuild)
 
         let builtTargets: OrderedSet<CacheSystem.CacheTarget> = switch targetBuildResult {
             case .completed(let builtTargets),
@@ -308,17 +304,20 @@ struct FrameworkProducer {
         }
     }
 
-    private func buildTargets(_ targets: OrderedSet<CacheSystem.CacheTarget>) async -> TargetBuildResult {
+    private func buildTargets(_ targets: DependencyGraph<CacheSystem.CacheTarget>) async -> TargetBuildResult {
         var builtTargets = OrderedSet<CacheSystem.CacheTarget>()
 
         do {
-            for target in targets {
+            var targets = targets
+            while let leafNode = targets.leafs.first {
+                let buildTarget = leafNode.value
                 try await buildXCFrameworks(
-                    target,
+                    buildTarget,
                     outputDir: outputDir,
                     buildOptionsMatrix: buildOptionsMatrix
                 )
-                builtTargets.append(target)
+                builtTargets.append(buildTarget)
+                targets.remove(buildTarget)
             }
             return .completed(builtTargets: builtTargets)
         } catch {
