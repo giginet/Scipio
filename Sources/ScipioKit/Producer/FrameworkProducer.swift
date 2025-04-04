@@ -85,6 +85,8 @@ struct FrameworkProducer {
             )
         }
 
+        let allTargets = targetGraph.allNodes.map(\.value)
+
         let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         let cacheSystem = CacheSystem(
             pinsStore: pinsStore,
@@ -132,7 +134,7 @@ struct FrameworkProducer {
 
         if shouldGenerateVersionFile {
             // Versionfiles should be generate for all targets
-            for target in builtTargets {
+            for target in allTargets {
                 await generateVersionFile(for: target, using: cacheSystem)
             }
         }

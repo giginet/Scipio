@@ -353,8 +353,7 @@ final class RunnerTests: XCTestCase {
             "The framework should be cached to the cache storage"
         )
 
-        let outputFrameworkPath = frameworkOutputDir.appendingPathComponent("ScipioTesting.xcframework")
-        try self.fileManager.removeItem(atPath: outputFrameworkPath.path)
+        try self.fileManager.removeItem(atPath: frameworkOutputDir.path)
 
         // Fetch from local storage
         do {
@@ -364,9 +363,16 @@ final class RunnerTests: XCTestCase {
             XCTFail("Build should be succeeded.")
         }
 
+        let outputFrameworkPath = frameworkOutputDir.appendingPathComponent("ScipioTesting.xcframework")
+        let outputVersionFile = frameworkOutputDir.appendingPathComponent(".ScipioTesting.version")
+
         XCTAssertTrue(
             fileManager.fileExists(atPath: outputFrameworkPath.path),
             "The framework should be restored from the cache storage"
+        )
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: outputVersionFile.path),
+            "The version file should exist when restored"
         )
 
         try fileManager.removeItem(at: storageDir)
