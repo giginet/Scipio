@@ -43,6 +43,8 @@ let package = Package(
                  from: "4.0.1"),
         .package(url: "https://github.com/giginet/scipio-cache-storage.git",
                  from: "1.0.0"),
+        .package(url: "https://github.com/giginet/PackageManifestKit",
+                 branch: "main")
     ],
     targets: [
         .executableTarget(
@@ -63,6 +65,7 @@ let package = Package(
                 .product(name: "Algorithms", package: "swift-algorithms"),
                 .product(name: "Rainbow", package: "Rainbow"),
                 .product(name: "ScipioStorage", package: "scipio-cache-storage"),
+                .product(name: "PackageManifestKit", package: "PackageManifestKit")
             ],
             swiftSettings: swiftSettings,
             plugins: [
