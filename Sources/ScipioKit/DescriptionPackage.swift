@@ -14,6 +14,7 @@ struct DescriptionPackage: PackageLocator {
     let workspace: Workspace
     let graph: ModulesGraph
     let manifest: PackageManifestKit.Manifest
+    let jsonDecoder = JSONDecoder()
 
     enum Error: LocalizedError {
         case packageNotDefined
@@ -61,6 +62,7 @@ struct DescriptionPackage: PackageLocator {
 
     private static func makeManifest(
         packageDirectory: TSCAbsolutePath,
+        jsonDecoder: JSONDecoder,
         executor: some Executor
     ) async throws -> PackageManifestKit.Manifest {
         let commands = [
@@ -73,7 +75,7 @@ struct DescriptionPackage: PackageLocator {
         ]
 
         let manifestString = try await executor.execute(commands).unwrapOutput()
-        let manifest = try JSONDecoder().decode(PackageManifestKit.Manifest.self, from: manifestString)
+        let manifest = try jsonDecoder.decode(PackageManifestKit.Manifest.self, from: manifestString)
 
         return manifest
     }
@@ -123,6 +125,7 @@ struct DescriptionPackage: PackageLocator {
 #endif
         self.manifest = try await Self.makeManifest(
             packageDirectory: packageDirectory,
+            jsonDecoder: jsonDecoder,
             executor: executor
         )
         self.workspace = workspace
