@@ -44,7 +44,7 @@ let package = Package(
         .package(url: "https://github.com/giginet/scipio-cache-storage.git",
                  from: "1.0.0"),
         .package(url: "https://github.com/giginet/PackageManifestKit",
-                 branch: "main")
+                 from: "0.1.0")
     ],
     targets: [
         .executableTarget(
