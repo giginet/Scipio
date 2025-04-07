@@ -182,7 +182,7 @@ final class CacheSystemTests: XCTestCase {
         let testingPackage = descriptionPackage
             .graph
             .packages
-            .first { $0.manifest.displayName == descriptionPackage.manifest.displayName }!
+            .first { $0.manifest.displayName == descriptionPackage.manifest.name }!
 
         let myTarget = testingPackage.modules.first { $0.name == "MyTarget" }!
         let cacheTarget = CacheSystem.CacheTarget(

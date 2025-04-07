@@ -5,6 +5,7 @@ import PackageModel
 import PackageLoading
 // We may drop this annotation in SwiftPM's future release
 @preconcurrency import PackageGraph
+import PackageManifestKit
 
 struct DescriptionPackage: PackageLocator {
     let mode: Runner.Mode
@@ -12,7 +13,8 @@ struct DescriptionPackage: PackageLocator {
     private let toolchain: UserToolchain
     let workspace: Workspace
     let graph: ModulesGraph
-    let manifest: Manifest
+    let manifest: PackageManifestKit.Manifest
+    let jsonDecoder = JSONDecoder()
 
     enum Error: LocalizedError {
         case packageNotDefined
@@ -31,11 +33,11 @@ struct DescriptionPackage: PackageLocator {
     // MARK: Properties
 
     var name: String {
-        manifest.displayName
+        manifest.name
     }
 
     var supportedSDKs: Set<SDK> {
-        Set(manifest.platforms.map(\.platformName).compactMap(SDK.init(platformName:)))
+        Set(manifest.platforms?.map(\.platformName).compactMap(SDK.init(platformName:)) ?? [])
     }
 
     // MARK: Initializer
@@ -58,6 +60,26 @@ struct DescriptionPackage: PackageLocator {
         return workspace
     }
 
+    private static func makeManifest(
+        packageDirectory: TSCAbsolutePath,
+        jsonDecoder: JSONDecoder,
+        executor: some Executor
+    ) async throws -> PackageManifestKit.Manifest {
+        let commands = [
+            "/usr/bin/xcrun",
+            "swift",
+            "package",
+            "dump-package",
+            "--package-path",
+            packageDirectory.pathString,
+        ]
+
+        let manifestString = try await executor.execute(commands).unwrapOutput()
+        let manifest = try jsonDecoder.decode(PackageManifestKit.Manifest.self, from: manifestString)
+
+        return manifest
+    }
+
     /// Make DescriptionPackage from a passed package directory
     /// - Parameter packageDirectory: A path for the Swift package to build
     /// - Parameter mode: A Scipio running mode
@@ -69,7 +91,8 @@ struct DescriptionPackage: PackageLocator {
         packageDirectory: TSCAbsolutePath,
         mode: Runner.Mode,
         onlyUseVersionsFromResolvedFile: Bool,
-        toolchainEnvironment: ToolchainEnvironment? = nil
+        toolchainEnvironment: ToolchainEnvironment? = nil,
+        executor: some Executor = ProcessExecutor(decoder: StandardOutputDecoder())
     ) async throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
@@ -100,9 +123,10 @@ struct DescriptionPackage: PackageLocator {
             observabilityScope: scope
         )
 #endif
-        self.manifest = try await workspace.loadRootManifest(
-            at: packageDirectory.spmAbsolutePath,
-            observabilityScope: scope
+        self.manifest = try await Self.makeManifest(
+            packageDirectory: packageDirectory,
+            jsonDecoder: jsonDecoder,
+            executor: executor
         )
         self.workspace = workspace
     }
