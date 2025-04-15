@@ -89,6 +89,19 @@ final class IntegrationTests: XCTestCase {
         )
     }
 
+    func testDynamicFramework() async throws {
+        try await testBuildPackages(
+            packageName: "OtherLDFlagsTestPackage",
+            buildOptionsMatrix: [
+                "Atomics": .init(frameworkType: .dynamic),
+            ],
+            testCases: [
+                ("Atomics", .dynamic, [.iOS], false),
+                ("_AtomicsShims", .static, [.iOS], true),
+            ]
+        )
+    }
+
     private typealias TestCase = (String, FrameworkType, Set<Destination>, Bool)
 
     private func testBuildPackages(

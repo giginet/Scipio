@@ -249,9 +249,55 @@ private struct PIFLibraryTargetModifier {
         }
         settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
-        if frameworkType == .mergeable {
+        switch frameworkType {
+        case .static:
+            break
+        case .mergeable:
             settings[.OTHER_LDFLAGS, default: ["$(inherited)"]]
                 .append("-Wl,-make_mergeable")
+        case .dynamic:
+            guard let recursiveDependencies = try? resolvedTarget.recursiveDependencies() else {
+                break
+            }
+
+            let moduleDependenciesPerPlatforms: [PIF.BuildSettings.Platform?: [ResolvedModule]]
+            moduleDependenciesPerPlatforms = recursiveDependencies.reduce(into: [:]) { partialResult, dependency in
+                guard case .module(let module, let conditions) = dependency else {
+                    return
+                }
+                if conditions.isEmpty {
+                    partialResult[nil, default: []].append(module)
+                    return
+                }
+                for condition in conditions {
+                    switch condition {
+                    case .platforms(let platformCondition):
+                        for platform in platformCondition.platforms {
+                            if let pifPlatform = PIF.BuildSettings.Platform(rawValue: platform.name) {
+                                partialResult[pifPlatform, default: []].append(module)
+                            }
+                        }
+                    case .configuration:
+                        partialResult[nil, default: []].append(module)
+                    case .traits:
+                        // FIXME: Handle trait condition
+                        break
+                    }
+                }
+            }
+
+            for (platform, dependencies) in moduleDependenciesPerPlatforms {
+                let flags = dependencies.flatMap {
+                    ["-framework", $0.name]
+                }
+
+                if let platform {
+                    settings[.OTHER_LDFLAGS, for: platform, default: ["$(inherited)"]]
+                        .append(contentsOf: flags)
+                } else {
+                    settings[.OTHER_LDFLAGS, default: ["$(inherited)"]].append(contentsOf: flags)
+                }
+            }
         }
 
         appendExtraFlagsByBuildOptionsMatrix(to: &settings)
