@@ -9,13 +9,13 @@ let package = Package(
         .library(name: "OtherLDFlagsTestPackage", targets: ["OtherLDFlagsTestPackage"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-atomics.git", exact: "1.2.0")
+        .package(name: "UsableFromInlinePackage", path: "../UsableFromInlinePackage")
     ],
     targets: [
         .target(
             name: "OtherLDFlagsTestPackage",
             dependencies: [
-                .product(name: "Atomics", package: "swift-atomics")
+                .product(name: "UsableFromInlinePackage", package: "UsableFromInlinePackage")
             ]),
     ]
 )

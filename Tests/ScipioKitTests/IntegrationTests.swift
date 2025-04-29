@@ -93,11 +93,11 @@ final class IntegrationTests: XCTestCase {
         try await testBuildPackages(
             packageName: "OtherLDFlagsTestPackage",
             buildOptionsMatrix: [
-                "Atomics": .init(frameworkType: .dynamic),
+                "UsableFromInlinePackage": .init(frameworkType: .dynamic),
             ],
             testCases: [
-                ("Atomics", .dynamic, [.iOS], false),
-                ("_AtomicsShims", .static, [.iOS], true),
+                ("UsableFromInlinePackage", .dynamic, [.iOS], false),
+                ("ClangModule", .static, [.iOS], true),
             ]
         )
     }
