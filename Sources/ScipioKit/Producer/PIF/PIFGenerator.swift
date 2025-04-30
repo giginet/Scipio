@@ -260,31 +260,7 @@ private struct PIFLibraryTargetModifier {
                 break
             }
 
-            let moduleDependenciesPerPlatforms: [PIF.BuildSettings.Platform?: [ResolvedModule]]
-            moduleDependenciesPerPlatforms = recursiveDependencies.reduce(into: [:]) { partialResult, dependency in
-                guard case .module(let module, let conditions) = dependency else {
-                    return
-                }
-                if conditions.isEmpty {
-                    partialResult[nil, default: []].append(module)
-                    return
-                }
-                for condition in conditions {
-                    switch condition {
-                    case .platforms(let platformCondition):
-                        for platform in platformCondition.platforms {
-                            if let pifPlatform = PIF.BuildSettings.Platform(rawValue: platform.name) {
-                                partialResult[pifPlatform, default: []].append(module)
-                            }
-                        }
-                    case .configuration:
-                        partialResult[nil, default: []].append(module)
-                    case .traits:
-                        // FIXME: Handle trait condition
-                        break
-                    }
-                }
-            }
+            let moduleDependenciesPerPlatforms = categorizeModuleDependenciesByPlatform(recursiveDependencies)
 
             for (platform, dependencies) in moduleDependenciesPerPlatforms {
                 let flags = dependencies.flatMap {
@@ -328,6 +304,35 @@ private struct PIFLibraryTargetModifier {
         configuration.buildSettings = settings
 
         return configuration
+    }
+
+    private func categorizeModuleDependenciesByPlatform(
+        _ dependencies: [ResolvedModule.Dependency]
+    ) -> [PIF.BuildSettings.Platform?: [ResolvedModule]] {
+        dependencies.reduce(into: [:]) { partialResult, dependency in
+            guard case .module(let module, let conditions) = dependency else {
+                return
+            }
+            if conditions.isEmpty {
+                partialResult[nil, default: []].append(module)
+                return
+            }
+            for condition in conditions {
+                switch condition {
+                case .platforms(let platformCondition):
+                    for platform in platformCondition.platforms {
+                        if let pifPlatform = PIF.BuildSettings.Platform(rawValue: platform.name) {
+                            partialResult[pifPlatform, default: []].append(module)
+                        }
+                    }
+                case .configuration:
+                    partialResult[nil, default: []].append(module)
+                case .traits:
+                    // FIXME: Handle trait condition
+                    break
+                }
+            }
+        }
     }
 
     // Append extraFlags from BuildOptionsMatrix to each target settings
