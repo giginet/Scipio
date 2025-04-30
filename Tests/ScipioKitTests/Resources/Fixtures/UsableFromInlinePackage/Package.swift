@@ -14,8 +14,18 @@ let package = Package(
             name: "ClangModule"
         ),
         .target(
+            name: "ClangModuleForIOS"
+        ),
+        .target(
+            name: "ClangModuleForMacOS"
+        ),
+        .target(
             name: "UsableFromInlinePackage",
-            dependencies: ["ClangModule"]
+            dependencies: [
+                "ClangModule",
+                .targetItem(name: "ClangModuleForIOS", condition: .when(platforms: [.iOS])),
+                .targetItem(name: "ClangModuleForMacOS", condition: .when(platforms: [.macOS])),
+            ]
         ),
     ]
 )

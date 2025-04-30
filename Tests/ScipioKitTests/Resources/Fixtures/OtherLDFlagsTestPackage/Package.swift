@@ -4,7 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "OtherLDFlagsTestPackage",
-    platforms: [.iOS(.v18)],
+    platforms: [.iOS(.v18), .macOS(.v10_15)],
     products: [
         .library(name: "OtherLDFlagsTestPackage", targets: ["OtherLDFlagsTestPackage"])
     ],

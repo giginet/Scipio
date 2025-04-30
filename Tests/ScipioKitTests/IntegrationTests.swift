@@ -96,8 +96,10 @@ final class IntegrationTests: XCTestCase {
                 "UsableFromInlinePackage": .init(frameworkType: .dynamic),
             ],
             testCases: [
-                ("UsableFromInlinePackage", .dynamic, [.iOS], false),
-                ("ClangModule", .static, [.iOS], true),
+                ("UsableFromInlinePackage", .dynamic, [.iOS, .macOS], false),
+                ("ClangModule", .static, [.iOS, .macOS], true),
+                ("ClangModuleForIOS", .static, [.iOS, .macOS], true),
+                ("ClangModuleForMacOS", .static, [.iOS, .macOS], true),
             ]
         )
     }
