@@ -313,9 +313,11 @@ private struct PIFLibraryTargetModifier {
                     }
                 case .configuration:
                     partialResult[nil, default: []].append(module)
+#if compiler(>=6.1)
                 case .traits:
                     // FIXME: Handle trait condition
                     break
+#endif
                 }
             }
         }
