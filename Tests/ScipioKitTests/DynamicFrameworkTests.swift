@@ -40,7 +40,7 @@ struct DynamicFrameworkTests {
             dependencies: [
                 "ClangModule": [.iOS, .macOS],
                 "ClangModuleForIOS": [.iOS],
-                "ClangModuleForMacOS": [.macOS]
+                "ClangModuleForMacOS": [.macOS],
             ],
             outputDir: outputDir
         )
