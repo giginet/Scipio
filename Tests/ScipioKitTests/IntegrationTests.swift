@@ -91,7 +91,7 @@ final class IntegrationTests: XCTestCase {
 
     func testDynamicFramework() async throws {
         try await testBuildPackages(
-            packageName: "OtherLDFlagsTestPackage",
+            packageName: "DynamicFrameworkOtherLDFlagsTestPackage",
             buildOptionsMatrix: [
                 "UsableFromInlinePackage": .init(frameworkType: .dynamic),
             ],

@@ -12,8 +12,8 @@ struct DynamicFrameworkTests {
     private let fileManager: FileManager = .default
 
     @Test
-    func platformCondition() async throws {
-        let packageName = "OtherLDFlagsTestPackage"
+    func otherLDFlags() async throws {
+        let packageName = "DynamicFrameworkOtherLDFlagsTestPackage"
 
         let outputDir = fileManager.temporaryDirectory
             .appendingPathComponent("Scipio")

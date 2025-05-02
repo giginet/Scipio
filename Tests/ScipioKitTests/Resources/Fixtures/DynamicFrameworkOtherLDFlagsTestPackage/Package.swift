@@ -3,17 +3,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "OtherLDFlagsTestPackage",
+    name: "DynamicFrameworkOtherLDFlagsTestPackage",
     platforms: [.iOS(.v18), .macOS(.v10_15)],
     products: [
-        .library(name: "OtherLDFlagsTestPackage", targets: ["OtherLDFlagsTestPackage"])
+        .library(name: "DynamicFrameworkOtherLDFlagsTestPackage", targets: ["DynamicFrameworkOtherLDFlagsTestPackage"])
     ],
     dependencies: [
         .package(name: "UsableFromInlinePackage", path: "../UsableFromInlinePackage")
     ],
     targets: [
         .target(
-            name: "OtherLDFlagsTestPackage",
+            name: "DynamicFrameworkOtherLDFlagsTestPackage",
             dependencies: [
                 .product(name: "UsableFromInlinePackage", package: "UsableFromInlinePackage")
             ]),
