@@ -95,8 +95,10 @@ struct DynamicFrameworkTests {
             let loadCommands = try executionResult.unwrapOutput()
 
             for (dependencyName, destinations) in dependencies {
+                let shouldContain = destinations.contains(arch)
                 #expect(
-                    loadCommands.contains(dependencyName) == destinations.contains(arch)
+                    loadCommands.contains(dependencyName) == shouldContain,
+                    "\(dependencyName) \(shouldContain ? "must" : "must NOT") be linked to \(framework.name) for \(arch)."
                 )
             }
         }
