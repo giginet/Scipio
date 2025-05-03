@@ -249,9 +249,31 @@ private struct PIFLibraryTargetModifier {
         }
         settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
 
-        if frameworkType == .mergeable {
+        switch frameworkType {
+        case .static:
+            break
+        case .mergeable:
             settings[.OTHER_LDFLAGS, default: ["$(inherited)"]]
                 .append("-Wl,-make_mergeable")
+        case .dynamic:
+            guard let recursiveDependencies = try? resolvedTarget.recursiveDependencies() else {
+                break
+            }
+
+            let moduleDependenciesPerPlatforms = categorizeModuleDependenciesByPlatform(recursiveDependencies)
+
+            for (platform, dependencies) in moduleDependenciesPerPlatforms {
+                let flags = dependencies.flatMap {
+                    ["-framework", $0.name]
+                }
+
+                if let platform {
+                    settings[.OTHER_LDFLAGS, for: platform, default: ["$(inherited)"]]
+                        .append(contentsOf: flags)
+                } else {
+                    settings[.OTHER_LDFLAGS, default: ["$(inherited)"]].append(contentsOf: flags)
+                }
+            }
         }
 
         appendExtraFlagsByBuildOptionsMatrix(to: &settings)
@@ -262,26 +284,43 @@ private struct PIFLibraryTargetModifier {
         // So a bridging header will be generated in frameworks bundle even if `SWIFT_OBJC_INTERFACE_HEADER_DIR` was specified.
         // So it's need to replace `MODULEMAP_FILE_CONTENTS` to an absolute path.
         if let swiftTarget = resolvedTarget.underlying as? ScipioSwiftModule {
-            // Bridging Headers will be generated inside generated frameworks
-            let productsDirectory = descriptionPackage.productsDirectory(
-                buildConfiguration: buildOptions.buildConfiguration,
-                sdk: sdk
-            )
-            let bridgingHeaderFullPath = productsDirectory.appending(
-                components: ["\(swiftTarget.c99name).framework", "Headers", "\(swiftTarget.name)-Swift.h"]
-            )
-
-            settings[.MODULEMAP_FILE_CONTENTS] = """
-                module \(swiftTarget.c99name) {
-                    header "\(bridgingHeaderFullPath.pathString)"
-                    export *
-                }
-                """
+            settings[.MODULEMAP_FILE_CONTENTS] = modulemapFileContents(swiftTarget: swiftTarget)
         }
 
         configuration.buildSettings = settings
 
         return configuration
+    }
+
+    private func categorizeModuleDependenciesByPlatform(
+        _ dependencies: [ResolvedModule.Dependency]
+    ) -> [PIF.BuildSettings.Platform?: [ResolvedModule]] {
+        dependencies.reduce(into: [:]) { partialResult, dependency in
+            guard case .module(let module, let conditions) = dependency else {
+                return
+            }
+            if conditions.isEmpty {
+                partialResult[nil, default: []].append(module)
+                return
+            }
+            for condition in conditions {
+                switch condition {
+                case .platforms(let platformCondition):
+                    for platform in platformCondition.platforms {
+                        if let pifPlatform = PIF.BuildSettings.Platform(rawValue: platform.name) {
+                            partialResult[pifPlatform, default: []].append(module)
+                        }
+                    }
+                case .configuration:
+                    partialResult[nil, default: []].append(module)
+#if compiler(>=6.1)
+                case .traits:
+                    // FIXME: Handle trait condition
+                    break
+#endif
+                }
+            }
+        }
     }
 
     // Append extraFlags from BuildOptionsMatrix to each target settings
@@ -296,6 +335,24 @@ private struct PIFLibraryTargetModifier {
         createOrUpdateFlags(for: .OTHER_CPLUSPLUSFLAGS, to: \.cxxFlags)
         createOrUpdateFlags(for: .OTHER_SWIFT_FLAGS, to: \.swiftFlags)
         createOrUpdateFlags(for: .OTHER_LDFLAGS, to: \.linkerFlags)
+    }
+
+    private func modulemapFileContents(swiftTarget: ScipioSwiftModule) -> String {
+        // Bridging Headers will be generated inside generated frameworks
+        let productsDirectory = descriptionPackage.productsDirectory(
+            buildConfiguration: buildOptions.buildConfiguration,
+            sdk: sdk
+        )
+        let bridgingHeaderFullPath = productsDirectory.appending(
+            components: ["\(swiftTarget.c99name).framework", "Headers", "\(swiftTarget.name)-Swift.h"]
+        )
+
+        return """
+            module \(swiftTarget.c99name) {
+                header "\(bridgingHeaderFullPath.pathString)"
+                export *
+            }
+        """
     }
 }
 
