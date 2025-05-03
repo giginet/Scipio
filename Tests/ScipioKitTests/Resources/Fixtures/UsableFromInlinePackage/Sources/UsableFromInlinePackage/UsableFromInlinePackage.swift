@@ -6,14 +6,11 @@ import ClangModuleForMacOS
 #endif
 
 @usableFromInline
-struct Sample {
-    @usableFromInline
-    static func sample() {
-        this_is_c_function()
+func sample() {
+    this_is_c_function()
 #if os(iOS)
-        this_is_c_function_for_ios()
+    this_is_c_function_for_ios()
 #elseif os(macOS)
-        this_is_c_function_for_macos()
+    this_is_c_function_for_macos()
 #endif
-    }
 }
