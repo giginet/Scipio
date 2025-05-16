@@ -84,7 +84,7 @@ framework module MyTarget {
             onlyUseVersionsFromResolvedFile: false
         )
         let generatedModuleMapPath = try generator.generate(
-            resolvedTarget: #require(descriptionPackage.graph.module(for: "MyTarget")),
+            resolvedTarget: #require(descriptionPackage.newGraph.module(for: "MyTarget")),
             sdk: SDK.macOS,
             keepPublicHeadersStructure: keepPublicHeadersStructure
         )

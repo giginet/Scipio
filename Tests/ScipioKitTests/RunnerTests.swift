@@ -279,12 +279,12 @@ final class RunnerTests: XCTestCase {
             pinsStore: pinsStore,
             outputDirectory: frameworkOutputDir
         )
-        let packages = descriptionPackage.graph.packages
-            .filter { $0.manifest.displayName != descriptionPackage.manifest.name }
+        let packages = descriptionPackage.newGraph.allPackages.values
+            .filter { $0.manifest.name != descriptionPackage.manifest.name }
 
         let allTargets = packages
             .flatMap { package in
-                package.modules.map { BuildProduct(package: package, target: $0) }
+                package.targets.map { BuildProduct(package: package, target: $0) }
             }
             .map {
                 CacheSystem.CacheTarget(buildProduct: $0, buildOptions: .default)
@@ -507,12 +507,12 @@ final class RunnerTests: XCTestCase {
             pinsStore: pinsStore,
             outputDirectory: frameworkOutputDir
         )
-        let packages = descriptionPackage.graph.packages
-            .filter { $0.manifest.displayName != descriptionPackage.manifest.name }
+        let packages = descriptionPackage.newGraph.allPackages.values
+            .filter { $0.manifest.name != descriptionPackage.manifest.name }
 
         let allTargets = packages
             .flatMap { package in
-                package.modules.map { BuildProduct(package: package, target: $0) }
+                package.targets.map { BuildProduct(package: package, target: $0) }
             }
             .map {
                 CacheSystem.CacheTarget(buildProduct: $0, buildOptions: .default)

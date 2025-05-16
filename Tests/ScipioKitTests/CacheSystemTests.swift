@@ -118,10 +118,11 @@ final class CacheSystemTests: XCTestCase {
                 onlyUseVersionsFromResolvedFile: false
             )
             let package = descriptionPackage
-                .graph
-                .packages
-                .first { $0.manifest.displayName == "scipio-testing" }!
-            let target = package.modules.first { $0.name == "ScipioTesting" }!
+                .newGraph
+                .allPackages
+                .values
+                .first { $0.manifest.name == "scipio-testing" }!
+            let target = package.targets.first { $0.name == "ScipioTesting" }!
             let cacheTarget = CacheSystem.CacheTarget(
                 buildProduct: BuildProduct(
                     package: package,
@@ -154,7 +155,7 @@ final class CacheSystemTests: XCTestCase {
         XCTAssertNil(scipioTestingRemote.localPackageCanonicalLocation)
         XCTAssertEqual(
             scipioTestingLocal.localPackageCanonicalLocation,
-            CanonicalPackageLocation(tempDir.appending(component: "scipio-testing").pathString).description
+            ScipioKit.CanonicalPackageLocation(tempDir.appending(component: "scipio-testing").asURL.standardizedFileURL.resolvingSymlinksInPath().path(percentEncoded: false)).description
         )
         XCTAssertEqual(scipioTestingRemote.targetName, scipioTestingLocal.targetName)
         XCTAssertEqual(scipioTestingRemote.pin, scipioTestingLocal.pin)
@@ -180,11 +181,12 @@ final class CacheSystemTests: XCTestCase {
             outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks")
         )
         let testingPackage = descriptionPackage
-            .graph
-            .packages
-            .first { $0.manifest.displayName == descriptionPackage.manifest.name }!
+            .newGraph
+            .allPackages
+            .values
+            .first { $0.manifest.name == descriptionPackage.manifest.name }!
 
-        let myTarget = testingPackage.modules.first { $0.name == "MyTarget" }!
+        let myTarget = testingPackage.targets.first { $0.name == "MyTarget" }!
         let cacheTarget = CacheSystem.CacheTarget(
             buildProduct: BuildProduct(
                 package: testingPackage,
