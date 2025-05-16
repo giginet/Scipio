@@ -4,6 +4,18 @@ import PackageGraph
 import PackageModel
 
 struct XCBuildClient {
+    enum Error: LocalizedError {
+        case xcbuildNotFound
+
+        var errorDescription: String? {
+            switch self {
+            case .xcbuildNotFound:
+                return "xcbuild not found"
+
+            }
+        }
+    }
+
     private let buildOptions: BuildOptions
     private let buildProduct: BuildProduct
     private let configuration: BuildConfiguration
@@ -27,19 +39,34 @@ struct XCBuildClient {
         self.executor = executor
     }
 
-    private func fetchXCBuildPath() async throws -> TSCAbsolutePath {
+    private func fetchXCBuildPath() async throws -> URL {
         let developerDirPath = try await fetchDeveloperDirPath()
-        let relativePath = try TSCRelativePath(validating: "../SharedFrameworks/XCBuild.framework/Versions/A/Support/xcbuild")
-        return developerDirPath.appending(relativePath)
+
+        let xcBuildPathCandidates = [
+            "../SharedFrameworks/XCBuild.framework/Versions/A/Support/xcbuild", // < Xcode 16.3
+            "../SharedFrameworks/SwiftBuild.framework/Versions/A/Support/swbuild", // >= Xcode 16.3
+        ]
+
+        let foundXCBuildPath = xcBuildPathCandidates.map { relativePath in
+            developerDirPath.appending(path: relativePath).standardizedFileURL
+        }.first { path in
+            fileSystem.exists(path.absolutePath)
+        }
+        guard let foundXCBuildPath else {
+            throw Error.xcbuildNotFound
+        }
+
+        return foundXCBuildPath
     }
 
-    private func fetchDeveloperDirPath() async throws -> TSCAbsolutePath {
+    private func fetchDeveloperDirPath() async throws -> URL {
         let result = try await executor.execute(
             "/usr/bin/xcrun",
             "xcode-select",
             "-p"
         )
-        return try TSCAbsolutePath(validating: try result.unwrapOutput())
+        let output = try result.unwrapOutput().trimmingCharacters(in: .whitespacesAndNewlines)
+        return URL(filePath: output)
     }
 
     private var productTargetName: String {
@@ -51,7 +78,7 @@ struct XCBuildClient {
         sdk: SDK,
         pifPath: TSCAbsolutePath,
         buildParametersPath: TSCAbsolutePath
-    ) async throws {
+    ) async throws -> URL {
         let xcbuildPath = try await fetchXCBuildPath()
 
         let executor = XCBuildExecutor(xcbuildPath: xcbuildPath)
@@ -63,16 +90,14 @@ struct XCBuildClient {
             target: buildProduct.target
         )
 
-        try assembleFramework(sdk: sdk)
-
-        // Copy modulemap to built frameworks
-        // xcbuild generates modulemap for each frameworks
-        // However, these are not includes in Frameworks
-        // So they should be copied into frameworks manually.
-//        try copyModulemap(for: sdk)
+        let frameworkBundlePath = try assembleFramework(sdk: sdk)
+        return frameworkBundlePath
     }
 
-    private func assembleFramework(sdk: SDK) throws {
+    /// Assemble framework from build artifacts
+    /// - Parameter sdk: SDK
+    /// - Returns: Path to assembled framework bundle
+    private func assembleFramework(sdk: SDK) throws -> URL {
         let frameworkComponentsCollector = FrameworkComponentsCollector(
             buildProduct: buildProduct,
             sdk: sdk,
@@ -95,7 +120,7 @@ struct XCBuildClient {
             fileSystem: fileSystem
         )
 
-        try assembler.assemble()
+        return try assembler.assemble()
     }
 
     private func assembledFrameworkPath(target: ScipioResolvedModule, of sdk: SDK) throws -> TSCAbsolutePath {
@@ -121,7 +146,7 @@ struct XCBuildClient {
         )
 
         let arguments: [String] = [
-            xcbuildPath.pathString,
+            xcbuildPath.path(percentEncoded: false),
             "createXCFramework",
         ]
         + additionalArguments

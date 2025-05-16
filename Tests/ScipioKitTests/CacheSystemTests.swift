@@ -32,7 +32,8 @@ final class CacheSystemTests: XCTestCase {
                 extraBuildParameters: ["SWIFT_OPTIMIZATION_LEVEL": "-Osize"],
                 enableLibraryEvolution: true,
                 keepPublicHeadersStructure: false,
-                customFrameworkModuleMapContents: Data(customModuleMap.utf8)
+                customFrameworkModuleMapContents: Data(customModuleMap.utf8),
+                stripStaticDWARFSymbols: false
             ),
             clangVersion: "clang-1400.0.29.102",
             xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d")
@@ -63,7 +64,8 @@ final class CacheSystemTests: XCTestCase {
             "keepPublicHeadersStructure" : false,
             "sdks" : [
               "iOS"
-            ]
+            ],
+            "stripStaticDWARFSymbols" : false
           },
           "clangVersion" : "clang-1400.0.29.102",
           "localPackageCanonicalLocation" : "\\/path\\/to\\/MyPackage",
@@ -134,7 +136,8 @@ final class CacheSystemTests: XCTestCase {
                     extraBuildParameters: nil,
                     enableLibraryEvolution: false,
                     keepPublicHeadersStructure: false,
-                    customFrameworkModuleMapContents: nil
+                    customFrameworkModuleMapContents: nil,
+                    stripStaticDWARFSymbols: false
                 )
             )
 
@@ -179,7 +182,7 @@ final class CacheSystemTests: XCTestCase {
         let testingPackage = descriptionPackage
             .graph
             .packages
-            .first { $0.manifest.displayName == descriptionPackage.manifest.displayName }!
+            .first { $0.manifest.displayName == descriptionPackage.manifest.name }!
 
         let myTarget = testingPackage.modules.first { $0.name == "MyTarget" }!
         let cacheTarget = CacheSystem.CacheTarget(
@@ -196,7 +199,8 @@ final class CacheSystemTests: XCTestCase {
                 extraBuildParameters: nil,
                 enableLibraryEvolution: false,
                 keepPublicHeadersStructure: false,
-                customFrameworkModuleMapContents: nil
+                customFrameworkModuleMapContents: nil,
+                stripStaticDWARFSymbols: false
             )
         )
 

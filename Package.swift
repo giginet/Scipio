@@ -4,6 +4,18 @@
 import PackageDescription
 import Foundation
 
+let swiftPMBranch: String
+#if compiler(>=6.1)
+swiftPMBranch = "release/6.1"
+#else
+swiftPMBranch = "release/6.0"
+#endif
+
+let swiftSettings: [SwiftSetting] = [
+    .enableExperimentalFeature("StrictConcurrency"),
+    .unsafeFlags(["-strict-concurrency=complete"]),
+]
+
 let package = Package(
     name: "Scipio",
     platforms: [
@@ -18,7 +30,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-package-manager.git",
-                 branch: "release/6.0"),
+                 branch: swiftPMBranch),
         .package(url: "https://github.com/apple/swift-log.git",
                  from: "1.5.2"),
         .package(url: "https://github.com/apple/swift-collections",
@@ -33,6 +45,8 @@ let package = Package(
                  from: "1.0.0"),
         .package(url: "https://github.com/SwiftyJSON/SwiftyJSON.git",
                  from: "5.0.0"),
+        .package(url: "https://github.com/giginet/PackageManifestKit",
+                 from: "0.1.0"),
     ],
     targets: [
         .executableTarget(
@@ -53,6 +67,7 @@ let package = Package(
                 .product(name: "Algorithms", package: "swift-algorithms"),
                 .product(name: "Rainbow", package: "Rainbow"),
                 .product(name: "ScipioStorage", package: "scipio-cache-storage"),
+                .product(name: "PackageManifestKit", package: "PackageManifestKit")
             ],
             plugins: [
                 .plugin(name: "GenerateScipioVersion")

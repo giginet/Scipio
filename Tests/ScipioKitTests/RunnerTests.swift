@@ -280,7 +280,7 @@ final class RunnerTests: XCTestCase {
             outputDirectory: frameworkOutputDir
         )
         let packages = descriptionPackage.graph.packages
-            .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
+            .filter { $0.manifest.displayName != descriptionPackage.manifest.name }
 
         let allTargets = packages
             .flatMap { package in
@@ -353,8 +353,7 @@ final class RunnerTests: XCTestCase {
             "The framework should be cached to the cache storage"
         )
 
-        let outputFrameworkPath = frameworkOutputDir.appendingPathComponent("ScipioTesting.xcframework")
-        try self.fileManager.removeItem(atPath: outputFrameworkPath.path)
+        try self.fileManager.removeItem(atPath: frameworkOutputDir.path)
 
         // Fetch from local storage
         do {
@@ -364,9 +363,16 @@ final class RunnerTests: XCTestCase {
             XCTFail("Build should be succeeded.")
         }
 
+        let outputFrameworkPath = frameworkOutputDir.appendingPathComponent("ScipioTesting.xcframework")
+        let outputVersionFile = frameworkOutputDir.appendingPathComponent(".ScipioTesting.version")
+
         XCTAssertTrue(
             fileManager.fileExists(atPath: outputFrameworkPath.path),
             "The framework should be restored from the cache storage"
+        )
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: outputVersionFile.path),
+            "The version file should exist when restored"
         )
 
         try fileManager.removeItem(at: storageDir)
@@ -502,7 +508,7 @@ final class RunnerTests: XCTestCase {
             outputDirectory: frameworkOutputDir
         )
         let packages = descriptionPackage.graph.packages
-            .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
+            .filter { $0.manifest.displayName != descriptionPackage.manifest.name }
 
         let allTargets = packages
             .flatMap { package in
@@ -566,7 +572,12 @@ final class RunnerTests: XCTestCase {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
-                baseBuildOptions: .init(isSimulatorSupported: true),
+                baseBuildOptions: .init(
+                    isSimulatorSupported: true,
+                    extraBuildParameters: [
+                        "EXCLUDED_ARCHS": "i386",
+                    ]
+                ),
                 buildOptionsMatrix: [
                     "ScipioTesting": .init(
                         platforms: .specific([.iOS, .watchOS]),
@@ -596,7 +607,7 @@ final class RunnerTests: XCTestCase {
                     "Info.plist",
                     "watchos-arm64_arm64_32_armv7k",
                     "ios-arm64_x86_64-simulator",
-                    "watchos-arm64_i386_x86_64-simulator",
+                    "watchos-arm64_x86_64-simulator",
                     "ios-arm64",
                 ]
             )
@@ -849,6 +860,7 @@ extension BuildOptions {
         extraBuildParameters: nil,
         enableLibraryEvolution: true,
         keepPublicHeadersStructure: false,
-        customFrameworkModuleMapContents: nil
+        customFrameworkModuleMapContents: nil,
+        stripStaticDWARFSymbols: false
     )
 }

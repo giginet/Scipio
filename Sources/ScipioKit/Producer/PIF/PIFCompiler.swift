@@ -60,6 +60,8 @@ struct PIFCompiler: Compiler {
             packageLocator: descriptionPackage
         )
 
+        let debugSymbolStripper = DWARFSymbolStripper(executor: executor)
+
         for sdk in sdks {
             let toolchain = try await makeToolchain(for: sdk)
             let buildParameters = try makeBuildParameters(toolchain: toolchain)
@@ -79,11 +81,17 @@ struct PIFCompiler: Compiler {
             )
 
             do {
-                try await xcBuildClient.buildFramework(
+                let frameworkBundlePath = try await xcBuildClient.buildFramework(
                     sdk: sdk,
                     pifPath: pifPath,
                     buildParametersPath: buildParametersPath
                 )
+
+                if buildOptions.stripStaticDWARFSymbols && buildOptions.frameworkType == .static {
+                    logger.debug("🐛 Stripping debug symbols of \(target.name) (\(sdk.displayName))")
+                    let binaryPath = frameworkBundlePath.appending(component: buildProduct.target.c99name)
+                    try await debugSymbolStripper.stripDebugSymbol(binaryPath)
+                }
             } catch {
                 logger.error("Unable to build for \(sdk.displayName)", metadata: .color(.red))
                 logger.error(error)

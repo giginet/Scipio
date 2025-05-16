@@ -85,8 +85,13 @@ struct PIFGenerator {
         let name = target.name
         let toolchainLibDir = (try? buildParameters.toolchain.toolchainLibDir) ?? .root
 
+#if compiler(>=6.1)
+        configuration.buildSettings["PRODUCT_NAME"] = .string(target.c99Name)
+        configuration.buildSettings["PRODUCT_MODULE_NAME"] = .string(target.c99Name)
+#else
         configuration.buildSettings["PRODUCT_NAME"] = "$(EXECUTABLE_NAME:c99extidentifier)"
         configuration.buildSettings["PRODUCT_MODULE_NAME"] = "$(EXECUTABLE_NAME:c99extidentifier)"
+#endif
         configuration.buildSettings["EXECUTABLE_NAME"] = .string(target.c99Name)
         configuration.buildSettings["TARGET_NAME"] = .string(name)
         configuration.buildSettings["PRODUCT_BUNDLE_IDENTIFIER"] = .string(name.spm_mangledToBundleIdentifier())
@@ -96,7 +101,7 @@ struct PIFGenerator {
         configuration.buildSettings["INSTALL_PATH"] = "/usr/local/lib"
         configuration.buildSettings["ONLY_ACTIVE_ARCH"] = false
         configuration.buildSettings["SDKROOT"] = .string(sdk.settingValue)
-
+        
         configuration.buildSettings["GENERATE_INFOPLIST_FILE"] = true
         // These values are required to ship built frameworks to AppStore as embedded frameworks
         configuration.buildSettings["MARKETING_VERSION"] = "1.0"

@@ -6,7 +6,17 @@ Install Scipio at the first
 
 Using with CLI, it's convenient to prepare your project dependencies or generate a single XCFramework from a Swift Package.
 
-Currently, Scipio doesn't provide any binary distribution. You have to build it from source.
+### Using nest (Recommended)
+
+Scipio provides [Artifact bundle](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0305-swiftpm-binary-target-improvements.md#artifact-bundle). Using [nest](https://github.com/mtj0928/nest), you can install Scipio easily without building.
+
+```bash
+$ nest install giginet/Scipio
+```
+
+### Build from source
+
+You can build Scipio from source.
 
 ```bash
 $ git clone https://github.com/giginet/Scipio.git

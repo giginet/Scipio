@@ -26,7 +26,7 @@ struct FrameworkBundleAssembler {
     }
 
     @discardableResult
-    func assemble() throws -> TSCAbsolutePath {
+    func assemble() throws -> URL {
         try fileSystem.createDirectory(frameworkBundlePath, recursive: true)
 
         try copyBinary()
@@ -46,7 +46,7 @@ struct FrameworkBundleAssembler {
             destinationFrameworkBundlePath: frameworkBundlePath
         )
 
-        return frameworkBundlePath
+        return frameworkBundlePath.asURL
     }
 
     private func copyBinary() throws {
