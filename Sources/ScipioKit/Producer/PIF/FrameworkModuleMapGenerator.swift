@@ -67,7 +67,7 @@ struct FrameworkModuleMapGenerator {
         if let moduleMapType {
             switch moduleMapType {
             case .custom(let customModuleMap):
-                return try convertCustomModuleMapForFramework(customModuleMap)
+                return try convertCustomModuleMapForFramework(customModuleMap.absolutePath)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
             case .umbrellaHeader(let headerPath):
                 return ([
@@ -163,14 +163,14 @@ struct FrameworkModuleMapGenerator {
         return generatedModuleMapPath
     }
 
-    private func convertCustomModuleMapForFramework(_ customModuleMap: URL) throws -> String {
+    private func convertCustomModuleMapForFramework(_ customModuleMap: TSCAbsolutePath) throws -> String {
         // Sometimes, targets have their custom modulemaps.
         // However, these are not for frameworks
         // This process converts them to modulemaps for frameworks
         // like `module MyModule` to `framework module MyModule`
-        let rawData = try fileSystem.readFileContents(customModuleMap.absolutePath).contents
+        let rawData = try fileSystem.readFileContents(customModuleMap).contents
         guard let contents = String(bytes: rawData, encoding: .utf8) else {
-            throw Error.unableToLoadCustomModuleMap(customModuleMap.absolutePath)
+            throw Error.unableToLoadCustomModuleMap(customModuleMap)
         }
         // TODO: Use modern regex
         let regex = try NSRegularExpression(pattern: "^module", options: [])
