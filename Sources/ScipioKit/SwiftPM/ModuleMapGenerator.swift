@@ -79,9 +79,6 @@ struct ModuleMapGenerator {
             return .umbrellaHeader(umbrellaHeader)
         }
 
-        /// Check for the common mistake of naming the umbrella header 'TargetName.h' instead of 'ModuleName.h'.
-        let misnamedUmbrellaHeader = publicHeadersDir.appending(component: targetName + ".h")
-
         // If 'PublicHeadersDir/ModuleName/ModuleName.h' exists, then use it as the umbrella header.
         let nestedUmbrellaHeader = publicHeadersDir.appending(components: moduleName, moduleName + ".h")
         if fileSystem.isFile(nestedUmbrellaHeader.absolutePath) {
@@ -95,9 +92,6 @@ struct ModuleMapGenerator {
             }
             return .umbrellaHeader(nestedUmbrellaHeader)
         }
-
-        /// Check for the common mistake of naming the nested umbrella header 'TargetName.h' instead of 'ModuleName.h'.
-        let misnamedNestedUmbrellaHeader = publicHeadersDir.appending(components: moduleName, targetName + ".h")
 
         // Otherwise, if 'PublicHeadersDir' contains only header files and no subdirectories, use it as the umbrella directory.
         if headers.count == entries.count {
