@@ -17,7 +17,6 @@ struct ManifestLoader: @unchecked Sendable {
         try await loadManifest(path: packagePath.path(percentEncoded: false))
     }
 
-
     /// Loads the manifest for a dependency package.
     /// - Parameter dependencyPackage: A package from the dependencies.
     /// - Returns: A decoded `Manifest` object.
@@ -33,7 +32,7 @@ struct ManifestLoader: @unchecked Sendable {
             "package",
             "dump-package",
             "--package-path",
-            path
+            path,
         ]
         let manifestString = try await executor.execute(commands).unwrapOutput()
         let manifest = try jsonDecoder.decode(Manifest.self, from: manifestString)

@@ -338,11 +338,9 @@ fileprivate extension Pin.State {
     var spmPinState: PinsStore.PinState {
         if let version = version {
             .version(Version(stringLiteral: version), revision: revision)
-        }
-        else if let branch = branch {
+        } else if let branch = branch {
             .branch(name: branch, revision: revision)
-        }
-        else {
+        } else {
             .revision(revision)
         }
     }

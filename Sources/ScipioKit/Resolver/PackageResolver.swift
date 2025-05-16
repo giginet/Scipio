@@ -437,7 +437,7 @@ private struct PackageResolveExecutor: @unchecked Sendable {
             "package",
             "resolve",
             "--package-path",
-            packageDirectory.path(percentEncoded: false)
+            packageDirectory.path(percentEncoded: false),
         ]
 
         try await executor.execute(commands)
@@ -494,7 +494,7 @@ private struct ShowDependenciesParser: @unchecked Sendable {
             "--package-path",
             packageDirectory.path,
             "--format",
-            "json"
+            "json",
         ]
 
         let dependencyString = try await executor.execute(commands).unwrapOutput()
@@ -527,5 +527,3 @@ private struct ShowDependenciesParser: @unchecked Sendable {
         )
     }
 }
-
-

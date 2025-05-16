@@ -1,4 +1,4 @@
-//===----------------------------------------------------------------------===//
+// ===----------------------------------------------------------------------===//
 //
 // This source file is part of the Swift open source project
 //
@@ -8,7 +8,7 @@
 // See http://swift.org/LICENSE.txt for license information
 // See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
-//===----------------------------------------------------------------------===//
+// ===----------------------------------------------------------------------===//
 
 import Foundation
 
@@ -86,7 +86,7 @@ private func computeCanonicalLocation(_ string: String) -> (description: String,
     return (description, scheme)
 }
 
-nonisolated(unsafe) fileprivate let isSeparator: (Character) -> Bool = { $0 == "/" }
+nonisolated(unsafe) private let isSeparator: (Character) -> Bool = { $0 == "/" }
 
 extension Character {
     fileprivate var isDigit: Bool {
@@ -122,8 +122,7 @@ extension String {
     fileprivate mutating func dropSchemeComponentPrefixIfPresent() -> String? {
         if let rangeOfDelimiter = range(of: "://"),
            self[startIndex].isLetter,
-           self[..<rangeOfDelimiter.lowerBound].allSatisfy(\.isAllowedInURLScheme)
-        {
+           self[..<rangeOfDelimiter.lowerBound].allSatisfy(\.isAllowedInURLScheme) {
             defer { self.removeSubrange(..<rangeOfDelimiter.upperBound) }
 
             return String(self[..<rangeOfDelimiter.lowerBound])
@@ -136,8 +135,7 @@ extension String {
     fileprivate mutating func dropUserinfoSubcomponentPrefixIfPresent() -> (user: String, password: String?)? {
         if let indexOfAtSign = firstIndex(of: "@"),
            let indexOfFirstPathComponent = firstIndex(where: isSeparator),
-           indexOfAtSign < indexOfFirstPathComponent
-        {
+           indexOfAtSign < indexOfFirstPathComponent {
             defer { self.removeSubrange(...indexOfAtSign) }
 
             let userinfo = self[..<indexOfAtSign]
@@ -158,8 +156,7 @@ extension String {
            let startIndexOfPort = firstIndex(of: ":"),
            startIndexOfPort < endIndex,
            let endIndexOfPort = self[index(after: startIndexOfPort)...].lastIndex(where: { $0.isDigit }),
-           endIndexOfPort <= indexOfFirstPathComponent
-        {
+           endIndexOfPort <= indexOfFirstPathComponent {
             self.removeSubrange(startIndexOfPort ... endIndexOfPort)
             return true
         }

@@ -1,4 +1,4 @@
-//===----------------------------------------------------------------------===//
+// ===----------------------------------------------------------------------===//
 //
 // This source file is part of the Swift open source project
 //
@@ -8,7 +8,7 @@
 // See http://swift.org/LICENSE.txt for license information
 // See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
-//===----------------------------------------------------------------------===//
+// ===----------------------------------------------------------------------===//
 
 import Foundation
 import Basics
@@ -59,8 +59,7 @@ struct ModuleMapGenerator {
         do {
             let array = try fileSystem.getDirectoryContents(publicHeadersDir.absolutePath).map({ publicHeadersDir.appending(component: $0).spmAbsolutePath })
             entries = Set(array)
-        }
-        catch {
+        } catch {
             // This might fail because of a file system error, etc.
             return .none
         }
@@ -138,7 +137,6 @@ struct ModuleMapGenerator {
     }
 }
 
-
 /// A type of module map to generate.
 enum GeneratedModuleMapType {
     case umbrellaHeader(URL)
@@ -151,7 +149,7 @@ extension ModuleMapType {
         switch self {
         case .umbrellaHeader(let path): return .umbrellaHeader(path)
         case .umbrellaDirectory(let path): return .umbrellaDirectory(path)
-        case .none, .custom(_): return nil
+        case .none, .custom: return nil
         }
     }
 }

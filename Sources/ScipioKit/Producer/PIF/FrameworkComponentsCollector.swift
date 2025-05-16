@@ -207,7 +207,7 @@ struct FrameworkComponentsCollector {
         let publicHeaders: [URL] = FileManager.default
             .enumerator(at: includeDir, includingPropertiesForKeys: nil)?
             .compactMap { $0 as? URL }
-            .filter    { headerExtensions.contains($0.pathExtension) }
+            .filter { headerExtensions.contains($0.pathExtension) }
             ?? []
 
         let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0.spmAbsolutePath) }
