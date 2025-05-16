@@ -186,19 +186,12 @@ private final class BuildProductsResolver {
     func resolveBuildProductDependencyGraph() throws -> DependencyGraph<BuildProduct> {
         let targetsToBuild = try targetsToBuild()
         let products = try targetsToBuild.flatMap(resolveBuildProduct(from:))
-#if compiler(>=6.1)
-        return try DependencyGraph<BuildProduct>.resolve(
-            Set(products),
-            id: \.target.id,
-            childIDs: { $0.target.dependencies.flatMap(\.moduleIDs) }
-        )
-#else
+
         return try DependencyGraph<BuildProduct>.resolve(
             Set(products),
             id: \.target.name,
             childIDs: { $0.target.dependencies.flatMap(\.moduleNames) }
         )
-#endif
     }
 
     private func targetsToBuild() throws -> [_ResolvedModule] {
@@ -257,24 +250,4 @@ private final class BuildProductsResolver {
 
         return buildProducts
     }
-}
-
-extension ResolvedModule.Dependency {
-#if compiler(>=6.1)
-    fileprivate var moduleIDs: [ResolvedModule.ID] {
-        let moduleIDs = switch self {
-        case .module(let module, _): [module.id]
-        case .product(let product, _): product.modules.map(\.id)
-        }
-        return moduleIDs
-    }
-#else
-    fileprivate var moduleNames: [String] {
-        let moduleNames = switch self {
-        case .module(let module, _): [module.name]
-        case .product(let product, _): product.modules.map(\.name)
-        }
-        return moduleNames
-    }
-#endif
 }
