@@ -279,7 +279,7 @@ final class RunnerTests: XCTestCase {
             pinsStore: pinsStore,
             outputDirectory: frameworkOutputDir
         )
-        let packages = descriptionPackage.newGraph.allPackages.values
+        let packages = descriptionPackage._graph.allPackages.values
             .filter { $0.manifest.name != descriptionPackage.manifest.name }
 
         let allTargets = packages
@@ -507,7 +507,7 @@ final class RunnerTests: XCTestCase {
             pinsStore: pinsStore,
             outputDirectory: frameworkOutputDir
         )
-        let packages = descriptionPackage.newGraph.allPackages.values
+        let packages = descriptionPackage._graph.allPackages.values
             .filter { $0.manifest.name != descriptionPackage.manifest.name }
 
         let allTargets = packages

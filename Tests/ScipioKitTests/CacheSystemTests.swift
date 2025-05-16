@@ -118,7 +118,7 @@ final class CacheSystemTests: XCTestCase {
                 onlyUseVersionsFromResolvedFile: false
             )
             let package = descriptionPackage
-                .newGraph
+                ._graph
                 .allPackages
                 .values
                 .first { $0.manifest.name == "scipio-testing" }!
@@ -181,7 +181,7 @@ final class CacheSystemTests: XCTestCase {
             outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks")
         )
         let testingPackage = descriptionPackage
-            .newGraph
+            ._graph
             .allPackages
             .values
             .first { $0.manifest.name == descriptionPackage.manifest.name }!

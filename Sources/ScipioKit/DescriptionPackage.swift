@@ -13,7 +13,7 @@ struct DescriptionPackage: PackageLocator {
     private let toolchain: UserToolchain
     let workspace: Workspace
     let graph: ModulesGraph
-    let newGraph: _ModulesGraph
+    let _graph: _ModulesGraph
     let manifest: PackageManifestKit.Manifest
     let jsonDecoder = JSONDecoder()
 
@@ -126,7 +126,7 @@ struct DescriptionPackage: PackageLocator {
 #endif
         self.manifest = try await ScipioKit.ManifestLoader(executor: executor).loadManifest(for: packageDirectory.asURL)
 
-        self.newGraph = try await PackageResolver(
+        self._graph = try await PackageResolver(
             packageDirectory: packageDirectory.asURL,
             rootManifest: self.manifest,
             fileSystem: Basics.localFileSystem
@@ -206,14 +206,14 @@ private final class BuildProductsResolver {
         case .createPackage:
             // In create mode, all products should be built
             // In future update, users will be enable to specify products want to build
-            let rootPackage = descriptionPackage.newGraph.rootPackage
+            let rootPackage = descriptionPackage._graph.rootPackage
             let productNamesToBuild = rootPackage.manifest.products.map { $0.name }
             let productsToBuild = rootPackage.products.filter { productNamesToBuild.contains($0.name) }
             return productsToBuild.flatMap(\.modules)
         case .prepareDependencies:
             // In prepare mode, all targets should be built
             // In future update, users will be enable to specify targets want to build
-            return Array(descriptionPackage.newGraph.rootPackage.targets)
+            return Array(descriptionPackage._graph.rootPackage.targets)
         }
     }
 
@@ -240,7 +240,7 @@ private final class BuildProductsResolver {
     }
 
     private func buildProducts(from target: _ResolvedModule) throws -> Set<BuildProduct> {
-        guard let package = descriptionPackage.newGraph.package(for: target) else {
+        guard let package = descriptionPackage._graph.package(for: target) else {
             return []
         }
 
