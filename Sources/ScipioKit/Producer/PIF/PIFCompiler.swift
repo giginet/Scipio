@@ -1,7 +1,6 @@
 import Foundation
 import PackageModel
 import SPMBuildCore
-import PackageGraph
 import Basics
 
 struct PIFCompiler: Compiler {

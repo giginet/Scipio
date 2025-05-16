@@ -7,6 +7,7 @@ import Algorithms
 @preconcurrency import PackageGraph
 import PackageModel
 import SourceControl
+import PackageManifestKit
 
 private let jsonEncoder = {
     let encoder = JSONEncoder()
@@ -233,14 +234,14 @@ struct CacheSystem: Sendable {
     func calculateCacheKey(of target: CacheTarget) async throws -> SwiftPMCacheKey {
         let package = target.buildProduct.package
 
-        let localPackageCanonicalLocation: String? = switch package.manifest.packageKind {
+        let localPackageCanonicalLocation: String? = switch package.resolvedPackageKind {
         case .fileSystem, .localSourceControl:
-            package.manifest.canonicalPackageLocation.description
+            package.canonicalPackageLocation.description
         case .root, .remoteSourceControl, .registry:
             nil
         }
 
-        let pin = try retrievePin(package: package)
+        let pin = try retrievePinState(package: package)
 
         let targetName = target.buildProduct.target.name
         let buildOptions = target.buildOptions
@@ -252,7 +253,7 @@ struct CacheSystem: Sendable {
         }
         return SwiftPMCacheKey(
             localPackageCanonicalLocation: localPackageCanonicalLocation,
-            pin: pin.state,
+            pin: pin,
             targetName: targetName,
             buildOptions: buildOptions,
             clangVersion: clangVersion,
@@ -261,11 +262,16 @@ struct CacheSystem: Sendable {
         )
     }
 
-    private func retrievePin(package: ResolvedPackage) throws -> PinsStore.Pin {
-        guard let pin = pinsStore.pins[package.identity] ?? package.makePinFromRevision() else {
-            throw Error.revisionNotDetected(package.manifest.displayName)
+    private func retrievePinState(package: _ResolvedPackage) throws -> PinsStore.PinState {
+        guard let scipioPinState = package.pinState else {
+            if let spmPinState = try package.makePinFromRevision() {
+                return spmPinState
+            }
+
+            throw Error.revisionNotDetected(package.manifest.name)
         }
-        return pin
+
+        return scipioPinState.spmPinState
     }
 
     private func versionFilePath(for targetName: String) -> URL {
@@ -293,8 +299,9 @@ public struct VersionFileDecoder {
     }
 }
 
-extension ResolvedPackage {
-    fileprivate func makePinFromRevision() -> PinsStore.Pin? {
+extension _ResolvedPackage {
+    fileprivate func makePinFromRevision() throws -> PinsStore.PinState? {
+        let path = try AbsolutePath(validating: path)
         let repository = GitRepository(path: path)
 
         guard let tag = repository.getCurrentTag(), let version = Version(tag: tag) else {
@@ -303,15 +310,40 @@ extension ResolvedPackage {
 
         // TODO: Even though the version requirement already covers the vast majority of cases,
         // supporting `branch` and `revision` requirements should, in theory, also be possible.
-        return PinsStore.Pin(
-            packageRef: PackageReference(
-                identity: identity,
-                kind: manifest.packageKind
-            ),
-            state: .version(
-                version,
-                revision: try? repository.getCurrentRevision().identifier
-            )
+        return .version(
+            version,
+            revision: try? repository.getCurrentRevision().identifier
         )
+    }
+}
+
+fileprivate extension PackageManifestKit.PackageKind {
+    var spmPackageKind: PackageReference.Kind {
+        switch self {
+        case .root(let url):
+            .root(url.spmAbsolutePath)
+        case .fileSystem(let url):
+            .fileSystem(url.spmAbsolutePath)
+        case .localSourceControl(let url):
+            .localSourceControl(url.spmAbsolutePath)
+        case .remoteSourceControl(let string):
+            .remoteSourceControl(SourceControlURL(string))
+        case .registry(let string):
+            .registry(.init(path: try! AbsolutePath(validating: string)))
+        }
+    }
+}
+
+fileprivate extension Pin.State {
+    var spmPinState: PinsStore.PinState {
+        if let version = version {
+            .version(Version(stringLiteral: version), revision: revision)
+        }
+        else if let branch = branch {
+            .branch(name: branch, revision: revision)
+        }
+        else {
+            .revision(revision)
+        }
     }
 }

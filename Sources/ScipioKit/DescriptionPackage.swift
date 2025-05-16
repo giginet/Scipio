@@ -13,6 +13,7 @@ struct DescriptionPackage: PackageLocator {
     private let toolchain: UserToolchain
     let workspace: Workspace
     let graph: ModulesGraph
+    let newGraph: _ModulesGraph
     let manifest: PackageManifestKit.Manifest
     let jsonDecoder = JSONDecoder()
 
@@ -123,11 +124,14 @@ struct DescriptionPackage: PackageLocator {
             observabilityScope: scope
         )
 #endif
-        self.manifest = try await Self.makeManifest(
-            packageDirectory: packageDirectory,
-            jsonDecoder: jsonDecoder,
-            executor: executor
-        )
+        self.manifest = try await ScipioKit.ManifestLoader(executor: executor).loadManifest(for: packageDirectory.asURL)
+
+        self.newGraph = try await PackageResolver(
+            packageDirectory: packageDirectory.asURL,
+            rootManifest: self.manifest,
+            fileSystem: Basics.localFileSystem
+        ).resolve()
+
         self.workspace = workspace
     }
 }
@@ -140,20 +144,16 @@ extension DescriptionPackage {
 }
 
 struct BuildProduct: Hashable, Sendable {
-    var package: ResolvedPackage
-    var target: ScipioResolvedModule
+    var package: _ResolvedPackage
+    var target: _ResolvedModule
 
     var frameworkName: String {
         "\(target.name.packageNamed()).xcframework"
     }
 
-    var binaryTarget: ScipioBinaryModule? {
-        target.underlying as? ScipioBinaryModule
-    }
-
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.target.name == rhs.target.name &&
-        lhs.package.identity == rhs.package.identity
+        lhs.package.id == rhs.package.id
     }
 
     func hash(into hasher: inout Hasher) {
@@ -171,7 +171,7 @@ struct BuildProduct: Hashable, Sendable {
         // build product must be the same regardless of the triple. Meanwhile, the target name and
         // package identity remain relevant and unambiguously identify the build product.
         hasher.combine(target.name)
-        hasher.combine(package.identity)
+        hasher.combine(package.id)
     }
 }
 
@@ -201,19 +201,19 @@ private final class BuildProductsResolver {
 #endif
     }
 
-    private func targetsToBuild() throws -> [ScipioResolvedModule] {
+    private func targetsToBuild() throws -> [_ResolvedModule] {
         switch descriptionPackage.mode {
         case .createPackage:
             // In create mode, all products should be built
             // In future update, users will be enable to specify products want to build
-            let rootPackage = try fetchRootPackage()
+            let rootPackage = descriptionPackage.newGraph.rootPackage
             let productNamesToBuild = rootPackage.manifest.products.map { $0.name }
             let productsToBuild = rootPackage.products.filter { productNamesToBuild.contains($0.name) }
             return productsToBuild.flatMap(\.modules)
         case .prepareDependencies:
             // In prepare mode, all targets should be built
             // In future update, users will be enable to specify targets want to build
-            return Array(try fetchRootPackage().modules)
+            return Array(descriptionPackage.newGraph.rootPackage.targets)
         }
     }
 
@@ -224,7 +224,7 @@ private final class BuildProductsResolver {
         return rootPackage
     }
 
-    private func resolveBuildProduct(from rootTarget: ScipioResolvedModule) throws -> Set<BuildProduct> {
+    private func resolveBuildProduct(from rootTarget: _ResolvedModule) throws -> Set<BuildProduct> {
         let dependencyProducts = Set(try rootTarget.recursiveModuleDependencies()
             .flatMap(buildProducts(from:)))
 
@@ -239,8 +239,8 @@ private final class BuildProductsResolver {
         }
     }
 
-    private func buildProducts(from target: ScipioResolvedModule) throws -> Set<BuildProduct> {
-        guard let package = descriptionPackage.graph.package(for: target) else {
+    private func buildProducts(from target: _ResolvedModule) throws -> Set<BuildProduct> {
+        guard let package = descriptionPackage.newGraph.package(for: target) else {
             return []
         }
 

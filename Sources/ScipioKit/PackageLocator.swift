@@ -1,5 +1,4 @@
 import Basics
-import PackageModel
 
 /// Holds the packageDirectory Scipio works on, and defines some path-related functionalities.
 protocol PackageLocator {
@@ -19,7 +18,7 @@ extension PackageLocator {
         workspaceDirectory.appending(component: "DerivedData")
     }
 
-    func generatedModuleMapPath(of target: ScipioResolvedModule, sdk: SDK) throws -> TSCAbsolutePath {
+    func generatedModuleMapPath(of target: _ResolvedModule, sdk: SDK) throws -> TSCAbsolutePath {
         let relativePath = try TSCRelativePath(validating: "ModuleMapsForFramework/\(sdk.settingValue)")
         return workspaceDirectory
             .appending(relativePath)

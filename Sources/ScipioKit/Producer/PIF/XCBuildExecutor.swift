@@ -14,7 +14,7 @@ struct XCBuildExecutor {
         configuration: BuildConfiguration,
         derivedDataPath: TSCAbsolutePath,
         buildParametersPath: TSCAbsolutePath,
-        target: ScipioResolvedModule
+        target: _ResolvedModule
     ) async throws {
         let executor = _Executor(args: [
             xcbuildPath.path(percentEncoded: false),

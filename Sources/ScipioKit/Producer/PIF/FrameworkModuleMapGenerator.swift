@@ -1,12 +1,10 @@
 import Foundation
 import Basics
-import PackageGraph
-import PackageModel
 
 // A generator to generate modulemaps which are distributed in the XCFramework
 struct FrameworkModuleMapGenerator {
     private struct Context {
-        var resolvedTarget: ScipioResolvedModule
+        var resolvedTarget: _ResolvedModule
         var sdk: SDK
         var keepPublicHeadersStructure: Bool
     }
@@ -31,7 +29,7 @@ struct FrameworkModuleMapGenerator {
     }
 
     func generate(
-        resolvedTarget: ScipioResolvedModule,
+        resolvedTarget: _ResolvedModule,
         sdk: SDK,
         keepPublicHeadersStructure: Bool
     ) throws -> TSCAbsolutePath? {
@@ -41,43 +39,51 @@ struct FrameworkModuleMapGenerator {
             keepPublicHeadersStructure: keepPublicHeadersStructure
         )
 
-        if let clangTarget = resolvedTarget.underlying as? ScipioClangModule {
-            switch clangTarget.moduleMapType {
+        if case let .clang(includeDir) = resolvedTarget.resolvedModuleType {
+            let moduleMapGenerator = ModuleMapGenerator(
+                targetName: resolvedTarget.name,
+                moduleName: resolvedTarget.c99name,
+                publicHeadersDir: includeDir,
+                fileSystem: fileSystem
+            )
+            let moduleMapType = moduleMapGenerator.determineModuleMapType()
+
+            switch moduleMapType {
             case .custom, .umbrellaHeader, .umbrellaDirectory:
                 let path = try constructGeneratedModuleMapPath(context: context)
-                try generateModuleMapFile(context: context, outputPath: path)
+                try generateModuleMapFile(context: context, moduleMapType: moduleMapType, outputPath: path)
                 return path
             case .none:
                 return nil
             }
         } else {
             let path = try constructGeneratedModuleMapPath(context: context)
-            try generateModuleMapFile(context: context, outputPath: path)
+            try generateModuleMapFile(context: context, moduleMapType: nil, outputPath: path)
             return path
         }
     }
 
-    private func generateModuleMapContents(context: Context) throws -> String {
-        if let clangTarget = context.resolvedTarget.underlying as? ScipioClangModule {
-            switch clangTarget.moduleMapType {
+    private func generateModuleMapContents(context: Context, moduleMapType: ModuleMapType?) throws -> String {
+        if let moduleMapType {
+            switch moduleMapType {
             case .custom(let customModuleMap):
-                return try convertCustomModuleMapForFramework(customModuleMap.scipioAbsolutePath)
+                return try convertCustomModuleMapForFramework(customModuleMap)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
             case .umbrellaHeader(let headerPath):
                 return ([
                     "framework module \(context.resolvedTarget.c99name) {",
-                    "    umbrella header \"\(headerPath.basename)\"",
+                    "    umbrella header \"\(headerPath.spmAbsolutePath.basename)\"",
                     "    export *",
                 ]
                 + generateLinkSection(context: context)
                 + ["}"])
                 .joined()
             case .umbrellaDirectory(let directoryPath):
-                let headers = try walkDirectoryContents(of: directoryPath.scipioAbsolutePath)
+                let headers = try walkDirectoryContents(of: directoryPath.absolutePath)
                 let declarations = headers.map { header in
                     generateHeaderEntry(
                         for: header,
-                        of: directoryPath.scipioAbsolutePath,
+                        of: directoryPath.absolutePath,
                         keepPublicHeadersStructure: context.keepPublicHeadersStructure
                     )
                 }
@@ -144,11 +150,11 @@ struct FrameworkModuleMapGenerator {
             .map { "    link framework \"\($0)\"" }
     }
 
-    private func generateModuleMapFile(context: Context, outputPath: TSCAbsolutePath) throws {
+    private func generateModuleMapFile(context: Context, moduleMapType: ModuleMapType?, outputPath: TSCAbsolutePath) throws {
         let dirPath = outputPath.parentDirectory
         try fileSystem.createDirectory(dirPath, recursive: true)
 
-        let contents = try generateModuleMapContents(context: context)
+        let contents = try generateModuleMapContents(context: context, moduleMapType: moduleMapType)
         try fileSystem.writeFileContents(outputPath.spmAbsolutePath, string: contents)
     }
 
@@ -157,14 +163,14 @@ struct FrameworkModuleMapGenerator {
         return generatedModuleMapPath
     }
 
-    private func convertCustomModuleMapForFramework(_ customModuleMap: TSCAbsolutePath) throws -> String {
+    private func convertCustomModuleMapForFramework(_ customModuleMap: URL) throws -> String {
         // Sometimes, targets have their custom modulemaps.
         // However, these are not for frameworks
         // This process converts them to modulemaps for frameworks
         // like `module MyModule` to `framework module MyModule`
-        let rawData = try fileSystem.readFileContents(customModuleMap).contents
+        let rawData = try fileSystem.readFileContents(customModuleMap.absolutePath).contents
         guard let contents = String(bytes: rawData, encoding: .utf8) else {
-            throw Error.unableToLoadCustomModuleMap(customModuleMap)
+            throw Error.unableToLoadCustomModuleMap(customModuleMap.absolutePath)
         }
         // TODO: Use modern regex
         let regex = try NSRegularExpression(pattern: "^module", options: [])
