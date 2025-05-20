@@ -99,7 +99,6 @@ struct PIFGenerator {
         configuration.buildSettings["SKIP_INSTALL"] = false
         configuration.buildSettings["INSTALL_PATH"] = "/usr/local/lib"
         configuration.buildSettings["ONLY_ACTIVE_ARCH"] = false
-        configuration.buildSettings["SDKROOT"] = .string(sdk.settingValue)
 
         configuration.buildSettings["GENERATE_INFOPLIST_FILE"] = true
         // These values are required to ship built frameworks to AppStore as embedded frameworks
