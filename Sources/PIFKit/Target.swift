@@ -1,6 +1,9 @@
 import Foundation
 import SwiftyJSON
 
+/// A model representing a target on PIF.
+/// This implementation based on the following implementation:
+/// https://github.com/swiftlang/swift-package-manager/blob/70862aa31255de0b9240826bfddaa1bb92cefb05/Sources/XCBuildSupport/PIF.swift#L556-L599
 package struct Target: Sendable, Codable, Equatable, JSONConvertible {
     package enum ProductType: String, Codable, Equatable, Sendable {
         case application = "com.apple.product-type.application"

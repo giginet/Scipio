@@ -1,7 +1,9 @@
 import Foundation
 import SwiftyJSON
 
-/// A build configuration for a target.
+/// A model representing a build configuration on PIF.
+/// This implementation based on the following implementation:
+/// https://github.com/swiftlang/swift-package-manager/blob/70862aa31255de0b9240826bfddaa1bb92cefb05/Sources/XCBuildSupport/PIF.swift#L869-L897
 package struct BuildConfiguration: Codable, Equatable, JSONConvertible {
     package enum MacroExpressionValue: Sendable, Codable, Equatable {
         case bool(Bool)
@@ -19,7 +21,6 @@ package struct BuildConfiguration: Codable, Equatable, JSONConvertible {
 
     package var name: String
     package var buildSettings: [String: MacroExpressionValue]
-    package var baseConfigurationFileReferenceGUID: String?
     package var impartedBuildProperties: ImpartedBuildProperties
 }
 
