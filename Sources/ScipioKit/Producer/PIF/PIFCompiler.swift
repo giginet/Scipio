@@ -69,7 +69,7 @@ struct PIFCompiler: Compiler {
             let generator = try PIFGenerator(
                 packageName: descriptionPackage.name,
                 packageLocator: descriptionPackage,
-                buildParameters: buildParameters,
+                toolchainLibDirectory: try buildParameters.toolchain.toolchainLibDir.asURL,
                 buildOptions: buildOptions,
                 buildOptionsMatrix: buildOptionsMatrix
             )

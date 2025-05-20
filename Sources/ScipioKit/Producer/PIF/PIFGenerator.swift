@@ -9,7 +9,7 @@ import XCBuildSupport
 struct PIFGenerator {
     private let packageName: String
     private let packageLocator: any PackageLocator
-    private let buildParameters: BuildParameters
+    private let toolchainLibDirectory: URL
     private let buildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
     private let executor: any Executor
@@ -18,7 +18,7 @@ struct PIFGenerator {
     init(
         packageName: String,
         packageLocator: some PackageLocator,
-        buildParameters: BuildParameters,
+        toolchainLibDirectory: URL,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
         executor: some Executor = ProcessExecutor(),
@@ -26,7 +26,7 @@ struct PIFGenerator {
     ) throws {
         self.packageName = packageName
         self.packageLocator = packageLocator
-        self.buildParameters = buildParameters
+        self.toolchainLibDirectory = toolchainLibDirectory
         self.buildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
         self.executor = executor
@@ -83,7 +83,6 @@ struct PIFGenerator {
 
     private func updateBuildConfiguration(_ configuration: inout PIFKit.BuildConfiguration, target: PIFKit.Target, sdk: SDK) {
         let name = target.name
-        let toolchainLibDir = (try? buildParameters.toolchain.toolchainLibDir) ?? .root
 
 #if compiler(>=6.1)
         configuration.buildSettings["PRODUCT_NAME"] = .string(target.c99Name)
@@ -101,7 +100,7 @@ struct PIFGenerator {
         configuration.buildSettings["INSTALL_PATH"] = "/usr/local/lib"
         configuration.buildSettings["ONLY_ACTIVE_ARCH"] = false
         configuration.buildSettings["SDKROOT"] = .string(sdk.settingValue)
-        
+
         configuration.buildSettings["GENERATE_INFOPLIST_FILE"] = true
         // These values are required to ship built frameworks to AppStore as embedded frameworks
         configuration.buildSettings["MARKETING_VERSION"] = "1.0"
@@ -117,8 +116,9 @@ struct PIFGenerator {
             configuration.buildSettings["MACH_O_TYPE"] = "staticlib"
         }
 
+        let librarySearchPaths = toolchainLibDirectory.appending(components: "swift", sdk.settingValue)
         configuration.buildSettings["LIBRARY_SEARCH_PATHS"]
-            .append("\(toolchainLibDir.pathString)/swift/\(sdk.settingValue)")
+            .append(librarySearchPaths.path(percentEncoded: false))
 
         // Enable to emit swiftinterface
         if buildOptions.enableLibraryEvolution {
