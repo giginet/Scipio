@@ -2,7 +2,7 @@ import Foundation
 import SwiftyJSON
 
 /// Manipulates PIF JSON data
-package class PIFManipulator {
+package final class PIFManipulator {
     private var topLevelObject: JSON
 
     /// Initialize PIFManipulator with JSON data
