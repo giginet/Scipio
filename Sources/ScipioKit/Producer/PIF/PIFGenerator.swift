@@ -140,8 +140,7 @@ struct PIFGenerator {
         // So a bridging header will be generated in frameworks bundle even if `SWIFT_OBJC_INTERFACE_HEADER_DIR` was specified.
         // So it's need to replace `MODULEMAP_FILE_CONTENTS` to an absolute path.
         if case .string(let moduleMapFileContents) = configuration.buildSettings["MODULEMAP_FILE_CONTENTS"],
-           moduleMapFileContents.contains("\(target.name)-Swift.h")
-        {
+            moduleMapFileContents.contains("\(target.name)-Swift.h") {
             resolveModuleMapPath(of: target, configuration: &configuration, sdk: sdk)
         }
     }
