@@ -6,7 +6,7 @@ import Testing
 struct PIFManipulatorTests {
     @Test
     func canUpdateProductTypes() throws {
-        let jsonData = try #require(FixtureLoader.load(named: "SimplePackage.pif"))
+        let jsonData = try FixtureLoader.load(named: "SimplePackage.pif")
         let manipulator = try PIFManipulator(jsonData: jsonData)
 
         var detectedTargets: [String] = []
@@ -25,7 +25,7 @@ struct PIFManipulatorTests {
 
     @Test
     func canUpdateBuildConfiguration() throws {
-        let jsonData = try #require(FixtureLoader.load(named: "SimplePackage.pif"))
+        let jsonData = try FixtureLoader.load(named: "SimplePackage.pif")
         let fixtureString = try #require(String(data: jsonData, encoding: .utf8))
         let manipulator = try PIFManipulator(jsonData: jsonData)
 

@@ -6,7 +6,7 @@ import Testing
 struct BuildConfigurationTests {
     @Test
     func canParseBuildConfiguration() throws {
-        let fixtureData = try #require(FixtureLoader.load(named: "BuildConfiguration.json"))
+        let fixtureData = try FixtureLoader.load(named: "BuildConfiguration.json")
         let decoder = JSONDecoder()
         let configuration = try decoder.decode(BuildConfiguration.self, from: fixtureData)
 
@@ -23,7 +23,7 @@ struct BuildConfigurationTests {
 
     @Test
     func roundTrip() throws {
-        let fixtureData = try #require(FixtureLoader.load(named: "BuildConfiguration.json"))
+        let fixtureData = try FixtureLoader.load(named: "BuildConfiguration.json")
         let decoder = JSONDecoder()
         let configuration = try decoder.decode(BuildConfiguration.self, from: fixtureData)
 

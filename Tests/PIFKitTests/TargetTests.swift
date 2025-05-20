@@ -6,7 +6,7 @@ import Testing
 struct TargetTests {
     @Test
     func canParseTarget() throws {
-        let jsonData = try #require(FixtureLoader.load(named: "Target.json"))
+        let jsonData = try FixtureLoader.load(named: "Target.json")
         let target = try JSONDecoder().decode(Target.self, from: jsonData)
 
         #expect(target.name == "MyFrameworkTests_2713FB4B18606497_PackageProduct")
