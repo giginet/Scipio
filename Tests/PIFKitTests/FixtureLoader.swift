@@ -1,11 +1,10 @@
 import Foundation
 
 enum FixtureLoader {
-    static func load(named filename: String) -> Data? {
+    static func load(named filename: String) throws -> Data {
         let url = URL(filePath: #filePath)
             .deletingLastPathComponent()
             .appending(components: "Fixtures", filename)
-        let fileManager = FileManager.default
-        return fileManager.contents(atPath: url.path)
+        return try Data(contentsOf: url)
     }
 }

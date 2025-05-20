@@ -96,7 +96,7 @@ let package = Package(
             dependencies: [
                 .target(name: "PIFKit"),
             ]
-        )
+        ),
     ],
     swiftLanguageModes: [.v6]
 )

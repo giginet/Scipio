@@ -37,9 +37,10 @@ package class PIFManipulator {
     private func apply(_ target: Target, to pifObject: inout JSON) {
         pifObject["contents"]["name"].string = target.name
         pifObject["contents"]["productTypeIdentifier"].string = target.productType?.rawValue
-        pifObject["contents"]["buildConfigurations"].arrayObject = target.buildConfigurations.compactMap { try? $0.toJSON() }
-    }
 
+        let jsonEncoder = JSONEncoder()
+        pifObject["contents"]["buildConfigurations"].arrayObject = target.buildConfigurations.compactMap { try? $0.toJSON(using: jsonEncoder) }
+    }
 }
 
 extension BuildConfiguration {

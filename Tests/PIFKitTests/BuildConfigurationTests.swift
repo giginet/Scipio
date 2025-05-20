@@ -28,9 +28,9 @@ struct BuildConfigurationTests {
         let configuration = try decoder.decode(BuildConfiguration.self, from: fixtureData)
 
         let encoder = JSONEncoder()
-        _ = try String(data: encoder.encode(configuration), encoding: .utf8)
+        let encoded = try encoder.encode(configuration)
 
-        let redecoded = try decoder.decode(BuildConfiguration.self, from: fixtureData)
+        let redecoded = try decoder.decode(BuildConfiguration.self, from: encoded)
         #expect(configuration == redecoded)
     }
 
@@ -41,6 +41,7 @@ struct BuildConfigurationTests {
         (.stringList(["foo", "bar"]), ["foo", "bar", "added"]),
         (nil, ["$(inherited)", "added"]),
     ]
+
     @Test("can append flags", arguments: appendingFixtures)
     func appending(setting: BuildConfiguration.MacroExpressionValue?, expected: [String]) {
         var mutableSetting = setting
