@@ -67,12 +67,13 @@ struct PIFCompiler: Compiler {
             let buildParameters = try makeBuildParameters(toolchain: toolchain)
 
             let generator = try PIFGenerator(
-                package: descriptionPackage,
-                buildParameters: buildParameters,
+                packageName: descriptionPackage.name,
+                packageLocator: descriptionPackage,
+                toolchainLibDirectory: try buildParameters.toolchain.toolchainLibDir.asURL,
                 buildOptions: buildOptions,
                 buildOptionsMatrix: buildOptionsMatrix
             )
-            let pifPath = try generator.generateJSON(for: sdk)
+            let pifPath = try await generator.generateJSON(for: sdk)
             let buildParametersPath = try buildParametersGenerator.generate(
                 for: sdk,
                 buildParameters: buildParameters,

@@ -43,8 +43,10 @@ let package = Package(
                  from: "4.0.1"),
         .package(url: "https://github.com/giginet/scipio-cache-storage.git",
                  from: "1.0.0"),
+        .package(url: "https://github.com/SwiftyJSON/SwiftyJSON.git",
+                 from: "5.0.0"),
         .package(url: "https://github.com/giginet/PackageManifestKit",
-                 from: "0.1.0")
+                 from: "0.1.0"),
     ],
     targets: [
         .executableTarget(
@@ -52,12 +54,12 @@ let package = Package(
             dependencies: [
                 .target(name: "ScipioKit"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
-            ],
-            swiftSettings: swiftSettings
+            ]
         ),
         .target(
             name: "ScipioKit",
             dependencies: [
+                .target(name: "PIFKit"),
                 .product(name: "SwiftPMDataModel-auto", package: "swift-package-manager"),
                 .product(name: "XCBuildSupport", package: "swift-package-manager"),
                 .product(name: "Logging", package: "swift-log"),
@@ -67,9 +69,14 @@ let package = Package(
                 .product(name: "ScipioStorage", package: "scipio-cache-storage"),
                 .product(name: "PackageManifestKit", package: "PackageManifestKit")
             ],
-            swiftSettings: swiftSettings,
             plugins: [
                 .plugin(name: "GenerateScipioVersion")
+            ]
+        ),
+        .target(
+            name: "PIFKit",
+            dependencies: [
+                .product(name: "SwiftyJSON", package: "SwiftyJSON"),
             ]
         ),
         .plugin(
@@ -82,8 +89,13 @@ let package = Package(
                 .target(name: "ScipioKit"),
             ],
             exclude: ["Resources/Fixtures/"],
-            resources: [.copy("Resources/Fixtures")],
-            swiftSettings: swiftSettings
+            resources: [.copy("Resources/Fixtures")]
+        ),
+        .testTarget(
+            name: "PIFKitTests",
+            dependencies: [
+                .target(name: "PIFKit"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]
