@@ -2,7 +2,6 @@ import Foundation
 @testable import ScipioKit
 import XCTest
 import Basics
-import struct PackageModel.CanonicalPackageLocation
 
 private let fixturePath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()

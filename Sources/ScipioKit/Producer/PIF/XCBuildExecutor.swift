@@ -1,7 +1,6 @@
 import Foundation
 import Logging
 import Basics
-import PackageGraph
 import XCBuildSupport
 import Algorithms
 

@@ -1,5 +1,5 @@
 import Foundation
-import PackageGraph
+import PIFKit
 import Basics
 
 protocol Compiler {

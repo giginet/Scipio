@@ -1,5 +1,4 @@
 import Foundation
-import PackageGraph
 import Basics
 
 struct DwarfExtractor<E: Executor> {
