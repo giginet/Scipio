@@ -118,7 +118,7 @@ final class CacheSystemTests: XCTestCase {
                 onlyUseVersionsFromResolvedFile: false
             )
             let package = descriptionPackage
-                ._graph
+                .graph
                 .allPackages
                 .values
                 .first { $0.manifest.name == "scipio-testing" }!
@@ -143,7 +143,6 @@ final class CacheSystemTests: XCTestCase {
             )
 
             let cacheSystem = CacheSystem(
-                pinsStore: try descriptionPackage.workspace.pinsStore.load(),
                 outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks")
             )
             return try await cacheSystem.calculateCacheKey(of: cacheTarget)
@@ -177,11 +176,10 @@ final class CacheSystemTests: XCTestCase {
             onlyUseVersionsFromResolvedFile: false
         )
         let cacheSystem = CacheSystem(
-            pinsStore: try descriptionPackage.workspace.pinsStore.load(),
             outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks")
         )
         let testingPackage = descriptionPackage
-            ._graph
+            .graph
             .allPackages
             .values
             .first { $0.manifest.name == descriptionPackage.manifest.name }!

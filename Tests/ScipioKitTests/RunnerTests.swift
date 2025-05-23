@@ -274,12 +274,10 @@ final class RunnerTests: XCTestCase {
             mode: .prepareDependencies,
             onlyUseVersionsFromResolvedFile: false
         )
-        let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         let cacheSystem = CacheSystem(
-            pinsStore: pinsStore,
             outputDirectory: frameworkOutputDir
         )
-        let packages = descriptionPackage._graph.allPackages.values
+        let packages = descriptionPackage.graph.allPackages.values
             .filter { $0.manifest.name != descriptionPackage.manifest.name }
 
         let allTargets = packages
@@ -502,12 +500,10 @@ final class RunnerTests: XCTestCase {
             mode: .prepareDependencies,
             onlyUseVersionsFromResolvedFile: false
         )
-        let pinsStore = try descriptionPackage.workspace.pinsStore.load()
         let cacheSystem = CacheSystem(
-            pinsStore: pinsStore,
             outputDirectory: frameworkOutputDir
         )
-        let packages = descriptionPackage._graph.allPackages.values
+        let packages = descriptionPackage.graph.allPackages.values
             .filter { $0.manifest.name != descriptionPackage.manifest.name }
 
         let allTargets = packages

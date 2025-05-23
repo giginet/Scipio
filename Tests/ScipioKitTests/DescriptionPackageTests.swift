@@ -17,7 +17,7 @@ final class DescriptionPackageTests: XCTestCase {
         )
         XCTAssertEqual(package.name, "TestingPackage")
 
-        let packageNames = package.graph.packages.map(\.manifest.displayName)
+        let packageNames = package.graph.allPackages.map(\.value.manifest.name)
         XCTAssertEqual(packageNames.sorted(), ["TestingPackage", "swift-log"].sorted())
 
         XCTAssertEqual(
