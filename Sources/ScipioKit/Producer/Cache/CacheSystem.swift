@@ -260,15 +260,11 @@ struct CacheSystem: Sendable {
     }
 
     private func retrievePinState(package: ResolvedPackage) throws -> PinsStore.PinState {
-        guard let scipioPinState = package.pinState else {
-            if let spmPinState = try package.makePinFromRevision() {
-                return spmPinState
-            }
-
+        guard let pinState = package.pinState?.spmPinState ?? (try? package.makePinFromRevision()) else {
             throw Error.revisionNotDetected(package.manifest.name)
         }
 
-        return scipioPinState.spmPinState
+        return pinState
     }
 
     private func versionFilePath(for targetName: String) -> URL {
