@@ -7,7 +7,7 @@ struct BinaryExtractor {
     var fileSystem: any FileSystem
 
     @discardableResult
-    func extract(of binaryTarget: _ResolvedModule, overwrite: Bool) throws -> URL {
+    func extract(of binaryTarget: ResolvedModule, overwrite: Bool) throws -> URL {
         guard case let .binary(binaryLocation) = binaryTarget.resolvedModuleType else {
             preconditionFailure("\(#function) must be called with a binary target")
         }

@@ -4,7 +4,7 @@ import Basics
 // A generator to generate modulemaps which are distributed in the XCFramework
 struct FrameworkModuleMapGenerator {
     private struct Context {
-        var resolvedTarget: _ResolvedModule
+        var resolvedTarget: ResolvedModule
         var sdk: SDK
         var keepPublicHeadersStructure: Bool
     }
@@ -29,7 +29,7 @@ struct FrameworkModuleMapGenerator {
     }
 
     func generate(
-        resolvedTarget: _ResolvedModule,
+        resolvedTarget: ResolvedModule,
         sdk: SDK,
         keepPublicHeadersStructure: Bool
     ) throws -> TSCAbsolutePath? {

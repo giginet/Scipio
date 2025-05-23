@@ -8,8 +8,8 @@ actor PackageResolver {
     // Because `dump-package` is called for each child dependency, all PackageKinds are mistakenly set to `.root`.
     // The manifest's `dependencies` have the correct kinds, so we cache them here.
     private var resolvedPackageKinds: [String: PackageKind] = [:]
-    private var allPackages: [_ResolvedPackage.ID: _ResolvedPackage] = [:]
-    private var allModules: Set<_ResolvedModule> = []
+    private var allPackages: [ResolvedPackage.ID: ResolvedPackage] = [:]
+    private var allModules: Set<ResolvedModule> = []
     private var cachedModuleType: [Target: ResolvedModuleType] = [:]
     private var cachedDependencyManifests: [DependencyPackage: Manifest] = [:]
     private let jsonDecoder = JSONDecoder()
@@ -47,25 +47,25 @@ actor PackageResolver {
 
     /// Start resolving modules and products from the root manifest.
     /// - Returns: Graph containing all resolved packages and modules.
-    func resolve() async throws -> _ModulesGraph {
+    func resolve() async throws -> ModulesGraph {
         let rootPackage = try await resolve(manifest: rootManifest)
 
-        return _ModulesGraph(
+        return ModulesGraph(
             rootPackage: rootPackage,
             allPackages: allPackages,
             allModules: allModules
         )
     }
 
-    /// Resolve a manifest into a concrete _ResolvedPackage with modules and products.
-    private func resolve(manifest: Manifest) async throws -> _ResolvedPackage {
+    /// Resolve a manifest into a concrete ResolvedPackage with modules and products.
+    private func resolve(manifest: Manifest) async throws -> ResolvedPackage {
         let dependencyPackage = resolveDependencyPackage(for: manifest)
-        let packageID = _ResolvedPackage.ID(packageKind: manifest.packageKind, packageIdentity: dependencyPackage.identity)
+        let packageID = ResolvedPackage.ID(packageKind: manifest.packageKind, packageIdentity: dependencyPackage.identity)
 
         if let resolvedPackage = allPackages[packageID] {
             return resolvedPackage
         } else {
-            let resolvedPackage = _ResolvedPackage(
+            let resolvedPackage = ResolvedPackage(
                 manifest: manifest,
                 resolvedPackageKind: resolvedPackageKinds[packageID.packageIdentity] ?? manifest.packageKind,
                 packageIdentity: dependencyPackage.identity,
@@ -95,7 +95,7 @@ actor PackageResolver {
         condition: PackageCondition?,
         dependencyPackage: DependencyPackage,
         in manifest: Manifest
-    ) async throws -> _ResolvedModule.Dependency? {
+    ) async throws -> ResolvedModule.Dependency? {
         if let target = manifest.targets.first(where: { $0.name == byName }) {
             return try await .module(
                 resolve(target: target, in: manifest, dependencyPackage: dependencyPackage),
@@ -131,10 +131,10 @@ actor PackageResolver {
     private func resolve(
         dependencies: [PackageManifestKit.Target.Dependency],
         in manifest: Manifest
-    ) async throws -> [_ResolvedModule.Dependency] {
+    ) async throws -> [ResolvedModule.Dependency] {
         let dependencyPackage = resolveDependencyPackage(for: manifest)
 
-        return try await dependencies.asyncCompactMap { dependency -> _ResolvedModule.Dependency? in
+        return try await dependencies.asyncCompactMap { dependency -> ResolvedModule.Dependency? in
             switch dependency {
             case .target(let name, let condition):
                 guard let target = manifest.targets.first(where: { $0.name == name }) else {
@@ -175,7 +175,7 @@ actor PackageResolver {
         productName: String,
         packageName: String?,
         in manifest: Manifest
-    ) async throws -> _ResolvedProduct? {
+    ) async throws -> ResolvedProduct? {
         let packageName = packageName ?? productName
 
         guard let dependencyPackage = resolveDependencyPackage(packageName) else {
@@ -192,21 +192,21 @@ actor PackageResolver {
         return resolvedProduct
     }
 
-    /// Resolve a manifest Product into a _ResolvedProductt
+    /// Resolve a manifest Product into a ResolvedProductt
     private func resolve(
         product: Product,
         in manifest: PackageManifestKit.Manifest
-    ) async throws -> _ResolvedProduct {
+    ) async throws -> ResolvedProduct {
         let packageIdentity = resolveDependencyPackage(for: manifest).identity
 
-        return _ResolvedProduct(
+        return ResolvedProduct(
             underlying: product,
             modules: try await product.targets
                 .compactMap { targetName in manifest.targets.first(where: { $0.name == targetName }) }
                 .filter { Target.TargetKind.enabledKinds.contains($0.type) }
                 .asyncMap { try await self.resolve(target: $0, in: manifest) },
             type: product.type,
-            packageID: _ResolvedPackage.ID(packageKind: manifest.packageKind, packageIdentity: packageIdentity)
+            packageID: ResolvedPackage.ID(packageKind: manifest.packageKind, packageIdentity: packageIdentity)
         )
     }
 
@@ -226,11 +226,11 @@ actor PackageResolver {
         }
     }
 
-    /// Resolve a manifest Target into a _ResolvedModule.
+    /// Resolve a manifest Target into a ResolvedModule.
     private func resolve(
         target: Target,
         in manifest: PackageManifestKit.Manifest
-    ) async throws -> _ResolvedModule {
+    ) async throws -> ResolvedModule {
         let dependencyPackage = resolveDependencyPackage(for: manifest)
 
         return try await resolve(
@@ -240,23 +240,23 @@ actor PackageResolver {
         )
     }
 
-    /// Resolve a manifest Target into a _ResolvedModule.
+    /// Resolve a manifest Target into a ResolvedModule.
     private func resolve(
         target: Target,
         in manifest: Manifest,
         dependencyPackage: DependencyPackage
-    ) async throws -> _ResolvedModule {
+    ) async throws -> ResolvedModule {
         guard case let .root(localPackageURL) = manifest.packageKind else {
             preconditionFailure(
                 "manifest.packageKind must be .root because ManifestLoader.loadManifest is invoked for each dependency, so every loaded manifest is treated as a root package."
             )
         }
 
-        let module = try await _ResolvedModule(
+        let module = try await ResolvedModule(
             underlying: target,
             dependencies: resolve(dependencies: target.dependencies, in: manifest),
             localPackageURL: localPackageURL,
-            packageID: _ResolvedPackage.ID(packageKind: manifest.packageKind, packageIdentity: dependencyPackage.identity),
+            packageID: ResolvedPackage.ID(packageKind: manifest.packageKind, packageIdentity: dependencyPackage.identity),
             resolvedModuleType: resolveModuleType(of: target, dependencyPackage: dependencyPackage)
         )
         allModules.insert(module)

@@ -18,7 +18,7 @@ extension PackageLocator {
         workspaceDirectory.appending(component: "DerivedData")
     }
 
-    func generatedModuleMapPath(of target: _ResolvedModule, sdk: SDK) throws -> TSCAbsolutePath {
+    func generatedModuleMapPath(of target: ResolvedModule, sdk: SDK) throws -> TSCAbsolutePath {
         let relativePath = try TSCRelativePath(validating: "ModuleMapsForFramework/\(sdk.settingValue)")
         return workspaceDirectory
             .appending(relativePath)

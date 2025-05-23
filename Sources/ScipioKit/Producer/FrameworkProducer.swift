@@ -86,11 +86,7 @@ struct FrameworkProducer {
 
         let allTargets = targetGraph.allNodes.map(\.value)
 
-        let pinsStore = try descriptionPackage.workspace.pinsStore.load()
-        let cacheSystem = CacheSystem(
-            pinsStore: pinsStore,
-            outputDirectory: outputDir
-        )
+        let cacheSystem = CacheSystem(outputDirectory: outputDir)
 
         let dependencyGraphToBuild: DependencyGraph<CacheSystem.CacheTarget>
         if cachePolicies.isEmpty {

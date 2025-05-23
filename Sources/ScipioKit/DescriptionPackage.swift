@@ -1,19 +1,11 @@
 import Foundation
-import Workspace
 import Basics
-import PackageModel
-import PackageLoading
-// We may drop this annotation in SwiftPM's future release
-@preconcurrency import PackageGraph
 import PackageManifestKit
 
 struct DescriptionPackage: PackageLocator {
     let mode: Runner.Mode
     let packageDirectory: TSCAbsolutePath
-    private let toolchain: UserToolchain
-    let workspace: Workspace
     let graph: ModulesGraph
-    let _graph: _ModulesGraph
     let manifest: PackageManifestKit.Manifest
     let jsonDecoder = JSONDecoder()
 
@@ -39,26 +31,6 @@ struct DescriptionPackage: PackageLocator {
 
     var supportedSDKs: Set<SDK> {
         Set(manifest.platforms?.map(\.platformName).compactMap(SDK.init(platformName:)) ?? [])
-    }
-
-    // MARK: Initializer
-
-    private static func makeWorkspace(toolchain: UserToolchain, packagePath: TSCAbsolutePath) throws -> Workspace {
-        var workspaceConfiguration: WorkspaceConfiguration = .default
-        // override default configuration to treat XIB files
-        workspaceConfiguration.additionalFileRules = FileRuleDescription.xcbuildFileTypes
-
-        let fileSystem = Basics.localFileSystem
-        let authorizationProvider = try Workspace.Configuration.Authorization.default
-            .makeAuthorizationProvider(fileSystem: fileSystem, observabilityScope: makeObservabilitySystem().topScope)
-        let workspace = try Workspace(
-            fileSystem: fileSystem,
-            location: Workspace.Location(forRootPackage: packagePath.spmAbsolutePath, fileSystem: fileSystem),
-            authorizationProvider: authorizationProvider,
-            configuration: workspaceConfiguration,
-            customHostToolchain: toolchain
-        )
-        return workspace
     }
 
     private static func makeManifest(
@@ -97,42 +69,14 @@ struct DescriptionPackage: PackageLocator {
     ) async throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
-        self.toolchain = try UserToolchain(
-            swiftSDK: try .hostSwiftSDK(
-                toolchainEnvironment?.toolchainBinPath,
-                environment: toolchainEnvironment?.asSwiftPMEnvironment ?? .current
-            ),
-            environment: toolchainEnvironment?.asSwiftPMEnvironment ?? .current
-        )
 
-        let workspace = try Self.makeWorkspace(toolchain: toolchain, packagePath: packageDirectory)
-        let scope = makeObservabilitySystem().topScope
-#if compiler(>=6.1)
-        self.graph = try await workspace.loadPackageGraph(
-            rootInput: PackageGraphRootInput(packages: [packageDirectory.spmAbsolutePath]),
-            // This option is same with resolver option `--disable-automatic-resolution`
-            // Never update Package.resolved of the package
-            forceResolvedVersions: onlyUseVersionsFromResolvedFile,
-            observabilityScope: scope
-        )
-#else
-        self.graph = try workspace.loadPackageGraph(
-            rootInput: PackageGraphRootInput(packages: [packageDirectory.spmAbsolutePath]),
-            // This option is same with resolver option `--disable-automatic-resolution`
-            // Never update Package.resolved of the package
-            forceResolvedVersions: onlyUseVersionsFromResolvedFile,
-            observabilityScope: scope
-        )
-#endif
         self.manifest = try await ScipioKit.ManifestLoader(executor: executor).loadManifest(for: packageDirectory.asURL)
 
-        self._graph = try await PackageResolver(
+        self.graph = try await PackageResolver(
             packageDirectory: packageDirectory.asURL,
             rootManifest: self.manifest,
             fileSystem: Basics.localFileSystem
         ).resolve()
-
-        self.workspace = workspace
     }
 }
 
@@ -144,8 +88,8 @@ extension DescriptionPackage {
 }
 
 struct BuildProduct: Hashable, Sendable {
-    var package: _ResolvedPackage
-    var target: _ResolvedModule
+    var package: ResolvedPackage
+    var target: ResolvedModule
 
     var frameworkName: String {
         "\(target.name.packageNamed()).xcframework"
@@ -194,30 +138,23 @@ private final class BuildProductsResolver {
         )
     }
 
-    private func targetsToBuild() throws -> [_ResolvedModule] {
+    private func targetsToBuild() throws -> [ResolvedModule] {
         switch descriptionPackage.mode {
         case .createPackage:
             // In create mode, all products should be built
             // In future update, users will be enable to specify products want to build
-            let rootPackage = descriptionPackage._graph.rootPackage
+            let rootPackage = descriptionPackage.graph.rootPackage
             let productNamesToBuild = rootPackage.manifest.products.map { $0.name }
             let productsToBuild = rootPackage.products.filter { productNamesToBuild.contains($0.name) }
             return productsToBuild.flatMap(\.modules)
         case .prepareDependencies:
             // In prepare mode, all targets should be built
             // In future update, users will be enable to specify targets want to build
-            return Array(descriptionPackage._graph.rootPackage.targets)
+            return Array(descriptionPackage.graph.rootPackage.targets)
         }
     }
 
-    private func fetchRootPackage() throws -> ResolvedPackage {
-        guard let rootPackage = descriptionPackage.graph.rootPackages.first else {
-            throw DescriptionPackage.Error.packageNotDefined
-        }
-        return rootPackage
-    }
-
-    private func resolveBuildProduct(from rootTarget: _ResolvedModule) throws -> Set<BuildProduct> {
+    private func resolveBuildProduct(from rootTarget: ResolvedModule) throws -> Set<BuildProduct> {
         let dependencyProducts = Set(try rootTarget.recursiveModuleDependencies()
             .flatMap(buildProducts(from:)))
 
@@ -232,8 +169,8 @@ private final class BuildProductsResolver {
         }
     }
 
-    private func buildProducts(from target: _ResolvedModule) throws -> Set<BuildProduct> {
-        guard let package = descriptionPackage._graph.package(for: target) else {
+    private func buildProducts(from target: ResolvedModule) throws -> Set<BuildProduct> {
+        guard let package = descriptionPackage.graph.package(for: target) else {
             return []
         }
 

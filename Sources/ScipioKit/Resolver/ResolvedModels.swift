@@ -1,23 +1,23 @@
 import Foundation
 import PackageManifestKit
 
-typealias Pins = [_ResolvedPackage.ID: Pin.State]
+typealias Pins = [ResolvedPackage.ID: Pin.State]
 
-struct _ModulesGraph {
-    var rootPackage: _ResolvedPackage
-    var allPackages: [_ResolvedPackage.ID: _ResolvedPackage]
-    var allModules: Set<_ResolvedModule>
+struct ModulesGraph {
+    var rootPackage: ResolvedPackage
+    var allPackages: [ResolvedPackage.ID: ResolvedPackage]
+    var allModules: Set<ResolvedModule>
 
-    func package(for module: _ResolvedModule) -> _ResolvedPackage? {
+    func package(for module: ResolvedModule) -> ResolvedPackage? {
         allPackages[module.packageID]
     }
 
-    func module(for name: String) -> _ResolvedModule? {
+    func module(for name: String) -> ResolvedModule? {
         allModules.first { $0.name == name }
     }
 }
 
-struct _ResolvedPackage: Identifiable {
+struct ResolvedPackage: Identifiable {
     struct ID: Hashable {
         var description: String
         var packageIdentity: String
@@ -42,8 +42,8 @@ struct _ResolvedPackage: Identifiable {
     var manifest: Manifest
     var resolvedPackageKind: PackageKind
     var path: String
-    var targets: [_ResolvedModule]
-    var products: [_ResolvedProduct]
+    var targets: [ResolvedModule]
+    var products: [ResolvedProduct]
     var pinState: Pin.State?
 
     var name: String {
@@ -56,8 +56,8 @@ struct _ResolvedPackage: Identifiable {
         packageIdentity: String,
         pinState: Pin.State?,
         path: String,
-        targets: [_ResolvedModule],
-        products: [_ResolvedProduct]
+        targets: [ResolvedModule],
+        products: [ResolvedProduct]
     ) {
         self.id = ID(packageKind: manifest.packageKind, packageIdentity: packageIdentity)
         self.manifest = manifest
@@ -69,7 +69,7 @@ struct _ResolvedPackage: Identifiable {
     }
 }
 
-extension _ResolvedPackage {
+extension ResolvedPackage {
     var canonicalPackageLocation: CanonicalPackageLocation {
         CanonicalPackageLocation(
             URL(fileURLWithPath: path)
@@ -80,7 +80,7 @@ extension _ResolvedPackage {
     }
 }
 
-struct _ResolvedModule: Hashable, Sendable {
+struct ResolvedModule: Hashable, Sendable {
     enum Dependency: Hashable, Identifiable {
         var id: String {
             switch self {
@@ -91,8 +91,8 @@ struct _ResolvedModule: Hashable, Sendable {
             }
         }
 
-        case module(_ResolvedModule, conditions: [PackageCondition])
-        case product(_ResolvedProduct, conditions: [PackageCondition])
+        case module(ResolvedModule, conditions: [PackageCondition])
+        case product(ResolvedProduct, conditions: [PackageCondition])
 
         var dependencies: [Dependency] {
             switch self {
@@ -103,14 +103,14 @@ struct _ResolvedModule: Hashable, Sendable {
             }
         }
 
-        var module: _ResolvedModule? {
+        var module: ResolvedModule? {
             switch self {
             case .module(let module, _): return module
             case .product: return nil
             }
         }
 
-        var product: _ResolvedProduct? {
+        var product: ResolvedProduct? {
             switch self {
             case .module: return nil
             case .product(let product, _): return product
@@ -129,7 +129,7 @@ struct _ResolvedModule: Hashable, Sendable {
     var underlying: PackageManifestKit.Target
     var dependencies: [Dependency]
     var localPackageURL: URL
-    var packageID: _ResolvedPackage.ID
+    var packageID: ResolvedPackage.ID
     var resolvedModuleType: ResolvedModuleType
 
     var name: String {
@@ -148,7 +148,7 @@ struct _ResolvedModule: Hashable, Sendable {
         "\(c99name.packageNamed()).modulemap"
     }
 
-    func recursiveModuleDependencies() throws -> [_ResolvedModule] {
+    func recursiveModuleDependencies() throws -> [ResolvedModule] {
         try topologicalSort(self.dependencies) { $0.dependencies }.compactMap { $0.module }
     }
 
@@ -157,11 +157,11 @@ struct _ResolvedModule: Hashable, Sendable {
     }
 }
 
-struct _ResolvedProduct: Hashable {
+struct ResolvedProduct: Hashable {
     var underlying: PackageManifestKit.Product
-    var modules: [_ResolvedModule]
+    var modules: [ResolvedModule]
     var type: ProductType
-    var packageID: _ResolvedPackage.ID
+    var packageID: ResolvedPackage.ID
 
     var name: String {
         underlying.name

@@ -4,8 +4,8 @@ import Basics
 import struct TSCUtility.Version
 import Algorithms
 // We may drop this annotation in SwiftPM's future release
-@preconcurrency import PackageGraph
-import PackageModel
+@preconcurrency import class PackageGraph.PinsStore
+import struct PackageModel.PackageReference
 import SourceControl
 import PackageManifestKit
 
@@ -108,7 +108,6 @@ public struct SwiftPMCacheKey: CacheKey {
 
 struct CacheSystem: Sendable {
     static let defaultParalellNumber = 8
-    private let pinsStore: PinsStore
     private let outputDirectory: URL
     private let fileSystem: any FileSystem
 
@@ -138,11 +137,9 @@ struct CacheSystem: Sendable {
     }
 
     init(
-        pinsStore: PinsStore,
         outputDirectory: URL,
         fileSystem: any FileSystem = localFileSystem
     ) {
-        self.pinsStore = pinsStore
         self.outputDirectory = outputDirectory
         self.fileSystem = fileSystem
     }
@@ -262,7 +259,7 @@ struct CacheSystem: Sendable {
         )
     }
 
-    private func retrievePinState(package: _ResolvedPackage) throws -> PinsStore.PinState {
+    private func retrievePinState(package: ResolvedPackage) throws -> PinsStore.PinState {
         guard let scipioPinState = package.pinState else {
             if let spmPinState = try package.makePinFromRevision() {
                 return spmPinState
@@ -299,7 +296,7 @@ public struct VersionFileDecoder {
     }
 }
 
-extension _ResolvedPackage {
+extension ResolvedPackage {
     fileprivate func makePinFromRevision() throws -> PinsStore.PinState? {
         let path = try AbsolutePath(validating: path)
         let repository = GitRepository(path: path)

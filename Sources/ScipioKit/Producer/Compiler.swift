@@ -12,7 +12,7 @@ protocol Compiler {
 
 extension Compiler {
     func extractDebugSymbolPaths(
-        target: _ResolvedModule,
+        target: ResolvedModule,
         buildConfiguration: BuildConfiguration,
         sdks: Set<SDK>,
         fileSystem: FileSystem = localFileSystem
@@ -50,7 +50,7 @@ extension DescriptionPackage {
     fileprivate func buildDebugSymbolPath(
         buildConfiguration: BuildConfiguration,
         sdk: SDK,
-        target: _ResolvedModule
+        target: ResolvedModule
     ) -> TSCAbsolutePath {
         productsDirectory(buildConfiguration: buildConfiguration, sdk: sdk)
             .appending(component: "\(target.name).framework.dSYM")
