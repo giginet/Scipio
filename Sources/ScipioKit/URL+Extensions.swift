@@ -3,7 +3,10 @@ import Basics
 
 extension URL {
     var absolutePath: TSCAbsolutePath {
-        precondition(absoluteURL.isFileURL)
         return try! TSCAbsolutePath(validating: path)
+    }
+
+    var spmAbsolutePath: SwiftPMAbsolutePath {
+        return try! SwiftPMAbsolutePath(validating: path)
     }
 }

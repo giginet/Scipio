@@ -2,8 +2,6 @@ import Foundation
 import Basics
 import PIFKit
 import SPMBuildCore
-import PackageModel
-import PackageGraph
 import XCBuildSupport
 
 struct PIFGenerator {
