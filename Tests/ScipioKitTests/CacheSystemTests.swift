@@ -153,7 +153,13 @@ final class CacheSystemTests: XCTestCase {
         XCTAssertNil(scipioTestingRemote.localPackageCanonicalLocation)
         XCTAssertEqual(
             scipioTestingLocal.localPackageCanonicalLocation,
-            ScipioKit.CanonicalPackageLocation(tempDir.appending(component: "scipio-testing").asURL.standardizedFileURL.resolvingSymlinksInPath().path(percentEncoded: false)).description
+            ScipioKit.CanonicalPackageLocation(
+                tempDir.appending(component: "scipio-testing")
+                    .asURL
+                    .standardizedFileURL
+                    .resolvingSymlinksInPath()
+                    .path(percentEncoded: false)
+            ).description
         )
         XCTAssertEqual(scipioTestingRemote.targetName, scipioTestingLocal.targetName)
         XCTAssertEqual(scipioTestingRemote.pin, scipioTestingLocal.pin)

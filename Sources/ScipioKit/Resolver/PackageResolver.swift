@@ -8,7 +8,7 @@ actor PackageResolver {
     // Because `dump-package` is called for each child dependency, all PackageKinds are mistakenly set to `.root`.
     // The manifest's `dependencies` have the correct kinds, so we cache them here.
     private var resolvedPackageKinds: [String: PackageKind] = [:]
-    private var allPackages: [ResolvedPackage.ID: ResolvedPackage] = [:]
+    private var allPackages: [PackageID: ResolvedPackage] = [:]
     private var allModules: Set<ResolvedModule> = []
     private var cachedModuleType: [Target: ResolvedModuleType] = [:]
     private var cachedDependencyManifests: [DependencyPackage: Manifest] = [:]
@@ -60,7 +60,7 @@ actor PackageResolver {
     /// Resolve a manifest into a concrete ResolvedPackage with modules and products.
     private func resolve(manifest: Manifest) async throws -> ResolvedPackage {
         let dependencyPackage = resolveDependencyPackage(for: manifest)
-        let packageID = ResolvedPackage.ID(packageKind: manifest.packageKind, packageIdentity: dependencyPackage.identity)
+        let packageID = PackageID(packageKind: manifest.packageKind, packageIdentity: dependencyPackage.identity)
 
         if let resolvedPackage = allPackages[packageID] {
             return resolvedPackage
@@ -206,7 +206,7 @@ actor PackageResolver {
                 .filter { Target.TargetKind.enabledKinds.contains($0.type) }
                 .asyncMap { try await self.resolve(target: $0, in: manifest) },
             type: product.type,
-            packageID: ResolvedPackage.ID(packageKind: manifest.packageKind, packageIdentity: packageIdentity)
+            packageID: PackageID(packageKind: manifest.packageKind, packageIdentity: packageIdentity)
         )
     }
 
@@ -248,7 +248,10 @@ actor PackageResolver {
     ) async throws -> ResolvedModule {
         guard case let .root(localPackageURL) = manifest.packageKind else {
             preconditionFailure(
-                "manifest.packageKind must be .root because ManifestLoader.loadManifest is invoked for each dependency, so every loaded manifest is treated as a root package."
+                """
+                manifest.packageKind must be .root because ManifestLoader.loadManifest is invoked for each dependency,
+                so every loaded manifest is treated as a root package."
+                """
             )
         }
 
@@ -256,7 +259,7 @@ actor PackageResolver {
             underlying: target,
             dependencies: resolve(dependencies: target.dependencies, in: manifest),
             localPackageURL: localPackageURL,
-            packageID: ResolvedPackage.ID(packageKind: manifest.packageKind, packageIdentity: dependencyPackage.identity),
+            packageID: PackageID(packageKind: manifest.packageKind, packageIdentity: dependencyPackage.identity),
             resolvedModuleType: resolveModuleType(of: target, dependencyPackage: dependencyPackage)
         )
         allModules.insert(module)

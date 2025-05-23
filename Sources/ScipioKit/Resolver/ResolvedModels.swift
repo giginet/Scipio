@@ -1,11 +1,11 @@
 import Foundation
 import PackageManifestKit
 
-typealias Pins = [ResolvedPackage.ID: Pin.State]
+typealias Pins = [PackageID: Pin.State]
 
 struct ModulesGraph {
     var rootPackage: ResolvedPackage
-    var allPackages: [ResolvedPackage.ID: ResolvedPackage]
+    var allPackages: [PackageID: ResolvedPackage]
     var allModules: Set<ResolvedModule>
 
     func package(for module: ResolvedModule) -> ResolvedPackage? {
@@ -17,28 +17,28 @@ struct ModulesGraph {
     }
 }
 
-struct ResolvedPackage: Identifiable {
-    struct ID: Hashable {
-        var description: String
-        var packageIdentity: String
+struct PackageID: Hashable {
+    var description: String
+    var packageIdentity: String
 
-        init(
-            packageKind: PackageKind,
-            packageIdentity: String
-        ) {
-            self.packageIdentity = packageIdentity
-            switch packageKind {
-            case .root(let url), .fileSystem(let url), .localSourceControl(let url):
-                description = url.absoluteString
-            case .remoteSourceControl(let string):
-                description = string
-            case .registry(let string):
-                description = string
-            }
+    init(
+        packageKind: PackageKind,
+        packageIdentity: String
+    ) {
+        self.packageIdentity = packageIdentity
+        switch packageKind {
+        case .root(let url), .fileSystem(let url), .localSourceControl(let url):
+            description = url.absoluteString
+        case .remoteSourceControl(let string):
+            description = string
+        case .registry(let string):
+            description = string
         }
     }
+}
 
-    var id: ID
+struct ResolvedPackage: Identifiable {
+    var id: PackageID
     var manifest: Manifest
     var resolvedPackageKind: PackageKind
     var path: String
@@ -129,7 +129,7 @@ struct ResolvedModule: Hashable, Sendable {
     var underlying: PackageManifestKit.Target
     var dependencies: [Dependency]
     var localPackageURL: URL
-    var packageID: ResolvedPackage.ID
+    var packageID: PackageID
     var resolvedModuleType: ResolvedModuleType
 
     var name: String {
@@ -161,7 +161,7 @@ struct ResolvedProduct: Hashable {
     var underlying: PackageManifestKit.Product
     var modules: [ResolvedModule]
     var type: ProductType
-    var packageID: ResolvedPackage.ID
+    var packageID: PackageID
 
     var name: String {
         underlying.name
