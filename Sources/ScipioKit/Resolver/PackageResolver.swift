@@ -337,6 +337,7 @@ private struct ModuleTypeResolver {
     let dependencyPackage: DependencyPackage
 
     let clangFileTypes = ["c", "m", "mm", "cc", "cpp", "cxx"]
+    let headerExtensions = ["h", "hh", "hpp", "h++", "hp", "hxx", "H", "ipp", "def"]
     let asmFileTypes = ["s", "S"]
     let swiftFileType = "swift"
 
@@ -398,7 +399,14 @@ private struct ModuleTypeResolver {
         } else if hasSwiftSources {
             .swift
         } else {
-            .clang(includeDir: includeDir)
+            .clang(
+                includeDir: includeDir,
+                publicHeaders: FileManager.default
+                    .enumerator(at: includeDir, includingPropertiesForKeys: nil)?
+                    .compactMap { $0 as? URL }
+                    .filter { headerExtensions.contains($0.pathExtension) }
+                    ?? []
+            )
         }
     }
 

@@ -39,7 +39,7 @@ struct FrameworkModuleMapGenerator {
             keepPublicHeadersStructure: keepPublicHeadersStructure
         )
 
-        if case let .clang(includeDir) = resolvedTarget.resolvedModuleType {
+        if case let .clang(includeDir, _) = resolvedTarget.resolvedModuleType {
             let moduleMapGenerator = ModuleMapGenerator(
                 targetName: resolvedTarget.name,
                 moduleName: resolvedTarget.c99name,

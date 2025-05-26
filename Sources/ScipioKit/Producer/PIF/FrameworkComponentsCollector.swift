@@ -199,17 +199,9 @@ struct FrameworkComponentsCollector {
 
     /// Collects public headers of clangTarget
     private func collectPublicHeaders() throws -> Set<TSCAbsolutePath>? {
-        guard case let .clang(includeDir) = buildProduct.target.resolvedModuleType else {
+        guard case let .clang(_, publicHeaders) = buildProduct.target.resolvedModuleType else {
             return nil
         }
-
-        let headerExtensions = ["h", "hh", "hpp", "h++", "hp", "hxx", "H", "ipp", "def"]
-
-        let publicHeaders: [URL] = FileManager.default
-            .enumerator(at: includeDir, includingPropertiesForKeys: nil)?
-            .compactMap { $0 as? URL }
-            .filter { headerExtensions.contains($0.pathExtension) }
-            ?? []
 
         let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0.spmAbsolutePath) }
             .map { $0.absolutePath }

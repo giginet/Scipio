@@ -169,13 +169,13 @@ struct ResolvedProduct: Hashable {
 }
 
 enum ResolvedModuleType: Hashable {
-    case clang(includeDir: URL)
+    case clang(includeDir: URL, publicHeaders: [URL])
     case binary(BinaryArtifactLocation)
     case swift
 
     var includeDir: URL? {
         switch self {
-        case .clang(let includeDir):
+        case .clang(let includeDir, _):
             includeDir
         default: nil
         }
