@@ -145,12 +145,7 @@ struct FrameworkComponentsCollector {
     }
 
     private func generatedResourceBundlePath() -> TSCAbsolutePath? {
-        let bundleName: String? =
-            if buildProduct.target.underlying.resources.isEmpty {
-                nil
-            } else {
-                buildProduct.package.manifest.name + "_" + buildProduct.target.underlying.name
-            }
+        let bundleName: String? = buildProduct.target.underlying.bundleName(for: buildProduct.package.manifest)
 
         guard let bundleName else { return nil }
 
