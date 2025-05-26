@@ -72,7 +72,7 @@ struct ResolvedPackage: Identifiable {
 extension ResolvedPackage {
     var canonicalPackageLocation: CanonicalPackageLocation {
         CanonicalPackageLocation(
-            URL(fileURLWithPath: path)
+            URL(filePath: path)
                 .standardizedFileURL
                 .resolvingSymlinksInPath()
                 .path(percentEncoded: false)
