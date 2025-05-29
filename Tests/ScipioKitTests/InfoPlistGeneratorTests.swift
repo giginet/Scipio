@@ -1,27 +1,24 @@
 import Foundation
-import XCTest
+import Testing
 @testable import ScipioKit
 import Basics
 
-final class InfoPlistGeneratorTests: XCTestCase {
+@Suite
+struct InfoPlistGeneratorTests {
     let fileSystem = localFileSystem
-    lazy var generator = InfoPlistGenerator(fileSystem: fileSystem)
-    var temporaryPath: TSCAbsolutePath!
-
-    override func setUp() async throws {
-        try await super.setUp()
-
-        self.temporaryPath = try localFileSystem
+    
+    @Test
+    func generateForBundle() throws {
+        let generator = InfoPlistGenerator(fileSystem: fileSystem)
+        let temporaryPath = try fileSystem
             .tempDirectory
             .appending(components: "Info.plist")
-    }
-
-    func testGenerateForBundle() throws {
-        try generator.generateForResourceBundle(at: temporaryPath)
+        defer { try? fileSystem.removeFileTree(temporaryPath) }
+        try generator.generateForResourceBundle(at: temporaryPath.scipioAbsolutePath)
 
         let infoPlistBody = try fileSystem.readFileContents(temporaryPath).cString
 
-        XCTAssertEqual(infoPlistBody, """
+        #expect(infoPlistBody == """
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
@@ -43,11 +40,5 @@ final class InfoPlistGeneratorTests: XCTestCase {
         </dict>
         </plist>
         """)
-    }
-
-    override func tearDown() async throws {
-        try await super.tearDown()
-
-        try fileSystem.removeFileTree(temporaryPath)
     }
 }

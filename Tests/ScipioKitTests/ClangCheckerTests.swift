@@ -1,7 +1,8 @@
 @testable import ScipioKit
-import XCTest
+import Testing
 
-final class ClangCheckerTests: XCTestCase {
+@Suite
+struct ClangCheckerTests {
     private let clangVersion = """
     Apple clang version 14.0.0 (clang-1400.0.29.102)
     Target: arm64-apple-darwin21.6.0
@@ -9,13 +10,14 @@ final class ClangCheckerTests: XCTestCase {
     InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
     """
 
-    func testParseClangVersion() async throws {
+    @Test
+    func parseClangVersion() async throws {
         let hook = { arguments in
-            XCTAssertEqual(arguments, ["/usr/bin/xcrun", "clang", "--version"])
+            #expect(arguments == ["/usr/bin/xcrun", "clang", "--version"])
             return StubbableExecutorResult(arguments: arguments, success: self.clangVersion)
         }
         let clangParser = ClangChecker(executor: StubbableExecutor(executeHook: hook))
         let version = try await clangParser.fetchClangVersion()
-        XCTAssertEqual(version, "clang-1400.0.29.102")
+        #expect(version == "clang-1400.0.29.102")
     }
 }

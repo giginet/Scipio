@@ -1,6 +1,6 @@
 import Foundation
 @testable import ScipioKit
-import XCTest
+import Testing
 import Basics
 import struct PackageModel.CanonicalPackageLocation
 
@@ -9,7 +9,8 @@ private let fixturePath = URL(fileURLWithPath: #filePath)
     .appendingPathComponent("Resources")
     .appendingPathComponent("Fixtures")
 
-final class CacheSystemTests: XCTestCase {
+@Suite
+struct CacheSystemTests {
 
     private let customModuleMap = """
     framework module MyTarget {
@@ -18,7 +19,8 @@ final class CacheSystemTests: XCTestCase {
     }
     """
 
-    func testEncodeCacheKey() throws {
+    @Test
+    func encodeCacheKey() throws {
         let cacheKey = SwiftPMCacheKey(
             localPackageCanonicalLocation: "/path/to/MyPackage",
             pin: .revision("111111111"),
@@ -41,7 +43,7 @@ final class CacheSystemTests: XCTestCase {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
         let data = try encoder.encode(cacheKey)
-        let rawString = try XCTUnwrap(String(decoding: data, as: UTF8.self))
+        let rawString = try #require(String(decoding: data, as: UTF8.self))
 
         // swiftlint:disable line_length
         let expected = """
@@ -80,10 +82,11 @@ final class CacheSystemTests: XCTestCase {
         }
         """
         // swiftlint:enable line_length
-        XCTAssertEqual(rawString, expected)
+        #expect(rawString == expected)
     }
 
-    func testCacheKeyForRemoteAndLocalPackageDifference() async throws {
+    @Test
+    func cacheKeyForRemoteAndLocalPackageDifference() async throws {
         let fileSystem = localFileSystem
 
         let tempDir = try fileSystem.tempDirectory.appending(#function)
@@ -151,16 +154,16 @@ final class CacheSystemTests: XCTestCase {
         let scipioTestingRemote = try await scipioTestingCacheKey(fixture: "AsRemotePackage")
         let scipioTestingLocal = try await scipioTestingCacheKey(fixture: "AsLocalPackage")
 
-        XCTAssertNil(scipioTestingRemote.localPackageCanonicalLocation)
-        XCTAssertEqual(
-            scipioTestingLocal.localPackageCanonicalLocation,
-            CanonicalPackageLocation(tempDir.appending(component: "scipio-testing").pathString).description
+        #expect(scipioTestingRemote.localPackageCanonicalLocation == nil)
+        #expect(
+            scipioTestingLocal.localPackageCanonicalLocation == CanonicalPackageLocation(tempDir.appending(component: "scipio-testing").pathString).description
         )
-        XCTAssertEqual(scipioTestingRemote.targetName, scipioTestingLocal.targetName)
-        XCTAssertEqual(scipioTestingRemote.pin, scipioTestingLocal.pin)
+        #expect(scipioTestingRemote.targetName == scipioTestingLocal.targetName)
+        #expect(scipioTestingRemote.pin == scipioTestingLocal.pin)
     }
 
-    func testCacheKeyCalculationForRootPackageTarget() async throws {
+    @Test
+    func cacheKeyCalculationForRootPackageTarget() async throws {
         let fileSystem = localFileSystem
         let testingPackagePath = fixturePath.appendingPathComponent("TestingPackage")
         let tempTestingPackagePath = try fileSystem.tempDirectory.appending(component: "temp_TestingPackage").scipioAbsolutePath
@@ -207,11 +210,11 @@ final class CacheSystemTests: XCTestCase {
         // Ensure that the cache key cannot be calculated if the package is not in the Git repository.
         do {
             _ = try await cacheSystem.calculateCacheKey(of: cacheTarget)
-            XCTFail("A cache key should not be possible to calculate if the package is not in a repository.")
+            Issue.record("A cache key should not be possible to calculate if the package is not in a repository.")
         } catch let error as CacheSystem.Error {
-            XCTAssertEqual(error.errorDescription, "Repository version is not detected for \(descriptionPackage.name).")
+            #expect(error.errorDescription == "Repository version is not detected for \(descriptionPackage.name).")
         } catch {
-            XCTFail("Wrong error type.")
+            Issue.record("Wrong error type.")
         }
 
         // Ensure that the cache key is properly calculated when the package is in a repository with the correct tag."
@@ -223,7 +226,7 @@ final class CacheSystemTests: XCTestCase {
 
         let cacheKey = try await cacheSystem.calculateCacheKey(of: cacheTarget)
 
-        XCTAssertEqual(cacheKey.targetName, myTarget.name)
-        XCTAssertEqual(cacheKey.pin.description, "1.1.0")
+        #expect(cacheKey.targetName == myTarget.name)
+        #expect(cacheKey.pin.description == "1.1.0")
     }
 }
