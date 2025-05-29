@@ -5,7 +5,9 @@ import PackageDescription
 import Foundation
 
 let swiftPMBranch: String
-#if compiler(>=6.1)
+#if compiler(>=6.1.2)
+swiftPMBranch = "release/6.1.2"
+#elseif compiler(>=6.1)
 swiftPMBranch = "release/6.1"
 #else
 swiftPMBranch = "release/6.0"
