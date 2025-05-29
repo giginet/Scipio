@@ -1,5 +1,5 @@
 import Foundation
-import XCTest
+import Testing
 @testable import ScipioKit
 import Logging
 
@@ -28,26 +28,20 @@ private struct InfoPlist: Decodable {
     }
 }
 
-final class RunnerTests: XCTestCase {
+@Suite(.serialized)
+final class RunnerTests {
     private let fileManager: FileManager = .default
-    lazy var tempDir = fileManager.temporaryDirectory
-    lazy var frameworkOutputDir = tempDir.appendingPathComponent("XCFrameworks")
-
+    private let tempDir = FileManager.default.temporaryDirectory
+    private let frameworkOutputDir: URL
     private let plistDecoder: PropertyListDecoder = .init()
 
-    override static func setUp() {
+    init() throws {
         LoggingSystem.bootstrap { _ in SwiftLogNoOpLogHandler() }
-
-        super.setUp()
-    }
-
-    override func setUpWithError() throws {
+        frameworkOutputDir = tempDir.appendingPathComponent("XCFrameworks")
         try fileManager.createDirectory(at: frameworkOutputDir, withIntermediateDirectories: true)
-
-        try super.setUpWithError()
     }
 
-    func testBuildXCFramework() async throws {
+    @Test func buildXCFramework() async throws {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
@@ -59,7 +53,7 @@ final class RunnerTests: XCTestCase {
             try await runner.run(packageDirectory: testPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+            Issue.record("Build should be succeeded. \(error.localizedDescription)")
         }
 
         for library in ["ScipioTesting"] {
@@ -67,46 +61,45 @@ final class RunnerTests: XCTestCase {
             let simulatorFramework = xcFramework.appendingPathComponent("ios-arm64_x86_64-simulator/\(library).framework")
             let deviceFramework = xcFramework.appendingPathComponent("ios-arm64/\(library).framework")
 
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: deviceFramework.appendingPathComponent("Headers/\(library)-Swift.h").path),
                 "Should exist a bridging header"
             )
 
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: deviceFramework.appendingPathComponent("Modules/module.modulemap").path),
                 "Should exist a modulemap"
             )
 
             let expectedSwiftInterface = deviceFramework.appendingPathComponent("Modules/\(library).swiftmodule/arm64-apple-ios.swiftinterface")
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: expectedSwiftInterface.path),
                 "Should exist a swiftinterface"
             )
 
             let frameworkType = try await detectFrameworkType(of: deviceFramework.appendingPathComponent(library))
-            XCTAssertEqual(
-                frameworkType,
-                .dynamic,
+            #expect(
+                frameworkType == .dynamic,
                 "Binary should be a dynamic library"
             )
 
             let infoPlistPath = deviceFramework.appendingPathComponent("Info.plist")
-            let infoPlistData = try XCTUnwrap(
+            let infoPlistData = try #require(
                 fileManager.contents(atPath: infoPlistPath.path),
                 "Info.plist should be exist"
             )
 
             let infoPlist = try plistDecoder.decode(InfoPlist.self, from: infoPlistData)
-            XCTAssertEqual(infoPlist.bundleExecutable, library)
-            XCTAssertEqual(infoPlist.bundleVersion, "1")
-            XCTAssertEqual(infoPlist.bundleShortVersionString, "1.0")
+            #expect(infoPlist.bundleExecutable == library)
+            #expect(infoPlist.bundleVersion == "1")
+            #expect(infoPlist.bundleShortVersionString == "1.0")
 
-            XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.path),
+            #expect(!fileManager.fileExists(atPath: simulatorFramework.path),
                            "Should not create Simulator framework")
         }
     }
 
-    func testBuildClangPackage() async throws {
+    @Test func buildClangPackage() async throws {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
@@ -118,7 +111,7 @@ final class RunnerTests: XCTestCase {
             try await runner.run(packageDirectory: clangPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+            Issue.record("Build should be succeeded. \(error.localizedDescription)")
         }
 
         for library in ["some_lib"] {
@@ -127,20 +120,19 @@ final class RunnerTests: XCTestCase {
             let framework = xcFramework.appendingPathComponent("ios-arm64")
                 .appendingPathComponent("\(library).framework")
 
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/some_lib.h").path),
                 "Should exist an umbrella header"
             )
 
             let moduleMapPath = framework.appendingPathComponent("Modules/module.modulemap").path
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: moduleMapPath),
                 "Should exist a modulemap"
             )
-            let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: UTF8.self) })
-            XCTAssertEqual(
-                moduleMapContents,
-                """
+            let moduleMapContents = try #require(fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: UTF8.self) })
+            #expect(
+                moduleMapContents == """
                 framework module some_lib {
                     umbrella header "some_lib.h"
                     export *
@@ -149,14 +141,14 @@ final class RunnerTests: XCTestCase {
                 "modulemap should be generated"
             )
 
-            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
+            #expect(fileManager.fileExists(atPath: xcFramework.path),
                           "Should create \(library).xcframework")
-            XCTAssertFalse(fileManager.fileExists(atPath: versionFile.path),
+            #expect(!fileManager.fileExists(atPath: versionFile.path),
                            "Should not create .\(library).version in create mode")
         }
     }
 
-    func testBuildClangPackageWithSymbolicLinkHeaders() async throws {
+    @Test func buildClangPackageWithSymbolicLinkHeaders() async throws {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
@@ -168,7 +160,7 @@ final class RunnerTests: XCTestCase {
             try await runner.run(packageDirectory: clangPackageWithSymbolicLinkHeadersPath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+            Issue.record("Build should be succeeded. \(error.localizedDescription)")
         }
 
         for library in ["some_lib"] {
@@ -178,32 +170,31 @@ final class RunnerTests: XCTestCase {
             let framework = xcFramework.appendingPathComponent("ios-arm64")
                 .appendingPathComponent("\(library).framework")
 
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/some_lib.h").path),
                 "Should exist an umbrella header"
             )
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/a.h").path),
                 "Should exist a header from symbolic link"
             )
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/b.h").path),
                 "Should exist another header from symbolic link"
             )
-            XCTAssertFalse(
-                fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/some_lib_dupe.h").path),
+            #expect(
+                !fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/some_lib_dupe.h").path),
                 "Should not exist a header from symbolic link which is duplicated to non-symbolic link one"
             )
 
             let moduleMapPath = framework.appendingPathComponent("Modules/module.modulemap").path
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: moduleMapPath),
                 "Should exist a modulemap"
             )
-            let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: UTF8.self) })
-            XCTAssertEqual(
-                moduleMapContents,
-                """
+            let moduleMapContents = try #require(fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: UTF8.self) })
+            #expect(
+                moduleMapContents == """
                 framework module some_lib {
                     umbrella header "some_lib.h"
                     export *
@@ -212,14 +203,14 @@ final class RunnerTests: XCTestCase {
                 "modulemap should be generated"
             )
 
-            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
+            #expect(fileManager.fileExists(atPath: xcFramework.path),
                           "Should create \(library).xcframework")
-            XCTAssertFalse(fileManager.fileExists(atPath: versionFile.path),
+            #expect(!fileManager.fileExists(atPath: versionFile.path),
                            "Should not create .\(library).version in create mode")
         }
     }
 
-    func testBuildClangPackageWithCustomModuleMap() async throws {
+    @Test func buildClangPackageWithCustomModuleMap() async throws {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
@@ -231,7 +222,7 @@ final class RunnerTests: XCTestCase {
             try await runner.run(packageDirectory: clangPackageWithCustomModuleMapPath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+            Issue.record("Build should be succeeded. \(error.localizedDescription)")
         }
 
         for library in ["ClangPackageWithCustomModuleMap"] {
@@ -240,20 +231,19 @@ final class RunnerTests: XCTestCase {
             let framework = xcFramework.appendingPathComponent("ios-arm64")
                 .appendingPathComponent("\(library).framework")
 
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: framework.appendingPathComponent("Headers/mycalc.h").path),
                 "Should exist an umbrella header"
             )
 
             let moduleMapPath = framework.appendingPathComponent("Modules/module.modulemap").path
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: moduleMapPath),
                 "Should exist a modulemap"
             )
-            let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: UTF8.self) })
-            XCTAssertEqual(
-                moduleMapContents,
-                """
+            let moduleMapContents = try #require(fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: UTF8.self) })
+            #expect(
+                moduleMapContents == """
                 framework module ClangPackageWithCustomModuleMap {
                   header "mycalc.h"
                 }
@@ -261,14 +251,14 @@ final class RunnerTests: XCTestCase {
                 "modulemap should be converted for frameworks"
             )
 
-            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
+            #expect(fileManager.fileExists(atPath: xcFramework.path),
                           "Should create \(library).xcframework")
-            XCTAssertFalse(fileManager.fileExists(atPath: versionFile.path),
+            #expect(!fileManager.fileExists(atPath: versionFile.path),
                            "Should not create .\(library).version in create mode")
         }
     }
 
-    func testCacheIsValid() async throws {
+    @Test func cacheIsValid() async throws {
         let descriptionPackage = try await DescriptionPackage(
             packageDirectory: testPackagePath.absolutePath,
             mode: .prepareDependencies,
@@ -299,7 +289,7 @@ final class RunnerTests: XCTestCase {
             )
         }
         let versionFile2 = frameworkOutputDir.appendingPathComponent(".ScipioTesting.version")
-        XCTAssertTrue(fileManager.fileExists(atPath: versionFile2.path))
+        #expect(fileManager.fileExists(atPath: versionFile2.path))
 
         let runner = Runner(
             mode: .prepareDependencies,
@@ -313,7 +303,7 @@ final class RunnerTests: XCTestCase {
             try await runner.run(packageDirectory: testPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+            Issue.record("Build should be succeeded. \(error.localizedDescription)")
         }
 
         for library in ["ScipioTesting"] {
@@ -321,14 +311,14 @@ final class RunnerTests: XCTestCase {
                 .appendingPathComponent("\(library).xcframework")
                 .appendingPathComponent("Info.plist")
             let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
-            XCTAssertFalse(fileManager.fileExists(atPath: xcFramework.path),
+            #expect(!fileManager.fileExists(atPath: xcFramework.path),
                            "Should skip to build \(library).xcramework")
-            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
+            #expect(fileManager.fileExists(atPath: versionFile.path),
                           "Should create .\(library).version")
         }
     }
 
-    func testLocalDiskCacheStorage() async throws {
+    @Test func localDiskCacheStorage() async throws {
         let storage = LocalDiskCacheStorage(baseURL: tempDir)
         let storageDir = tempDir.appendingPathComponent("Scipio")
 
@@ -345,10 +335,10 @@ final class RunnerTests: XCTestCase {
             try await runner.run(packageDirectory: testPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+            Issue.record("Build should be succeeded. \(error.localizedDescription)")
         }
 
-        XCTAssertTrue(
+        #expect(
             fileManager.fileExists(atPath: storageDir.appendingPathComponent("ScipioTesting").path),
             "The framework should be cached to the cache storage"
         )
@@ -360,17 +350,17 @@ final class RunnerTests: XCTestCase {
             try await runner.run(packageDirectory: testPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded.")
+            Issue.record("Build should be succeeded.")
         }
 
         let outputFrameworkPath = frameworkOutputDir.appendingPathComponent("ScipioTesting.xcframework")
         let outputVersionFile = frameworkOutputDir.appendingPathComponent(".ScipioTesting.version")
 
-        XCTAssertTrue(
+        #expect(
             fileManager.fileExists(atPath: outputFrameworkPath.path),
             "The framework should be restored from the cache storage"
         )
-        XCTAssertTrue(
+        #expect(
             fileManager.fileExists(atPath: outputVersionFile.path),
             "The version file should exist when restored"
         )
@@ -378,7 +368,7 @@ final class RunnerTests: XCTestCase {
         try fileManager.removeItem(at: storageDir)
     }
 
-    func testMultipleCachePolicies() async throws {
+    @Test func multipleCachePolicies() async throws {
         let storage1CacheDir = tempDir.appending(path: "storage1", directoryHint: .isDirectory)
         let storage1 = LocalDiskCacheStorage(baseURL: storage1CacheDir)
         let storage1Dir = storage1CacheDir.appendingPathComponent("Scipio")
@@ -401,15 +391,15 @@ final class RunnerTests: XCTestCase {
             try await runner.run(packageDirectory: testPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+            Issue.record("Build should be succeeded. \(error.localizedDescription)")
         }
 
         // The cache are stored into 2 storages
-        XCTAssertTrue(
+        #expect(
             fileManager.fileExists(atPath: storage1Dir.appendingPathComponent("ScipioTesting").path),
             "The framework should be cached to the 1st cache storage"
         )
-        XCTAssertTrue(
+        #expect(
             fileManager.fileExists(atPath: storage2Dir.appendingPathComponent("ScipioTesting").path),
             "The framework should be cached to the 2nd cache storage as well"
         )
@@ -423,10 +413,10 @@ final class RunnerTests: XCTestCase {
             try await runner.run(packageDirectory: testPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded.")
+            Issue.record("Build should be succeeded.")
         }
 
-        XCTAssertTrue(
+        #expect(
             fileManager.fileExists(atPath: outputFrameworkPath.path),
             "The framework should be restored from the 2nd cache storage"
         )
@@ -435,7 +425,7 @@ final class RunnerTests: XCTestCase {
         try fileManager.removeItem(at: storage2CacheDir)
     }
 
-    func testExtractBinary() async throws {
+    @Test func extractBinary() async throws {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
@@ -454,7 +444,7 @@ final class RunnerTests: XCTestCase {
         try await runner.run(packageDirectory: binaryPackagePath, frameworkOutputDir: .custom(frameworkOutputDir))
 
         let binaryPath = frameworkOutputDir.appendingPathComponent("SomeBinary.xcframework")
-        XCTAssertTrue(
+        #expect(
             fileManager.fileExists(atPath: binaryPath.path),
             "Binary frameworks should be copied."
         )
@@ -462,7 +452,7 @@ final class RunnerTests: XCTestCase {
         try fileManager.removeItem(atPath: binaryPath.path)
     }
 
-    func testPrepareBinary() async throws {
+    @Test func prepareBinary() async throws {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
@@ -481,13 +471,13 @@ final class RunnerTests: XCTestCase {
         try await runner.run(packageDirectory: usingBinaryPackagePath, frameworkOutputDir: .custom(frameworkOutputDir))
 
         let binaryPath = frameworkOutputDir.appendingPathComponent("SomeBinary.xcframework")
-        XCTAssertTrue(
+        #expect(
             fileManager.fileExists(atPath: binaryPath.path),
             "Binary frameworks should be copied."
         )
 
         let versionFilePath = frameworkOutputDir.appendingPathComponent(".SomeBinary.version")
-        XCTAssertTrue(
+        #expect(
             fileManager.fileExists(atPath: versionFilePath.path),
             "Version files should be created"
         )
@@ -495,7 +485,7 @@ final class RunnerTests: XCTestCase {
         try fileManager.removeItem(atPath: binaryPath.path)
     }
 
-    func testBinaryHasValidCache() async throws {
+    @Test func binaryHasValidCache() async throws {
         // Generate VersionFile
         let descriptionPackage = try await DescriptionPackage(
             packageDirectory: usingBinaryPackagePath.absolutePath,
@@ -527,7 +517,7 @@ final class RunnerTests: XCTestCase {
             )
         }
         let versionFile2 = frameworkOutputDir.appendingPathComponent(".SomeBinary.version")
-        XCTAssertTrue(
+        #expect(
             fileManager.fileExists(atPath: versionFile2.path),
             "VersionFile should be generated"
         )
@@ -552,7 +542,7 @@ final class RunnerTests: XCTestCase {
         try await runner.run(packageDirectory: usingBinaryPackagePath, frameworkOutputDir: .custom(frameworkOutputDir))
 
         let binaryPath = frameworkOutputDir.appendingPathComponent("SomeBinary.xcframework")
-        XCTAssertTrue(
+        #expect(
             fileManager.fileExists(atPath: binaryPath.path),
             "Binary frameworks should be copied."
         )
@@ -560,15 +550,15 @@ final class RunnerTests: XCTestCase {
         // We generated an empty XCFramework directory to simulate cache is valid before.
         // So if runner doesn't create valid XCFrameworks, framework's contents are not exists
         let infoPlistPath = binaryPath.appendingPathComponent("Info.plist")
-        XCTAssertFalse(
-            fileManager.fileExists(atPath: infoPlistPath.path),
+        #expect(
+            !fileManager.fileExists(atPath: infoPlistPath.path),
             "XCFramework should not be updated"
         )
 
         try? fileManager.removeItem(atPath: binaryPath.path)
     }
 
-    func testWithPlatformMatrix() async throws {
+    @Test func withPlatformMatrix() async throws {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
@@ -596,14 +586,13 @@ final class RunnerTests: XCTestCase {
         for library in ["ScipioTesting"] {
             let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
             let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
-            let contentsOfXCFramework = try XCTUnwrap(fileManager.contentsOfDirectory(atPath: xcFramework.path))
-            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
+            let contentsOfXCFramework = try #require(try fileManager.contentsOfDirectory(atPath: xcFramework.path))
+            #expect(fileManager.fileExists(atPath: xcFramework.path),
                           "Should create \(library).xcramework")
-            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
+            #expect(fileManager.fileExists(atPath: versionFile.path),
                           "Should create .\(library).version")
-            XCTAssertEqual(
-                Set(contentsOfXCFramework),
-                [
+            #expect(
+                Set(contentsOfXCFramework) == [
                     "Info.plist",
                     "watchos-arm64_arm64_32_armv7k",
                     "ios-arm64_x86_64-simulator",
@@ -614,7 +603,7 @@ final class RunnerTests: XCTestCase {
         }
     }
 
-    func testWithResourcePackage() async throws {
+    @Test func withResourcePackage() async throws {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
@@ -635,35 +624,35 @@ final class RunnerTests: XCTestCase {
             let frameworkPath = xcFramework
                 .appendingPathComponent(arch)
                 .appendingPathComponent("ResourcePackage.framework")
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: frameworkPath.appendingPathComponent("PrivacyInfo.xcprivacy").path),
                 "PrivacyInfo.xcprivacy should be located at the expected location"
             )
 
             let bundlePath = frameworkPath
                 .appendingPathComponent("ResourcePackage_ResourcePackage.bundle")
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: bundlePath.path),
                 "A framework for \(arch) should contain resource bundles"
             )
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: bundlePath.appendingPathComponent("giginet.png").path),
                 "Image files should be contained"
             )
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: bundlePath.appendingPathComponent("AvatarView.nib").path),
                 "XIB files should be contained"
             )
 
-            let contents = try XCTUnwrap(try fileManager.contentsOfDirectory(atPath: bundlePath.path))
-            XCTAssertTrue(
+            let contents = try #require(try fileManager.contentsOfDirectory(atPath: bundlePath.path))
+            #expect(
                 Set(contents).isSuperset(of: ["giginet.png", "AvatarView.nib", "Info.plist"]),
                 "The resource bundle should contain expected resources"
             )
         }
     }
 
-    func testMergeableLibrary() async throws {
+    @Test func mergeableLibrary() async throws {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
@@ -688,21 +677,21 @@ final class RunnerTests: XCTestCase {
                 .appendingPathComponent(arch)
                 .appendingPathComponent("TestingPackage.framework")
                 .appendingPathComponent("TestingPackage")
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: binaryPath.path),
                 "A framework for \(arch) should contain binary"
             )
 
             let executionResult = try await executor.execute("/usr/bin/otool", "-l", binaryPath.path())
-            let loadCommands = try XCTUnwrap(executionResult.unwrapOutput())
-            XCTAssertTrue(
+            let loadCommands = try #require(try executionResult.unwrapOutput())
+            #expect(
                 loadCommands.contains("LC_ATOM_INFO"),
                 "A Mergeable Library should contain LC_ATOM_INFO segment"
             )
         }
     }
 
-    func testWithExtraBuildParameters() async throws {
+    @Test func withExtraBuildParameters() async throws {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
@@ -720,23 +709,23 @@ final class RunnerTests: XCTestCase {
             try await runner.run(packageDirectory: testPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+            Issue.record("Build should be succeeded. \(error.localizedDescription)")
         }
 
         for library in ["ScipioTesting"] {
             let xcFramework = frameworkOutputDir.appendingPathComponent("\(library).xcframework")
             let versionFile = frameworkOutputDir.appendingPathComponent(".\(library).version")
             let simulatorFramework = xcFramework.appendingPathComponent("ios-arm64_x86_64-simulator")
-            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
+            #expect(fileManager.fileExists(atPath: xcFramework.path),
                           "Should create \(library).xcramework")
-            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
+            #expect(fileManager.fileExists(atPath: versionFile.path),
                           "Should create .\(library).version")
-            XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.path),
+            #expect(!fileManager.fileExists(atPath: simulatorFramework.path),
                            "Should not create Simulator framework")
         }
     }
 
-    func testBuildXCFrameworkWithNoLibraryEvolution() async throws {
+    @Test func buildXCFrameworkWithNoLibraryEvolution() async throws {
         let runner = Runner(
             mode: .prepareDependencies,
             options: .init(
@@ -751,7 +740,7 @@ final class RunnerTests: XCTestCase {
             try await runner.run(packageDirectory: testPackagePath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+            Issue.record("Build should be succeeded. \(error.localizedDescription)")
         }
 
         for library in ["ScipioTesting"] {
@@ -760,32 +749,32 @@ final class RunnerTests: XCTestCase {
             let simulatorFramework = xcFramework.appendingPathComponent("ios-arm64_x86_64-simulator/\(library).framework")
             let deviceFramework = xcFramework.appendingPathComponent("ios-arm64/\(library).framework")
 
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: deviceFramework.appendingPathComponent("Headers/\(library)-Swift.h").path),
                 "Should exist a bridging header"
             )
 
-            XCTAssertTrue(
+            #expect(
                 fileManager.fileExists(atPath: deviceFramework.appendingPathComponent("Modules/module.modulemap").path),
                 "Should exist a modulemap"
             )
 
             let expectedSwiftInterface = deviceFramework.appendingPathComponent("Modules/\(library).swiftmodule/arm64-apple-ios.swiftinterface")
-            XCTAssertFalse(
-                fileManager.fileExists(atPath: expectedSwiftInterface.path),
+            #expect(
+                !fileManager.fileExists(atPath: expectedSwiftInterface.path),
                 "Should not exist a swiftinterface because emission is disabled"
             )
 
-            XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
+            #expect(fileManager.fileExists(atPath: xcFramework.path),
                           "Should create \(library).xcramework")
-            XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
+            #expect(fileManager.fileExists(atPath: versionFile.path),
                           "Should create .\(library).version")
-            XCTAssertFalse(fileManager.fileExists(atPath: simulatorFramework.path),
+            #expect(!fileManager.fileExists(atPath: simulatorFramework.path),
                            "Should not create Simulator framework")
         }
     }
 
-    func testGenerateModuleMapForUmbrellaDirectory() async throws {
+    @Test func generateModuleMapForUmbrellaDirectory() async throws {
         let runner = Runner(
             mode: .createPackage,
             options: .init(
@@ -797,7 +786,7 @@ final class RunnerTests: XCTestCase {
             try await runner.run(packageDirectory: clangPackageWithUmbrellaDirectoryPath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
-            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+            Issue.record("Build should be succeeded. \(error.localizedDescription)")
         }
 
         let xcFramework = frameworkOutputDir.appendingPathComponent("MyTarget.xcframework")
@@ -809,9 +798,9 @@ final class RunnerTests: XCTestCase {
         let headersDirPath = deviceFramework
             .appendingPathComponent("Headers")
 
-        XCTAssertTrue(fileManager.fileExists(atPath: moduleMapPath.path))
+        #expect(fileManager.fileExists(atPath: moduleMapPath.path))
 
-        let generatedModuleMapData = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath.path))
+        let generatedModuleMapData = try #require(fileManager.contents(atPath: moduleMapPath.path))
         let generatedModuleMapContents = String(decoding: generatedModuleMapData, as: UTF8.self)
 
         let expectedModuleMap = """
@@ -825,10 +814,10 @@ framework module MyTarget {
 }
 """
 
-        XCTAssertEqual(generatedModuleMapContents, expectedModuleMap, "A framework has a valid modulemap")
+        #expect(generatedModuleMapContents == expectedModuleMap, "A framework has a valid modulemap")
 
         let headers = try fileManager.contentsOfDirectory(atPath: headersDirPath.path)
-        XCTAssertEqual(headers, [
+        #expect(headers == [
             "a.h",
             "b.h",
             "add.h",
@@ -837,10 +826,9 @@ framework module MyTarget {
         ], "A framework contains all headers")
     }
 
-    override func tearDownWithError() throws {
-        try removeIfExist(at: testPackagePath.appendingPathComponent(".build"))
-        try removeIfExist(at: frameworkOutputDir)
-        try super.tearDownWithError()
+    deinit {
+        try? removeIfExist(at: testPackagePath.appendingPathComponent(".build"))
+        try? removeIfExist(at: frameworkOutputDir)
     }
 
     private func removeIfExist(at path: URL) throws {
