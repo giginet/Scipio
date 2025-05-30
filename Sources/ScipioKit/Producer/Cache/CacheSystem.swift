@@ -238,7 +238,7 @@ struct CacheSystem: Sendable {
             nil
         }
 
-        let pin = try retrievePinState(package: package)
+        let pinState = try retrievePinState(package: package)
 
         let targetName = target.buildProduct.target.name
         let buildOptions = target.buildOptions
@@ -250,7 +250,7 @@ struct CacheSystem: Sendable {
         }
         return SwiftPMCacheKey(
             localPackageCanonicalLocation: localPackageCanonicalLocation,
-            pin: pin,
+            pin: pinState,
             targetName: targetName,
             buildOptions: buildOptions,
             clangVersion: clangVersion,
