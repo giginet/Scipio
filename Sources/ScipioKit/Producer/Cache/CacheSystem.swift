@@ -313,23 +313,6 @@ extension ResolvedPackage {
     }
 }
 
-fileprivate extension PackageManifestKit.PackageKind {
-    var spmPackageKind: PackageReference.Kind {
-        switch self {
-        case .root(let url):
-            .root(url.spmAbsolutePath)
-        case .fileSystem(let url):
-            .fileSystem(url.spmAbsolutePath)
-        case .localSourceControl(let url):
-            .localSourceControl(url.spmAbsolutePath)
-        case .remoteSourceControl(let string):
-            .remoteSourceControl(SourceControlURL(string))
-        case .registry(let string):
-            .registry(.init(path: try! AbsolutePath(validating: string)))
-        }
-    }
-}
-
 fileprivate extension Pin.State {
     var spmPinState: PinsStore.PinState {
         if let version = version {
