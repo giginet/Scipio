@@ -9,7 +9,12 @@ struct BinaryExtractor {
     @discardableResult
     func extract(of binaryTarget: ResolvedModule, overwrite: Bool) throws -> URL {
         guard case let .binary(binaryLocation) = binaryTarget.resolvedModuleType else {
-            preconditionFailure("\(#function) must be called with a binary target. target name: \(binaryTarget.c99name), actual module type: \(binaryTarget.resolvedModuleType)")
+            preconditionFailure(
+                """
+                \(#function) must be called with a binary target. 
+                target name: \(binaryTarget.c99name), actual module type: \(binaryTarget.resolvedModuleType)
+                """
+            )
         }
 
         let artifactURL = binaryLocation.artifactURL(rootPackageDirectory: descriptionPackage.packageDirectory.asURL)
