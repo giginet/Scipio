@@ -260,7 +260,7 @@ struct CacheSystem: Sendable {
     }
 
     private func retrievePinState(package: ResolvedPackage) throws -> PinsStore.PinState {
-        guard let pinState = package.pinState?.spmPinState ?? (try? package.makePinStateFromRevision()) else {
+        guard let pinState = package.pinState?.spmPinState ?? package.makePinStateFromRevision() else {
             throw Error.revisionNotDetected(package.manifest.name)
         }
 
@@ -293,8 +293,11 @@ public struct VersionFileDecoder {
 }
 
 extension ResolvedPackage {
-    fileprivate func makePinStateFromRevision() throws -> PinsStore.PinState? {
-        let path = try AbsolutePath(validating: path)
+    fileprivate func makePinStateFromRevision() -> PinsStore.PinState? {
+        guard let path = try? AbsolutePath(validating: path) else {
+            return nil
+        }
+
         let repository = GitRepository(path: path)
 
         guard let tag = repository.getCurrentTag(), let version = Version(tag: tag) else {
