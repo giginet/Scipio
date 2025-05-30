@@ -1,5 +1,5 @@
 import Foundation
-import PackageGraph
+import PIFKit
 import Basics
 
 protocol Compiler {
@@ -12,7 +12,7 @@ protocol Compiler {
 
 extension Compiler {
     func extractDebugSymbolPaths(
-        target: ScipioResolvedModule,
+        target: ResolvedModule,
         buildConfiguration: BuildConfiguration,
         sdks: Set<SDK>,
         fileSystem: FileSystem = localFileSystem
@@ -50,7 +50,7 @@ extension DescriptionPackage {
     fileprivate func buildDebugSymbolPath(
         buildConfiguration: BuildConfiguration,
         sdk: SDK,
-        target: ScipioResolvedModule
+        target: ResolvedModule
     ) -> TSCAbsolutePath {
         productsDirectory(buildConfiguration: buildConfiguration, sdk: sdk)
             .appending(component: "\(target.name).framework.dSYM")

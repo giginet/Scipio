@@ -1,6 +1,5 @@
 import Foundation
 import Basics
-import PackageModel
 
 /// FileLists to assemble a framework bundle
 struct FrameworkComponents {
@@ -107,7 +106,7 @@ struct FrameworkComponentsCollector {
             binaryPath: binaryPath,
             infoPlistPath: infoPlistPath,
             swiftModulesPath: swiftModulesPath,
-            includeDir: (buildProduct.target.underlying as? ScipioClangModule)?.includeDir.scipioAbsolutePath,
+            includeDir: buildProduct.target.resolvedModuleType.includeDir?.absolutePath,
             publicHeaderPaths: publicHeaders,
             bridgingHeaderPath: bridgingHeaderPath,
             modulemapPath: frameworkModuleMapPath,
@@ -146,7 +145,9 @@ struct FrameworkComponentsCollector {
     }
 
     private func generatedResourceBundlePath() -> TSCAbsolutePath? {
-        guard let bundleName = buildProduct.target.underlying.bundleName else { return nil }
+        let bundleName: String? = buildProduct.target.underlying.bundleName(for: buildProduct.package.manifest)
+
+        guard let bundleName else { return nil }
 
         let path = productsDirectory.appending(component: "\(bundleName).bundle")
         return fileSystem.exists(path) ? path : nil
@@ -198,16 +199,13 @@ struct FrameworkComponentsCollector {
 
     /// Collects public headers of clangTarget
     private func collectPublicHeaders() throws -> Set<TSCAbsolutePath>? {
-        guard let clangModule = buildProduct.target.underlying as? ScipioClangModule else {
+        guard case let .clang(_, publicHeaders) = buildProduct.target.resolvedModuleType else {
             return nil
         }
 
-        let publicHeaders = clangModule
-            .headers
-            .filter { $0.isDescendant(of: clangModule.includeDir) }
-        let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0) }
-            .map { $0.scipioAbsolutePath }
-        let symlinks = publicHeaders.filter { fileSystem.isSymlink($0) }
+        let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0.spmAbsolutePath) }
+            .map { $0.absolutePath }
+        let symlinks = publicHeaders.filter { fileSystem.isSymlink($0.spmAbsolutePath) }
 
         // Sometimes, public headers include a file and its symlink both.
         // This situation raises a duplication error
@@ -215,7 +213,7 @@ struct FrameworkComponentsCollector {
         let notDuplicatedSymlinks = symlinks
             // `FileManager.contentsEqual` does not traverse symbolic links, but compares the links themselves.
             // So we need to resolve the links beforehand.
-            .map { $0.asURL.resolvingSymlinksInPath() }
+            .map { $0.resolvingSymlinksInPath() }
             .map(\.absolutePath)
             .filter { path in
                 notSymlinks.allSatisfy { !FileManager.default.contentsEqual(atPath: path.pathString, andPath: $0.pathString) }

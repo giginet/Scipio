@@ -1,7 +1,6 @@
 import Foundation
 import Logging
 import Basics
-import PackageGraph
 import XCBuildSupport
 import Algorithms
 
@@ -14,7 +13,7 @@ struct XCBuildExecutor {
         configuration: BuildConfiguration,
         derivedDataPath: TSCAbsolutePath,
         buildParametersPath: TSCAbsolutePath,
-        target: ScipioResolvedModule
+        target: ResolvedModule
     ) async throws {
         let executor = _Executor(args: [
             xcbuildPath.path(percentEncoded: false),

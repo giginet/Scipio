@@ -4,9 +4,10 @@ import Basics
 import struct TSCUtility.Version
 import Algorithms
 // We may drop this annotation in SwiftPM's future release
-@preconcurrency import PackageGraph
-import PackageModel
+@preconcurrency import class PackageGraph.PinsStore
+import struct PackageModel.PackageReference
 import SourceControl
+import PackageManifestKit
 
 private let jsonEncoder = {
     let encoder = JSONEncoder()
@@ -107,7 +108,6 @@ public struct SwiftPMCacheKey: CacheKey {
 
 struct CacheSystem: Sendable {
     static let defaultParalellNumber = 8
-    private let pinsStore: PinsStore
     private let outputDirectory: URL
     private let fileSystem: any FileSystem
 
@@ -137,11 +137,9 @@ struct CacheSystem: Sendable {
     }
 
     init(
-        pinsStore: PinsStore,
         outputDirectory: URL,
         fileSystem: any FileSystem = localFileSystem
     ) {
-        self.pinsStore = pinsStore
         self.outputDirectory = outputDirectory
         self.fileSystem = fileSystem
     }
@@ -233,14 +231,14 @@ struct CacheSystem: Sendable {
     func calculateCacheKey(of target: CacheTarget) async throws -> SwiftPMCacheKey {
         let package = target.buildProduct.package
 
-        let localPackageCanonicalLocation: String? = switch package.manifest.packageKind {
+        let localPackageCanonicalLocation: String? = switch package.resolvedPackageKind {
         case .fileSystem, .localSourceControl:
-            package.manifest.canonicalPackageLocation.description
+            package.canonicalPackageLocation.description
         case .root, .remoteSourceControl, .registry:
             nil
         }
 
-        let pin = try retrievePin(package: package)
+        let pinState = try retrievePinState(package: package)
 
         let targetName = target.buildProduct.target.name
         let buildOptions = target.buildOptions
@@ -252,7 +250,7 @@ struct CacheSystem: Sendable {
         }
         return SwiftPMCacheKey(
             localPackageCanonicalLocation: localPackageCanonicalLocation,
-            pin: pin.state,
+            pin: pinState,
             targetName: targetName,
             buildOptions: buildOptions,
             clangVersion: clangVersion,
@@ -261,11 +259,12 @@ struct CacheSystem: Sendable {
         )
     }
 
-    private func retrievePin(package: ResolvedPackage) throws -> PinsStore.Pin {
-        guard let pin = pinsStore.pins[package.identity] ?? package.makePinFromRevision() else {
-            throw Error.revisionNotDetected(package.manifest.displayName)
+    private func retrievePinState(package: ResolvedPackage) throws -> PinsStore.PinState {
+        guard let pinState = package.pinState?.spmPinState ?? package.makePinStateFromRevision() else {
+            throw Error.revisionNotDetected(package.manifest.name)
         }
-        return pin
+
+        return pinState
     }
 
     private func versionFilePath(for targetName: String) -> URL {
@@ -294,7 +293,11 @@ public struct VersionFileDecoder {
 }
 
 extension ResolvedPackage {
-    fileprivate func makePinFromRevision() -> PinsStore.Pin? {
+    fileprivate func makePinStateFromRevision() -> PinsStore.PinState? {
+        guard let path = try? AbsolutePath(validating: path) else {
+            return nil
+        }
+
         let repository = GitRepository(path: path)
 
         guard let tag = repository.getCurrentTag(), let version = Version(tag: tag) else {
@@ -303,15 +306,21 @@ extension ResolvedPackage {
 
         // TODO: Even though the version requirement already covers the vast majority of cases,
         // supporting `branch` and `revision` requirements should, in theory, also be possible.
-        return PinsStore.Pin(
-            packageRef: PackageReference(
-                identity: identity,
-                kind: manifest.packageKind
-            ),
-            state: .version(
-                version,
-                revision: try? repository.getCurrentRevision().identifier
-            )
+        return .version(
+            version,
+            revision: try? repository.getCurrentRevision().identifier
         )
+    }
+}
+
+fileprivate extension Pin.State {
+    var spmPinState: PinsStore.PinState {
+        if let version = version {
+            .version(Version(stringLiteral: version), revision: revision)
+        } else if let branch = branch {
+            .branch(name: branch, revision: revision)
+        } else {
+            .revision(revision)
+        }
     }
 }

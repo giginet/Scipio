@@ -164,6 +164,12 @@ Parsing package manifests and generating Xcode project is provided from the pack
 
 Scipio only uses `xcodebuild` to build Frameworks and XCFrameworks.
 
+## Notice
+
+Scipio copies several source files from [Swift Package Manager](https://github.com/apple/swift-package-manager).
+The copies are placed in [Sources/ScipioKit/SwiftPM](https://github.com/giginet/Scipio/tree/main/Sources/ScipioKit/SwiftPM),
+and are licensed under the Apache License, Version 2.0.
+
 ## Why Scipio
 
 Scipio names after a historical story about Carthage.
