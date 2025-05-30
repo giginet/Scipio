@@ -52,7 +52,6 @@ struct FrameworkProducer {
         try await clean()
 
         let buildProductDependencyGraph = try descriptionPackage.resolveBuildProductDependencyGraph()
-            .filter { Target.TargetKind.enabledKinds.contains($0.target.underlying.type) }
 
         try await processAllTargets(buildProductDependencyGraph: buildProductDependencyGraph)
     }

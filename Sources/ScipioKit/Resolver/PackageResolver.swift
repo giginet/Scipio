@@ -71,7 +71,7 @@ actor PackageResolver {
                 packageIdentity: dependencyPackage.identity,
                 pinState: pins[dependencyPackage.identity]?.state,
                 path: dependencyPackage.path,
-                targets: try await manifest.targets.filter { Target.TargetKind.enabledKinds.contains($0.type) }.asyncMap {
+                targets: try await manifest.targets.filter { shouldBuild($0.type) }.asyncMap {
                     try await self.resolve(
                         target: $0,
                         in: manifest
@@ -203,7 +203,7 @@ actor PackageResolver {
             underlying: product,
             modules: try await product.targets
                 .compactMap { targetName in manifest.targets.first(where: { $0.name == targetName }) }
-                .filter { Target.TargetKind.enabledKinds.contains($0.type) }
+                .filter { shouldBuild($0.type) }
                 .asyncMap { try await self.resolve(target: $0, in: manifest) },
             type: product.type,
             packageID: PackageID(packageKind: manifest.packageKind, packageIdentity: packageIdentity)
@@ -327,6 +327,10 @@ actor PackageResolver {
             }
         }
         self.resolvedPackageKinds.merge(actualPackageKinds) { _, new in new }
+    }
+
+    private func shouldBuild(_ target: Target.TargetKind) -> Bool {
+        target == .regular || target == .binary
     }
 }
 
