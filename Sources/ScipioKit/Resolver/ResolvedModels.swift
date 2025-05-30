@@ -25,6 +25,9 @@ struct PackageID: Hashable {
         packageKind: PackageKind,
         packageIdentity: String
     ) {
+        // FIXME: Dependency mirroring is not considered here yet.
+        // If a package is resolved using the original URL in one case and a mirror URL in another,
+        // the cache key may not match correctly, which could cause cache restore to fail.
         self.packageIdentity = packageIdentity
         switch packageKind {
         case .root(let url), .fileSystem(let url), .localSourceControl(let url):
