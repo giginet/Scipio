@@ -11,7 +11,7 @@ struct BinaryExtractor {
         guard case let .binary(binaryLocation) = binaryTarget.resolvedModuleType else {
             preconditionFailure(
                 """
-                \(#function) must be called with a binary target. 
+                \(#function) must be called with a binary target.
                 target name: \(binaryTarget.c99name), actual module type: \(binaryTarget.resolvedModuleType)
                 """
             )
