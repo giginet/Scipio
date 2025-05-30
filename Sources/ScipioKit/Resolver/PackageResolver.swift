@@ -91,12 +91,12 @@ actor PackageResolver {
 
     /// Resolve a dependency by name within a manifest.
     private func resolve(
-        byName: String,
+        by name: String,
         condition: PackageCondition?,
         dependencyPackage: DependencyPackage,
         in manifest: Manifest
     ) async throws -> ResolvedModule.Dependency? {
-        if let target = manifest.targets.first(where: { $0.name == byName }) {
+        if let target = manifest.targets.first(where: { $0.name == name }) {
             return try await .module(
                 resolve(target: target, in: manifest, dependencyPackage: dependencyPackage),
                 conditions: normalizeConditions(condition)
@@ -111,10 +111,10 @@ actor PackageResolver {
                 case .registry(let registry):
                     registry.identity
                 }
-            }.first { $0 == byName }
+            }.first { $0 == name }
 
             let resolvedProduct = try await resolve(
-                productName: byName,
+                productName: name,
                 packageName: packageName,
                 in: manifest
             )
@@ -148,7 +148,7 @@ actor PackageResolver {
 
             case .byName(let name, let condition):
                 return try await self.resolve(
-                    byName: name,
+                    by: name,
                     condition: condition,
                     dependencyPackage: dependencyPackage,
                     in: manifest
@@ -418,8 +418,8 @@ private struct ModuleTypeResolver {
         let defaultSwiftModulePath = "Sources/\(target.name)"
         let defaultClangModulePath = "src/\(target.name)"
         let swiftModuleRelativePath = target.path ?? defaultSwiftModulePath
-        let swiftModuleFullPath = URL(fileURLWithPath: packagePath).appending(component: swiftModuleRelativePath)
-        let clangModuleFullPath = URL(fileURLWithPath: packagePath).appending(component: defaultClangModulePath)
+        let swiftModuleFullPath = URL(filePath: packagePath).appending(component: swiftModuleRelativePath)
+        let clangModuleFullPath = URL(filePath: packagePath).appending(component: defaultClangModulePath)
 
         return if fileSystem.exists(swiftModuleFullPath.spmAbsolutePath) {
             swiftModuleFullPath
