@@ -9,6 +9,10 @@
 // See http://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 // ===----------------------------------------------------------------------===//
+//
+// NOTE: This file has been modified from the original version.
+//
+// ===----------------------------------------------------------------------===//
 
 import Foundation
 
