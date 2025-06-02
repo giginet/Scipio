@@ -3,10 +3,6 @@ import ScipioStorage
 import Basics
 import struct TSCUtility.Version
 import Algorithms
-// We may drop this annotation in SwiftPM's future release
-@preconcurrency import class PackageGraph.PinsStore
-import struct PackageModel.PackageReference
-import SourceControl
 import PackageManifestKit
 
 private let jsonEncoder = {
@@ -42,63 +38,10 @@ struct ClangChecker<E: Executor> {
     }
 }
 
-extension PinsStore.PinState: Codable {
-    enum Key: CodingKey {
-        case revision
-        case branch
-        case version
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var versionContainer = encoder.container(keyedBy: Key.self)
-        switch self {
-        case .version(let version, let revision):
-            try versionContainer.encode(version.description, forKey: .version)
-            try versionContainer.encode(revision, forKey: .revision)
-        case .revision(let revision):
-            try versionContainer.encode(revision, forKey: .revision)
-        case .branch(let branchName, let revision):
-            try versionContainer.encode(branchName, forKey: .branch)
-            try versionContainer.encode(revision, forKey: .revision)
-        }
-    }
-
-    public init(from decoder: Decoder) throws {
-        let decoder = try decoder.container(keyedBy: Key.self)
-        if decoder.contains(.branch) {
-            let branchName = try decoder.decode(String.self, forKey: .branch)
-            let revision = try decoder.decode(String.self, forKey: .revision)
-            self = .branch(name: branchName, revision: revision)
-        } else if decoder.contains(.version) {
-            let version = try decoder.decode(Version.self, forKey: .version)
-            let revision = try decoder.decode(String?.self, forKey: .revision)
-            self = .version(version, revision: revision)
-        } else {
-            let revision = try decoder.decode(String.self, forKey: .revision)
-            self = .revision(revision)
-        }
-    }
-}
-
-extension PinsStore.PinState: @retroactive Hashable {
-    public func hash(into hasher: inout Hasher) {
-        switch self {
-        case .revision(let revision):
-            hasher.combine(revision)
-        case .version(let version, let revision):
-            hasher.combine(version)
-            hasher.combine(revision)
-        case .branch(let branchName, let revision):
-            hasher.combine(branchName)
-            hasher.combine(revision)
-        }
-    }
-}
-
 public struct SwiftPMCacheKey: CacheKey {
     /// The canonical repository URL the manifest was loaded from, for local packages only.
     public var localPackageCanonicalLocation: String?
-    public var pin: PinsStore.PinState
+    public var pin: SPMPinState
     public var targetName: String
     var buildOptions: BuildOptions
     public var clangVersion: String
@@ -238,7 +181,7 @@ struct CacheSystem: Sendable {
             nil
         }
 
-        let pinState = try retrievePinState(package: package)
+        let pinState = try await retrievePinState(package: package)
 
         let targetName = target.buildProduct.target.name
         let buildOptions = target.buildOptions
@@ -259,8 +202,12 @@ struct CacheSystem: Sendable {
         )
     }
 
-    private func retrievePinState(package: ResolvedPackage) throws -> PinsStore.PinState {
-        guard let pinState = package.pinState?.spmPinState ?? package.makePinStateFromRevision() else {
+    private func retrievePinState(package: ResolvedPackage) async throws -> SPMPinState {
+        if let pinState = package.pinState?.spmPinState {
+            return pinState
+        }
+
+        guard let pinState = await package.makePinStateFromRevision() else {
             throw Error.revisionNotDetected(package.manifest.name)
         }
 
@@ -293,14 +240,12 @@ public struct VersionFileDecoder {
 }
 
 extension ResolvedPackage {
-    fileprivate func makePinStateFromRevision() -> PinsStore.PinState? {
-        guard let path = try? AbsolutePath(validating: path) else {
-            return nil
-        }
+    fileprivate func makePinStateFromRevision() async -> SPMPinState? {
+        let executor = GitExecutor(path: URL(filePath: path))
 
-        let repository = GitRepository(path: path)
-
-        guard let tag = repository.getCurrentTag(), let version = Version(tag: tag) else {
+        guard let tag = try? await executor.fetchCurrentTag(),
+              let version = Version(tag: tag)
+        else {
             return nil
         }
 
@@ -308,13 +253,13 @@ extension ResolvedPackage {
         // supporting `branch` and `revision` requirements should, in theory, also be possible.
         return .version(
             version,
-            revision: try? repository.getCurrentRevision().identifier
+            revision: try? await executor.fetchCurrentRevision()
         )
     }
 }
 
 fileprivate extension Pin.State {
-    var spmPinState: PinsStore.PinState {
+    var spmPinState: SPMPinState {
         if let version = version {
             .version(Version(stringLiteral: version), revision: revision)
         } else if let branch = branch {
@@ -322,5 +267,41 @@ fileprivate extension Pin.State {
         } else {
             .revision(revision)
         }
+    }
+}
+
+private struct GitExecutor<E: Executor> {
+    let path: URL
+    let executor: E
+
+    init(path: URL, executor: E = ProcessExecutor()) {
+        self.path = path
+        self.executor = executor
+    }
+
+    func fetchCurrentTag() async throws -> String {
+        let arguments = [
+            "/usr/bin/xcrun",
+            "git",
+            "-C",
+            path.path(percentEncoded: false),
+            "describe",
+            "--exact-match",
+            "--tags",
+        ]
+        return try await executor.execute(arguments).unwrapOutput().trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func fetchCurrentRevision() async throws -> String {
+        let arguments = [
+            "/usr/bin/xcrun",
+            "git",
+            "-C",
+            path.path(percentEncoded: false),
+            "rev-parse",
+            "--verify",
+            "HEAD",
+        ]
+        return try await executor.execute(arguments).unwrapOutput().trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
