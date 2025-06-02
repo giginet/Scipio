@@ -38,7 +38,10 @@ extension PackageResolver {
             assert(target.type == .binary)
 
             let artifactType: ResolvedModuleType.BinaryArtifactLocation = {
-                let artifactsLocation: ResolvedModuleType.BinaryArtifactLocation = .remote(packageIdentity: dependencyPackage.identity, name: target.name)
+                let artifactsLocation: ResolvedModuleType.BinaryArtifactLocation = .remote(
+                    packageIdentity: dependencyPackage.identity,
+                    name: target.name
+                )
                 let artifactsURL = artifactsLocation.artifactURL(rootPackageDirectory: rootPackageDirectory).spmAbsolutePath
 
                 return if fileSystem.exists(artifactsURL) {
