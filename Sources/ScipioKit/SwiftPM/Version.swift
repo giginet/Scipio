@@ -249,16 +249,6 @@ extension Version: LosslessStringConvertible {
     }
 }
 
-extension Version {
-    // This initialiser is no longer necessary, but kept around for source compatibility with SwiftPM.
-    /// Create a version object from string.
-    /// - Parameter  string: The string to parse.
-    @available(*, deprecated, renamed: "init(_:)")
-    public init?(string: String) {
-        self.init(string)
-    }
-}
-
 extension Version: ExpressibleByStringLiteral {
     public init(stringLiteral value: String) {
         guard let version = Version(value) else {
