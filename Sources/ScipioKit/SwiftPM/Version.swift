@@ -1,3 +1,5 @@
+// swiftlint:disable:next blanket_disable_command
+// swiftlint:disable all
 // ===----------------------------------------------------------------------===//
 //
 // This source file is part of the Swift open source project
@@ -78,7 +80,7 @@ public enum VersionError: Error, CustomStringConvertible {
         case let .invalidVersionCoreIdentifiersCount(identifiers, usesLenientParsing):
             return "\(identifiers.count > 3 ? "more than 3" : "fewer than \(usesLenientParsing ? 2 : 3)") identifiers in version core '\(identifiers.joined(separator: "."))'"
         case let .nonNumericalOrEmptyVersionCoreIdentifiers(identifiers):
-            if !identifiers.allSatisfy( { !$0.isEmpty } ) {
+            if !identifiers.allSatisfy( { !$0.isEmpty }) {
                 return "empty identifiers in version core '\(identifiers.joined(separator: "."))'"
             } else {
                 // Not checking for `.isASCII` here because non-ASCII characters should've already been caught before this.
@@ -143,7 +145,7 @@ extension Version {
         if let prereleaseDelimiterIndex = prereleaseDelimiterIndex {
             let prereleaseStartIndex = versionString.index(after: prereleaseDelimiterIndex)
             let prereleaseIdentifiers = versionString[prereleaseStartIndex..<(metadataDelimiterIndex ?? versionString.endIndex)].split(separator: ".", omittingEmptySubsequences: false)
-            guard prereleaseIdentifiers.allSatisfy( { $0.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" }) } ) else {
+            guard prereleaseIdentifiers.allSatisfy( { $0.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" }) }) else {
                 throw VersionError.nonAlphaNumerHyphenalPrereleaseIdentifiers(prereleaseIdentifiers.map { String($0) })
             }
             self.prereleaseIdentifiers = prereleaseIdentifiers.map { String($0) }
@@ -154,7 +156,7 @@ extension Version {
         if let metadataDelimiterIndex = metadataDelimiterIndex {
             let metadataStartIndex = versionString.index(after: metadataDelimiterIndex)
             let buildMetadataIdentifiers = versionString[metadataStartIndex...].split(separator: ".", omittingEmptySubsequences: false)
-            guard buildMetadataIdentifiers.allSatisfy( { $0.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" }) } ) else {
+            guard buildMetadataIdentifiers.allSatisfy( { $0.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" }) }) else {
                 throw VersionError.nonAlphaNumerHyphenalBuildMetadataIdentifiers(buildMetadataIdentifiers.map { String($0) })
             }
             self.buildMetadataIdentifiers = buildMetadataIdentifiers.map { String($0) }

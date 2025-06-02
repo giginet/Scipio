@@ -289,7 +289,9 @@ private struct GitExecutor<E: Executor> {
             "--exact-match",
             "--tags",
         ]
-        return try await executor.execute(arguments).unwrapOutput().trimmingCharacters(in: .whitespacesAndNewlines)
+        return try await executor.execute(arguments)
+            .unwrapOutput()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     func fetchCurrentRevision() async throws -> String {
@@ -302,6 +304,8 @@ private struct GitExecutor<E: Executor> {
             "--verify",
             "HEAD",
         ]
-        return try await executor.execute(arguments).unwrapOutput().trimmingCharacters(in: .whitespacesAndNewlines)
+        return try await executor.execute(arguments)
+            .unwrapOutput()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
