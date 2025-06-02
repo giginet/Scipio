@@ -21,6 +21,7 @@ actor PackageResolver {
     private let rootManifest: Manifest
     private let pins: [Pin.ID: Pin]
     private let manifestLoader: ManifestLoader
+    private let moduleTypeResolver: ModuleTypeResolver
     private let fileSystem: any FileSystem
 
     init(
@@ -40,6 +41,7 @@ actor PackageResolver {
         self.dependencyPackagesByName = parseResult.dependencyPackagesByName
         self.rootManifest = rootManifest
         self.manifestLoader = ManifestLoader(executor: executor)
+        self.moduleTypeResolver = ModuleTypeResolver(fileSystem: fileSystem, rootPackageDirectory: packageDirectory)
         self.fileSystem = fileSystem
 
         setActualPackageKinds(for: rootManifest)
@@ -280,12 +282,10 @@ actor PackageResolver {
             return cachedModuleType
         }
 
-        let resolvedModuleType = ModuleTypeResolver(
-            fileSystem: fileSystem,
-            rootPackageDirectory: packageDirectory,
+        let resolvedModuleType = moduleTypeResolver.resolve(
             target: target,
             dependencyPackage: dependencyPackage
-        ).resolve()
+        )
 
         cachedModuleType[target] = resolvedModuleType
 
@@ -337,8 +337,6 @@ actor PackageResolver {
 private struct ModuleTypeResolver {
     let fileSystem: any FileSystem
     let rootPackageDirectory: URL
-    let target: Target
-    let dependencyPackage: DependencyPackage
 
     let clangFileTypes = ["c", "m", "mm", "cc", "cpp", "cxx"]
     let headerExtensions = ["h", "hh", "hpp", "h++", "hp", "hxx", "H", "ipp", "def"]
@@ -346,16 +344,28 @@ private struct ModuleTypeResolver {
     let swiftFileType = "swift"
 
     /// Determine module type based on target type and source files.
-    func resolve() -> ResolvedModuleType {
+    func resolve(
+        target: Target,
+        dependencyPackage: DependencyPackage
+    ) -> ResolvedModuleType {
         switch target.type {
         case .binary:
-            resolveModuleTypeForBinary()
+            resolveModuleTypeForBinaryTarget(
+                target,
+                dependencyPackage: dependencyPackage
+            )
         default:
-            resolveModuleTypeForLibrary()
+            resolveModuleTypeForLibraryTarget(
+                target,
+                dependencyPackage: dependencyPackage
+            )
         }
     }
 
-    private func resolveModuleTypeForBinary() -> ResolvedModuleType {
+    private func resolveModuleTypeForBinaryTarget(
+        _ target: Target,
+        dependencyPackage: DependencyPackage
+    ) -> ResolvedModuleType {
         assert(target.type == .binary)
 
         let artifactType: ResolvedModuleType.BinaryArtifactLocation = {
@@ -365,17 +375,20 @@ private struct ModuleTypeResolver {
             return if fileSystem.exists(artifactsURL) {
                 artifactsLocation
             } else {
-                .local(resolveTargetFullPath(target: target))
+                .local(resolveTargetFullPath(of: target, dependencyPackage: dependencyPackage))
             }
         }()
 
         return .binary(artifactType)
     }
 
-    private func resolveModuleTypeForLibrary() -> ResolvedModuleType {
+    private func resolveModuleTypeForLibraryTarget(
+        _ target: Target,
+        dependencyPackage: DependencyPackage
+    ) -> ResolvedModuleType {
         assert(target.type != .binary)
 
-        let moduleFullPath = resolveTargetFullPath(target: target)
+        let moduleFullPath = resolveTargetFullPath(of: target, dependencyPackage: dependencyPackage)
         let moduleSourcesFullPaths = target.sources?.map { moduleFullPath.appending(component: $0) } ?? [moduleFullPath]
         let moduleExcludeFullPaths = target.exclude.map { moduleFullPath.appending(component: $0) }
         let publicHeadersPath = target.publicHeadersPath ?? "include"
@@ -414,7 +427,10 @@ private struct ModuleTypeResolver {
         }
     }
 
-    private func resolveTargetFullPath(target: Target) -> URL {
+    private func resolveTargetFullPath(
+        of target: Target,
+        dependencyPackage: DependencyPackage
+    ) -> URL {
         let packagePath = dependencyPackage.path
         // In SwiftPM, if target does not specify a path,
         // it is assumed to be located at 'Sources/<target name>' by default.
