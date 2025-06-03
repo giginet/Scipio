@@ -1,7 +1,5 @@
 import Foundation
-import PackageGraph
 import Basics
-import PackageModel
 
 // TODO: Remove TSCBasics
 // Since Swift 5.10, SwiftPM removes swift-tools-support-core(TSC), 
@@ -22,8 +20,3 @@ extension SwiftPMAbsolutePath {
         try! TSCAbsolutePath(validating: pathString)
     }
 }
-
-typealias ScipioResolvedModule = ResolvedModule
-typealias ScipioSwiftModule = SwiftModule
-typealias ScipioClangModule = ClangModule
-typealias ScipioBinaryModule = BinaryModule
