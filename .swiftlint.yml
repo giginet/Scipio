@@ -4,6 +4,7 @@ included:
 excluded:
   - .build
   - Tests/ScipioKitTests/Resources/Fixtures
+  - Sources/ScipioKit/SwiftPM/Version.swift
 disabled_rules:
   - function_parameter_count
   - force_try
