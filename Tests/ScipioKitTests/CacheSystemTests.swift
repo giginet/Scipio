@@ -20,7 +20,7 @@ final class CacheSystemTests: XCTestCase {
     func testEncodeCacheKey() throws {
         let cacheKey = SwiftPMCacheKey(
             localPackageCanonicalLocation: "/path/to/MyPackage",
-            pin: .revision("111111111"),
+            pin: .init(revision: "111111111"),
             targetName: "MyTarget",
             buildOptions: .init(
                 buildConfiguration: .release,
@@ -229,6 +229,6 @@ final class CacheSystemTests: XCTestCase {
         let cacheKey = try await cacheSystem.calculateCacheKey(of: cacheTarget)
 
         XCTAssertEqual(cacheKey.targetName, myTarget.name)
-        XCTAssertEqual(cacheKey.pin.description, "1.1.0")
+        XCTAssertEqual(cacheKey.pin.version, "1.1.0")
     }
 }

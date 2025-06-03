@@ -41,7 +41,7 @@ struct ClangChecker<E: Executor> {
 public struct SwiftPMCacheKey: CacheKey {
     /// The canonical repository URL the manifest was loaded from, for local packages only.
     public var localPackageCanonicalLocation: String?
-    public var pin: PinState
+    public var pin: Pin.State
     public var targetName: String
     var buildOptions: BuildOptions
     public var clangVersion: String
@@ -202,8 +202,8 @@ struct CacheSystem: Sendable {
         )
     }
 
-    private func retrievePinState(package: ResolvedPackage) async throws -> PinState {
-        if let pinState = package.pinState?.spmPinState {
+    private func retrievePinState(package: ResolvedPackage) async throws -> Pin.State {
+        if let pinState = package.pinState {
             return pinState
         }
 
@@ -240,33 +240,22 @@ public struct VersionFileDecoder {
 }
 
 extension ResolvedPackage {
-    fileprivate func makePinStateFromRevision() async -> PinState? {
+    fileprivate func makePinStateFromRevision() async -> Pin.State? {
         let executor = GitExecutor(path: URL(filePath: path))
 
         guard let tag = try? await executor.fetchCurrentTag(),
-              let version = Version(tag: tag)
+              let version = Version(tag: tag),
+              let revision = try? await executor.fetchCurrentRevision()
         else {
             return nil
         }
 
         // TODO: Even though the version requirement already covers the vast majority of cases,
         // supporting `branch` and `revision` requirements should, in theory, also be possible.
-        return .version(
-            version,
-            revision: try? await executor.fetchCurrentRevision()
+        return Pin.State(
+            revision: revision,
+            version: version.description
         )
-    }
-}
-
-fileprivate extension Pin.State {
-    var spmPinState: PinState {
-        if let version = version {
-            .version(Version(stringLiteral: version), revision: revision)
-        } else if let branch = branch {
-            .branch(name: branch, revision: revision)
-        } else {
-            .revision(revision)
-        }
     }
 }
 
