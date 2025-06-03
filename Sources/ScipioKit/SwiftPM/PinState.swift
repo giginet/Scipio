@@ -14,7 +14,7 @@
 //
 // ===----------------------------------------------------------------------===//
 
-public enum SPMPinState: Equatable, Sendable, CustomStringConvertible {
+public enum PinState: Equatable, Sendable, CustomStringConvertible {
     case branch(name: String, revision: String)
     case version(_ version: Version, revision: String?)
     case revision(_ revision: String)
@@ -31,7 +31,7 @@ public enum SPMPinState: Equatable, Sendable, CustomStringConvertible {
     }
 }
 
-extension SPMPinState: Codable {
+extension PinState: Codable {
     enum Key: CodingKey {
         case revision
         case branch
@@ -69,7 +69,7 @@ extension SPMPinState: Codable {
     }
 }
 
-extension SPMPinState: Hashable {
+extension PinState: Hashable {
     public func hash(into hasher: inout Hasher) {
         switch self {
         case .revision(let revision):

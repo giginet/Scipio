@@ -41,7 +41,7 @@ struct ClangChecker<E: Executor> {
 public struct SwiftPMCacheKey: CacheKey {
     /// The canonical repository URL the manifest was loaded from, for local packages only.
     public var localPackageCanonicalLocation: String?
-    public var pin: SPMPinState
+    public var pin: PinState
     public var targetName: String
     var buildOptions: BuildOptions
     public var clangVersion: String
@@ -202,7 +202,7 @@ struct CacheSystem: Sendable {
         )
     }
 
-    private func retrievePinState(package: ResolvedPackage) async throws -> SPMPinState {
+    private func retrievePinState(package: ResolvedPackage) async throws -> PinState {
         if let pinState = package.pinState?.spmPinState {
             return pinState
         }
@@ -240,7 +240,7 @@ public struct VersionFileDecoder {
 }
 
 extension ResolvedPackage {
-    fileprivate func makePinStateFromRevision() async -> SPMPinState? {
+    fileprivate func makePinStateFromRevision() async -> PinState? {
         let executor = GitExecutor(path: URL(filePath: path))
 
         guard let tag = try? await executor.fetchCurrentTag(),
@@ -259,7 +259,7 @@ extension ResolvedPackage {
 }
 
 fileprivate extension Pin.State {
-    var spmPinState: SPMPinState {
+    var spmPinState: PinState {
         if let version = version {
             .version(Version(stringLiteral: version), revision: revision)
         } else if let branch = branch {
