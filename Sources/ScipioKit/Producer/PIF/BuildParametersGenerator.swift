@@ -116,6 +116,7 @@ struct BuildParametersGenerator {
             toolchain: toolchain,
             configuration: buildOptions.buildConfiguration,
             arch: arch ?? "arm64",
+            // ref: https://github.com/swiftlang/swift-package-manager/blob/main/Sources/SPMBuildCore/BuildParameters/BuildParameters.swift#L194
             flags: BuildParameters.Flags(
                 cCompilerFlags: ["-g"],
                 cxxCompilerFlags: ["-g"],
