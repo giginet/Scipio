@@ -54,7 +54,7 @@ struct PIFGenerator {
 
         let path = packageLocator.workspaceDirectory
             .appending(component: "manifest-\(packageName)-\(sdk.settingValue).pif")
-        try fileSystem.writeFileContents(path.spmAbsolutePath, data: newJSONData)
+        try fileSystem.writeFileContents(path, data: newJSONData)
         return path
     }
 

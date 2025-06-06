@@ -174,37 +174,3 @@ struct XCBuildClient {
         return frameworksWithDebugSymbolArguments + outputPathArguments + additionalFlags
     }
 }
-
-private struct XCBuildOutputDecoder: ErrorDecoder {
-    private let jsonDecoder = JSONDecoder()
-
-    func decode(_ result: ExecutorResult) throws -> String? {
-        let lines = try result.unwrapOutput().split(separator: "\n")
-            .map(String.init)
-        return lines.compactMap { line -> String? in
-            if let info = try? jsonDecoder.decode(XCBuildErrorInfo.self, from: line), !info.isIgnored {
-                return info.message ?? info.data
-            }
-            return nil
-        }
-        .compactMap { $0 }
-        .joined(separator: "\n")
-    }
-}
-
-private let ignoredKind = ["didUpdateProgress"]
-
-private struct XCBuildErrorInfo: Decodable {
-    var kind: String?
-    var result: String?
-    var error: String?
-    var message: String?
-    var data: String?
-
-    fileprivate var isIgnored: Bool {
-        if let kind {
-            return ignoredKind.contains(kind)
-        }
-        return false
-    }
-}

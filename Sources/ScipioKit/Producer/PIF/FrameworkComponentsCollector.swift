@@ -119,7 +119,7 @@ struct FrameworkComponentsCollector {
     private func copyModuleMapContentsToBuildArtifacts(_ data: Data) throws -> AbsolutePath {
         let generatedModuleMapPath = try packageLocator.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
 
-        try fileSystem.writeFileContents(generatedModuleMapPath.spmAbsolutePath, data: data)
+        try fileSystem.writeFileContents(generatedModuleMapPath, data: data)
         return generatedModuleMapPath
     }
 
@@ -203,9 +203,9 @@ struct FrameworkComponentsCollector {
             return nil
         }
 
-        let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0.spmAbsolutePath) }
+        let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0.absolutePath) }
             .map { $0.absolutePath }
-        let symlinks = publicHeaders.filter { fileSystem.isSymlink($0.spmAbsolutePath) }
+        let symlinks = publicHeaders.filter { fileSystem.isSymlink($0.absolutePath) }
 
         // Sometimes, public headers include a file and its symlink both.
         // This situation raises a duplication error

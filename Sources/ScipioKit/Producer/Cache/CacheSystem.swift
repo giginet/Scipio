@@ -131,7 +131,7 @@ struct CacheSystem: Sendable {
         let data = try jsonEncoder.encode(cacheKey)
         let versionFilePath = outputDirectory.appendingPathComponent(versionFileName(for: target.buildProduct.target.name))
         try fileSystem.writeFileContents(
-            versionFilePath.absolutePath.spmAbsolutePath,
+            versionFilePath.absolutePath,
             data: data
         )
     }
@@ -232,7 +232,7 @@ public struct VersionFileDecoder {
 
     public func decode(versionFile: URL) throws -> SwiftPMCacheKey {
         try jsonDecoder.decode(
-            path: versionFile.absolutePath.spmAbsolutePath,
+            path: versionFile.absolutePath,
             fileSystem: fileSystem,
             as: SwiftPMCacheKey.self
         )

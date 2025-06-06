@@ -86,7 +86,7 @@ struct BuildParametersGenerator {
 
         // Write out the parameters as a JSON file, and return the path.
         let filePath = destinationDir.appending(component: "build-parameters-\(sdk.settingValue).json")
-        let encoder = JSONEncoder.makeWithDefaults()
+        let encoder = JSONEncoder()
         let data = try encoder.encode(params)
         try self.fileSystem.writeFileContents(filePath, bytes: ByteString(data))
         return filePath

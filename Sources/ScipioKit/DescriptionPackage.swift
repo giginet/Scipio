@@ -54,7 +54,7 @@ struct DescriptionPackage: PackageLocator {
         self.graph = try await PackageResolver(
             packageDirectory: packageDirectory.asURL,
             rootManifest: self.manifest,
-            fileSystem: Basics.localFileSystem
+            fileSystem: TSCBasic.localFileSystem
         ).resolve()
     }
 }

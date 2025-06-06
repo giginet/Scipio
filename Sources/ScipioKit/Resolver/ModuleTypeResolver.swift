@@ -42,7 +42,7 @@ extension PackageResolver {
                     packageIdentity: dependencyPackage.identity,
                     name: target.name
                 )
-                let artifactsURL = artifactsLocation.artifactURL(rootPackageDirectory: rootPackageDirectory).spmAbsolutePath
+                let artifactsURL = artifactsLocation.artifactURL(rootPackageDirectory: rootPackageDirectory).absolutePath
 
                 return if fileSystem.exists(artifactsURL) {
                     artifactsLocation
@@ -94,7 +94,7 @@ extension PackageResolver {
                         .enumerator(at: includeDir, includingPropertiesForKeys: nil)?
                         .compactMap { $0 as? URL }
                         .filter { headerExtensions.contains($0.pathExtension) }
-                        ?? []
+                    ?? []
                 )
             }
         }
@@ -107,7 +107,7 @@ extension PackageResolver {
 
             // If an explicit path is provided, use it first.
             if let explicitURL = target.path.map({ packageURL.appending(component: $0) }),
-                fileSystem.exists(explicitURL.absolutePath) {
+               fileSystem.exists(explicitURL.absolutePath) {
                 return explicitURL
             }
 

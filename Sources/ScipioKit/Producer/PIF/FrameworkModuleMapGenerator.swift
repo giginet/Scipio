@@ -72,7 +72,7 @@ struct FrameworkModuleMapGenerator {
             case .umbrellaHeader(let headerPath):
                 return ([
                     "framework module \(context.resolvedTarget.c99name) {",
-                    "    umbrella header \"\(headerPath.spmAbsolutePath.basename)\"",
+                    "    umbrella header \"\(headerPath.absolutePath.basename)\"",
                     "    export *",
                 ]
                 + generateLinkSection(context: context)
@@ -155,7 +155,7 @@ struct FrameworkModuleMapGenerator {
         try fileSystem.createDirectory(dirPath, recursive: true)
 
         let contents = try generateModuleMapContents(context: context, moduleMapType: moduleMapType)
-        try fileSystem.writeFileContents(outputPath.spmAbsolutePath, string: contents)
+        try fileSystem.writeFileContents(outputPath, string: contents)
     }
 
     private func constructGeneratedModuleMapPath(context: Context) throws -> AbsolutePath {

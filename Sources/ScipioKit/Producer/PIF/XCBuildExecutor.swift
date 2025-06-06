@@ -84,7 +84,9 @@ private final class _Executor {
     }
 
     private func parse(bytes: [UInt8]) {
-        let jsons = String(bytes: bytes, encoding: .utf8)?.components(separatedBy: "\n") ?? []
+        let jsons = String(bytes: bytes, encoding: .utf8)?
+            .components(separatedBy: "\n")
+            .compactMap { $0.data(using: .utf8) } ?? []
         for json in jsons {
             if let message = try? jsonDecoder.decode(XCBuildMessage.self, from: json) {
                 handle(message: message)

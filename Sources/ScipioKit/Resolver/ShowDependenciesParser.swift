@@ -37,7 +37,8 @@ extension PackageResolver {
             ]
 
             let dependencyString = try await executor.execute(commands).unwrapOutput()
-            let dependency = try jsonDecoder.decode(ShowDependenciesResponse.self, from: dependencyString)
+            let dependencyData = dependencyString.data(using: .utf8)!
+            let dependency = try jsonDecoder.decode(ShowDependenciesResponse.self, from: dependencyData)
             return flattenPackages(dependency)
         }
 
