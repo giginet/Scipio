@@ -2,12 +2,12 @@ import Foundation
 import TSCBasic
 
 struct ToolchainGenerator {
-    private let toolchainDirPath: TSCAbsolutePath
+    private let toolchainDirPath: AbsolutePath
     private let environment: [String: String]?
     private let executor: any Executor
 
     init(
-        toolchainDirPath: TSCAbsolutePath,
+        toolchainDirPath: AbsolutePath,
         environment: [String: String]? = nil,
         executor: any Executor = ProcessExecutor()
     ) {
@@ -25,7 +25,7 @@ struct ToolchainGenerator {
         )
             .unwrapOutput()
             .spm_chomp()
-        let sdkPath = try TSCAbsolutePath(validating: sdkPathString)
+        let sdkPath = try AbsolutePath(validating: sdkPathString)
 
         // Compute common arguments for clang and swift.
         var extraCCFlags: [String] = []

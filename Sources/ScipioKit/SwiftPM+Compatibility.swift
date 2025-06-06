@@ -9,14 +9,14 @@ import TSCBasic
 // At this moment, we just provides utils to bridge them at this time as below.
 typealias SwiftPMAbsolutePath = Basics.AbsolutePath
 
-extension TSCAbsolutePath {
+extension AbsolutePath {
     var spmAbsolutePath: SwiftPMAbsolutePath {
         SwiftPMAbsolutePath(self)
     }
 }
 
 extension SwiftPMAbsolutePath {
-    var scipioAbsolutePath: TSCAbsolutePath {
-        try! TSCAbsolutePath(validating: pathString)
+    var scipioAbsolutePath: AbsolutePath {
+        try! AbsolutePath(validating: pathString)
     }
 }

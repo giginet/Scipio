@@ -10,13 +10,13 @@ private let fixturesPath = URL(fileURLWithPath: #filePath)
 private let clangPackageWithUmbrellaDirectoryPath = fixturesPath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
 
 private struct PackageLocatorMock: PackageLocator {
-    let packageDirectory: TSCAbsolutePath
+    let packageDirectory: AbsolutePath
 }
 
 @Suite(.serialized)
 struct FrameworkModuleMapGeneratorTests {
     let fileSystem = localFileSystem
-    let temporaryDirectory: TSCAbsolutePath
+    let temporaryDirectory: AbsolutePath
 
     init() throws {
         self.temporaryDirectory = try fileSystem
@@ -70,7 +70,7 @@ framework module MyTarget {
 
     private func generateModuleMap(
         keepPublicHeadersStructure: Bool,
-        outputDirectory: TSCAbsolutePath
+        outputDirectory: AbsolutePath
     ) async throws -> String {
         let packageLocator = PackageLocatorMock(packageDirectory: outputDirectory)
         let generator = FrameworkModuleMapGenerator(

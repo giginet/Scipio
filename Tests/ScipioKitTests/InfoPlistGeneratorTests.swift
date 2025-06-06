@@ -6,7 +6,7 @@ import TSCBasic
 final class InfoPlistGeneratorTests: XCTestCase {
     let fileSystem = localFileSystem
     lazy var generator = InfoPlistGenerator(fileSystem: fileSystem)
-    var temporaryPath: TSCAbsolutePath!
+    var temporaryPath: AbsolutePath!
 
     override func setUp() async throws {
         try await super.setUp()

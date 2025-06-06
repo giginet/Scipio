@@ -16,10 +16,10 @@ extension Compiler {
         buildConfiguration: BuildConfiguration,
         sdks: Set<SDK>,
         fileSystem: FileSystem = localFileSystem
-    ) async throws -> [SDK: [TSCAbsolutePath]] {
+    ) async throws -> [SDK: [AbsolutePath]] {
         let extractor = DwarfExtractor()
 
-        var result = [SDK: [TSCAbsolutePath]]()
+        var result = [SDK: [AbsolutePath]]()
 
         for sdk in sdks {
             let dsymPath = descriptionPackage.buildDebugSymbolPath(
@@ -31,7 +31,7 @@ extension Compiler {
 
             let dwarfPath = extractor.dwarfPath(for: target, dSYMPath: dsymPath)
             let dumpedDSYMsMaps = try await extractor.dump(dwarfPath: dwarfPath)
-            let bcSymbolMapPaths: [TSCAbsolutePath] = dumpedDSYMsMaps.values.compactMap { uuid in
+            let bcSymbolMapPaths: [AbsolutePath] = dumpedDSYMsMaps.values.compactMap { uuid in
                 let path = descriptionPackage.productsDirectory(
                     buildConfiguration: buildConfiguration,
                     sdk: sdk
@@ -51,7 +51,7 @@ extension DescriptionPackage {
         buildConfiguration: BuildConfiguration,
         sdk: SDK,
         target: ResolvedModule
-    ) -> TSCAbsolutePath {
+    ) -> AbsolutePath {
         productsDirectory(buildConfiguration: buildConfiguration, sdk: sdk)
             .appending(component: "\(target.name).framework.dSYM")
     }

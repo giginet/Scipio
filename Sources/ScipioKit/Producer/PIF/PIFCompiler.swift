@@ -25,11 +25,11 @@ struct PIFCompiler: Compiler {
         self.buildParametersGenerator = .init(buildOptions: buildOptions, fileSystem: fileSystem, executor: executor)
     }
 
-    private func fetchDefaultToolchainBinPath() async throws -> TSCAbsolutePath {
+    private func fetchDefaultToolchainBinPath() async throws -> AbsolutePath {
         let result = try await executor.execute("/usr/bin/xcrun", "xcode-select", "-p")
         let rawString = try result.unwrapOutput().trimmingCharacters(in: .whitespacesAndNewlines)
-        let developerDirPath = try TSCAbsolutePath(validating: rawString)
-        let toolchainPath = try TSCRelativePath(validating: "./Toolchains/XcodeDefault.xctoolchain/usr/bin")
+        let developerDirPath = try AbsolutePath(validating: rawString)
+        let toolchainPath = try RelativePath(validating: "./Toolchains/XcodeDefault.xctoolchain/usr/bin")
         return developerDirPath.appending(toolchainPath)
     }
 
@@ -96,13 +96,13 @@ struct PIFCompiler: Compiler {
 
         // If there is existing framework, remove it
         let frameworkName = target.xcFrameworkName
-        let outputXCFrameworkPath = try TSCAbsolutePath(validating: outputDirectory.path).appending(component: frameworkName)
+        let outputXCFrameworkPath = try AbsolutePath(validating: outputDirectory.path).appending(component: frameworkName)
         if fileSystem.exists(outputXCFrameworkPath) && overwrite {
             logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
             try fileSystem.removeFileTree(outputXCFrameworkPath)
         }
 
-        let debugSymbolPaths: [SDK: [TSCAbsolutePath]]?
+        let debugSymbolPaths: [SDK: [AbsolutePath]]?
         if buildOptions.isDebugSymbolsEmbedded {
             debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
                                                                  buildConfiguration: buildOptions.buildConfiguration,

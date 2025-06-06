@@ -10,21 +10,21 @@ struct FrameworkComponents {
     /// - seealso: https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html
     var isVersionedBundle: Bool
     var frameworkName: String
-    var frameworkPath: TSCAbsolutePath
-    var binaryPath: TSCAbsolutePath
-    var infoPlistPath: TSCAbsolutePath
-    var swiftModulesPath: TSCAbsolutePath?
-    var includeDir: TSCAbsolutePath?
-    var publicHeaderPaths: Set<TSCAbsolutePath>?
-    var bridgingHeaderPath: TSCAbsolutePath?
-    var modulemapPath: TSCAbsolutePath?
-    var resourceBundlePath: TSCAbsolutePath?
+    var frameworkPath: AbsolutePath
+    var binaryPath: AbsolutePath
+    var infoPlistPath: AbsolutePath
+    var swiftModulesPath: AbsolutePath?
+    var includeDir: AbsolutePath?
+    var publicHeaderPaths: Set<AbsolutePath>?
+    var bridgingHeaderPath: AbsolutePath?
+    var modulemapPath: AbsolutePath?
+    var resourceBundlePath: AbsolutePath?
 }
 
 /// A collector to collect framework components from a DerivedData dir
 struct FrameworkComponentsCollector {
     enum Error: LocalizedError {
-        case infoPlistNotFound(frameworkBundlePath: TSCAbsolutePath)
+        case infoPlistNotFound(frameworkBundlePath: AbsolutePath)
 
         var errorDescription: String? {
             switch self {
@@ -40,7 +40,7 @@ struct FrameworkComponentsCollector {
     private let packageLocator: any PackageLocator
     private let fileSystem: any FileSystem
 
-    private let productsDirectory: TSCAbsolutePath
+    private let productsDirectory: AbsolutePath
 
     init(
         buildProduct: BuildProduct,
@@ -62,7 +62,7 @@ struct FrameworkComponentsCollector {
     }
 
     func collectComponents(sdk: SDK) throws -> FrameworkComponents {
-        let frameworkModuleMapPath: TSCAbsolutePath?
+        let frameworkModuleMapPath: AbsolutePath?
         if let customFrameworkModuleMapContents = buildOptions.customFrameworkModuleMapContents {
             logger.info("📝 Using custom modulemap for \(buildProduct.target.name)(\(sdk.displayName))")
             frameworkModuleMapPath = try copyModuleMapContentsToBuildArtifacts(customFrameworkModuleMapContents)
@@ -116,14 +116,14 @@ struct FrameworkComponentsCollector {
     }
 
     /// Copy content data to the build artifacts
-    private func copyModuleMapContentsToBuildArtifacts(_ data: Data) throws -> TSCAbsolutePath {
+    private func copyModuleMapContentsToBuildArtifacts(_ data: Data) throws -> AbsolutePath {
         let generatedModuleMapPath = try packageLocator.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
 
         try fileSystem.writeFileContents(generatedModuleMapPath.spmAbsolutePath, data: data)
         return generatedModuleMapPath
     }
 
-    private func generateFrameworkModuleMap() throws -> TSCAbsolutePath? {
+    private func generateFrameworkModuleMap() throws -> AbsolutePath? {
         let modulemapGenerator = FrameworkModuleMapGenerator(
             packageLocator: packageLocator,
             fileSystem: fileSystem
@@ -140,11 +140,11 @@ struct FrameworkComponentsCollector {
         return frameworkModuleMapPath
     }
 
-    private func generatedFrameworkPath() -> TSCAbsolutePath {
+    private func generatedFrameworkPath() -> AbsolutePath {
         productsDirectory.appending(component: "\(buildProduct.target.c99name).framework")
     }
 
-    private func generatedResourceBundlePath() -> TSCAbsolutePath? {
+    private func generatedResourceBundlePath() -> AbsolutePath? {
         let bundleName: String? = buildProduct.target.underlying.bundleName(for: buildProduct.package.manifest)
 
         guard let bundleName else { return nil }
@@ -154,9 +154,9 @@ struct FrameworkComponentsCollector {
     }
 
     private func collectInfoPlist(
-        in frameworkBundlePath: TSCAbsolutePath,
+        in frameworkBundlePath: AbsolutePath,
         isVersionedBundle: Bool
-    ) throws -> TSCAbsolutePath {
+    ) throws -> AbsolutePath {
         let infoPlistLocation = if isVersionedBundle {
             // In a versioned framework bundle (for macOS), Info.plist should be in Resources
             frameworkBundlePath.appending(components: "Resources", "Info.plist")
@@ -173,7 +173,7 @@ struct FrameworkComponentsCollector {
     }
 
     /// Collects *.swiftmodules* in a generated framework bundle
-    private func collectSwiftModules(of targetName: String, in frameworkPath: TSCAbsolutePath) throws -> TSCAbsolutePath? {
+    private func collectSwiftModules(of targetName: String, in frameworkPath: AbsolutePath) throws -> AbsolutePath? {
         let swiftModulesPath = frameworkPath.appending(
             components: "Modules", "\(targetName).swiftmodule"
         )
@@ -185,7 +185,7 @@ struct FrameworkComponentsCollector {
     }
 
     /// Collects a bridging header in a generated framework bundle
-    private func collectBridgingHeader(of targetName: String, in frameworkPath: TSCAbsolutePath) throws -> TSCAbsolutePath? {
+    private func collectBridgingHeader(of targetName: String, in frameworkPath: AbsolutePath) throws -> AbsolutePath? {
         let generatedBridgingHeader = frameworkPath.appending(
             components: "Headers", "\(targetName)-Swift.h"
         )
@@ -198,7 +198,7 @@ struct FrameworkComponentsCollector {
     }
 
     /// Collects public headers of clangTarget
-    private func collectPublicHeaders() throws -> Set<TSCAbsolutePath>? {
+    private func collectPublicHeaders() throws -> Set<AbsolutePath>? {
         guard case let .clang(_, publicHeaders) = buildProduct.target.resolvedModuleType else {
             return nil
         }

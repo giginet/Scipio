@@ -74,8 +74,8 @@ struct XCBuildClient {
 
     func buildFramework(
         sdk: SDK,
-        pifPath: TSCAbsolutePath,
-        buildParametersPath: TSCAbsolutePath
+        pifPath: AbsolutePath,
+        buildParametersPath: AbsolutePath
     ) async throws -> URL {
         let xcbuildPath = try await fetchXCBuildPath()
 
@@ -121,7 +121,7 @@ struct XCBuildClient {
         return try assembler.assemble()
     }
 
-    private func assembledFrameworkPath(target: ResolvedModule, of sdk: SDK) throws -> TSCAbsolutePath {
+    private func assembledFrameworkPath(target: ResolvedModule, of sdk: SDK) throws -> AbsolutePath {
         let assembledFrameworkDir = packageLocator.assembledFrameworksDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
             sdk: sdk
@@ -132,8 +132,8 @@ struct XCBuildClient {
 
     func createXCFramework(
         sdks: Set<SDK>,
-        debugSymbols: [SDK: [TSCAbsolutePath]]?,
-        outputPath: TSCAbsolutePath
+        debugSymbols: [SDK: [AbsolutePath]]?,
+        outputPath: AbsolutePath
     ) async throws {
         let xcbuildPath = try await fetchXCBuildPath()
 
@@ -153,8 +153,8 @@ struct XCBuildClient {
 
     private func buildCreateXCFrameworkArguments(
         sdks: Set<SDK>,
-        debugSymbols: [SDK: [TSCAbsolutePath]]?,
-        outputPath: TSCAbsolutePath
+        debugSymbols: [SDK: [AbsolutePath]]?,
+        outputPath: AbsolutePath
     ) throws -> [String] {
         let frameworksWithDebugSymbolArguments: [String] = try sdks.reduce([]) { arguments, sdk in
             let path = try assembledFrameworkPath(target: buildProduct.target, of: sdk)

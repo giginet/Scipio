@@ -8,10 +8,10 @@ struct XCBuildExecutor {
     var xcbuildPath: URL
 
     func build(
-        pifPath: TSCAbsolutePath,
+        pifPath: AbsolutePath,
         configuration: BuildConfiguration,
-        derivedDataPath: TSCAbsolutePath,
-        buildParametersPath: TSCAbsolutePath,
+        derivedDataPath: AbsolutePath,
+        buildParametersPath: AbsolutePath,
         target: ResolvedModule
     ) async throws {
         let executor = _Executor(args: [

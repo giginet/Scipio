@@ -4,7 +4,7 @@ import PackageManifestKit
 
 struct DescriptionPackage: PackageLocator {
     let mode: Runner.Mode
-    let packageDirectory: TSCAbsolutePath
+    let packageDirectory: AbsolutePath
     let graph: ModulesGraph
     let manifest: PackageManifestKit.Manifest
     let jsonDecoder = JSONDecoder()
@@ -41,7 +41,7 @@ struct DescriptionPackage: PackageLocator {
     ///   If it is `true`, Package.resolved never be updated.
     ///   Instead, the resolving will fail if the Package.resolved is mis-matched with the workspace.
     init(
-        packageDirectory: TSCAbsolutePath,
+        packageDirectory: AbsolutePath,
         mode: Runner.Mode,
         onlyUseVersionsFromResolvedFile: Bool,
         executor: some Executor = ProcessExecutor(decoder: StandardOutputDecoder())

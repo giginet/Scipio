@@ -36,7 +36,7 @@ struct BuildParametersGenerator {
         self.executor = executor
     }
 
-    func generate(for sdk: SDK, buildParameters: Parameters, destinationDir: TSCAbsolutePath) throws -> TSCAbsolutePath {
+    func generate(for sdk: SDK, buildParameters: Parameters, destinationDir: AbsolutePath) throws -> AbsolutePath {
         let targetArchitecture = buildParameters.arch
 
         // Generate the run destination parameters.

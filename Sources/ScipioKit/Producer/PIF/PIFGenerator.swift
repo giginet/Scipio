@@ -43,7 +43,7 @@ struct PIFGenerator {
         return try PIFManipulator(jsonData: data)
     }
 
-    func generateJSON(for sdk: SDK) async throws -> TSCAbsolutePath {
+    func generateJSON(for sdk: SDK) async throws -> AbsolutePath {
         let manipulator = try await buildPIFManipulator()
 
         manipulator.updateTargets { target in

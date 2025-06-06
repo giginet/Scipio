@@ -2,8 +2,8 @@ import Foundation
 import TSCBasic
 
 extension URL {
-    var absolutePath: TSCAbsolutePath {
-        return try! TSCAbsolutePath(validating: path)
+    var absolutePath: AbsolutePath {
+        return try! AbsolutePath(validating: path)
     }
 
     var spmAbsolutePath: SwiftPMAbsolutePath {

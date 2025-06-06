@@ -8,7 +8,7 @@ struct InfoPlistGenerator {
         self.fileSystem = fileSystem
     }
 
-    func generateForResourceBundle(at path: TSCAbsolutePath) throws {
+    func generateForResourceBundle(at path: AbsolutePath) throws {
         let body = resourceBundleBody
         try fileSystem.writeFileContents(path.spmAbsolutePath, string: body)
     }

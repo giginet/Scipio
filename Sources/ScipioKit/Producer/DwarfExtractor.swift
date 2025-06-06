@@ -10,11 +10,11 @@ struct DwarfExtractor<E: Executor> {
 
     typealias Arch = String
 
-    func dwarfPath(for target: ResolvedModule, dSYMPath: TSCAbsolutePath) -> TSCAbsolutePath {
+    func dwarfPath(for target: ResolvedModule, dSYMPath: AbsolutePath) -> AbsolutePath {
         dSYMPath.appending(components: "Contents", "Resources", "DWARF", target.name)
     }
 
-    func dump(dwarfPath: TSCAbsolutePath) async throws -> [Arch: UUID] {
+    func dump(dwarfPath: AbsolutePath) async throws -> [Arch: UUID] {
         let result = try await executor.execute("/usr/bin/xcrun", "dwarfdump", "--uuid", dwarfPath.pathString)
 
         let output = try result.unwrapOutput()
