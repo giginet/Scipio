@@ -13,7 +13,6 @@ struct FrameworkProducer {
     private let overwrite: Bool
     private let outputDir: URL
     private let fileSystem: any FileSystem
-    private let toolchainEnvironment: ToolchainEnvironment?
 
     private var shouldGenerateVersionFile: Bool {
         // cache is not disabled
@@ -35,7 +34,6 @@ struct FrameworkProducer {
         cachePolicies: [Runner.Options.CachePolicy],
         overwrite: Bool,
         outputDir: URL,
-        toolchainEnvironment: ToolchainEnvironment? = nil,
         fileSystem: any FileSystem = localFileSystem
     ) {
         self.descriptionPackage = descriptionPackage
@@ -44,7 +42,6 @@ struct FrameworkProducer {
         self.cachePolicies = cachePolicies
         self.overwrite = overwrite
         self.outputDir = outputDir
-        self.toolchainEnvironment = toolchainEnvironment
         self.fileSystem = fileSystem
     }
 
@@ -340,8 +337,7 @@ struct FrameworkProducer {
             let compiler = PIFCompiler(
                 descriptionPackage: descriptionPackage,
                 buildOptions: buildOptions,
-                buildOptionsMatrix: buildOptionsMatrix,
-                toolchainEnvironment: toolchainEnvironment
+                buildOptionsMatrix: buildOptionsMatrix
             )
             try await compiler.createXCFramework(buildProduct: product,
                                                  outputDirectory: outputDir,

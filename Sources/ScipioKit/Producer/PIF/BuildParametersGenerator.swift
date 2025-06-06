@@ -1,8 +1,6 @@
 import Foundation
 import Basics
 import struct TSCBasic.ByteString
-import XCBuildSupport
-import SPMBuildCore
 
 struct XCBBuildParameters: Encodable, Sendable {
     struct RunDestination: Encodable, Sendable {
@@ -30,14 +28,16 @@ struct XCBBuildParameters: Encodable, Sendable {
 struct BuildParametersGenerator {
     private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem
+    private let executor: any Executor
 
-    init(buildOptions: BuildOptions, fileSystem: any FileSystem = localFileSystem) {
+    init(buildOptions: BuildOptions, fileSystem: any FileSystem = localFileSystem, executor: some Executor) {
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
+        self.executor = executor
     }
 
-    func generate(for sdk: SDK, buildParameters: BuildParameters, destinationDir: TSCAbsolutePath) throws -> TSCAbsolutePath {
-        let targetArchitecture = buildParameters.triple.arch?.rawValue ?? "arm64"
+    func generate(for sdk: SDK, buildParameters: Parameters, destinationDir: TSCAbsolutePath) throws -> TSCAbsolutePath {
+        let targetArchitecture = buildParameters.arch
 
         // Generate the run destination parameters.
         let runDestination = XCBBuildParameters.RunDestination(
@@ -52,11 +52,11 @@ struct BuildParametersGenerator {
         // Generate a table of any overriding build settings.
         var settings: [String: String] = [:]
         // An error with determining the override should not be fatal here.
-        settings["CC"] = try? buildParameters.toolchain.getClangCompiler().pathString
+        settings["CC"] = buildParameters.toolchain.clangCompilerPath.path(percentEncoded: false)
         // Always specify the path of the effective Swift compiler, which was determined in the same way as for the native build system.
-        settings["SWIFT_EXEC"] = buildParameters.toolchain.swiftCompilerPath.pathString
+        settings["SWIFT_EXEC"] = buildParameters.toolchain.swiftCompilerPath.path(percentEncoded: false)
         settings["LIBRARY_SEARCH_PATHS"] = expandFlags(
-            try buildParameters.toolchain.toolchainLibDir.pathString
+            buildParameters.toolchain.toolchainLibDir.path(percentEncoded: false)
         )
         settings["OTHER_CFLAGS"] = expandFlags(
             buildParameters.toolchain.extraFlags.cCompilerFlags,
@@ -79,7 +79,7 @@ struct BuildParametersGenerator {
 
         // Generate the build parameters.
         let params = XCBBuildParameters(
-            configurationName: buildParameters.configuration.xcbuildName,
+            configurationName: buildParameters.configuration.settingsValue,
             overrides: .init(synthesized: .init(table: settings)),
             activeRunDestination: runDestination
         )
@@ -92,6 +92,26 @@ struct BuildParametersGenerator {
         return filePath
     }
 
+    func generate(from buildOptions: BuildOptions, toolchain: UserToolchain) async -> Parameters {
+        let arch = try? await executor.execute([
+            "/usr/bin/xcrun",
+            "arch",
+        ]).unwrapOutput()
+
+        return Parameters(
+            toolchain: toolchain,
+            configuration: buildOptions.buildConfiguration,
+            arch: arch ?? "arm64",
+            // ref: https://github.com/swiftlang/swift-package-manager/blob/main/Sources/SPMBuildCore/BuildParameters/BuildParameters.swift#L194
+            flags: Parameters.Flags(
+                cCompilerFlags: ["-g"],
+                cxxCompilerFlags: ["-g"],
+                swiftCompilerFlags: ["-g"],
+                linkerFlags: []
+            )
+        )
+    }
+
     private func expandFlags(_ extraFlags: [String]?...) -> String {
         (["$(inherited)"] + extraFlags.compactMap { $0 }.flatMap { $0 })
             .joined(separator: " ")
@@ -99,5 +119,19 @@ struct BuildParametersGenerator {
 
     private func expandFlags(_ extraFlag: String) -> String {
         expandFlags([extraFlag])
+    }
+
+    struct Parameters {
+        var toolchain: UserToolchain
+        var configuration: BuildConfiguration
+        var arch: String
+        let flags: Flags
+
+        struct Flags {
+            var cCompilerFlags: [String]
+            var cxxCompilerFlags: [String]
+            var swiftCompilerFlags: [String]
+            var linkerFlags: [String]
+        }
     }
 }

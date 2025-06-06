@@ -1,8 +1,6 @@
 import Foundation
 import Basics
 import PIFKit
-import SPMBuildCore
-import XCBuildSupport
 
 struct PIFGenerator {
     private let packageName: String

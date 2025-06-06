@@ -1,7 +1,4 @@
 import Foundation
-import TSCUtility
-@_spi(SwiftPMInternal) import PackageModel
-@_spi(SwiftPMInternal) import struct Basics.Environment
 import Basics
 
 struct ToolchainGenerator {
@@ -20,16 +17,6 @@ struct ToolchainGenerator {
     }
 
     func makeToolChain(sdk: SDK) async throws -> UserToolchain {
-        let destination: SwiftSDK = try await makeDestination(sdk: sdk)
-        return try UserToolchain(
-            swiftSDK: destination,
-            environment: environment?.asSwiftPMEnvironment ?? .current
-        )
-    }
-
-    private func makeDestination(
-        sdk: SDK
-    ) async throws -> SwiftSDK {
         let sdkPathString = try await executor.execute(
             "/usr/bin/xcrun",
             "--sdk",
@@ -49,14 +36,47 @@ struct ToolchainGenerator {
         extraSwiftCFlags += ["-I", macosSDKPlatformPaths.libPath.pathString]
         extraSwiftCFlags += ["-L", macosSDKPlatformPaths.libPath.pathString]
 
-        let buildFlags = BuildFlags(cCompilerFlags: extraCCFlags, swiftCompilerFlags: extraSwiftCFlags)
-        return SwiftSDK(
-            hostTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
-            targetTriple: try? Triple("arm64-apple-\(sdk.settingValue)"),
-            toolset: .init(toolchainBinDir: toolchainDirPath.spmAbsolutePath, buildFlags: buildFlags),
-            pathsConfiguration: .init(sdkRootPath: sdkPath.spmAbsolutePath),
-            xctestSupport: .supported
+        let clangCompilerPath = try await resolveClangCompilerPath()
+        let swiftCompilerPath = try await resolveSwiftCompilerPath()
+        let toolchainLibDir = swiftCompilerPath.resolvingSymlinksInPath()
+            .deletingLastPathComponent()
+            .appending(components: "..", "..", "lib")
+
+       return UserToolchain(
+            clangCompilerPath: clangCompilerPath,
+            swiftCompilerPath: swiftCompilerPath,
+            toolchainLibDir: toolchainLibDir,
+            sdkPath: sdkPath.asURL,
+            extraFlags: UserToolchain.ExtraFlags(
+                cCompilerFlags: extraCCFlags,
+                cxxCompilerFlags: [],
+                swiftCompilerFlags: extraSwiftCFlags
+            )
         )
+    }
+
+    private func resolveClangCompilerPath() async throws -> URL {
+        let clangCompilerPath = try await executor.execute(
+            "/usr/bin/xcrun",
+            "--find",
+            "clang"
+        )
+        .unwrapOutput()
+        .spm_chomp()
+
+        return URL(filePath: clangCompilerPath)
+    }
+
+    private func resolveSwiftCompilerPath() async throws -> URL {
+        let clangCompilerPath = try await executor.execute(
+            "/usr/bin/xcrun",
+            "--find",
+            "swiftc"
+        )
+        .unwrapOutput()
+        .spm_chomp()
+
+        return URL(filePath: clangCompilerPath)
     }
 }
 
@@ -93,4 +113,18 @@ extension ToolchainGenerator {
         return (frameworkPath, libPath)
     }
 
+}
+
+struct UserToolchain {
+    let clangCompilerPath: URL
+    let swiftCompilerPath: URL
+    let toolchainLibDir: URL
+    let sdkPath: URL
+    let extraFlags: ExtraFlags
+
+    struct ExtraFlags {
+        let cCompilerFlags: [String]
+        let cxxCompilerFlags: [String]
+        let swiftCompilerFlags: [String]
+    }
 }

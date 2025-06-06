@@ -1,6 +1,4 @@
 import Foundation
-import PackageModel
-import SPMBuildCore
 import Basics
 
 struct PIFCompiler: Compiler {
@@ -9,7 +7,6 @@ struct PIFCompiler: Compiler {
     private let fileSystem: any FileSystem
     private let executor: any Executor
     private let buildOptionsMatrix: [String: BuildOptions]
-    private let toolchainEnvironment: ToolchainEnvironment?
 
     private let buildParametersGenerator: BuildParametersGenerator
 
@@ -17,17 +14,15 @@ struct PIFCompiler: Compiler {
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
-        toolchainEnvironment: ToolchainEnvironment? = nil,
         fileSystem: any FileSystem = localFileSystem,
         executor: any Executor = ProcessExecutor()
     ) {
         self.descriptionPackage = descriptionPackage
         self.buildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
-        self.toolchainEnvironment = toolchainEnvironment
         self.fileSystem = fileSystem
         self.executor = executor
-        self.buildParametersGenerator = .init(buildOptions: buildOptions, fileSystem: fileSystem)
+        self.buildParametersGenerator = .init(buildOptions: buildOptions, fileSystem: fileSystem, executor: executor)
     }
 
     private func fetchDefaultToolchainBinPath() async throws -> TSCAbsolutePath {
@@ -40,7 +35,7 @@ struct PIFCompiler: Compiler {
 
     private func makeToolchain(for sdk: SDK) async throws -> UserToolchain {
         let toolchainDirPath = try await fetchDefaultToolchainBinPath()
-        let toolchainGenerator = ToolchainGenerator(toolchainDirPath: toolchainDirPath, environment: toolchainEnvironment)
+        let toolchainGenerator = ToolchainGenerator(toolchainDirPath: toolchainDirPath)
         return try await toolchainGenerator.makeToolChain(sdk: sdk)
     }
 
@@ -63,12 +58,12 @@ struct PIFCompiler: Compiler {
 
         for sdk in sdks {
             let toolchain = try await makeToolchain(for: sdk)
-            let buildParameters = try makeBuildParameters(toolchain: toolchain)
+            let buildParameters = await buildParametersGenerator.generate(from: buildOptions, toolchain: toolchain)
 
             let generator = try PIFGenerator(
                 packageName: descriptionPackage.name,
                 packageLocator: descriptionPackage,
-                toolchainLibDirectory: try buildParameters.toolchain.toolchainLibDir.asURL,
+                toolchainLibDirectory: buildParameters.toolchain.toolchainLibDir,
                 buildOptions: buildOptions,
                 buildOptionsMatrix: buildOptionsMatrix
             )
@@ -122,26 +117,5 @@ struct PIFCompiler: Compiler {
             debugSymbols: debugSymbolPaths,
             outputPath: outputXCFrameworkPath
         )
-    }
-
-    private func makeBuildParameters(toolchain: UserToolchain) throws -> BuildParameters {
-        try .init(
-            destination: .target,
-            dataPath: descriptionPackage.buildDirectory.spmAbsolutePath,
-            configuration: buildOptions.buildConfiguration.spmConfiguration,
-            toolchain: toolchain,
-            flags: .init(),
-            isXcodeBuildSystemEnabled: true,
-            driverParameters: BuildParameters.Driver(enableParseableModuleInterfaces: buildOptions.enableLibraryEvolution)
-        )
-    }
-}
-
-extension BuildConfiguration {
-    fileprivate var spmConfiguration: PackageModel.BuildConfiguration {
-        switch self {
-        case .debug: return .debug
-        case .release: return .release
-        }
     }
 }
