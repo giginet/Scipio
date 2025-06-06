@@ -25,20 +25,6 @@ struct XCBBuildParameters: Encodable, Sendable {
     var activeRunDestination: RunDestination
 }
 
-struct BuildParameters {
-    var toolchain: UserToolchain
-    var configuration: BuildConfiguration
-    var arch: String
-    let flags: Flags
-
-    struct Flags {
-        var cCompilerFlags: [String]
-        var cxxCompilerFlags: [String]
-        var swiftCompilerFlags: [String]
-        var linkerFlags: [String]
-    }
-}
-
 struct BuildParametersGenerator {
     private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem
@@ -50,7 +36,7 @@ struct BuildParametersGenerator {
         self.executor = executor
     }
 
-    func generate(for sdk: SDK, buildParameters: BuildParameters, destinationDir: TSCAbsolutePath) throws -> TSCAbsolutePath {
+    func generate(for sdk: SDK, buildParameters: Parameters, destinationDir: TSCAbsolutePath) throws -> TSCAbsolutePath {
         let targetArchitecture = buildParameters.arch
 
         // Generate the run destination parameters.
@@ -106,18 +92,18 @@ struct BuildParametersGenerator {
         return filePath
     }
 
-    func generate(from buildOptions: BuildOptions, toolchain: UserToolchain) async -> BuildParameters {
+    func generate(from buildOptions: BuildOptions, toolchain: UserToolchain) async -> Parameters {
         let arch = try? await executor.execute([
             "/usr/bin/xcrun",
             "arch",
         ]).unwrapOutput()
 
-        return BuildParameters(
+        return Parameters(
             toolchain: toolchain,
             configuration: buildOptions.buildConfiguration,
             arch: arch ?? "arm64",
             // ref: https://github.com/swiftlang/swift-package-manager/blob/main/Sources/SPMBuildCore/BuildParameters/BuildParameters.swift#L194
-            flags: BuildParameters.Flags(
+            flags: Parameters.Flags(
                 cCompilerFlags: ["-g"],
                 cxxCompilerFlags: ["-g"],
                 swiftCompilerFlags: ["-g"],
@@ -133,5 +119,19 @@ struct BuildParametersGenerator {
 
     private func expandFlags(_ extraFlag: String) -> String {
         expandFlags([extraFlag])
+    }
+
+    struct Parameters {
+        var toolchain: UserToolchain
+        var configuration: BuildConfiguration
+        var arch: String
+        let flags: Flags
+
+        struct Flags {
+            var cCompilerFlags: [String]
+            var cxxCompilerFlags: [String]
+            var swiftCompilerFlags: [String]
+            var linkerFlags: [String]
+        }
     }
 }
