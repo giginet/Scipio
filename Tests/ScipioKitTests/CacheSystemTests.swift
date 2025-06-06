@@ -85,13 +85,13 @@ final class CacheSystemTests: XCTestCase {
     func testCacheKeyForRemoteAndLocalPackageDifference() async throws {
         let fileSystem = localFileSystem
 
-        let tempDir = try fileSystem.tempDirectory.appending(#function)
+        let tempDir: AbsolutePath = try fileSystem.tempDirectory.appending(component: #function)
         try fileSystem.removeFileTree(tempDir)
         try fileSystem.createDirectory(tempDir)
 
         defer { try? fileSystem.removeFileTree(tempDir) }
 
-        let tempCacheKeyTestsDir = tempDir.appending(component: "CacheKeyTests").scipioAbsolutePath
+        let tempCacheKeyTestsDir = tempDir.appending(component: "CacheKeyTests")
         try fileSystem.copy(
             from: fixturePath.appending(component: "CacheKeyTests").absolutePath,
             to: tempCacheKeyTestsDir
@@ -168,7 +168,7 @@ final class CacheSystemTests: XCTestCase {
     func testCacheKeyCalculationForRootPackageTarget() async throws {
         let fileSystem = localFileSystem
         let testingPackagePath = fixturePath.appendingPathComponent("TestingPackage")
-        let tempTestingPackagePath = try fileSystem.tempDirectory.appending(component: "temp_TestingPackage").scipioAbsolutePath
+        let tempTestingPackagePath = try fileSystem.tempDirectory.appending(component: "temp_TestingPackage")
 
         try fileSystem.removeFileTree(tempTestingPackagePath)
         try fileSystem.copy(from: testingPackagePath.absolutePath, to: tempTestingPackagePath)
