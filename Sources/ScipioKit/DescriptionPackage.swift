@@ -64,7 +64,6 @@ struct DescriptionPackage: PackageLocator {
         packageDirectory: TSCAbsolutePath,
         mode: Runner.Mode,
         onlyUseVersionsFromResolvedFile: Bool,
-        toolchainEnvironment: ToolchainEnvironment? = nil,
         executor: some Executor = ProcessExecutor(decoder: StandardOutputDecoder())
     ) async throws {
         self.packageDirectory = packageDirectory
