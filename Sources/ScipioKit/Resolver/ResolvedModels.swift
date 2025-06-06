@@ -206,20 +206,20 @@ struct PackageResolved: Decodable {
     let version: Int
 }
 
-struct Pin: Sendable, Codable, Identifiable, Hashable {
-    var id: String {
+public struct Pin: Sendable, Codable, Identifiable, Hashable {
+    public var id: String {
         identity
     }
 
-    var identity: String
-    var kind: String
-    var location: String
-    var state: State
+    public var identity: String
+    public var kind: String
+    public var location: String
+    public var state: State
 
-    struct State: Sendable, Codable, Hashable {
-        var revision: String
-        var version: String?
-        var branch: String?
+    public struct State: Sendable, Codable, Hashable {
+        public var revision: String
+        public var version: String?
+        public var branch: String?
     }
 }
 
