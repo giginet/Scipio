@@ -1,5 +1,5 @@
 import Foundation
-import Basics
+import TSCBasic
 
 // TODO: Remove TSCBasics
 // Since Swift 5.10, SwiftPM removes swift-tools-support-core(TSC), 

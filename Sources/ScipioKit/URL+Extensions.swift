@@ -1,5 +1,5 @@
 import Foundation
-import Basics
+import TSCBasic
 
 extension URL {
     var absolutePath: TSCAbsolutePath {

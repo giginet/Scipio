@@ -1,5 +1,5 @@
 import Foundation
-import Basics
+import TSCBasic
 
 /// FileLists to assemble a framework bundle
 struct FrameworkComponents {

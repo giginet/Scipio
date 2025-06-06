@@ -1,4 +1,4 @@
-import Basics
+import TSCBasic
 
 /// Holds the packageDirectory Scipio works on, and defines some path-related functionalities.
 protocol PackageLocator {

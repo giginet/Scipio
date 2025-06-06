@@ -1,5 +1,5 @@
 import Foundation
-import Basics
+import TSCBasic
 
 struct BinaryExtractor {
     var descriptionPackage: DescriptionPackage

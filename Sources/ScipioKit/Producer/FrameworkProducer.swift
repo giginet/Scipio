@@ -2,7 +2,7 @@ import Foundation
 import ScipioStorage
 import Collections
 import protocol TSCBasic.FileSystem
-import Basics
+import TSCBasic
 import PackageManifestKit
 
 struct FrameworkProducer {

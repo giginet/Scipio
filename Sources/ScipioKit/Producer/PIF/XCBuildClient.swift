@@ -1,5 +1,5 @@
 import Foundation
-import Basics
+import TSCBasic
 
 struct XCBuildClient {
     enum Error: LocalizedError {

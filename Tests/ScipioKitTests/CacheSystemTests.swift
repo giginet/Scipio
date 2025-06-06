@@ -1,7 +1,7 @@
 import Foundation
 @testable import ScipioKit
 import XCTest
-import Basics
+import TSCBasic
 
 private let fixturePath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()

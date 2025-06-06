@@ -1,6 +1,6 @@
 import Foundation
 import ScipioStorage
-import Basics
+import TSCBasic
 import protocol TSCBasic.FileSystem
 
 public typealias PlatformMatrix = [String: Set<SDK>]

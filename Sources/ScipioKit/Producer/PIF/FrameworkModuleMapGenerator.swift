@@ -1,5 +1,5 @@
 import Foundation
-import Basics
+import TSCBasic
 
 // A generator to generate modulemaps which are distributed in the XCFramework
 struct FrameworkModuleMapGenerator {

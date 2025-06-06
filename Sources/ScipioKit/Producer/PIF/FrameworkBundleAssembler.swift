@@ -1,5 +1,5 @@
 import Foundation
-import Basics
+import TSCBasic
 
 /// A assembler to generate framework bundle
 /// This assembler just relocates framework components into the framework structure

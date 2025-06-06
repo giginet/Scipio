@@ -1,6 +1,6 @@
 import Foundation
 import ScipioStorage
-import Basics
+import TSCBasic
 import struct TSCUtility.Version
 import Algorithms
 import PackageManifestKit

@@ -1,5 +1,5 @@
 import Foundation
-import Basics
+import TSCBasic
 import PackageManifestKit
 
 struct DescriptionPackage: PackageLocator {
