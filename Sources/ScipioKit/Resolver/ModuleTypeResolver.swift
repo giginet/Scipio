@@ -107,8 +107,7 @@ extension PackageResolver {
 
             // If an explicit path is provided, use it first.
             if let explicitURL = target.path.map({ packageURL.appending(component: $0) }),
-                fileSystem.exists(explicitURL.absolutePath)
-            {
+                fileSystem.exists(explicitURL.absolutePath) {
                 return explicitURL
             }
 
