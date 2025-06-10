@@ -116,6 +116,7 @@ extension PackageResolver {
             // - "Sources/<target name>"
             // - "Source/<target name>"
             // - "src/<target name>".
+            // - "srcs/<target name>".
             let defaultRoots = Set(["sources", "source", "src", "srcs"])
             let entries = (try? fileSystem.getDirectoryContents(packageURL.absolutePath)) ?? []
 
