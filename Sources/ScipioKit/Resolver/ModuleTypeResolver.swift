@@ -116,7 +116,7 @@ extension PackageResolver {
             // - "Source/<target name>"
             // - "src/<target name>".
             // - "srcs/<target name>".
-            let defaultRoots = Set(["sources", "source", "src", "srcs"])
+            let defaultRoots = ["sources", "source", "src", "srcs"]
             let entries = (try? fileSystem.getDirectoryContents(packageURL.absolutePath)) ?? []
 
             // Match using lowercase comparison since SwiftPM treats these names case-insensitively
