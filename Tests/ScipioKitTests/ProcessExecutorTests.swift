@@ -126,13 +126,8 @@ struct ProcessExecutorTests {
     func emptyArgumentsArray() async throws {
         let executor = createExecutor()
         
-        do {
+        await #expect(throws: ProcessExecutorError.executableNotFound) {
             _ = try await executor.execute([])
-            Issue.record("Should have thrown executableNotFound error")
-        } catch ProcessExecutorError.executableNotFound {
-            // Expected error
-        } catch {
-            Issue.record("Expected executableNotFound error, got: \(error)")
         }
     }
     
@@ -140,13 +135,8 @@ struct ProcessExecutorTests {
     func emptyExecutableString() async throws {
         let executor = createExecutor()
         
-        do {
+        await #expect(throws: ProcessExecutorError.executableNotFound) {
             _ = try await executor.execute([""])
-            Issue.record("Should have thrown executableNotFound error")
-        } catch ProcessExecutorError.executableNotFound {
-            // Expected error
-        } catch {
-            Issue.record("Expected executableNotFound error, got: \(error)")
         }
     }
     
@@ -154,13 +144,8 @@ struct ProcessExecutorTests {
     func nonExistentExecutable() async throws {
         let executor = createExecutor()
         
-        do {
+        await #expect(throws: ProcessExecutorError.executableNotFound) {
             _ = try await executor.execute(["/path/to/nonexistent/executable"])
-            Issue.record("Should have thrown executableNotFound error")
-        } catch ProcessExecutorError.executableNotFound {
-            // Expected error
-        } catch {
-            Issue.record("Expected executableNotFound error, got: \(error)")
         }
     }
     
@@ -168,13 +153,15 @@ struct ProcessExecutorTests {
     func nonZeroExitCode() async throws {
         let executor = createExecutor()
         
-        do {
+        let thrownError = await #expect(throws: ProcessExecutorError.self) {
             _ = try await executor.execute(["/bin/sh", "-c", "exit 1"])
-            Issue.record("Should have thrown terminated error")
-        } catch ProcessExecutorError.terminated {
-            // Expected error
-        } catch {
-            Issue.record("Expected terminated error, got: \(error)")
+        }
+        
+        // Verify it's a terminated error
+        if case .terminated = thrownError {
+            // Expected
+        } else {
+            Issue.record("Expected terminated error, got: \(thrownError)")
         }
     }
     
@@ -182,16 +169,15 @@ struct ProcessExecutorTests {
     func nonZeroExitCodeWithErrorOutput() async throws {
         let executor = createExecutor()
         
-        do {
+        let thrownError = await #expect(throws: ProcessExecutorError.self) {
             _ = try await executor.execute(["/bin/sh", "-c", "echo 'error message' >&2; exit 1"])
-            Issue.record("Should have thrown an error")
-        } catch let error as ProcessExecutorError {
-            switch error {
-            case .terminated(let errorOutput):
-                #expect(errorOutput?.contains("error message") == true)
-            default:
-                Issue.record("Expected terminated error, got: \(error)")
-            }
+        }
+        
+        // Verify it's a terminated error with the expected error output
+        if case .terminated(let errorOutput) = thrownError {
+            #expect(errorOutput?.contains("error message") == true)
+        } else {
+            Issue.record("Expected terminated error, got: \(thrownError)")
         }
     }
     
@@ -200,16 +186,15 @@ struct ProcessExecutorTests {
         let customDecoder = TestErrorDecoder()
         let executor = ProcessExecutor(decoder: customDecoder)
         
-        do {
+        let thrownError = await #expect(throws: ProcessExecutorError.self) {
             _ = try await executor.execute(["/bin/sh", "-c", "echo 'custom error' >&2; exit 1"])
-            Issue.record("Should have thrown an error")
-        } catch let error as ProcessExecutorError {
-            switch error {
-            case .terminated(let errorOutput):
-                #expect(errorOutput == "DECODED: custom error")
-            default:
-                Issue.record("Expected terminated error, got: \(error)")
-            }
+        }
+        
+        // Verify it's a terminated error with the expected decoded output
+        if case .terminated(let errorOutput) = thrownError {
+            #expect(errorOutput == "DECODED: custom error")
+        } else {
+            Issue.record("Expected terminated error, got: \(thrownError)")
         }
     }
     
