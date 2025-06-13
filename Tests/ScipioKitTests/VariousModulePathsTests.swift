@@ -5,7 +5,7 @@ import PackageManifestKit
 @testable import ScipioKit
 
 struct VariousModulePathsTests {
-    private static let fixturePath = URL(fileURLWithPath: #filePath)
+    private static let fixturePath = URL(filePath: #filePath)
         .deletingLastPathComponent()
         .appending(components: "Resources", "Fixtures", "VariousModulePathsTests")
 
