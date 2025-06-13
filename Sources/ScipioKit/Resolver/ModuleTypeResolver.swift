@@ -103,20 +103,35 @@ extension PackageResolver {
             of target: Target,
             dependencyPackage: DependencyPackage
         ) -> URL {
-            let packagePath = dependencyPackage.path
-            // In SwiftPM, if target does not specify a path,
-            // it is assumed to be located at 'Sources/<target name>' by default.
-            // For Clang modules, the default is 'src/<target name>'.
-            let defaultSwiftModulePath = "Sources/\(target.name)"
-            let defaultClangModulePath = "src/\(target.name)"
-            let swiftModuleRelativePath = target.path ?? defaultSwiftModulePath
-            let swiftModuleFullPath = URL(filePath: packagePath).appending(component: swiftModuleRelativePath)
-            let clangModuleFullPath = URL(filePath: packagePath).appending(component: defaultClangModulePath)
+            let packageURL = URL(filePath: dependencyPackage.path)
 
-            return if fileSystem.exists(swiftModuleFullPath.spmAbsolutePath) {
-                swiftModuleFullPath
-            } else if fileSystem.exists(clangModuleFullPath.spmAbsolutePath) {
-                clangModuleFullPath
+            // If an explicit path is provided, use it first.
+            if let explicitURL = target.path.map({ packageURL.appending(component: $0) }),
+                fileSystem.exists(explicitURL.absolutePath) {
+                return explicitURL
+            }
+
+            // In SwiftPM, if target does not specify a path, it is assumed to be located at one of:
+            // - "Sources/<target name>"
+            // - "Source/<target name>"
+            // - "src/<target name>".
+            // - "srcs/<target name>".
+            let defaultRoots = ["sources", "source", "src", "srcs"]
+            let entries = (try? fileSystem.getDirectoryContents(packageURL.absolutePath)) ?? []
+
+            // Match using lowercase comparison since SwiftPM treats these names case-insensitively
+            let sourcesURLs = entries.lazy
+                .filter { defaultRoots.contains($0.lowercased()) }
+                .map { packageURL.appending(component: $0) }
+            let moduleURLs = sourcesURLs.map { $0.appending(component: target.name) }
+
+            return if let moduleURL = moduleURLs.first(where: { fileSystem.exists($0.absolutePath) }) {
+                moduleURL
+            }
+            // If no nested module directory is found but exactly one default root exists
+            // (e.g. only Source/xxx.swift in the package), allow that root itself as the module path.
+            else if let sourceURL = sourcesURLs.first(where: { fileSystem.exists($0.absolutePath) }) {
+                sourceURL
             } else {
                 preconditionFailure("Cannot find module directory for target '\(target.name)'")
             }

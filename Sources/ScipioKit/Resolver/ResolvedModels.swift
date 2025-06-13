@@ -1,8 +1,6 @@
 import Foundation
 import PackageManifestKit
 
-typealias Pins = [PackageID: Pin.State]
-
 struct ModulesGraph {
     var rootPackage: ResolvedPackage
     var allPackages: [PackageID: ResolvedPackage]
