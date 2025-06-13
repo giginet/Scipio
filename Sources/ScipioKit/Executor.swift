@@ -61,12 +61,15 @@ struct ProcessResult: ExecutorResult {
 }
 
 enum ProcessExecutorError: LocalizedError {
+    case executableNotFound
     case terminated(errorOutput: String?)
     case signalled(Int32)
     case unknownError(Swift.Error)
 
     var errorDescription: String? {
         switch self {
+        case .executableNotFound:
+            return "Executable not found"
         case .terminated(let errorOutput):
             return [
                 "Execution was terminated:",
@@ -78,7 +81,7 @@ enum ProcessExecutorError: LocalizedError {
             return "Execution was stopped by signal \(signal)"
         case .unknownError(let error):
             return """
-Unknown error occurered.
+Unknown error occurred.
 \(error.localizedDescription)
 """
         }
@@ -98,8 +101,8 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
     func execute(_ arguments: [String]) async throws -> ExecutorResult {
         logger.debug("\(arguments.joined(separator: " "))")
 
-        guard let executable = arguments.first else {
-            throw ProcessExecutorError.unknownError(NSError(domain: "ProcessExecutor", code: -1, userInfo: [NSLocalizedDescriptionKey: "No executable provided"]))
+        guard let executable = arguments.first, !executable.isEmpty else {
+            throw ProcessExecutorError.executableNotFound
         }
 
         let process = Process()
@@ -117,6 +120,8 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
         
         do {
             try process.run()
+        } catch CocoaError.fileNoSuchFile {
+            throw ProcessExecutorError.executableNotFound
         } catch {
             throw ProcessExecutorError.unknownError(error)
         }
