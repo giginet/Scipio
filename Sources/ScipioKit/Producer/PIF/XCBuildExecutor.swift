@@ -71,7 +71,7 @@ private final class _Executor {
             _ = try await executor.execute(args)
         } catch let error as ProcessExecutorError {
             switch error {
-            case .signalled, .unknownError: throw error
+            case .executableNotFound, .signalled, .unknownError: throw error
             case .terminated:
                 let output = allMessages.joined(separator: "\n")
                 throw ProcessExecutorError.terminated(errorOutput: output)

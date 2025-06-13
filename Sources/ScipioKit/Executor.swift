@@ -1,6 +1,4 @@
 import Foundation
-import class TSCBasic.Process
-import struct TSCBasic.ProcessResult
 
 protocol Executor {
     @discardableResult
@@ -35,37 +33,43 @@ extension Executor {
     }
 }
 
-extension ProcessResult {
-    mutating func setOutput(_ newValue: Result<[UInt8], Swift.Error>) {
-        self = ProcessResult(
-            arguments: arguments,
-            environmentBlock: environmentBlock,
-            exitStatus: exitStatus,
-            output: newValue,
-            stderrOutput: stderrOutput
-        )
+struct ProcessResult: ExecutorResult {
+    enum ExitStatus {
+        case terminated(code: Int32)
+        case signalled(signal: Int32)
     }
-
-    mutating func setStderrOutput(_ newValue: Result<[UInt8], Swift.Error>) {
-        self = ProcessResult(
-            arguments: arguments,
-            environmentBlock: environmentBlock,
-            exitStatus: exitStatus,
-            output: output,
-            stderrOutput: newValue
-        )
+    
+    let arguments: [String]
+    let environment: [String: String]
+    let exitStatus: ExitStatus
+    let output: Result<[UInt8], Swift.Error>
+    let stderrOutput: Result<[UInt8], Swift.Error>
+    
+    init(
+        arguments: [String],
+        environment: [String: String],
+        exitStatus: ExitStatus,
+        output: Result<[UInt8], Swift.Error>,
+        stderrOutput: Result<[UInt8], Swift.Error>
+    ) {
+        self.arguments = arguments
+        self.environment = environment
+        self.exitStatus = exitStatus
+        self.output = output
+        self.stderrOutput = stderrOutput
     }
 }
 
-extension ProcessResult: ExecutorResult { }
-
 enum ProcessExecutorError: LocalizedError {
+    case executableNotFound
     case terminated(errorOutput: String?)
     case signalled(Int32)
     case unknownError(Swift.Error)
 
     var errorDescription: String? {
         switch self {
+        case .executableNotFound:
+            return "Executable not found"
         case .terminated(let errorOutput):
             return [
                 "Execution was terminated:",
@@ -77,12 +81,13 @@ enum ProcessExecutorError: LocalizedError {
             return "Execution was stopped by signal \(signal)"
         case .unknownError(let error):
             return """
-Unknown error occurered.
+Unknown error occurred.
 \(error.localizedDescription)
 """
         }
     }
 }
+
 
 struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
     private let decoder: Decoder
@@ -96,39 +101,66 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
     func execute(_ arguments: [String]) async throws -> ExecutorResult {
         logger.debug("\(arguments.joined(separator: " "))")
 
-        var outputBuffer: [UInt8] = []
-        var errorBuffer: [UInt8] = []
+        guard let executable = arguments.first, !executable.isEmpty else {
+            throw ProcessExecutorError.executableNotFound
+        }
 
-        let outputRedirection: Process.OutputRedirection = .stream(
-            stdout: { bytes in
-                streamOutput?(bytes)
-
-                if collectsOutput {
-                    outputBuffer += bytes
-                }
-            },
-            stderr: { (bytes) in
-                errorBuffer += bytes
-            }
-        )
-
-        let process = Process(
-            arguments: arguments,
-            outputRedirection: outputRedirection
-        )
-
-        var result: ProcessResult
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = Array(arguments.dropFirst())
+        
+        let outputPipe = Pipe()
+        let errorPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = errorPipe
+        
+        // Set up reading from pipes
+        let outputHandle = outputPipe.fileHandleForReading
+        let errorHandle = errorPipe.fileHandleForReading
+        
         do {
-            try process.launch()
-            result = try await process.waitUntilExit()
+            try process.run()
+        } catch CocoaError.fileNoSuchFile {
+            throw ProcessExecutorError.executableNotFound
         } catch {
             throw ProcessExecutorError.unknownError(error)
         }
-
-        // respects failure state
-        result.setOutput(result.output.map { _ in outputBuffer })
-        result.setStderrOutput(result.stderrOutput.map { _ in errorBuffer })
-
+        
+        // Use async continuation to wait for process completion
+        await withCheckedContinuation { continuation in
+            process.terminationHandler = { _ in
+                continuation.resume()
+            }
+        }
+        
+        // Read output data
+        let outputData = outputHandle.readDataToEndOfFile()
+        let outputBuffer = [UInt8](outputData)
+        
+        // Call stream handler if available
+        if let streamHandler = streamOutput, !outputBuffer.isEmpty {
+            streamHandler(outputBuffer)
+        }
+        
+        // Read error data
+        let errorData = errorHandle.readDataToEndOfFile()
+        let errorBuffer = [UInt8](errorData)
+        
+        let exitStatus: ProcessResult.ExitStatus
+        if process.terminationReason == .exit {
+            exitStatus = .terminated(code: process.terminationStatus)
+        } else {
+            exitStatus = .signalled(signal: process.terminationStatus)
+        }
+        
+        let result = ProcessResult(
+            arguments: arguments,
+            environment: process.environment ?? ProcessInfo.processInfo.environment,
+            exitStatus: exitStatus,
+            output: .success(outputBuffer),
+            stderrOutput: .success(errorBuffer)
+        )
+        
         switch result.exitStatus {
         case .terminated(let code) where code == 0:
             return result
