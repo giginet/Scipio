@@ -10,14 +10,14 @@ struct VariousModulePathsTests {
         .appending(components: "Resources", "Fixtures", "VariousModulePathsTests")
 
     private static let packages: [URL] = [
-        fixturePath.appending(components: "WithExplicitPath"),
-        fixturePath.appending(components: "WithoutPath_LowercaseDir_srcs"),
-        fixturePath.appending(components: "WithoutPath_LowercaseDir_source"),
-        fixturePath.appending(components: "WithoutPath_SingleModule"),
-        fixturePath.appending(components: "WithoutPath_LowercaseDir_sources"),
-        fixturePath.appending(components: "WithoutPath_UppercaseMix"),
-        fixturePath.appending(components: "WithoutPath_LowercaseDir_src"),
-    ]
+        "WithExplicitPath",
+        "WithoutPath_LowercaseDir_srcs",
+        "WithoutPath_LowercaseDir_source",
+        "WithoutPath_SingleModule",
+        "WithoutPath_LowercaseDir_sources",
+        "WithoutPath_UppercaseMix",
+        "WithoutPath_LowercaseDir_src",
+    ].map { fixturePath.appending(components: $0) }
 
     let fileSystem = TSCBasic.localFileSystem
     let manifestLoader = ManifestLoader(executor: ProcessExecutor())
