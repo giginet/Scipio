@@ -100,6 +100,7 @@ final class CacheSystemTests: XCTestCase {
         // For local package consumption
         let executor = ProcessExecutor()
         _ = try await executor.execute([
+            "/usr/bin/xcrun",
             "git",
             "clone",
             "https://github.com/giginet/scipio-testing",
@@ -221,10 +222,10 @@ final class CacheSystemTests: XCTestCase {
 
         // Ensure that the cache key is properly calculated when the package is in a repository with the correct tag."
         let processExecutor: Executor = ProcessExecutor()
-        try await processExecutor.execute(["git", "init", tempTestingPackagePath.pathString])
-        try await processExecutor.execute(["git", "-C", tempTestingPackagePath.pathString, "add", tempTestingPackagePath.pathString])
-        try await processExecutor.execute(["git", "-C", tempTestingPackagePath.pathString, "commit", "-m", "Initial commit"])
-        try await processExecutor.execute(["git", "-C", tempTestingPackagePath.pathString, "tag", "v1.1"])
+        try await processExecutor.execute(["/usr/bin/xcrun", "git", "init", tempTestingPackagePath.pathString])
+        try await processExecutor.execute(["/usr/bin/xcrun", "git", "-C", tempTestingPackagePath.pathString, "add", tempTestingPackagePath.pathString])
+        try await processExecutor.execute(["/usr/bin/xcrun", "git", "-C", tempTestingPackagePath.pathString, "commit", "-m", "Initial commit"])
+        try await processExecutor.execute(["/usr/bin/xcrun", "git", "-C", tempTestingPackagePath.pathString, "tag", "v1.1"])
 
         let cacheKey = try await cacheSystem.calculateCacheKey(of: cacheTarget)
 
