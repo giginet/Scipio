@@ -1,259 +1,133 @@
 import Foundation
 import Basics
-import SPMBuildCore
-import PackageModel
-import PackageGraph
-import XCBuildSupport
-
-extension PIF.Target {
-    fileprivate enum TargetType {
-        case library
-        case resourceBundle
-    }
-
-    fileprivate var supportedType: TargetType? {
-        switch productType {
-        case .objectFile:
-            return .library
-        case .bundle:
-            return .resourceBundle
-        default: // unsupported types
-            return nil
-        }
-    }
-}
+import PIFKit
 
 struct PIFGenerator {
-    private let descriptionPackage: DescriptionPackage
-    private let buildParameters: BuildParameters
+    private let packageName: String
+    private let packageLocator: any PackageLocator
+    private let toolchainLibDirectory: URL
     private let buildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
+    private let executor: any Executor
     private let fileSystem: any FileSystem
 
     init(
-        package: DescriptionPackage,
-        buildParameters: BuildParameters,
+        packageName: String,
+        packageLocator: some PackageLocator,
+        toolchainLibDirectory: URL,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
+        executor: some Executor = ProcessExecutor(),
         fileSystem: any FileSystem = localFileSystem
     ) throws {
-        self.descriptionPackage = package
-        self.buildParameters = buildParameters
+        self.packageName = packageName
+        self.packageLocator = packageLocator
+        self.toolchainLibDirectory = toolchainLibDirectory
         self.buildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
+        self.executor = executor
         self.fileSystem = fileSystem
     }
 
-    private func generatePIF() throws -> PIF.TopLevelObject {
-        // A constructor of PIFBuilder is concealed. So use JSON is only way to get PIF structs.
-        let jsonString = try PIFBuilder.generatePIF(
-            buildParameters: buildParameters,
-            packageGraph: descriptionPackage.graph,
-            fileSystem: localFileSystem,
-            observabilityScope: makeObservabilitySystem().topScope,
-            preservePIFModelStructure: true
-        )
+    private func buildPIFManipulator() async throws -> PIFManipulator {
+        let commands = [
+            "/usr/bin/xcrun",
+            "swift",
+            "package",
+            "dump-pif",
+            "--package-path",
+            packageLocator.packageDirectory.pathString,
+        ]
+        let jsonString = try await executor.execute(commands).unwrapOutput()
         let data = jsonString.data(using: .utf8)!
-        let jsonDecoder = JSONDecoder.makeWithDefaults()
-        return try jsonDecoder.decode(PIF.TopLevelObject.self, from: data)
+        return try PIFManipulator(jsonData: data)
     }
 
-    func generateJSON(for sdk: SDK) throws -> TSCAbsolutePath {
-        let topLevelObject = modify(try generatePIF(), for: sdk)
+    func generateJSON(for sdk: SDK) async throws -> TSCAbsolutePath {
+        let manipulator = try await buildPIFManipulator()
 
-        try PIF.sign(topLevelObject.workspace)
-        let encoder = JSONEncoder.makeWithDefaults()
-        encoder.userInfo[.encodeForXCBuild] = true
+        manipulator.updateTargets { target in
+            updateTarget(&target, sdk: sdk)
+        }
 
-        let newJSONData = try encoder.encode(topLevelObject)
-        let path = descriptionPackage.workspaceDirectory
-            .appending(component: "manifest-\(descriptionPackage.name)-\(sdk.settingValue).pif")
+        let newJSONData = try manipulator.dump()
+
+        let path = packageLocator.workspaceDirectory
+            .appending(component: "manifest-\(packageName)-\(sdk.settingValue).pif")
         try fileSystem.writeFileContents(path.spmAbsolutePath, data: newJSONData)
         return path
     }
 
-    private func modify(_ pif: PIF.TopLevelObject, for sdk: SDK) -> PIF.TopLevelObject {
-        for project in pif.workspace.projects {
-            project.targets = project.targets
-                .compactMap { $0 as? PIF.Target }
-                .compactMap { target in
-                    guard let supportedType = target.supportedType else { return target }
-
-                    switch supportedType {
-                    case .library:
-                        let modifier = PIFLibraryTargetModifier(
-                            descriptionPackage: descriptionPackage,
-                            buildParameters: buildParameters,
-                            buildOptions: buildOptions,
-                            buildOptionsMatrix: buildOptionsMatrix,
-                            fileSystem: fileSystem,
-                            project: project,
-                            pifTarget: target,
-                            sdk: sdk
-                        )
-
-                        return modifier.modify()
-                    case .resourceBundle:
-                        generateInfoPlistForResource(for: target)
-                        return target
-                    }
-                }
+    private func updateTarget(_ target: inout PIFKit.Target, sdk: SDK) {
+        switch target.productType {
+        case .objectFile:
+            updateObjectFileTarget(&target, sdk: sdk)
+        case .bundle:
+            generateInfoPlistForResource(for: &target)
+        default:
+            break
         }
-        return pif
     }
 
-    private func generateInfoPlistForResource(for pifTarget: PIF.Target) {
-        assert(pifTarget.supportedType == .resourceBundle, "This method must be called for Resource bundles")
+    private func updateObjectFileTarget(_ target: inout PIFKit.Target, sdk: SDK) {
+        target.productType = .framework
 
-        let infoPlistGenerator = InfoPlistGenerator(fileSystem: fileSystem)
-        let infoPlistPath = descriptionPackage.workspaceDirectory.appending(component: "Info-\(pifTarget.productName).plist")
-        do {
-            try infoPlistGenerator.generateForResourceBundle(at: infoPlistPath)
-        } catch {
-            fatalError("Could not generate Info.plist file")
+        for index in 0..<target.buildConfigurations.count {
+            updateBuildConfiguration(&target.buildConfigurations[index], target: target, sdk: sdk)
         }
-
-        let newConfigurations = pifTarget.buildConfigurations.map { original in
-            var configuration = original
-            var settings = configuration.buildSettings
-
-            // For resource bundle targets, generating Info.plist automatically in default.
-            // However, generated Info.plist causes code signing issue when submitting to AppStore.
-            // `CFBundleExecutable` is not allowed for Info.plist contains in resource bundles.
-            // So generating a Info.plist and set this
-            settings[.GENERATE_INFOPLIST_FILE] = "NO"
-            settings[.INFOPLIST_FILE] = infoPlistPath.pathString
-
-            configuration.buildSettings = settings
-            return configuration
-        }
-
-        pifTarget.buildConfigurations = newConfigurations
-    }
-}
-
-private struct PIFLibraryTargetModifier {
-    private let descriptionPackage: DescriptionPackage
-    private let buildParameters: BuildParameters
-    private let buildOptions: BuildOptions
-    private let buildOptionsMatrix: [String: BuildOptions]
-    private let fileSystem: any FileSystem
-
-    private let project: PIF.Project
-    private let pifTarget: PIF.Target
-    private let sdk: SDK
-
-    private let resolvedPackage: ResolvedPackage
-    private let resolvedTarget: ScipioResolvedModule
-
-    init(
-        descriptionPackage: DescriptionPackage,
-        buildParameters: BuildParameters,
-        buildOptions: BuildOptions,
-        buildOptionsMatrix: [String: BuildOptions],
-        fileSystem: any FileSystem,
-        project: PIF.Project,
-        pifTarget: PIF.Target,
-        sdk: SDK
-    ) {
-        precondition(pifTarget.supportedType == .library, "PIFLibraryTargetModifier must be for library targets")
-
-        self.descriptionPackage = descriptionPackage
-        self.buildParameters = buildParameters
-        self.buildOptions = buildOptions
-        self.buildOptionsMatrix = buildOptionsMatrix
-        self.fileSystem = fileSystem
-        self.project = project
-        self.pifTarget = pifTarget
-        self.sdk = sdk
-
-        let c99Name = pifTarget.name.spm_mangledToC99ExtendedIdentifier()
-
-        guard let resolvedTarget = descriptionPackage.graph.allModules.first(where: { $0.c99name == c99Name }) else {
-            fatalError("Resolved Target named \(c99Name) is not found.")
-        }
-
-        guard let resolvedPackage = descriptionPackage.graph.package(for: resolvedTarget) else {
-            fatalError("Could not find a package")
-        }
-
-        self.resolvedTarget = resolvedTarget
-        self.resolvedPackage = resolvedPackage
     }
 
-    private var c99Name: String {
-        resolvedTarget.c99name
-    }
-
-    func modify() -> PIF.Target {
-        updateLibraryTargetSettings()
-
-        return pifTarget
-    }
-
-    private func updateLibraryTargetSettings() {
-        pifTarget.productType = .framework
-
-        let newConfigurations = pifTarget.buildConfigurations.map(updateBuildConfiguration)
-
-        pifTarget.buildConfigurations = newConfigurations
-    }
-
-    private func updateBuildConfiguration(_ original: PIF.BuildConfiguration) -> PIF.BuildConfiguration {
-        var configuration = original
-        var settings = configuration.buildSettings
-        let name = pifTarget.name
-        let c99Name = name.spm_mangledToC99ExtendedIdentifier()
-
-        let toolchainLibDir = (try? buildParameters.toolchain.toolchainLibDir) ?? .root
+    private func updateBuildConfiguration(_ configuration: inout PIFKit.BuildConfiguration, target: PIFKit.Target, sdk: SDK) {
+        let name = target.name
 
 #if compiler(>=6.1)
-        settings[.PRODUCT_NAME] = c99Name
-        settings[.PRODUCT_MODULE_NAME] = c99Name
+        configuration.buildSettings["PRODUCT_NAME"] = .string(target.c99Name)
+        configuration.buildSettings["PRODUCT_MODULE_NAME"] = .string(target.c99Name)
 #else
-        settings[.PRODUCT_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
-        settings[.PRODUCT_MODULE_NAME] = "$(EXECUTABLE_NAME:c99extidentifier)"
-        settings[.EXECUTABLE_NAME] = c99Name
+        configuration.buildSettings["PRODUCT_NAME"] = "$(EXECUTABLE_NAME:c99extidentifier)"
+        configuration.buildSettings["PRODUCT_MODULE_NAME"] = "$(EXECUTABLE_NAME:c99extidentifier)"
 #endif
-        settings[.TARGET_NAME] = name
-        settings[.PRODUCT_BUNDLE_IDENTIFIER] = name.spm_mangledToBundleIdentifier()
-        settings[.CLANG_ENABLE_MODULES] = "YES"
-        settings[.DEFINES_MODULE] = "YES"
-        settings[.SKIP_INSTALL] = "NO"
-        settings[.INSTALL_PATH] = "/usr/local/lib"
-        settings[.ONLY_ACTIVE_ARCH] = "NO"
+        configuration.buildSettings["EXECUTABLE_NAME"] = .string(target.c99Name)
+        configuration.buildSettings["TARGET_NAME"] = .string(name)
+        configuration.buildSettings["PRODUCT_BUNDLE_IDENTIFIER"] = .string(name.spm_mangledToBundleIdentifier())
+        configuration.buildSettings["CLANG_ENABLE_MODULES"] = true
+        configuration.buildSettings["DEFINES_MODULE"] = true
+        configuration.buildSettings["SKIP_INSTALL"] = false
+        configuration.buildSettings["INSTALL_PATH"] = "/usr/local/lib"
+        configuration.buildSettings["ONLY_ACTIVE_ARCH"] = false
 
-        settings[.GENERATE_INFOPLIST_FILE] = "YES"
+        configuration.buildSettings["GENERATE_INFOPLIST_FILE"] = true
         // These values are required to ship built frameworks to AppStore as embedded frameworks
-        settings[.MARKETING_VERSION] = "1.0"
-        settings[.CURRENT_PROJECT_VERSION] = "1"
+        configuration.buildSettings["MARKETING_VERSION"] = "1.0"
+        configuration.buildSettings["CURRENT_PROJECT_VERSION"] = "1"
 
-        let frameworkType = buildOptionsMatrix[pifTarget.name]?.frameworkType ?? buildOptions.frameworkType
+        let frameworkType = buildOptionsMatrix[name]?.frameworkType ?? buildOptions.frameworkType
 
         // Set framework type
         switch frameworkType {
         case .dynamic, .mergeable:
-            settings[.MACH_O_TYPE] = "mh_dylib"
+            configuration.buildSettings["MACH_O_TYPE"] = "mh_dylib"
         case .static:
-            settings[.MACH_O_TYPE] = "staticlib"
+            configuration.buildSettings["MACH_O_TYPE"] = "staticlib"
         }
 
-        settings[.LIBRARY_SEARCH_PATHS, default: ["$(inherited)"]]
-            .append("\(toolchainLibDir.pathString)/swift/\(sdk.settingValue)")
+        let librarySearchPaths = toolchainLibDirectory.appending(components: "swift", sdk.settingValue)
+        configuration.buildSettings["LIBRARY_SEARCH_PATHS"]
+            .append(librarySearchPaths.path(percentEncoded: false))
 
         // Enable to emit swiftinterface
         if buildOptions.enableLibraryEvolution {
-            settings[.OTHER_SWIFT_FLAGS, default: ["$(inherited)"]]
+            configuration.buildSettings["OTHER_SWIFT_FLAGS"]
                 .append("-enable-library-evolution")
-            settings[.SWIFT_EMIT_MODULE_INTERFACE] = "YES"
+            configuration.buildSettings["SWIFT_EMIT_MODULE_INTERFACE"] = "YES"
         }
-        settings[.SWIFT_INSTALL_OBJC_HEADER] = "YES"
+        configuration.buildSettings["SWIFT_INSTALL_OBJC_HEADER"] = "YES"
 
         switch frameworkType {
         case .static:
             break
         case .mergeable:
-            settings[.OTHER_LDFLAGS, default: ["$(inherited)"]]
+            configuration.buildSettings["OTHER_LDFLAGS"]
                 .append("-Wl,-make_mergeable")
         case .dynamic:
             guard let recursiveDependencies = try? resolvedTarget.recursiveDependencies() else {
@@ -276,20 +150,17 @@ private struct PIFLibraryTargetModifier {
             }
         }
 
-        appendExtraFlagsByBuildOptionsMatrix(to: &settings)
+        appendExtraFlagsByBuildOptionsMatrix(to: &configuration, target: target)
 
         // Original PIFBuilder implementation of SwiftPM generates modulemap for Swift target
         // That modulemap refer a bridging header by a relative path
         // However, this PIFGenerator modified productType to framework.
         // So a bridging header will be generated in frameworks bundle even if `SWIFT_OBJC_INTERFACE_HEADER_DIR` was specified.
         // So it's need to replace `MODULEMAP_FILE_CONTENTS` to an absolute path.
-        if let swiftTarget = resolvedTarget.underlying as? ScipioSwiftModule {
-            settings[.MODULEMAP_FILE_CONTENTS] = modulemapFileContents(swiftTarget: swiftTarget)
+        if case .string(let moduleMapFileContents) = configuration.buildSettings["MODULEMAP_FILE_CONTENTS"],
+            moduleMapFileContents.contains("\(target.name)-Swift.h") {
+            resolveModuleMapPath(of: target, configuration: &configuration, sdk: sdk)
         }
-
-        configuration.buildSettings = settings
-
-        return configuration
     }
 
     private func categorizeModuleDependenciesByPlatform(
@@ -324,17 +195,17 @@ private struct PIFLibraryTargetModifier {
     }
 
     // Append extraFlags from BuildOptionsMatrix to each target settings
-    private func appendExtraFlagsByBuildOptionsMatrix(to settings: inout PIF.BuildSettings) {
-        func createOrUpdateFlags(for key: PIF.BuildSettings.MultipleValueSetting, to keyPath: KeyPath<ExtraFlags, [String]?>) {
-            if let extraFlags = self.buildOptionsMatrix[pifTarget.name]?.extraFlags?[keyPath: keyPath] {
-                settings[key] = (settings[key] ?? []) + extraFlags
+    private func appendExtraFlagsByBuildOptionsMatrix(to configuration: inout PIFKit.BuildConfiguration, target: PIFKit.Target) {
+        func createOrUpdateFlags(for key: String, to keyPath: KeyPath<ExtraFlags, [String]?>) {
+            if let extraFlags = self.buildOptionsMatrix[target.name]?.extraFlags?[keyPath: keyPath] {
+                configuration.buildSettings[key].append(extraFlags)
             }
         }
 
-        createOrUpdateFlags(for: .OTHER_CFLAGS, to: \.cFlags)
-        createOrUpdateFlags(for: .OTHER_CPLUSPLUSFLAGS, to: \.cxxFlags)
-        createOrUpdateFlags(for: .OTHER_SWIFT_FLAGS, to: \.swiftFlags)
-        createOrUpdateFlags(for: .OTHER_LDFLAGS, to: \.linkerFlags)
+        createOrUpdateFlags(for: "OTHER_CFLAGS", to: \.cFlags)
+        createOrUpdateFlags(for: "OTHER_CPLUSPLUSFLAGS", to: \.cxxFlags)
+        createOrUpdateFlags(for: "OTHER_SWIFT_FLAGS", to: \.swiftFlags)
+        createOrUpdateFlags(for: "OTHER_LDFLAGS", to: \.linkerFlags)
     }
 
     private func modulemapFileContents(swiftTarget: ScipioSwiftModule) -> String {
@@ -354,17 +225,55 @@ private struct PIFLibraryTargetModifier {
             }
         """
     }
-}
 
-extension PIF.TopLevelObject: @retroactive Decodable {
-    public init(from decoder: Decoder) throws {
-        var container = try decoder.unkeyedContainer()
-        self.init(workspace: try container.decode(PIF.Workspace.self))
+    /// Resolve Bridging Header path to absolute path.
+    /// - Parameters target: Target to resolve modulemap path
+    /// - Parameters configuration: BuildConfiguration to update
+    /// - Parameters sdk: SDK to resolve module
+    private func resolveModuleMapPath(of target: PIFKit.Target, configuration: inout PIFKit.BuildConfiguration, sdk: SDK) {
+        // Bridging Headers will be generated inside generated frameworks
+        let productsDirectory = packageLocator.productsDirectory(
+            buildConfiguration: buildOptions.buildConfiguration,
+            sdk: sdk
+        )
+        let bridgingHeaderFullPath = productsDirectory.appending(
+            components: ["\(target.c99Name).framework", "Headers", "\(target.name)-Swift.h"]
+        )
+
+        configuration.buildSettings["MODULEMAP_FILE_CONTENTS"] = .string("""
+        module \(target.c99Name) {
+            header "\(bridgingHeaderFullPath.pathString)"
+            export *
+        }
+        """)
+    }
+
+    private func generateInfoPlistForResource(for target: inout PIFKit.Target) {
+        assert(target.productType == .bundle, "This method must be called for Resource bundles")
+
+        let infoPlistGenerator = InfoPlistGenerator(fileSystem: fileSystem)
+        let infoPlistPath = packageLocator.workspaceDirectory.appending(component: "Info-\(target.name).plist")
+        do {
+            try infoPlistGenerator.generateForResourceBundle(at: infoPlistPath)
+        } catch {
+            fatalError("Could not generate Info.plist file")
+        }
+
+        target.buildConfigurations = target.buildConfigurations.map { buildConfiguration in
+            var mutableConfiguration = buildConfiguration
+            // For resource bundle targets, generating Info.plist automatically in default.
+            // However, generated Info.plist causes code signing issue when submitting to AppStore.
+            // `CFBundleExecutable` is not allowed for Info.plist contains in resource bundles.
+            // So generating a Info.plist and set this
+            mutableConfiguration.buildSettings["GENERATE_INFOPLIST_FILE"] = false
+            mutableConfiguration.buildSettings["INFOPLIST_FILE"] = .string(infoPlistPath.pathString)
+            return mutableConfiguration
+        }
     }
 }
 
-extension AbsolutePath {
-    fileprivate var moduleEscapedPathString: String {
-        return self.pathString.replacingOccurrences(of: "\\", with: "\\\\")
+extension PIFKit.Target {
+    fileprivate var c99Name: String {
+        name.spm_mangledToC99ExtendedIdentifier()
     }
 }

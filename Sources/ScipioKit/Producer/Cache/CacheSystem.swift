@@ -3,10 +3,7 @@ import ScipioStorage
 import Basics
 import struct TSCUtility.Version
 import Algorithms
-// We may drop this annotation in SwiftPM's future release
-@preconcurrency import PackageGraph
-import PackageModel
-import SourceControl
+import PackageManifestKit
 
 private let jsonEncoder = {
     let encoder = JSONEncoder()
@@ -41,63 +38,10 @@ struct ClangChecker<E: Executor> {
     }
 }
 
-extension PinsStore.PinState: Codable {
-    enum Key: CodingKey {
-        case revision
-        case branch
-        case version
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var versionContainer = encoder.container(keyedBy: Key.self)
-        switch self {
-        case .version(let version, let revision):
-            try versionContainer.encode(version.description, forKey: .version)
-            try versionContainer.encode(revision, forKey: .revision)
-        case .revision(let revision):
-            try versionContainer.encode(revision, forKey: .revision)
-        case .branch(let branchName, let revision):
-            try versionContainer.encode(branchName, forKey: .branch)
-            try versionContainer.encode(revision, forKey: .revision)
-        }
-    }
-
-    public init(from decoder: Decoder) throws {
-        let decoder = try decoder.container(keyedBy: Key.self)
-        if decoder.contains(.branch) {
-            let branchName = try decoder.decode(String.self, forKey: .branch)
-            let revision = try decoder.decode(String.self, forKey: .revision)
-            self = .branch(name: branchName, revision: revision)
-        } else if decoder.contains(.version) {
-            let version = try decoder.decode(Version.self, forKey: .version)
-            let revision = try decoder.decode(String?.self, forKey: .revision)
-            self = .version(version, revision: revision)
-        } else {
-            let revision = try decoder.decode(String.self, forKey: .revision)
-            self = .revision(revision)
-        }
-    }
-}
-
-extension PinsStore.PinState: @retroactive Hashable {
-    public func hash(into hasher: inout Hasher) {
-        switch self {
-        case .revision(let revision):
-            hasher.combine(revision)
-        case .version(let version, let revision):
-            hasher.combine(version)
-            hasher.combine(revision)
-        case .branch(let branchName, let revision):
-            hasher.combine(branchName)
-            hasher.combine(revision)
-        }
-    }
-}
-
 public struct SwiftPMCacheKey: CacheKey {
     /// The canonical repository URL the manifest was loaded from, for local packages only.
     public var localPackageCanonicalLocation: String?
-    public var pin: PinsStore.PinState
+    public var pin: Pin.State
     public var targetName: String
     var buildOptions: BuildOptions
     public var clangVersion: String
@@ -107,7 +51,6 @@ public struct SwiftPMCacheKey: CacheKey {
 
 struct CacheSystem: Sendable {
     static let defaultParalellNumber = 8
-    private let pinsStore: PinsStore
     private let outputDirectory: URL
     private let fileSystem: any FileSystem
 
@@ -137,11 +80,9 @@ struct CacheSystem: Sendable {
     }
 
     init(
-        pinsStore: PinsStore,
         outputDirectory: URL,
         fileSystem: any FileSystem = localFileSystem
     ) {
-        self.pinsStore = pinsStore
         self.outputDirectory = outputDirectory
         self.fileSystem = fileSystem
     }
@@ -233,14 +174,14 @@ struct CacheSystem: Sendable {
     func calculateCacheKey(of target: CacheTarget) async throws -> SwiftPMCacheKey {
         let package = target.buildProduct.package
 
-        let localPackageCanonicalLocation: String? = switch package.manifest.packageKind {
+        let localPackageCanonicalLocation: String? = switch package.resolvedPackageKind {
         case .fileSystem, .localSourceControl:
-            package.manifest.canonicalPackageLocation.description
+            package.canonicalPackageLocation.description
         case .root, .remoteSourceControl, .registry:
             nil
         }
 
-        let pin = try retrievePin(package: package)
+        let pinState = try await retrievePinState(package: package)
 
         let targetName = target.buildProduct.target.name
         let buildOptions = target.buildOptions
@@ -252,7 +193,7 @@ struct CacheSystem: Sendable {
         }
         return SwiftPMCacheKey(
             localPackageCanonicalLocation: localPackageCanonicalLocation,
-            pin: pin.state,
+            pin: pinState,
             targetName: targetName,
             buildOptions: buildOptions,
             clangVersion: clangVersion,
@@ -261,11 +202,16 @@ struct CacheSystem: Sendable {
         )
     }
 
-    private func retrievePin(package: ResolvedPackage) throws -> PinsStore.Pin {
-        guard let pin = pinsStore.pins[package.identity] ?? package.makePinFromRevision() else {
-            throw Error.revisionNotDetected(package.manifest.displayName)
+    private func retrievePinState(package: ResolvedPackage) async throws -> Pin.State {
+        if let pinState = package.pinState {
+            return pinState
         }
-        return pin
+
+        guard let pinState = await package.makePinStateFromRevision() else {
+            throw Error.revisionNotDetected(package.manifest.name)
+        }
+
+        return pinState
     }
 
     private func versionFilePath(for targetName: String) -> URL {
@@ -294,24 +240,61 @@ public struct VersionFileDecoder {
 }
 
 extension ResolvedPackage {
-    fileprivate func makePinFromRevision() -> PinsStore.Pin? {
-        let repository = GitRepository(path: path)
+    fileprivate func makePinStateFromRevision() async -> Pin.State? {
+        let executor = GitExecutor(path: URL(filePath: path))
 
-        guard let tag = repository.getCurrentTag(), let version = Version(tag: tag) else {
+        guard let tag = try? await executor.fetchCurrentTag(),
+              let version = Version(tag: tag),
+              let revision = try? await executor.fetchCurrentRevision()
+        else {
             return nil
         }
 
         // TODO: Even though the version requirement already covers the vast majority of cases,
         // supporting `branch` and `revision` requirements should, in theory, also be possible.
-        return PinsStore.Pin(
-            packageRef: PackageReference(
-                identity: identity,
-                kind: manifest.packageKind
-            ),
-            state: .version(
-                version,
-                revision: try? repository.getCurrentRevision().identifier
-            )
+        return Pin.State(
+            revision: revision,
+            version: version.description
         )
+    }
+}
+
+private struct GitExecutor<E: Executor> {
+    let path: URL
+    let executor: E
+
+    init(path: URL, executor: E = ProcessExecutor()) {
+        self.path = path
+        self.executor = executor
+    }
+
+    func fetchCurrentTag() async throws -> String {
+        let arguments = [
+            "/usr/bin/xcrun",
+            "git",
+            "-C",
+            path.path(percentEncoded: false),
+            "describe",
+            "--exact-match",
+            "--tags",
+        ]
+        return try await executor.execute(arguments)
+            .unwrapOutput()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func fetchCurrentRevision() async throws -> String {
+        let arguments = [
+            "/usr/bin/xcrun",
+            "git",
+            "-C",
+            path.path(percentEncoded: false),
+            "rev-parse",
+            "--verify",
+            "HEAD",
+        ]
+        return try await executor.execute(arguments)
+            .unwrapOutput()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

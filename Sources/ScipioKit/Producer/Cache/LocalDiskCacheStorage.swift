@@ -1,6 +1,5 @@
 import Foundation
 import ScipioStorage
-import PackageGraph
 import Basics
 
 struct LocalDiskCacheStorage: CacheStorage {

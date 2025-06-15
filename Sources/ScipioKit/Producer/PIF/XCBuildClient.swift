@@ -1,7 +1,5 @@
 import Foundation
 import Basics
-import PackageGraph
-import PackageModel
 
 struct XCBuildClient {
     enum Error: LocalizedError {
@@ -123,7 +121,7 @@ struct XCBuildClient {
         return try assembler.assemble()
     }
 
-    private func assembledFrameworkPath(target: ScipioResolvedModule, of sdk: SDK) throws -> TSCAbsolutePath {
+    private func assembledFrameworkPath(target: ResolvedModule, of sdk: SDK) throws -> TSCAbsolutePath {
         let assembledFrameworkDir = packageLocator.assembledFrameworksDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
             sdk: sdk

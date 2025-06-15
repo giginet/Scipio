@@ -1,5 +1,4 @@
 import Foundation
-import PackageGraph
 import Basics
 
 struct DwarfExtractor<E: Executor> {
@@ -11,7 +10,7 @@ struct DwarfExtractor<E: Executor> {
 
     typealias Arch = String
 
-    func dwarfPath(for target: ScipioResolvedModule, dSYMPath: TSCAbsolutePath) -> TSCAbsolutePath {
+    func dwarfPath(for target: ResolvedModule, dSYMPath: TSCAbsolutePath) -> TSCAbsolutePath {
         dSYMPath.appending(components: "Contents", "Resources", "DWARF", target.name)
     }
 

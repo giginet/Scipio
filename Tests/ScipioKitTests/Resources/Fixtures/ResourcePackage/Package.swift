@@ -23,6 +23,7 @@ let package = Package(
             resources: [
                 .copy("Resources/PrivacyInfo.xcprivacy"),
                 .process("Resources/giginet.png"),
+                .process("Resources/AvatarView.xib"),
             ]
         )
     ]

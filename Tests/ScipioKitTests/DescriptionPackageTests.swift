@@ -17,7 +17,7 @@ final class DescriptionPackageTests: XCTestCase {
         )
         XCTAssertEqual(package.name, "TestingPackage")
 
-        let packageNames = package.graph.packages.map(\.manifest.displayName)
+        let packageNames = package.graph.allPackages.map(\.value.manifest.name)
         XCTAssertEqual(packageNames.sorted(), ["TestingPackage", "swift-log"].sorted())
 
         XCTAssertEqual(
@@ -76,17 +76,13 @@ final class DescriptionPackageTests: XCTestCase {
         let graph = try package.resolveBuildProductDependencyGraph()
             .map { $0.target.name }
 
-        let myPluginNode = try XCTUnwrap(graph.rootNodes.first)
-        XCTAssertEqual(myPluginNode.value, "MyPlugin")
-
-        let executableTargetNode = try XCTUnwrap(myPluginNode.children.first)
-        XCTAssertEqual(executableTargetNode.value, "ExecutableTarget")
-
-        let myTargetNode = try XCTUnwrap(executableTargetNode.children.first)
+        let myTargetNode = try XCTUnwrap(graph.rootNodes.first)
         XCTAssertEqual(myTargetNode.value, "MyTarget")
 
-        let loggingNode = try XCTUnwrap(myTargetNode.children.first)
-        XCTAssertEqual(loggingNode.value, "Logging")
+        let loggingTargetNode = try XCTUnwrap(myTargetNode.children.first)
+        XCTAssertEqual(loggingTargetNode.value, "Logging")
+
+        XCTAssertNil(loggingTargetNode.children.first)
     }
 
     func testBinaryBuildProductsInCreateMode() async throws {

@@ -2,7 +2,6 @@ import Foundation
 @testable import ScipioKit
 import XCTest
 import Basics
-import struct PackageModel.CanonicalPackageLocation
 
 private let fixturePath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
@@ -21,7 +20,7 @@ final class CacheSystemTests: XCTestCase {
     func testEncodeCacheKey() throws {
         let cacheKey = SwiftPMCacheKey(
             localPackageCanonicalLocation: "/path/to/MyPackage",
-            pin: .revision("111111111"),
+            pin: .init(revision: "111111111"),
             targetName: "MyTarget",
             buildOptions: .init(
                 buildConfiguration: .release,
@@ -119,9 +118,10 @@ final class CacheSystemTests: XCTestCase {
             )
             let package = descriptionPackage
                 .graph
-                .packages
-                .first { $0.manifest.displayName == "scipio-testing" }!
-            let target = package.modules.first { $0.name == "ScipioTesting" }!
+                .allPackages
+                .values
+                .first { $0.manifest.name == "scipio-testing" }!
+            let target = package.targets.first { $0.name == "ScipioTesting" }!
             let cacheTarget = CacheSystem.CacheTarget(
                 buildProduct: BuildProduct(
                     package: package,
@@ -142,7 +142,6 @@ final class CacheSystemTests: XCTestCase {
             )
 
             let cacheSystem = CacheSystem(
-                pinsStore: try descriptionPackage.workspace.pinsStore.load(),
                 outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks")
             )
             return try await cacheSystem.calculateCacheKey(of: cacheTarget)
@@ -154,7 +153,13 @@ final class CacheSystemTests: XCTestCase {
         XCTAssertNil(scipioTestingRemote.localPackageCanonicalLocation)
         XCTAssertEqual(
             scipioTestingLocal.localPackageCanonicalLocation,
-            CanonicalPackageLocation(tempDir.appending(component: "scipio-testing").pathString).description
+            ScipioKit.CanonicalPackageLocation(
+                tempDir.appending(component: "scipio-testing")
+                    .asURL
+                    .standardizedFileURL
+                    .resolvingSymlinksInPath()
+                    .path(percentEncoded: false)
+            ).description
         )
         XCTAssertEqual(scipioTestingRemote.targetName, scipioTestingLocal.targetName)
         XCTAssertEqual(scipioTestingRemote.pin, scipioTestingLocal.pin)
@@ -176,15 +181,15 @@ final class CacheSystemTests: XCTestCase {
             onlyUseVersionsFromResolvedFile: false
         )
         let cacheSystem = CacheSystem(
-            pinsStore: try descriptionPackage.workspace.pinsStore.load(),
             outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks")
         )
         let testingPackage = descriptionPackage
             .graph
-            .packages
-            .first { $0.manifest.displayName == descriptionPackage.manifest.name }!
+            .allPackages
+            .values
+            .first { $0.manifest.name == descriptionPackage.manifest.name }!
 
-        let myTarget = testingPackage.modules.first { $0.name == "MyTarget" }!
+        let myTarget = testingPackage.targets.first { $0.name == "MyTarget" }!
         let cacheTarget = CacheSystem.CacheTarget(
             buildProduct: BuildProduct(
                 package: testingPackage,
@@ -224,6 +229,6 @@ final class CacheSystemTests: XCTestCase {
         let cacheKey = try await cacheSystem.calculateCacheKey(of: cacheTarget)
 
         XCTAssertEqual(cacheKey.targetName, myTarget.name)
-        XCTAssertEqual(cacheKey.pin.description, "1.1.0")
+        XCTAssertEqual(cacheKey.pin.version, "1.1.0")
     }
 }

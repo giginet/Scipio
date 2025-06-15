@@ -1,0 +1,132 @@
+{
+  "buildConfigurations" : [
+    {
+      "buildSettings" : {
+        "CLANG_ENABLE_MODULES" : "YES",
+        "DEFINES_MODULE" : "YES",
+        "EXECUTABLE_NAME" : "MyFrameworkTests",
+        "GENERATE_INFOPLIST_FILE" : "YES",
+        "IPHONEOS_DEPLOYMENT_TARGET" : "13.0",
+        "LD_RUNPATH_SEARCH_PATHS" : [
+          "$(inherited)",
+          "@loader_path/Frameworks",
+          "@loader_path/../Frameworks"
+        ],
+        "LIBRARY_SEARCH_PATHS" : [
+          "$(inherited)",
+          "/Applications/Xcode-16.2.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx"
+        ],
+        "MACOSX_DEPLOYMENT_TARGET" : "13.0",
+        "OTHER_SWIFT_FLAGS" : [
+          "-package-name",
+          "myframework"
+        ],
+        "PACKAGE_RESOURCE_TARGET_KIND" : "regular",
+        "PRODUCT_BUNDLE_IDENTIFIER" : "MyFrameworkTests",
+        "PRODUCT_MODULE_NAME" : "MyFrameworkTests",
+        "PRODUCT_NAME" : "MyFrameworkTests",
+        "SWIFT_VERSION" : "6",
+        "TARGET_NAME" : "MyFrameworkTests",
+        "TVOS_DEPLOYMENT_TARGET" : "13.0",
+        "WATCHOS_DEPLOYMENT_TARGET" : "7.0",
+        "XROS_DEPLOYMENT_TARGET" : "1.0"
+      },
+      "guid" : "PACKAGE-PRODUCT:MyFrameworkTests::BUILDCONFIG_Debug",
+      "impartedBuildProperties" : {
+        "buildSettings" : {
+
+        }
+      },
+      "name" : "Debug"
+    },
+    {
+      "buildSettings" : {
+        "CLANG_ENABLE_MODULES" : "YES",
+        "DEFINES_MODULE" : "YES",
+        "EXECUTABLE_NAME" : "MyFrameworkTests",
+        "GENERATE_INFOPLIST_FILE" : "YES",
+        "IPHONEOS_DEPLOYMENT_TARGET" : "13.0",
+        "LD_RUNPATH_SEARCH_PATHS" : [
+          "$(inherited)",
+          "@loader_path/Frameworks",
+          "@loader_path/../Frameworks"
+        ],
+        "LIBRARY_SEARCH_PATHS" : [
+          "$(inherited)",
+          "/Applications/Xcode-16.2.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx"
+        ],
+        "MACOSX_DEPLOYMENT_TARGET" : "13.0",
+        "OTHER_SWIFT_FLAGS" : [
+          "-package-name",
+          "myframework"
+        ],
+        "PACKAGE_RESOURCE_TARGET_KIND" : "regular",
+        "PRODUCT_BUNDLE_IDENTIFIER" : "MyFrameworkTests",
+        "PRODUCT_MODULE_NAME" : "MyFrameworkTests",
+        "PRODUCT_NAME" : "MyFrameworkTests",
+        "SWIFT_VERSION" : "6",
+        "TARGET_NAME" : "MyFrameworkTests",
+        "TVOS_DEPLOYMENT_TARGET" : "13.0",
+        "WATCHOS_DEPLOYMENT_TARGET" : "7.0",
+        "XROS_DEPLOYMENT_TARGET" : "1.0"
+      },
+      "guid" : "PACKAGE-PRODUCT:MyFrameworkTests::BUILDCONFIG_Release",
+      "impartedBuildProperties" : {
+        "buildSettings" : {
+
+        }
+      },
+      "name" : "Release"
+    }
+  ],
+  "buildPhases" : [
+    {
+      "buildFiles" : [
+        {
+          "fileReference" : "PACKAGE:/Users/giginet/work/Swift/build-playground/MyFramework::MAINGROUP::REF_0::REF_0",
+          "guid" : "PACKAGE-PRODUCT:MyFrameworkTests::BUILDPHASE_0::0",
+          "platformFilters" : [
+
+          ]
+        }
+      ],
+      "guid" : "PACKAGE-PRODUCT:MyFrameworkTests::BUILDPHASE_0",
+      "type" : "com.apple.buildphase.sources"
+    },
+    {
+      "buildFiles" : [
+        {
+          "guid" : "PACKAGE-PRODUCT:MyFrameworkTests::BUILDPHASE_1::0",
+          "platformFilters" : [
+
+          ],
+          "targetReference" : "PACKAGE-TARGET:MyFramework@11"
+        }
+      ],
+      "guid" : "PACKAGE-PRODUCT:MyFrameworkTests::BUILDPHASE_1",
+      "type" : "com.apple.buildphase.frameworks"
+    }
+  ],
+  "buildRules" : [
+
+  ],
+  "dependencies" : [
+    {
+      "guid" : "PACKAGE-TARGET:MyFramework@11"
+    }
+  ],
+  "guid" : "PACKAGE-PRODUCT:MyFrameworkTests@11",
+  "impartedBuildProperties" : {
+    "buildSettings" : {
+
+    }
+  },
+  "name" : "MyFrameworkTests_2713FB4B18606497_PackageProduct",
+  "productReference" : {
+    "guid" : "PRODUCTREF-PACKAGE-PRODUCT:MyFrameworkTests",
+    "name" : "MyFrameworkTests",
+    "type" : "file"
+  },
+  "productTypeIdentifier" : "com.apple.product-type.bundle.unit-test",
+  "type" : "standard"
+}
