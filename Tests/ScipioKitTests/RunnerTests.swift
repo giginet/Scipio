@@ -280,7 +280,7 @@ final class RunnerTests: XCTestCase {
             outputDirectory: frameworkOutputDir
         )
         let packages = descriptionPackage.graph.packages
-            .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
+            .filter { $0.manifest.displayName != descriptionPackage.manifest.name }
 
         let allTargets = packages
             .flatMap { package in
@@ -508,7 +508,7 @@ final class RunnerTests: XCTestCase {
             outputDirectory: frameworkOutputDir
         )
         let packages = descriptionPackage.graph.packages
-            .filter { $0.manifest.displayName != descriptionPackage.manifest.displayName }
+            .filter { $0.manifest.displayName != descriptionPackage.manifest.name }
 
         let allTargets = packages
             .flatMap { package in

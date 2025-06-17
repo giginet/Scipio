@@ -67,12 +67,13 @@ struct PIFCompiler: Compiler {
             let buildParameters = try makeBuildParameters(toolchain: toolchain)
 
             let generator = try PIFGenerator(
-                package: descriptionPackage,
-                buildParameters: buildParameters,
+                packageName: descriptionPackage.name,
+                packageLocator: descriptionPackage,
+                toolchainLibDirectory: try buildParameters.toolchain.toolchainLibDir.asURL,
                 buildOptions: buildOptions,
                 buildOptionsMatrix: buildOptionsMatrix
             )
-            let pifPath = try generator.generateJSON(for: sdk)
+            let pifPath = try await generator.generateJSON(for: sdk)
             let buildParametersPath = try buildParametersGenerator.generate(
                 for: sdk,
                 buildParameters: buildParameters,
@@ -125,6 +126,16 @@ struct PIFCompiler: Compiler {
     }
 
     private func makeBuildParameters(toolchain: UserToolchain) throws -> BuildParameters {
+        #if compiler(>=6.2)
+        try .init(
+            destination: .target,
+            dataPath: descriptionPackage.buildDirectory.spmAbsolutePath,
+            configuration: buildOptions.buildConfiguration.spmConfiguration,
+            toolchain: toolchain,
+            flags: .init(),
+            driverParameters: BuildParameters.Driver(enableParseableModuleInterfaces: buildOptions.enableLibraryEvolution)
+        )
+        #else
         try .init(
             destination: .target,
             dataPath: descriptionPackage.buildDirectory.spmAbsolutePath,
@@ -134,6 +145,7 @@ struct PIFCompiler: Compiler {
             isXcodeBuildSystemEnabled: true,
             driverParameters: BuildParameters.Driver(enableParseableModuleInterfaces: buildOptions.enableLibraryEvolution)
         )
+        #endif
     }
 }
 
