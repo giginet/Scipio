@@ -38,26 +38,12 @@ struct ProcessResult: ExecutorResult {
         case terminated(code: Int32)
         case signalled(signal: Int32)
     }
-    
+
     let arguments: [String]
     let environment: [String: String]
     let exitStatus: ExitStatus
     let output: Result<[UInt8], Swift.Error>
     let stderrOutput: Result<[UInt8], Swift.Error>
-    
-    init(
-        arguments: [String],
-        environment: [String: String],
-        exitStatus: ExitStatus,
-        output: Result<[UInt8], Swift.Error>,
-        stderrOutput: Result<[UInt8], Swift.Error>
-    ) {
-        self.arguments = arguments
-        self.environment = environment
-        self.exitStatus = exitStatus
-        self.output = output
-        self.stderrOutput = stderrOutput
-    }
 }
 
 enum ProcessExecutorError: LocalizedError {
@@ -88,7 +74,6 @@ Unknown error occurred.
     }
 }
 
-
 struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
     private let decoder: Decoder
     init(decoder: Decoder = StandardErrorOutputDecoder()) {
@@ -108,16 +93,16 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = Array(arguments.dropFirst())
-        
+
         let outputPipe = Pipe()
         let errorPipe = Pipe()
         process.standardOutput = outputPipe
         process.standardError = errorPipe
-        
+
         // Set up reading from pipes
         let outputHandle = outputPipe.fileHandleForReading
         let errorHandle = errorPipe.fileHandleForReading
-        
+
         do {
             try process.run()
         } catch CocoaError.fileNoSuchFile {
@@ -125,34 +110,34 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
         } catch {
             throw ProcessExecutorError.unknownError(error)
         }
-        
+
         // Use async continuation to wait for process completion
         await withCheckedContinuation { continuation in
             process.terminationHandler = { _ in
                 continuation.resume()
             }
         }
-        
+
         // Read output data
         let outputData = outputHandle.readDataToEndOfFile()
         let outputBuffer = [UInt8](outputData)
-        
+
         // Call stream handler if available
         if let streamHandler = streamOutput, !outputBuffer.isEmpty {
             streamHandler(outputBuffer)
         }
-        
+
         // Read error data
         let errorData = errorHandle.readDataToEndOfFile()
         let errorBuffer = [UInt8](errorData)
-        
+
         let exitStatus: ProcessResult.ExitStatus
         if process.terminationReason == .exit {
             exitStatus = .terminated(code: process.terminationStatus)
         } else {
             exitStatus = .signalled(signal: process.terminationStatus)
         }
-        
+
         let result = ProcessResult(
             arguments: arguments,
             environment: process.environment ?? ProcessInfo.processInfo.environment,
@@ -160,7 +145,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor {
             output: .success(outputBuffer),
             stderrOutput: .success(errorBuffer)
         )
-        
+
         switch result.exitStatus {
         case .terminated(let code) where code == 0:
             return result
