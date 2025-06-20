@@ -1,6 +1,6 @@
 import Foundation
 import ScipioStorage
-import Basics
+import TSCBasic
 
 struct LocalDiskCacheStorage: CacheStorage {
     private let fileSystem: any FileSystem

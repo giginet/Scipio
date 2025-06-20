@@ -1,6 +1,6 @@
 import Foundation
 import Logging
-import Basics
+import TSCBasic
 import Algorithms
 
 struct XCBuildExecutor {
@@ -8,10 +8,10 @@ struct XCBuildExecutor {
     var xcbuildPath: URL
 
     func build(
-        pifPath: TSCAbsolutePath,
+        pifPath: AbsolutePath,
         configuration: BuildConfiguration,
-        derivedDataPath: TSCAbsolutePath,
-        buildParametersPath: TSCAbsolutePath,
+        derivedDataPath: AbsolutePath,
+        buildParametersPath: AbsolutePath,
         target: ResolvedModule
     ) async throws {
         let executor = _Executor(args: [
@@ -84,7 +84,9 @@ private final class _Executor {
     }
 
     private func parse(bytes: [UInt8]) {
-        let jsons = String(bytes: bytes, encoding: .utf8)?.components(separatedBy: "\n") ?? []
+        let jsons = String(bytes: bytes, encoding: .utf8)?
+            .components(separatedBy: "\n")
+            .compactMap { $0.data(using: .utf8) } ?? []
         for json in jsons {
             if let message = try? jsonDecoder.decode(XCBuildMessage.self, from: json) {
                 handle(message: message)

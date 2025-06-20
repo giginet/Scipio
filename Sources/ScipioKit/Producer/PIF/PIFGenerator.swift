@@ -1,5 +1,5 @@
 import Foundation
-import Basics
+import TSCBasic
 import PIFKit
 
 struct PIFGenerator {
@@ -43,7 +43,7 @@ struct PIFGenerator {
         return try PIFManipulator(jsonData: data)
     }
 
-    func generateJSON(for sdk: SDK) async throws -> TSCAbsolutePath {
+    func generateJSON(for sdk: SDK) async throws -> AbsolutePath {
         let manipulator = try await buildPIFManipulator()
 
         manipulator.updateTargets { target in
@@ -54,7 +54,7 @@ struct PIFGenerator {
 
         let path = packageLocator.workspaceDirectory
             .appending(component: "manifest-\(packageName)-\(sdk.settingValue).pif")
-        try fileSystem.writeFileContents(path.spmAbsolutePath, data: newJSONData)
+        try fileSystem.writeFileContents(path, data: newJSONData)
         return path
     }
 

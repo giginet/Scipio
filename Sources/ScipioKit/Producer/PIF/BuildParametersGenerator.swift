@@ -1,7 +1,5 @@
 import Foundation
-import Basics
-import struct TSCBasic.ByteString
-
+import TSCBasic
 struct XCBBuildParameters: Encodable, Sendable {
     struct RunDestination: Encodable, Sendable {
         var platform: String
@@ -36,7 +34,7 @@ struct BuildParametersGenerator {
         self.executor = executor
     }
 
-    func generate(for sdk: SDK, buildParameters: Parameters, destinationDir: TSCAbsolutePath) throws -> TSCAbsolutePath {
+    func generate(for sdk: SDK, buildParameters: Parameters, destinationDir: AbsolutePath) throws -> AbsolutePath {
         let targetArchitecture = buildParameters.arch
 
         // Generate the run destination parameters.
@@ -86,7 +84,7 @@ struct BuildParametersGenerator {
 
         // Write out the parameters as a JSON file, and return the path.
         let filePath = destinationDir.appending(component: "build-parameters-\(sdk.settingValue).json")
-        let encoder = JSONEncoder.makeWithDefaults()
+        let encoder = JSONEncoder()
         let data = try encoder.encode(params)
         try self.fileSystem.writeFileContents(filePath, bytes: ByteString(data))
         return filePath

@@ -15,7 +15,7 @@
 // ===----------------------------------------------------------------------===//
 
 import Foundation
-import Basics
+import TSCBasic
 
 /// Name of the module map file recognized by the Clang and Swift compilers.
 extension URL {
@@ -62,7 +62,7 @@ struct ModuleMapGenerator {
         let entries: Set<AbsolutePath>
         do {
             let array = try fileSystem.getDirectoryContents(publicHeadersDir.absolutePath)
-                .map({ publicHeadersDir.appending(component: $0).spmAbsolutePath })
+                .map({ publicHeadersDir.appending(component: $0).absolutePath })
             entries = Set(array)
         } catch {
             // This might fail because of a file system error, etc.

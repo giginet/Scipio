@@ -1,8 +1,7 @@
 import Foundation
 import ScipioStorage
 import Collections
-import protocol TSCBasic.FileSystem
-import Basics
+import TSCBasic
 import PackageManifestKit
 
 struct FrameworkProducer {
@@ -115,7 +114,7 @@ struct FrameworkProducer {
 
         let targetBuildResult = await buildTargets(dependencyGraphToBuild)
 
-        let builtTargets: OrderedSet<CacheSystem.CacheTarget> = switch targetBuildResult {
+        let builtTargets: OrderedCollections.OrderedSet<CacheSystem.CacheTarget> = switch targetBuildResult {
             case .completed(let builtTargets),
                  .interrupted(let builtTargets, _):
                 builtTargets
@@ -298,7 +297,7 @@ struct FrameworkProducer {
     }
 
     private func buildTargets(_ targets: DependencyGraph<CacheSystem.CacheTarget>) async -> TargetBuildResult {
-        var builtTargets = OrderedSet<CacheSystem.CacheTarget>()
+        var builtTargets = OrderedCollections.OrderedSet<CacheSystem.CacheTarget>()
 
         do {
             var targets = targets
@@ -319,8 +318,8 @@ struct FrameworkProducer {
     }
 
     private enum TargetBuildResult {
-        case interrupted(builtTargets: OrderedSet<CacheSystem.CacheTarget>, error: any Error)
-        case completed(builtTargets: OrderedSet<CacheSystem.CacheTarget>)
+        case interrupted(builtTargets: OrderedCollections.OrderedSet<CacheSystem.CacheTarget>, error: any Error)
+        case completed(builtTargets: OrderedCollections.OrderedSet<CacheSystem.CacheTarget>)
     }
 
     @discardableResult

@@ -34,8 +34,10 @@ struct ManifestLoader: @unchecked Sendable {
             "--package-path",
             path,
         ]
-        let manifestString = try await executor.execute(commands).unwrapOutput()
-        let manifest = try jsonDecoder.decode(Manifest.self, from: manifestString)
+        let manifestData = try await executor.execute(commands)
+            .unwrapOutput()
+            .data(using: .utf8)!
+        let manifest = try jsonDecoder.decode(Manifest.self, from: manifestData)
         return manifest
     }
 }
