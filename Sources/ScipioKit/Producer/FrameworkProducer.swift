@@ -1,7 +1,6 @@
 import Foundation
 import ScipioStorage
 import Collections
-import protocol TSCBasic.FileSystem
 import TSCBasic
 import PackageManifestKit
 

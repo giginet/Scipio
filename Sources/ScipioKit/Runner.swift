@@ -1,8 +1,6 @@
 import Foundation
 import ScipioStorage
 import TSCBasic
-import protocol TSCBasic.FileSystem
-
 public typealias PlatformMatrix = [String: Set<SDK>]
 
 public struct Runner {
