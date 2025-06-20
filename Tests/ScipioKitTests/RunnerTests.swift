@@ -650,6 +650,14 @@ final class RunnerTests: XCTestCase {
                 fileManager.fileExists(atPath: bundlePath.appendingPathComponent("AvatarView.nib").path),
                 "XIB files should be contained"
             )
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: bundlePath.appendingPathComponent("Assets.car").path),
+                "Assets.car files should be contained"
+            )
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: bundlePath.appendingPathComponent("Model.momd").path),
+                "Model.momd files should be contained"
+            )
 
             let contents = try XCTUnwrap(try fileManager.contentsOfDirectory(atPath: bundlePath.path))
             XCTAssertTrue(
