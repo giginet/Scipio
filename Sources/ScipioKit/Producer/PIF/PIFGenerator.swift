@@ -37,6 +37,8 @@ struct PIFGenerator {
             "dump-pif",
             "--package-path",
             packageLocator.packageDirectory.pathString,
+            "--build-system",
+            "xcode",
         ]
         let jsonString = try await executor.execute(commands).unwrapOutput()
         let data = jsonString.data(using: .utf8)!
