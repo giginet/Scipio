@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import ScipioKit
 
-@Suite("ProcessExecutor Tests")
+@Suite("ProcessExecutorTests")
 struct ProcessExecutorTests {
 
     // MARK: - Test Helpers
@@ -161,7 +161,7 @@ struct ProcessExecutorTests {
         if case .terminated = thrownError {
             // Expected
         } else {
-            Issue.record("Expected terminated error, got: \(thrownError)")
+            Issue.record("Expected terminated error, got: \(String(describing: thrownError))")
         }
     }
 
@@ -177,7 +177,7 @@ struct ProcessExecutorTests {
         if case .terminated(let errorOutput) = thrownError {
             #expect(errorOutput?.contains("error message") == true)
         } else {
-            Issue.record("Expected terminated error, got: \(thrownError)")
+            Issue.record("Expected terminated error, got: \(String(describing: thrownError))")
         }
     }
 
@@ -194,7 +194,7 @@ struct ProcessExecutorTests {
         if case .terminated(let errorOutput) = thrownError {
             #expect(errorOutput == "DECODED: custom error")
         } else {
-            Issue.record("Expected terminated error, got: \(thrownError)")
+            Issue.record("Expected terminated error, got: \(String(describing: thrownError))")
         }
     }
 
