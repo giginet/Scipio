@@ -63,7 +63,6 @@ let package = Package(
             dependencies: [
                 .target(name: "PIFKit"),
                 .product(name: "SwiftPMDataModel-auto", package: "swift-package-manager"),
-                .product(name: "XCBuildSupport", package: "swift-package-manager"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Collections", package: "swift-collections"),
                 .product(name: "Algorithms", package: "swift-algorithms"),
