@@ -94,7 +94,7 @@ extension PackageResolver {
                         .enumerator(at: includeDir, includingPropertiesForKeys: nil)?
                         .compactMap { $0 as? URL }
                         .filter { headerExtensions.contains($0.pathExtension) }
-                    ?? []
+                        ?? []
                 )
             }
         }
