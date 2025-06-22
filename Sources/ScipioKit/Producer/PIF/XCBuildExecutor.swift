@@ -37,13 +37,13 @@ private actor _Executor {
         self.args = args
         self.executor = ProcessExecutor<StandardErrorOutputDecoder>()
     }
-    
+
     nonisolated func configure() {
         Task {
             await setStreamOutput()
         }
     }
-    
+
     private func setStreamOutput() {
         executor.streamOutput = { [weak self] bytes in
             Task {
