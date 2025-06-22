@@ -99,7 +99,7 @@ struct ProcessExecutorTests {
         let streamedString = String(data: streamedData, encoding: .utf8) ?? ""
         #expect(streamedString.contains("streaming test"))
     }
-    
+
     // MARK: - Error Cases
 
     @Test("Empty arguments array throws executableNotFound")

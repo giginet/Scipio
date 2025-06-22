@@ -114,7 +114,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
         if !FileManager.default.fileExists(atPath: executable) {
             throw ProcessExecutorError.executableNotFound
         }
-        
+
         let executableURL = URL(filePath: executable)
 
         let process = Foundation.Process()
