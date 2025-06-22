@@ -1,35 +1,10 @@
 import Foundation
 
-private func resolveExecutableInPath(_ executable: String) -> String? {
-    guard let pathEnv = ProcessInfo.processInfo.environment["PATH"] else {
-        return nil
-    }
-
-    let paths = pathEnv.split(separator: ":").map(String.init)
-
-    for path in paths {
-        let fullPath = "\(path)/\(executable)"
-        var isDirectory: ObjCBool = false
-        if FileManager.default.fileExists(atPath: fullPath, isDirectory: &isDirectory) && !isDirectory.boolValue {
-            // Check if it's executable
-            if FileManager.default.isExecutableFile(atPath: fullPath) {
-                return fullPath
-            }
-        }
-    }
-
-    return nil
-}
-
 private actor ProcessOutputBuffer {
-    private var bytes: [UInt8] = []
+    private(set) var bytes: [UInt8] = []
 
     func append(_ newBytes: [UInt8]) {
         bytes += newBytes
-    }
-
-    func getBytes() -> [UInt8] {
-        return bytes
     }
 }
 
@@ -136,22 +111,12 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
             throw ProcessExecutorError.executableNotFound
         }
 
-        // Resolve executable URL
-        let executableURL: URL
-        if executable.hasPrefix("/") {
-            // Absolute path - check if it exists
-            if !FileManager.default.fileExists(atPath: executable) {
-                throw ProcessExecutorError.executableNotFound
-            }
-            executableURL = URL(filePath: executable)
-        } else {
-            // Relative path or command name - resolve via PATH
-            if let resolvedPath = resolveExecutableInPath(executable) {
-                executableURL = URL(filePath: resolvedPath)
-            } else {
-                throw ProcessExecutorError.executableNotFound
-            }
+        // Validate executable exists
+        if !FileManager.default.fileExists(atPath: executable) {
+            throw ProcessExecutorError.executableNotFound
         }
+        
+        let executableURL = URL(filePath: executable)
 
         let process = Foundation.Process()
         let stdoutPipe = Pipe()
@@ -233,8 +198,8 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
                         exitStatus = .signalled(signal: process.terminationStatus)
                     }
 
-                    let finalOutputBuffer = await outputBuffer.getBytes()
-                    let finalErrorBuffer = await errorBuffer.getBytes()
+                    let finalOutputBuffer = await outputBuffer.bytes
+                    let finalErrorBuffer = await errorBuffer.bytes
 
                     let result = FoundationProcessResult(
                         arguments: arguments,
