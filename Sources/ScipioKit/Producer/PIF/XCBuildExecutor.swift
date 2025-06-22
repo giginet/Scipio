@@ -14,7 +14,7 @@ struct XCBuildExecutor {
         buildParametersPath: AbsolutePath,
         target: ResolvedModule
     ) async throws {
-        let executor = _Executor(args: [
+        let executor = await XCBuildMessageProcessExecutor([
             xcbuildPath.path(percentEncoded: false),
             "build",
             pifPath.pathString,
@@ -27,29 +27,18 @@ struct XCBuildExecutor {
             "--target",
             target.name,
         ])
-        executor.configure()
         try await executor.run()
     }
 }
 
-private actor _Executor {
-    init(args: [String]) {
+private actor XCBuildMessageProcessExecutor {
+    init(_ args: [String]) async {
         self.args = args
         self.executor = ProcessExecutor<StandardErrorOutputDecoder>()
-    }
-
-    nonisolated func configure() {
-        Task {
-            await setStreamOutput()
-        }
-    }
-
-    private func setStreamOutput() {
         executor.streamOutput = { [weak self] bytes in
-            Task {
-                await self?.parse(bytes: bytes)
-            }
+            await self?.parse(bytes: bytes)
         }
+
     }
 
     let args: [String]
