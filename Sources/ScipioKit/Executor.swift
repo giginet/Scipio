@@ -236,6 +236,12 @@ extension ExecutorResult {
     }
 }
 
+struct StandardErrorOutputDecoder: ErrorDecoder, Sendable {
+    func decode(_ result: ExecutorResult) throws -> String? {
+        try result.unwrapStdErrOutput()
+    }
+}
+
 struct StandardOutputDecoder: ErrorDecoder, Sendable {
     func decode(_ result: ExecutorResult) throws -> String? {
         try result.unwrapOutput()
