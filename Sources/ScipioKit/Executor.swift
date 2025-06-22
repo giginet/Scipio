@@ -1,5 +1,26 @@
 import Foundation
 
+private func resolveExecutableInPath(_ executable: String) -> String? {
+    guard let pathEnv = ProcessInfo.processInfo.environment["PATH"] else {
+        return nil
+    }
+    
+    let paths = pathEnv.split(separator: ":").map(String.init)
+    
+    for path in paths {
+        let fullPath = "\(path)/\(executable)"
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: fullPath, isDirectory: &isDirectory) && !isDirectory.boolValue {
+            // Check if it's executable
+            if FileManager.default.isExecutableFile(atPath: fullPath) {
+                return fullPath
+            }
+        }
+    }
+    
+    return nil
+}
+
 private actor ProcessOutputBuffer {
     private var bytes: [UInt8] = []
     
@@ -67,12 +88,15 @@ struct FoundationProcessResult: ExecutorResult, Sendable {
 }
 
 enum ProcessExecutorError: LocalizedError {
+    case executableNotFound
     case terminated(errorOutput: String?)
     case signalled(Int32)
     case unknownError(Swift.Error)
 
     var errorDescription: String? {
         switch self {
+        case .executableNotFound:
+            return "Executable not found or invalid"
         case .terminated(let errorOutput):
             return [
                 "Execution was terminated:",
@@ -103,11 +127,37 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
     func execute(_ arguments: [String]) async throws -> ExecutorResult {
         logger.debug("\(arguments.joined(separator: " "))")
 
+        // Validate arguments
+        guard !arguments.isEmpty else {
+            throw ProcessExecutorError.executableNotFound
+        }
+        
+        guard let executable = arguments.first, !executable.isEmpty else {
+            throw ProcessExecutorError.executableNotFound
+        }
+        
+        // Resolve executable URL
+        let executableURL: URL
+        if executable.hasPrefix("/") {
+            // Absolute path - check if it exists
+            if !FileManager.default.fileExists(atPath: executable) {
+                throw ProcessExecutorError.executableNotFound
+            }
+            executableURL = URL(filePath: executable)
+        } else {
+            // Relative path or command name - resolve via PATH
+            if let resolvedPath = resolveExecutableInPath(executable) {
+                executableURL = URL(filePath: resolvedPath)
+            } else {
+                throw ProcessExecutorError.executableNotFound
+            }
+        }
+
         let process = Foundation.Process()
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
         
-        process.launchPath = arguments.first
+        process.executableURL = executableURL
         process.arguments = Array(arguments.dropFirst())
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
@@ -120,7 +170,6 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
         let errorBuffer = ProcessOutputBuffer()
         
         let localStreamOutput = streamOutput
-        let localCollectsOutput = collectsOutput
         let localDecoder = decoder
         
         // Setup readability handlers for real-time output
@@ -129,10 +178,8 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
             if !data.isEmpty {
                 let bytes = [UInt8](data)
                 localStreamOutput?(bytes)
-                if localCollectsOutput {
-                    Task {
-                        await outputBuffer.append(bytes)
-                    }
+                Task {
+                    await outputBuffer.append(bytes)
                 }
             }
         }
@@ -168,9 +215,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
                     if !remainingStdout.isEmpty {
                         let bytes = [UInt8](remainingStdout)
                         localStreamOutput?(bytes)
-                        if localCollectsOutput {
-                            await outputBuffer.append(bytes)
-                        }
+                        await outputBuffer.append(bytes)
                     }
                     
                     if !remainingStderr.isEmpty {
