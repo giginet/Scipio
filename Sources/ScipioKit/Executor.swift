@@ -236,9 +236,9 @@ extension ExecutorResult {
     }
 }
 
-struct StandardErrorOutputDecoder: ErrorDecoder, Sendable {
+struct StandardOutputDecoder: ErrorDecoder, Sendable {
     func decode(_ result: ExecutorResult) throws -> String? {
-        try result.unwrapStdErrOutput()
+        try result.unwrapOutput()
     }
 }
 
