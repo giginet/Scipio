@@ -4,9 +4,9 @@ private func resolveExecutableInPath(_ executable: String) -> String? {
     guard let pathEnv = ProcessInfo.processInfo.environment["PATH"] else {
         return nil
     }
-    
+
     let paths = pathEnv.split(separator: ":").map(String.init)
-    
+
     for path in paths {
         let fullPath = "\(path)/\(executable)"
         var isDirectory: ObjCBool = false
@@ -17,17 +17,17 @@ private func resolveExecutableInPath(_ executable: String) -> String? {
             }
         }
     }
-    
+
     return nil
 }
 
 private actor ProcessOutputBuffer {
     private var bytes: [UInt8] = []
-    
+
     func append(_ newBytes: [UInt8]) {
         bytes += newBytes
     }
-    
+
     func getBytes() -> [UInt8] {
         return bytes
     }
@@ -77,7 +77,7 @@ struct FoundationProcessResult: ExecutorResult, Sendable {
     let exitStatus: ProcessExitStatus
     var output: Result<[UInt8], Swift.Error>
     var stderrOutput: Result<[UInt8], Swift.Error>
-    
+
     mutating func setOutput(_ newValue: Result<[UInt8], Swift.Error>) {
         self.output = newValue
     }
@@ -131,11 +131,11 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
         guard !arguments.isEmpty else {
             throw ProcessExecutorError.executableNotFound
         }
-        
+
         guard let executable = arguments.first, !executable.isEmpty else {
             throw ProcessExecutorError.executableNotFound
         }
-        
+
         // Resolve executable URL
         let executableURL: URL
         if executable.hasPrefix("/") {
@@ -156,50 +156,49 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
         let process = Foundation.Process()
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
-        
+
         process.executableURL = executableURL
         process.arguments = Array(arguments.dropFirst())
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
         process.environment = ProcessInfo.processInfo.environment
-        
+
         let outputHandle = stdoutPipe.fileHandleForReading
         let errorHandle = stderrPipe.fileHandleForReading
-        
+
         let outputBuffer = ProcessOutputBuffer()
         let errorBuffer = ProcessOutputBuffer()
-        
+
         let localStreamOutput = streamOutput
         let localDecoder = decoder
-        
-        // Setup readability handlers for real-time output
-        outputHandle.readabilityHandler = { handle in
-            let data = handle.availableData
-            if !data.isEmpty {
+        let localCollectsOutput = collectsOutput
+
+        let outputTask = Task {
+            for try await data in outputHandle.byteStream() {
                 let bytes = [UInt8](data)
                 localStreamOutput?(bytes)
-                Task {
+                if localCollectsOutput {
                     await outputBuffer.append(bytes)
                 }
             }
         }
-        
-        errorHandle.readabilityHandler = { handle in
-            let data = handle.availableData
-            if !data.isEmpty {
+
+        let errorOutputTask = Task {
+            for try await data in errorHandle.byteStream() {
                 let bytes = [UInt8](data)
-                Task {
-                    await errorBuffer.append(bytes)
-                }
+                await errorBuffer.append(bytes)
             }
         }
-        
+
         do {
             try process.run()
         } catch {
             throw ProcessExecutorError.unknownError(error)
         }
-        
+
+        try await outputTask.value
+        try await errorOutputTask.value
+
         // Wait for process to complete
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Error>) in
             process.terminationHandler = { process in
@@ -207,36 +206,36 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
                     // Clean up handlers
                     outputHandle.readabilityHandler = nil
                     errorHandle.readabilityHandler = nil
-                    
+
                     // Read any remaining data
                     let remainingStdout = outputHandle.readDataToEndOfFile()
                     let remainingStderr = errorHandle.readDataToEndOfFile()
-                    
+
                     if !remainingStdout.isEmpty {
                         let bytes = [UInt8](remainingStdout)
                         localStreamOutput?(bytes)
                         await outputBuffer.append(bytes)
                     }
-                    
+
                     if !remainingStderr.isEmpty {
                         let bytes = [UInt8](remainingStderr)
                         await errorBuffer.append(bytes)
                     }
-                    
+
                     // Close file handles
                     try? outputHandle.close()
                     try? errorHandle.close()
-                    
+
                     let exitStatus: ProcessExitStatus
                     if process.terminationReason == .exit {
                         exitStatus = .terminated(code: process.terminationStatus)
                     } else {
                         exitStatus = .signalled(signal: process.terminationStatus)
                     }
-                    
+
                     let finalOutputBuffer = await outputBuffer.getBytes()
                     let finalErrorBuffer = await errorBuffer.getBytes()
-                    
+
                     let result = FoundationProcessResult(
                         arguments: arguments,
                         environment: process.environment ?? [:],
@@ -244,7 +243,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
                         output: .success(finalOutputBuffer),
                         stderrOutput: .success(finalErrorBuffer)
                     )
-                    
+
                     switch exitStatus {
                     case .terminated(let code) where code == 0:
                         continuation.resume(returning: result)
@@ -293,5 +292,25 @@ struct StandardErrorOutputDecoder: ErrorDecoder, Sendable {
 struct StandardOutputDecoder: ErrorDecoder, Sendable {
     func decode(_ result: ExecutorResult) throws -> String? {
         try result.unwrapOutput()
+    }
+}
+
+extension FileHandle {
+    fileprivate func byteStream() -> AsyncThrowingStream<Data, Error> {
+        AsyncThrowingStream { continuation in
+            self.readabilityHandler = { handle in
+                let data = handle.availableData
+                if data.isEmpty {
+                    continuation.finish()
+                    handle.readabilityHandler = nil
+                } else {
+                    continuation.yield(data)
+                }
+            }
+
+            continuation.onTermination = { @Sendable _ in
+                self.readabilityHandler = nil
+            }
+        }
     }
 }
