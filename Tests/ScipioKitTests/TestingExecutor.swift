@@ -1,6 +1,5 @@
 import Foundation
 @testable import ScipioKit
-import struct TSCBasic.ProcessResult
 
 final class StubbableExecutor: Executor {
     init(executeHook: @escaping (([String]) throws -> ExecutorResult)) {
@@ -31,7 +30,7 @@ final class StubbableExecutor: Executor {
 struct StubbableExecutorResult: ExecutorResult {
     var arguments: [String]
     var environment: [String: String]
-    var exitStatus: TSCBasic.ProcessResult.ExitStatus
+    var exitStatus: ProcessExitStatus
     var output: Result<[UInt8], Error>
     var stderrOutput: Result<[UInt8], Error>
 }

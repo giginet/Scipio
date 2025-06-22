@@ -31,7 +31,7 @@ struct XCBuildExecutor {
     }
 }
 
-private final class _Executor {
+private final class _Executor: @unchecked Sendable {
     init(args: [String]) {
         self.args = args
 
