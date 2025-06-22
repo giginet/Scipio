@@ -90,7 +90,7 @@ Unknown error occurered.
     }
 }
 
-struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
+struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
     private let decoder: Decoder
     init(decoder: Decoder = StandardErrorOutputDecoder()) {
         self.decoder = decoder
