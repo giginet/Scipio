@@ -52,14 +52,6 @@ struct FoundationProcessResult: ExecutorResult, Sendable {
     let exitStatus: ProcessExitStatus
     var output: Result<[UInt8], Swift.Error>
     var stderrOutput: Result<[UInt8], Swift.Error>
-
-    mutating func setOutput(_ newValue: Result<[UInt8], Swift.Error>) {
-        self.output = newValue
-    }
-
-    mutating func setStderrOutput(_ newValue: Result<[UInt8], Swift.Error>) {
-        self.stderrOutput = newValue
-    }
 }
 
 enum ProcessExecutorError: LocalizedError {
@@ -247,12 +239,6 @@ extension ExecutorResult {
 struct StandardErrorOutputDecoder: ErrorDecoder, Sendable {
     func decode(_ result: ExecutorResult) throws -> String? {
         try result.unwrapStdErrOutput()
-    }
-}
-
-struct StandardOutputDecoder: ErrorDecoder, Sendable {
-    func decode(_ result: ExecutorResult) throws -> String? {
-        try result.unwrapOutput()
     }
 }
 
