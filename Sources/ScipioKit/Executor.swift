@@ -96,7 +96,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
         self.decoder = decoder
     }
 
-    var streamOutput: (@Sendable ([UInt8]) -> Void)?
+    var streamOutput: (@Sendable ([UInt8]) async -> Void)?
 
     func execute(_ arguments: [String]) async throws -> ExecutorResult {
         logger.debug("\(arguments.joined(separator: " "))")
@@ -139,7 +139,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
         let outputTask = Task {
             for try await data in outputHandle.byteStream() {
                 let bytes = [UInt8](data)
-                localStreamOutput?(bytes)
+                await localStreamOutput?(bytes)
                 await outputBuffer.append(bytes)
             }
         }
@@ -174,7 +174,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
 
                     if !remainingStdout.isEmpty {
                         let bytes = [UInt8](remainingStdout)
-                        localStreamOutput?(bytes)
+                        await localStreamOutput?(bytes)
                         await outputBuffer.append(bytes)
                     }
 
