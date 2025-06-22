@@ -260,7 +260,7 @@ struct ProcessExecutorTests {
 private final class OutputCollector: @unchecked Sendable {
     private let lock = NSLock()
     private var _collectedOutput: [[UInt8]] = []
-    
+
     var collectedOutput: [[UInt8]] {
         lock.withLock { _collectedOutput }
     }
