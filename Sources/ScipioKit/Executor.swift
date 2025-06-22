@@ -97,7 +97,6 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
     }
 
     var streamOutput: (@Sendable ([UInt8]) -> Void)?
-    var collectsOutput: Bool = true
 
     func execute(_ arguments: [String]) async throws -> ExecutorResult {
         logger.debug("\(arguments.joined(separator: " "))")
@@ -136,15 +135,12 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
 
         let localStreamOutput = streamOutput
         let localDecoder = decoder
-        let localCollectsOutput = collectsOutput
 
         let outputTask = Task {
             for try await data in outputHandle.byteStream() {
                 let bytes = [UInt8](data)
                 localStreamOutput?(bytes)
-                if localCollectsOutput {
-                    await outputBuffer.append(bytes)
-                }
+                await outputBuffer.append(bytes)
             }
         }
 

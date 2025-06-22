@@ -99,27 +99,7 @@ struct ProcessExecutorTests {
         let streamedString = String(data: streamedData, encoding: .utf8) ?? ""
         #expect(streamedString.contains("streaming test"))
     }
-
-    @Test("Collect output flag disabled")
-    func collectOutputDisabled() async throws {
-        var executor = createExecutor()
-        executor.collectsOutput = false
-
-        let result = try await executor.execute(["/bin/echo", "test output"])
-
-        switch result.exitStatus {
-        case .terminated(let code):
-            #expect(code == 0)
-        case .signalled:
-            Issue.record("Process should not be signalled")
-        }
-
-        // When collectsOutput is false, output should still be collected
-        // (this behavior matches the original TSCBasic implementation)
-        let output = try result.unwrapOutput()
-        #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "")
-    }
-
+    
     // MARK: - Error Cases
 
     @Test("Empty arguments array throws executableNotFound")
