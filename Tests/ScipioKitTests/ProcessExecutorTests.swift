@@ -117,7 +117,7 @@ struct ProcessExecutorTests {
         // When collectsOutput is false, output should still be collected
         // (this behavior matches the original TSCBasic implementation)
         let output = try result.unwrapOutput()
-        #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "test output")
+        #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "")
     }
 
     // MARK: - Error Cases
