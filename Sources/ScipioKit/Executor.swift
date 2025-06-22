@@ -26,7 +26,7 @@ enum ProcessExitStatus {
     case signalled(signal: Int32)
 }
 
-protocol ExecutorResult {
+protocol ExecutorResult: Sendable {
     var arguments: [String] { get }
     /// The environment with which the process was launched.
     var environment: [String: String] { get }
@@ -50,7 +50,7 @@ extension Executor {
     }
 }
 
-struct FoundationProcessResult: ExecutorResult {
+struct FoundationProcessResult: ExecutorResult, Sendable {
     let arguments: [String]
     let environment: [String: String]
     let exitStatus: ProcessExitStatus

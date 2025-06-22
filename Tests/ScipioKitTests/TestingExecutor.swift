@@ -27,7 +27,7 @@ final class StubbableExecutor: Executor {
     }
 }
 
-struct StubbableExecutorResult: ExecutorResult {
+struct StubbableExecutorResult: ExecutorResult, Sendable {
     var arguments: [String]
     var environment: [String: String]
     var exitStatus: ProcessExitStatus

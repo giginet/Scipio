@@ -27,18 +27,28 @@ struct XCBuildExecutor {
             "--target",
             target.name,
         ])
+        executor.configure()
         try await executor.run()
     }
 }
 
-private final class _Executor: @unchecked Sendable {
+private actor _Executor {
     init(args: [String]) {
         self.args = args
-
         self.executor = ProcessExecutor<StandardErrorOutputDecoder>()
-
+    }
+    
+    nonisolated func configure() {
+        Task {
+            await setStreamOutput()
+        }
+    }
+    
+    private func setStreamOutput() {
         executor.streamOutput = { [weak self] bytes in
-            self?.parse(bytes: bytes)
+            Task {
+                await self?.parse(bytes: bytes)
+            }
         }
         executor.collectsOutput = false
     }
@@ -83,7 +93,7 @@ private final class _Executor: @unchecked Sendable {
         }
     }
 
-    private func parse(bytes: [UInt8]) {
+    func parse(bytes: [UInt8]) {
         let jsons = String(bytes: bytes, encoding: .utf8)?.components(separatedBy: "\n") ?? []
         for json in jsons {
             if let message = try? jsonDecoder.decode(XCBuildMessage.self, from: json) {
