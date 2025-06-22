@@ -1,18 +1,13 @@
 import Foundation
 
-final class ProcessOutputBuffer: @unchecked Sendable {
+private actor ProcessOutputBuffer {
     private var bytes: [UInt8] = []
-    private let lock = NSLock()
     
     func append(_ newBytes: [UInt8]) {
-        lock.lock()
-        defer { lock.unlock() }
         bytes += newBytes
     }
     
     func getBytes() -> [UInt8] {
-        lock.lock()
-        defer { lock.unlock() }
         return bytes
     }
 }
@@ -135,7 +130,9 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
                 let bytes = [UInt8](data)
                 localStreamOutput?(bytes)
                 if localCollectsOutput {
-                    outputBuffer.append(bytes)
+                    Task {
+                        await outputBuffer.append(bytes)
+                    }
                 }
             }
         }
@@ -144,7 +141,9 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
             let data = handle.availableData
             if !data.isEmpty {
                 let bytes = [UInt8](data)
-                errorBuffer.append(bytes)
+                Task {
+                    await errorBuffer.append(bytes)
+                }
             }
         }
         
@@ -157,61 +156,63 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, @unchecked Sendable {
         // Wait for process to complete
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Error>) in
             process.terminationHandler = { process in
-                // Clean up handlers
-                outputHandle.readabilityHandler = nil
-                errorHandle.readabilityHandler = nil
-                
-                // Read any remaining data
-                let remainingStdout = outputHandle.readDataToEndOfFile()
-                let remainingStderr = errorHandle.readDataToEndOfFile()
-                
-                if !remainingStdout.isEmpty {
-                    let bytes = [UInt8](remainingStdout)
-                    localStreamOutput?(bytes)
-                    if localCollectsOutput {
-                        outputBuffer.append(bytes)
+                Task {
+                    // Clean up handlers
+                    outputHandle.readabilityHandler = nil
+                    errorHandle.readabilityHandler = nil
+                    
+                    // Read any remaining data
+                    let remainingStdout = outputHandle.readDataToEndOfFile()
+                    let remainingStderr = errorHandle.readDataToEndOfFile()
+                    
+                    if !remainingStdout.isEmpty {
+                        let bytes = [UInt8](remainingStdout)
+                        localStreamOutput?(bytes)
+                        if localCollectsOutput {
+                            await outputBuffer.append(bytes)
+                        }
                     }
-                }
-                
-                if !remainingStderr.isEmpty {
-                    let bytes = [UInt8](remainingStderr)
-                    errorBuffer.append(bytes)
-                }
-                
-                // Close file handles
-                try? outputHandle.close()
-                try? errorHandle.close()
-                
-                let exitStatus: ProcessExitStatus
-                if process.terminationReason == .exit {
-                    exitStatus = .terminated(code: process.terminationStatus)
-                } else {
-                    exitStatus = .signalled(signal: process.terminationStatus)
-                }
-                
-                let finalOutputBuffer = outputBuffer.getBytes()
-                let finalErrorBuffer = errorBuffer.getBytes()
-                
-                let result = FoundationProcessResult(
-                    arguments: arguments,
-                    environment: process.environment ?? [:],
-                    exitStatus: exitStatus,
-                    output: .success(finalOutputBuffer),
-                    stderrOutput: .success(finalErrorBuffer)
-                )
-                
-                switch exitStatus {
-                case .terminated(let code) where code == 0:
-                    continuation.resume(returning: result)
-                case .terminated:
-                    do {
-                        let errorOutput = try localDecoder.decode(result)
-                        continuation.resume(throwing: ProcessExecutorError.terminated(errorOutput: errorOutput))
-                    } catch {
-                        continuation.resume(throwing: ProcessExecutorError.terminated(errorOutput: nil))
+                    
+                    if !remainingStderr.isEmpty {
+                        let bytes = [UInt8](remainingStderr)
+                        await errorBuffer.append(bytes)
                     }
-                case .signalled(let signal):
-                    continuation.resume(throwing: ProcessExecutorError.signalled(signal))
+                    
+                    // Close file handles
+                    try? outputHandle.close()
+                    try? errorHandle.close()
+                    
+                    let exitStatus: ProcessExitStatus
+                    if process.terminationReason == .exit {
+                        exitStatus = .terminated(code: process.terminationStatus)
+                    } else {
+                        exitStatus = .signalled(signal: process.terminationStatus)
+                    }
+                    
+                    let finalOutputBuffer = await outputBuffer.getBytes()
+                    let finalErrorBuffer = await errorBuffer.getBytes()
+                    
+                    let result = FoundationProcessResult(
+                        arguments: arguments,
+                        environment: process.environment ?? [:],
+                        exitStatus: exitStatus,
+                        output: .success(finalOutputBuffer),
+                        stderrOutput: .success(finalErrorBuffer)
+                    )
+                    
+                    switch exitStatus {
+                    case .terminated(let code) where code == 0:
+                        continuation.resume(returning: result)
+                    case .terminated:
+                        do {
+                            let errorOutput = try localDecoder.decode(result)
+                            continuation.resume(throwing: ProcessExecutorError.terminated(errorOutput: errorOutput))
+                        } catch {
+                            continuation.resume(throwing: ProcessExecutorError.terminated(errorOutput: nil))
+                        }
+                    case .signalled(let signal):
+                        continuation.resume(throwing: ProcessExecutorError.signalled(signal))
+                    }
                 }
             }
         }
