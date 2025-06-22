@@ -223,7 +223,14 @@ final class CacheSystemTests: XCTestCase {
         let processExecutor: Executor = ProcessExecutor()
         let tempTestingPackagePathString = tempTestingPackagePath.path(percentEncoded: false)
         try await processExecutor.execute(["/usr/bin/xcrun", "git", "init", tempTestingPackagePathString])
-        try await processExecutor.execute(["/usr/bin/xcrun", "git", "-C", tempTestingPackagePathString, "add", tempTestingPackagePathString])
+        try await processExecutor.execute([
+            "/usr/bin/xcrun",
+            "git",
+            "-C",
+            tempTestingPackagePathString,
+            "add",
+            tempTestingPackagePathString,
+        ])
         try await processExecutor.execute(["/usr/bin/xcrun", "git", "-C", tempTestingPackagePathString, "commit", "-m", "Initial commit"])
         try await processExecutor.execute(["/usr/bin/xcrun", "git", "-C", tempTestingPackagePathString, "tag", "v1.1"])
 
