@@ -50,7 +50,6 @@ private actor _Executor {
                 await self?.parse(bytes: bytes)
             }
         }
-        executor.collectsOutput = false
     }
 
     let args: [String]
