@@ -651,11 +651,11 @@ final class RunnerTests: XCTestCase {
                 "XIB files should be contained"
             )
             XCTAssertTrue(
-                fileManager.fileExists(atPath: bundlePath.appendingPathComponent("Assets.car").path),
+                fileManager.fileExists(atPath: bundlePath.appending(component: "Assets.car").path),
                 "Assets.car files should be contained"
             )
             XCTAssertTrue(
-                fileManager.fileExists(atPath: bundlePath.appendingPathComponent("Model.momd").path),
+                fileManager.fileExists(atPath: bundlePath.appending(component: "Model.momd").path),
                 "Model.momd files should be contained"
             )
 
