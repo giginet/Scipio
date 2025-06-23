@@ -49,24 +49,24 @@ struct PIFGenerator {
     func generateJSON(for sdk: SDK) async throws -> AbsolutePath {
         let manipulator = try await buildPIFManipulator()
 
-        await manipulator.updateTargets { target in
-            await updateTarget(&target, sdk: sdk)
+        manipulator.updateTargets { target in
+            updateTarget(&target, sdk: sdk)
         }
 
         let newJSONData = try manipulator.dump()
 
         let path = packageLocator.workspaceDirectory
             .appending(component: "manifest-\(packageName)-\(sdk.settingValue).pif")
-        try await fileSystem.writeFileContents(path.asURL, data: newJSONData)
+        try fileSystem.writeFileContents(path.asURL, data: newJSONData)
         return path
     }
 
-    private func updateTarget(_ target: inout PIFKit.Target, sdk: SDK) async {
+    private func updateTarget(_ target: inout PIFKit.Target, sdk: SDK) {
         switch target.productType {
         case .objectFile:
             updateObjectFileTarget(&target, sdk: sdk)
         case .bundle:
-            await generateInfoPlistForResource(for: &target)
+            generateInfoPlistForResource(for: &target)
         default:
             break
         }
@@ -180,13 +180,13 @@ struct PIFGenerator {
         """)
     }
 
-    private func generateInfoPlistForResource(for target: inout PIFKit.Target) async {
+    private func generateInfoPlistForResource(for target: inout PIFKit.Target) {
         assert(target.productType == .bundle, "This method must be called for Resource bundles")
 
         let infoPlistGenerator = InfoPlistGenerator(fileSystem: fileSystem)
         let infoPlistPath = packageLocator.workspaceDirectory.appending(component: "Info-\(target.name).plist")
         do {
-            try await infoPlistGenerator.generateForResourceBundle(at: infoPlistPath)
+            try infoPlistGenerator.generateForResourceBundle(at: infoPlistPath)
         } catch {
             fatalError("Could not generate Info.plist file")
         }

@@ -19,12 +19,12 @@ struct LocalDiskCacheStorage: CacheStorage {
         self.fileSystem = fileSystem
     }
 
-    private func buildBaseDirectoryPath() async throws -> URL {
+    private func buildBaseDirectoryPath() throws -> URL {
         let cacheDir: URL
         if let baseURL {
             cacheDir = baseURL
         } else {
-            guard let systemCacheDir = await fileSystem.cachesDirectory else {
+            guard let systemCacheDir = fileSystem.cachesDirectory else {
                 throw Error.cacheDirectoryIsNotFound
             }
             cacheDir = systemCacheDir
@@ -36,8 +36,8 @@ struct LocalDiskCacheStorage: CacheStorage {
         "\(cacheKey.targetName.packageNamed()).xcframework"
     }
 
-    private func cacheFrameworkPath(for cacheKey: some CacheKey) async throws -> URL {
-        let baseDirectory = try await buildBaseDirectoryPath()
+    private func cacheFrameworkPath(for cacheKey: some CacheKey) throws -> URL {
+        let baseDirectory = try buildBaseDirectoryPath()
         let checksum = try cacheKey.calculateChecksum()
         return baseDirectory
             .appendingPathComponent(cacheKey.targetName.packageNamed())
@@ -47,8 +47,8 @@ struct LocalDiskCacheStorage: CacheStorage {
 
     func existsValidCache(for cacheKey: some CacheKey) async -> Bool {
         do {
-            let xcFrameworkPath = try await cacheFrameworkPath(for: cacheKey)
-            return await fileSystem.exists(xcFrameworkPath)
+            let xcFrameworkPath = try cacheFrameworkPath(for: cacheKey)
+            return fileSystem.exists(xcFrameworkPath)
         } catch {
             return false
         }
@@ -56,19 +56,19 @@ struct LocalDiskCacheStorage: CacheStorage {
 
     func cacheFramework(_ frameworkPath: URL, for cacheKey: some CacheKey) async {
         do {
-            let destination = try await cacheFrameworkPath(for: cacheKey)
+            let destination = try cacheFrameworkPath(for: cacheKey)
             let directoryPath = destination.deletingLastPathComponent()
 
-            try await fileSystem.createDirectory(directoryPath, recursive: true)
-            try await fileSystem.copy(from: frameworkPath, to: destination)
+            try fileSystem.createDirectory(directoryPath, recursive: true)
+            try fileSystem.copy(from: frameworkPath, to: destination)
         } catch {
             // ignore error
         }
     }
 
     func fetchArtifacts(for cacheKey: some CacheKey, to destinationDir: URL) async throws {
-        let source = try await cacheFrameworkPath(for: cacheKey)
+        let source = try cacheFrameworkPath(for: cacheKey)
         let destination = destinationDir.appendingPathComponent(xcFrameworkFileName(for: cacheKey))
-        try await fileSystem.copy(from: source, to: destination)
+        try fileSystem.copy(from: source, to: destination)
     }
 }

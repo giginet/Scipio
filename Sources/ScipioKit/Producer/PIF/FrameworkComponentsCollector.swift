@@ -61,40 +61,40 @@ struct FrameworkComponentsCollector {
         )
     }
 
-    func collectComponents(sdk: SDK) async throws -> FrameworkComponents {
+    func collectComponents(sdk: SDK) throws -> FrameworkComponents {
         let frameworkModuleMapPath: AbsolutePath?
         if let customFrameworkModuleMapContents = buildOptions.customFrameworkModuleMapContents {
             logger.info("📝 Using custom modulemap for \(buildProduct.target.name)(\(sdk.displayName))")
-            frameworkModuleMapPath = try await copyModuleMapContentsToBuildArtifacts(customFrameworkModuleMapContents)
+            frameworkModuleMapPath = try copyModuleMapContentsToBuildArtifacts(customFrameworkModuleMapContents)
         } else {
-            frameworkModuleMapPath = try await generateFrameworkModuleMap()
+            frameworkModuleMapPath = try generateFrameworkModuleMap()
         }
 
         let targetName = buildProduct.target.c99name
         let generatedFrameworkPath = generatedFrameworkPath()
 
-        let isVersionedBundle = await fileSystem.exists(
+        let isVersionedBundle = fileSystem.exists(
             generatedFrameworkPath.appending(component: "Resources").asURL,
             followSymlink: true
         )
 
         let binaryPath = generatedFrameworkPath.appending(component: targetName)
 
-        let swiftModulesPath = try await collectSwiftModules(
+        let swiftModulesPath = try collectSwiftModules(
             of: targetName,
             in: generatedFrameworkPath
         )
 
-        let bridgingHeaderPath = try await collectBridgingHeader(
+        let bridgingHeaderPath = try collectBridgingHeader(
             of: targetName,
             in: generatedFrameworkPath
         )
 
-        let publicHeaders = try await collectPublicHeaders()
+        let publicHeaders = try collectPublicHeaders()
 
-        let resourceBundlePath = await generatedResourceBundlePath()
+        let resourceBundlePath = generatedResourceBundlePath()
 
-        let infoPlistPath = try await collectInfoPlist(
+        let infoPlistPath = try collectInfoPlist(
             in: generatedFrameworkPath,
             isVersionedBundle: isVersionedBundle
         )
@@ -116,14 +116,14 @@ struct FrameworkComponentsCollector {
     }
 
     /// Copy content data to the build artifacts
-    private func copyModuleMapContentsToBuildArtifacts(_ data: Data) async throws -> AbsolutePath {
+    private func copyModuleMapContentsToBuildArtifacts(_ data: Data) throws -> AbsolutePath {
         let generatedModuleMapPath = try packageLocator.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
 
-        try await fileSystem.writeFileContents(generatedModuleMapPath.asURL, data: data)
+        try fileSystem.writeFileContents(generatedModuleMapPath.asURL, data: data)
         return generatedModuleMapPath
     }
 
-    private func generateFrameworkModuleMap() async throws -> AbsolutePath? {
+    private func generateFrameworkModuleMap() throws -> AbsolutePath? {
         let modulemapGenerator = FrameworkModuleMapGenerator(
             packageLocator: packageLocator,
             fileSystem: fileSystem
@@ -132,7 +132,7 @@ struct FrameworkComponentsCollector {
         // xcbuild automatically generates modulemaps. However, these are not for frameworks.
         // Therefore, it's difficult to contain this generated modulemaps to final XCFrameworks.
         // So generate modulemap for frameworks manually
-        let frameworkModuleMapPath = try await modulemapGenerator.generate(
+        let frameworkModuleMapPath = try modulemapGenerator.generate(
             resolvedTarget: buildProduct.target,
             sdk: sdk,
             keepPublicHeadersStructure: buildOptions.keepPublicHeadersStructure
@@ -144,19 +144,19 @@ struct FrameworkComponentsCollector {
         productsDirectory.appending(component: "\(buildProduct.target.c99name).framework")
     }
 
-    private func generatedResourceBundlePath() async -> AbsolutePath? {
+    private func generatedResourceBundlePath() -> AbsolutePath? {
         let bundleName: String? = buildProduct.target.underlying.bundleName(for: buildProduct.package.manifest)
 
         guard let bundleName else { return nil }
 
         let path = productsDirectory.appending(component: "\(bundleName).bundle")
-        return await fileSystem.exists(path.asURL) ? path : nil
+        return fileSystem.exists(path.asURL) ? path : nil
     }
 
     private func collectInfoPlist(
         in frameworkBundlePath: AbsolutePath,
         isVersionedBundle: Bool
-    ) async throws -> AbsolutePath {
+    ) throws -> AbsolutePath {
         let infoPlistLocation = if isVersionedBundle {
             // In a versioned framework bundle (for macOS), Info.plist should be in Resources
             frameworkBundlePath.appending(components: "Resources", "Info.plist")
@@ -165,7 +165,7 @@ struct FrameworkComponentsCollector {
             frameworkBundlePath.appending(component: "Info.plist")
         }
 
-        if await fileSystem.exists(infoPlistLocation.asURL) {
+        if fileSystem.exists(infoPlistLocation.asURL) {
             return infoPlistLocation
         } else {
             throw Error.infoPlistNotFound(frameworkBundlePath: frameworkBundlePath)
@@ -173,24 +173,24 @@ struct FrameworkComponentsCollector {
     }
 
     /// Collects *.swiftmodules* in a generated framework bundle
-    private func collectSwiftModules(of targetName: String, in frameworkPath: AbsolutePath) async throws -> AbsolutePath? {
+    private func collectSwiftModules(of targetName: String, in frameworkPath: AbsolutePath) throws -> AbsolutePath? {
         let swiftModulesPath = frameworkPath.appending(
             components: "Modules", "\(targetName).swiftmodule"
         )
 
-        if await fileSystem.exists(swiftModulesPath.asURL) {
+        if fileSystem.exists(swiftModulesPath.asURL) {
             return swiftModulesPath
         }
         return nil
     }
 
     /// Collects a bridging header in a generated framework bundle
-    private func collectBridgingHeader(of targetName: String, in frameworkPath: AbsolutePath) async throws -> AbsolutePath? {
+    private func collectBridgingHeader(of targetName: String, in frameworkPath: AbsolutePath) throws -> AbsolutePath? {
         let generatedBridgingHeader = frameworkPath.appending(
             components: "Headers", "\(targetName)-Swift.h"
         )
 
-        if await fileSystem.exists(generatedBridgingHeader.asURL) {
+        if fileSystem.exists(generatedBridgingHeader.asURL) {
             return generatedBridgingHeader
         }
 
@@ -198,7 +198,7 @@ struct FrameworkComponentsCollector {
     }
 
     /// Collects public headers of clangTarget
-    private func collectPublicHeaders() async throws -> Set<AbsolutePath>? {
+    private func collectPublicHeaders() throws -> Set<AbsolutePath>? {
         guard case let .clang(_, publicHeaders) = buildProduct.target.resolvedModuleType else {
             return nil
         }

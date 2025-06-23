@@ -97,9 +97,9 @@ struct PIFCompiler: Compiler {
         // If there is existing framework, remove it
         let frameworkName = target.xcFrameworkName
         let outputXCFrameworkPath = try AbsolutePath(validating: outputDirectory.path).appending(component: frameworkName)
-        if await fileSystem.exists(outputXCFrameworkPath.asURL) && overwrite {
+        if fileSystem.exists(outputXCFrameworkPath.asURL) && overwrite {
             logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
-            try await fileSystem.removeFileTree(outputXCFrameworkPath.asURL)
+            try fileSystem.removeFileTree(outputXCFrameworkPath.asURL)
         }
 
         let debugSymbolPaths: [SDK: [AbsolutePath]]?

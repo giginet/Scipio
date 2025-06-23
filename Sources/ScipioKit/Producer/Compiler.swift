@@ -1,7 +1,6 @@
 import Foundation
 import PIFKit
 import TSCBasic
-import AsyncOperations
 
 protocol Compiler {
     var descriptionPackage: DescriptionPackage { get }
@@ -28,17 +27,17 @@ extension Compiler {
                 sdk: sdk,
                 target: target
             )
-            guard await fileSystem.exists(dsymPath.asURL) else { continue }
+            guard fileSystem.exists(dsymPath.asURL) else { continue }
 
             let dwarfPath = extractor.dwarfPath(for: target, dSYMPath: dsymPath)
             let dumpedDSYMsMaps = try await extractor.dump(dwarfPath: dwarfPath)
-            let bcSymbolMapPaths: [AbsolutePath] = await dumpedDSYMsMaps.values.asyncCompactMap { [descriptionPackage] uuid in
+            let bcSymbolMapPaths: [AbsolutePath] = dumpedDSYMsMaps.values.compactMap { [descriptionPackage] uuid in
                 let path = descriptionPackage.productsDirectory(
                     buildConfiguration: buildConfiguration,
                     sdk: sdk
                 )
                     .appending(component: "\(uuid.uuidString).bcsymbolmap")
-                guard await fileSystem.exists(path.asURL) else { return nil }
+                guard fileSystem.exists(path.asURL) else { return nil }
                 return path
             }
             result[sdk] = [dsymPath] + bcSymbolMapPaths

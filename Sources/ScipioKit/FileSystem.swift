@@ -2,57 +2,55 @@ import Foundation
 
 public protocol FileSystem: Sendable {
     var tempDirectory: URL { get }
-    var cachesDirectory: URL? { get async }
-    var currentWorkingDirectory: URL? { get async }
+    var cachesDirectory: URL? { get }
+    var currentWorkingDirectory: URL? { get }
 
-    func writeFileContents(_ path: URL, data: Data) async throws
-    func readFileContents(_ path: URL) async throws -> Data
-    func exists(_ path: URL, followSymlink: Bool) async -> Bool
-    func isDirectory(_ path: URL) async -> Bool
-    func isFile(_ path: URL) async -> Bool
+    func writeFileContents(_ path: URL, data: Data) throws
+    func readFileContents(_ path: URL) throws -> Data
+    func exists(_ path: URL, followSymlink: Bool) -> Bool
+    func isDirectory(_ path: URL) -> Bool
+    func isFile(_ path: URL) -> Bool
     func isSymlink(_ path: URL) -> Bool
-    func copy(from fromURL: URL, to toURL: URL) async throws
-    func createDirectory(_ directoryPath: URL, recursive: Bool) async throws
-    func move(from fromURL: URL, to toURL: URL) async throws
-    func getDirectoryContents(_ directoryPath: URL) async throws -> [String]
-    func removeFileTree(_ path: URL) async throws
+    func copy(from fromURL: URL, to toURL: URL) throws
+    func createDirectory(_ directoryPath: URL, recursive: Bool) throws
+    func move(from fromURL: URL, to toURL: URL) throws
+    func getDirectoryContents(_ directoryPath: URL) throws -> [String]
+    func removeFileTree(_ path: URL) throws
 }
 
 extension FileSystem {
-    func createDirectory(_ directoryPath: URL) async throws {
-        try await createDirectory(directoryPath, recursive: false)
+    func createDirectory(_ directoryPath: URL) throws {
+        try createDirectory(directoryPath, recursive: false)
     }
 
-    func writeFileContents(_ path: URL, string: String) async throws {
+    func writeFileContents(_ path: URL, string: String) throws {
         let data = string.data(using: .utf8)!
-        try await writeFileContents(path, data: data)
+        try writeFileContents(path, data: data)
     }
 
-    func exists(_ path: URL) async -> Bool {
-        await exists(path, followSymlink: true)
+    func exists(_ path: URL) -> Bool {
+        exists(path, followSymlink: true)
     }
 }
 
-public actor LocalFileSystem: FileSystem {
+public struct LocalFileSystem: FileSystem {
     nonisolated public static let `default` = LocalFileSystem()
 
     public init() {}
-
-    private let fileManager = FileManager.default
 
     nonisolated public var tempDirectory: URL {
         URL(filePath: NSTemporaryDirectory())
     }
 
     public var cachesDirectory: URL? {
-        get async {
-            fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
+        get {
+            FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
         }
     }
 
     public var currentWorkingDirectory: URL? {
-        get async {
-            URL(filePath: fileManager.currentDirectoryPath)
+        get {
+            URL(filePath: FileManager.default.currentDirectoryPath)
         }
     }
 
@@ -67,7 +65,7 @@ public actor LocalFileSystem: FileSystem {
     }
 
     public func readFileContents(_ path: URL) throws -> Data {
-        guard let contents = fileManager.contents(atPath: path.path(percentEncoded: false)) else {
+        guard let contents = FileManager.default.contents(atPath: path.path(percentEncoded: false)) else {
             throw FileSystemError.cannotReadFileContents(path: path)
         }
         return contents
@@ -75,20 +73,20 @@ public actor LocalFileSystem: FileSystem {
 
     public func exists(_ path: URL, followSymlink: Bool = true) -> Bool {
         if followSymlink {
-            return fileManager.fileExists(atPath: path.path(percentEncoded: false))
+            return FileManager.default.fileExists(atPath: path.path(percentEncoded: false))
         }
-        return (try? fileManager.attributesOfItem(atPath: path.path(percentEncoded: false))) != nil
+        return (try? FileManager.default.attributesOfItem(atPath: path.path(percentEncoded: false))) != nil
     }
 
     public func isDirectory(_ path: URL) -> Bool {
         var isDirectory: ObjCBool = false
-        let exists = fileManager.fileExists(atPath: path.path(percentEncoded: false), isDirectory: &isDirectory)
+        let exists = FileManager.default.fileExists(atPath: path.path(percentEncoded: false), isDirectory: &isDirectory)
         return exists && isDirectory.boolValue
     }
 
     public func isFile(_ path: URL) -> Bool {
         let path = path.resolvingSymlinksInPath()
-        let attributes = try? fileManager.attributesOfItem(atPath: path.path(percentEncoded: false))
+        let attributes = try? FileManager.default.attributesOfItem(atPath: path.path(percentEncoded: false))
         return attributes?[.type] as? FileAttributeType == .typeRegular
     }
 
@@ -98,27 +96,27 @@ public actor LocalFileSystem: FileSystem {
     }
 
     public func copy(from fromURL: URL, to toURL: URL) throws {
-        try fileManager.copyItem(at: fromURL, to: toURL)
+        try FileManager.default.copyItem(at: fromURL, to: toURL)
     }
 
     public func createDirectory(_ directoryPath: URL, recursive: Bool) throws {
-        try fileManager.createDirectory(
+        try FileManager.default.createDirectory(
             at: directoryPath,
             withIntermediateDirectories: recursive
         )
     }
 
     public func move(from fromURL: URL, to toURL: URL) throws {
-        try fileManager.moveItem(at: fromURL, to: toURL)
+        try FileManager.default.moveItem(at: fromURL, to: toURL)
     }
 
     public func getDirectoryContents(_ directoryPath: URL) throws -> [String] {
-        try fileManager.contentsOfDirectory(atPath: directoryPath.path(percentEncoded: false))
+        try FileManager.default.contentsOfDirectory(atPath: directoryPath.path(percentEncoded: false))
     }
 
     public func removeFileTree(_ path: URL) throws {
         do {
-            try fileManager.removeItem(atPath: path.path(percentEncoded: false))
+            try FileManager.default.removeItem(atPath: path.path(percentEncoded: false))
         } catch let error as NSError {
             if !(error.domain == NSCocoaErrorDomain && error.code == NSFileNoSuchFileError) {
                 throw error

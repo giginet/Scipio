@@ -1,5 +1,4 @@
 import Foundation
-import AsyncOperations
 import TSCBasic
 
 struct XCBuildClient {
@@ -46,10 +45,10 @@ struct XCBuildClient {
             "../SharedFrameworks/SwiftBuild.framework/Versions/A/Support/swbuild", // >= Xcode 16.3
         ]
 
-        let foundXCBuildPath = await xcBuildPathCandidates.map { relativePath in
+        let foundXCBuildPath = xcBuildPathCandidates.map { relativePath in
             developerDirPath.appending(path: relativePath).standardizedFileURL
-        }.asyncFirst { [fileSystem] path in
-            await fileSystem.exists(path)
+        }.first { [fileSystem] path in
+            fileSystem.exists(path)
         }
         guard let foundXCBuildPath else {
             throw Error.xcbuildNotFound
@@ -119,7 +118,7 @@ struct XCBuildClient {
             fileSystem: fileSystem
         )
 
-        return try await assembler.assemble()
+        return try assembler.assemble()
     }
 
     private func assembledFrameworkPath(target: ResolvedModule, of sdk: SDK) throws -> AbsolutePath {

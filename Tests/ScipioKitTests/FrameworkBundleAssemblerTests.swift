@@ -21,30 +21,30 @@ struct FrameworkBundleAssemblerTests {
     }
 
     @Test
-    func copyHeaders_keepPublicHeadersStructure_is_false() async throws {
+    func copyHeaders_keepPublicHeadersStructure_is_false() throws {
         let outputDirectory = temporaryDirectory.appending(component: #function)
-        defer { try? FileManager.default.removeItem(at: outputDirectory.asURL) }
+        defer { try? fileSystem.removeFileTree(outputDirectory.asURL) }
 
-        try await assembleFramework(keepPublicHeadersStructure: false, outputDirectory: outputDirectory)
+        try assembleFramework(keepPublicHeadersStructure: false, outputDirectory: outputDirectory)
 
         let frameworkHeadersPath = outputDirectory.appending(components: "Foo.framework", "Headers")
-        #expect(Set(try await fileSystem.getDirectoryContents(frameworkHeadersPath.asURL)) == ["foo.h", "bar.h"])
+        #expect(Set(try fileSystem.getDirectoryContents(frameworkHeadersPath.asURL)) == ["foo.h", "bar.h"])
     }
 
     @Test
-    func copyHeaders_keepPublicHeadersStructure_is_true() async throws {
+    func copyHeaders_keepPublicHeadersStructure_is_true() throws {
         let outputDirectory = temporaryDirectory.appending(component: #function)
-        defer { try? FileManager.default.removeItem(at: outputDirectory.asURL) }
+        defer { try? fileSystem.removeFileTree(outputDirectory.asURL) }
 
-        try await assembleFramework(keepPublicHeadersStructure: true, outputDirectory: outputDirectory)
+        try assembleFramework(keepPublicHeadersStructure: true, outputDirectory: outputDirectory)
 
         let frameworkHeadersPath = outputDirectory.appending(components: "Foo.framework", "Headers")
-        #expect(Set(try await fileSystem.getDirectoryContents(frameworkHeadersPath.asURL)) == ["foo", "bar"])
-        #expect(Set(try await fileSystem.getDirectoryContents(frameworkHeadersPath.appending(component: "foo").asURL)) == ["foo.h"])
-        #expect(Set(try await fileSystem.getDirectoryContents(frameworkHeadersPath.appending(component: "bar").asURL)) == ["bar.h"])
+        #expect(Set(try fileSystem.getDirectoryContents(frameworkHeadersPath.asURL)) == ["foo", "bar"])
+        #expect(Set(try fileSystem.getDirectoryContents(frameworkHeadersPath.appending(component: "foo").asURL)) == ["foo.h"])
+        #expect(Set(try fileSystem.getDirectoryContents(frameworkHeadersPath.appending(component: "bar").asURL)) == ["bar.h"])
     }
 
-    private func assembleFramework(keepPublicHeadersStructure: Bool, outputDirectory: AbsolutePath) async throws {
+    private func assembleFramework(keepPublicHeadersStructure: Bool, outputDirectory: AbsolutePath) throws {
         let fixture = fixturesPath.appendingPathComponent("FrameworkBundleAssemblerTests").absolutePath
         let frameworkComponents = FrameworkComponents(
             isVersionedBundle: false,
@@ -64,6 +64,6 @@ struct FrameworkBundleAssemblerTests {
             outputDirectory: outputDirectory,
             fileSystem: fileSystem
         )
-        try await assembler.assemble()
+        try assembler.assemble()
     }
 }

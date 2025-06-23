@@ -89,11 +89,10 @@ final class CacheSystemTests: XCTestCase {
         try fileSystem.removeFileTree(tempDir)
         try fileSystem.createDirectory(tempDir)
 
-
-        defer { try? FileManager.default.removeItem(at: tempDir) }
+        defer { try? fileSystem.removeFileTree(tempDir) }
 
         let tempCacheKeyTestsDir = tempDir.appending(component: "CacheKeyTests")
-        try await fileSystem.copy(
+        try fileSystem.copy(
             from: fixturePath.appending(component: "CacheKeyTests"),
             to: tempCacheKeyTestsDir
         )
@@ -170,10 +169,10 @@ final class CacheSystemTests: XCTestCase {
         let testingPackagePath = fixturePath.appendingPathComponent("TestingPackage")
         let tempTestingPackagePath = fileSystem.tempDirectory.appending(component: "temp_TestingPackage")
 
-        try await fileSystem.removeFileTree(tempTestingPackagePath)
-        try await fileSystem.copy(from: testingPackagePath, to: tempTestingPackagePath)
+        try fileSystem.removeFileTree(tempTestingPackagePath)
+        try fileSystem.copy(from: testingPackagePath, to: tempTestingPackagePath)
 
-        defer { try? FileManager.default.removeItem(at: tempTestingPackagePath) }
+        defer { try? fileSystem.removeFileTree(tempTestingPackagePath) }
 
         let descriptionPackage = try await DescriptionPackage(
             packageDirectory: tempTestingPackagePath.absolutePath,

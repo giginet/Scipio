@@ -17,7 +17,7 @@ extension Scipio {
 
         mutating func run() async throws {
             let decoder = VersionFileDecoder()
-            let cacheKey = try await decoder.decode(versionFile: versionFileURL)
+            let cacheKey = try decoder.decode(versionFile: versionFileURL)
             let checksum = try cacheKey.calculateChecksum()
             print(checksum)
         }

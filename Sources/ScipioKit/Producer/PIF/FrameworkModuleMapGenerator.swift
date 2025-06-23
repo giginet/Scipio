@@ -1,6 +1,5 @@
 import Foundation
 import TSCBasic
-import AsyncOperations
 
 // A generator to generate modulemaps which are distributed in the XCFramework
 struct FrameworkModuleMapGenerator {
@@ -33,7 +32,7 @@ struct FrameworkModuleMapGenerator {
         resolvedTarget: ResolvedModule,
         sdk: SDK,
         keepPublicHeadersStructure: Bool
-    ) async throws -> AbsolutePath? {
+    ) throws -> AbsolutePath? {
         let context = Context(
             resolvedTarget: resolvedTarget,
             sdk: sdk,
@@ -47,28 +46,28 @@ struct FrameworkModuleMapGenerator {
                 publicHeadersDir: includeDir,
                 fileSystem: fileSystem
             )
-            let moduleMapType = await moduleMapGenerator.determineModuleMapType()
+            let moduleMapType = moduleMapGenerator.determineModuleMapType()
 
             switch moduleMapType {
             case .custom, .umbrellaHeader, .umbrellaDirectory:
                 let path = try constructGeneratedModuleMapPath(context: context)
-                try await generateModuleMapFile(context: context, moduleMapType: moduleMapType, outputPath: path)
+                try generateModuleMapFile(context: context, moduleMapType: moduleMapType, outputPath: path)
                 return path
             case .none:
                 return nil
             }
         } else {
             let path = try constructGeneratedModuleMapPath(context: context)
-            try await generateModuleMapFile(context: context, moduleMapType: nil, outputPath: path)
+            try generateModuleMapFile(context: context, moduleMapType: nil, outputPath: path)
             return path
         }
     }
 
-    private func generateModuleMapContents(context: Context, moduleMapType: ModuleMapType?) async throws -> String {
+    private func generateModuleMapContents(context: Context, moduleMapType: ModuleMapType?) throws -> String {
         if let moduleMapType {
             switch moduleMapType {
             case .custom(let customModuleMap):
-                return try await convertCustomModuleMapForFramework(customModuleMap.absolutePath)
+                return try convertCustomModuleMapForFramework(customModuleMap.absolutePath)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
             case .umbrellaHeader(let headerPath):
                 return ([
@@ -80,7 +79,7 @@ struct FrameworkModuleMapGenerator {
                 + ["}"])
                 .joined()
             case .umbrellaDirectory(let directoryPath):
-                let headers = try await walkDirectoryContents(of: directoryPath.absolutePath)
+                let headers = try walkDirectoryContents(of: directoryPath.absolutePath)
                 let declarations = headers.map { header in
                     generateHeaderEntry(
                         for: header,
@@ -113,11 +112,11 @@ struct FrameworkModuleMapGenerator {
         }
     }
 
-    private func walkDirectoryContents(of directoryPath: AbsolutePath) async throws -> Set<AbsolutePath> {
-        try await fileSystem.getDirectoryContents(directoryPath.asURL).asyncReduce(into: Set()) { headers, file in
+    private func walkDirectoryContents(of directoryPath: AbsolutePath) throws -> Set<AbsolutePath> {
+        try fileSystem.getDirectoryContents(directoryPath.asURL).reduce(into: Set()) { headers, file in
             let path = directoryPath.appending(component: file)
-            if await fileSystem.isDirectory(path.asURL) {
-                headers.formUnion(try await walkDirectoryContents(of: path))
+            if fileSystem.isDirectory(path.asURL) {
+                headers.formUnion(try walkDirectoryContents(of: path))
             } else if file.hasSuffix(".h") {
                 headers.insert(path)
             }
@@ -155,12 +154,12 @@ struct FrameworkModuleMapGenerator {
         context: Context,
         moduleMapType: ModuleMapType?,
         outputPath: AbsolutePath
-    ) async throws {
+    ) throws {
         let dirPath = outputPath.parentDirectory
-        try await fileSystem.createDirectory(dirPath.asURL, recursive: true)
+        try fileSystem.createDirectory(dirPath.asURL, recursive: true)
 
-        let contents = try await generateModuleMapContents(context: context, moduleMapType: moduleMapType)
-        try await fileSystem.writeFileContents(outputPath.asURL, string: contents)
+        let contents = try generateModuleMapContents(context: context, moduleMapType: moduleMapType)
+        try fileSystem.writeFileContents(outputPath.asURL, string: contents)
     }
 
     private func constructGeneratedModuleMapPath(context: Context) throws -> AbsolutePath {
@@ -168,12 +167,12 @@ struct FrameworkModuleMapGenerator {
         return generatedModuleMapPath
     }
 
-    private func convertCustomModuleMapForFramework(_ customModuleMap: AbsolutePath) async throws -> String {
+    private func convertCustomModuleMapForFramework(_ customModuleMap: AbsolutePath) throws -> String {
         // Sometimes, targets have their custom modulemaps.
         // However, these are not for frameworks
         // This process converts them to modulemaps for frameworks
         // like `module MyModule` to `framework module MyModule`
-        let rawData = try await fileSystem.readFileContents(customModuleMap.asURL)
+        let rawData = try fileSystem.readFileContents(customModuleMap.asURL)
         guard let contents = String(bytes: rawData, encoding: .utf8) else {
             throw Error.unableToLoadCustomModuleMap(customModuleMap)
         }

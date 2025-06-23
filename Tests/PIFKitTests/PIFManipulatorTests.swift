@@ -5,12 +5,12 @@ import Testing
 @Suite
 struct PIFManipulatorTests {
     @Test
-    func canUpdateProductTypes() async throws {
+    func canUpdateProductTypes() throws {
         let jsonData = try FixtureLoader.load(named: "SimplePackage.pif")
         let manipulator = try PIFManipulator(jsonData: jsonData)
 
         var detectedTargets: [String] = []
-        await manipulator.updateTargets { target in
+        manipulator.updateTargets { target in
             detectedTargets.append(target.name)
 
             target.productType = .application
@@ -24,14 +24,14 @@ struct PIFManipulatorTests {
     }
 
     @Test
-    func canUpdateBuildConfiguration() async throws {
+    func canUpdateBuildConfiguration() throws {
         let jsonData = try FixtureLoader.load(named: "SimplePackage.pif")
         let fixtureString = try #require(String(data: jsonData, encoding: .utf8))
         let manipulator = try PIFManipulator(jsonData: jsonData)
 
         #expect(!fixtureString.contains("MY_VALUE"))
 
-        await manipulator.updateTargets { target in
+        manipulator.updateTargets { target in
             target.buildConfigurations[0].buildSettings["MY_VALUE"] = "YES"
             target.buildConfigurations[1].buildSettings["MY_VALUE"] = "YES"
         }

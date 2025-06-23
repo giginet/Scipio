@@ -26,17 +26,17 @@ struct FrameworkBundleAssembler {
     }
 
     @discardableResult
-    func assemble() async throws -> URL {
-        try await fileSystem.createDirectory(frameworkBundlePath.asURL, recursive: true)
+    func assemble() throws -> URL {
+        try fileSystem.createDirectory(frameworkBundlePath.asURL, recursive: true)
 
-        try await copyBinary()
+        try copyBinary()
 
-        try await copyHeaders()
+        try copyHeaders()
 
-        try await copyModules()
+        try copyModules()
 
         let resourcesProcessor = ResourcesProcessor(fileSystem: fileSystem)
-        try await resourcesProcessor.copyResources(
+        try resourcesProcessor.copyResources(
             sourceContext: .init(
                 isFrameworkVersionedBundle: frameworkComponents.isVersionedBundle,
                 frameworkBundlePath: frameworkComponents.frameworkPath,
@@ -49,26 +49,26 @@ struct FrameworkBundleAssembler {
         return frameworkBundlePath.asURL
     }
 
-    private func copyBinary() async throws {
+    private func copyBinary() throws {
         let sourcePath = frameworkComponents.binaryPath
         let destinationPath = frameworkBundlePath.appending(component: frameworkComponents.frameworkName)
         if fileSystem.isSymlink(sourcePath.asURL) {
             // Frameworks for macOS have Versions. So their binaries are symlinks
             // Follow symlink to copy a original binary
             let sourceURL = sourcePath.asURL
-            try await fileSystem.copy(
+            try fileSystem.copy(
                 from: sourceURL.resolvingSymlinksInPath(),
                 to: destinationPath.asURL
             )
         } else {
-            try await fileSystem.copy(
+            try fileSystem.copy(
                 from: frameworkComponents.binaryPath.asURL,
                 to: destinationPath.asURL
             )
         }
     }
 
-    private func copyHeaders() async throws {
+    private func copyHeaders() throws {
         let headers = (frameworkComponents.publicHeaderPaths ?? [])
         + (frameworkComponents.bridgingHeaderPath.flatMap { [$0] } ?? [])
 
@@ -78,17 +78,17 @@ struct FrameworkBundleAssembler {
 
         let headerDir = frameworkBundlePath.appending(component: "Headers")
 
-        try await fileSystem.createDirectory(headerDir.asURL)
+        try fileSystem.createDirectory(headerDir.asURL)
 
         for header in headers {
             if keepPublicHeadersStructure, let includeDir = frameworkComponents.includeDir {
-                try await copyHeaderKeepingStructure(
+                try copyHeaderKeepingStructure(
                     header: header,
                     includeDir: includeDir,
                     into: headerDir
                 )
             } else {
-                try await fileSystem.copy(
+                try fileSystem.copy(
                     from: header.asURL,
                     to: headerDir.appending(component: header.basename).asURL
                 )
@@ -100,7 +100,7 @@ struct FrameworkBundleAssembler {
         header: AbsolutePath,
         includeDir: AbsolutePath,
         into headerDir: AbsolutePath
-    ) async throws {
+    ) throws {
         let subdirectoryComponents: [String] = if header.dirname.hasPrefix(includeDir.pathString) {
             header.dirname.dropFirst(includeDir.pathString.count)
                 .split(separator: "/")
@@ -110,12 +110,12 @@ struct FrameworkBundleAssembler {
         }
 
         if !subdirectoryComponents.isEmpty {
-            try await fileSystem.createDirectory(
+            try fileSystem.createDirectory(
                 headerDir.appending(components: subdirectoryComponents).asURL,
                 recursive: true
             )
         }
-        try await fileSystem.copy(
+        try fileSystem.copy(
             from: header.asURL,
             to: headerDir
                 .appending(components: subdirectoryComponents)
@@ -124,7 +124,7 @@ struct FrameworkBundleAssembler {
         )
     }
 
-    private func copyModules() async throws {
+    private func copyModules() throws {
         let modules = [
             frameworkComponents.swiftModulesPath,
             frameworkComponents.modulemapPath,
@@ -139,17 +139,17 @@ struct FrameworkBundleAssembler {
 
         let modulesDir = frameworkBundlePath.appending(component: "Modules")
 
-        try await fileSystem.createDirectory(modulesDir.asURL)
+        try fileSystem.createDirectory(modulesDir.asURL)
 
         if let swiftModulesPath = frameworkComponents.swiftModulesPath {
-            try await fileSystem.copy(
+            try fileSystem.copy(
                 from: swiftModulesPath.asURL,
                 to: modulesDir.appending(component: swiftModulesPath.basename).asURL
             )
         }
 
         if let moduleMapPath = frameworkComponents.modulemapPath {
-            try await fileSystem.copy(
+            try fileSystem.copy(
                 from: moduleMapPath.asURL,
                 to: modulesDir.appending(component: "module.modulemap").asURL
             )
@@ -175,13 +175,13 @@ extension FrameworkBundleAssembler {
         func copyResources(
             sourceContext: SourceContext,
             destinationFrameworkBundlePath: AbsolutePath
-        ) async throws {
+        ) throws {
             if sourceContext.isFrameworkVersionedBundle {
                 // The framework is a versioned bundle, so copy entire Resources directory
                 // instead of copying its Info.plist and resource bundle separately.
                 let sourceResourcesPath = sourceContext.frameworkBundlePath.appending(component: "Resources")
                 let destinationResourcesPath = destinationFrameworkBundlePath.appending(component: "Resources")
-                try await fileSystem.copy(
+                try fileSystem.copy(
                     from: sourceResourcesPath.asURL.resolvingSymlinksInPath(),
                     to: destinationResourcesPath.asURL
                 )
@@ -189,23 +189,23 @@ extension FrameworkBundleAssembler {
                 if let resourceBundleName = sourceContext.resourceBundlePath?.basename {
                     let resourceBundlePath = destinationResourcesPath.appending(component: resourceBundleName)
                     // A resource bundle of versioned bundle framework has "Contents/Resources" directory.
-                    try await extractPrivacyInfoIfExists(
+                    try extractPrivacyInfoIfExists(
                         from: RelativePath(validating: "Contents/Resources/PrivacyInfo.xcprivacy"),
                         in: resourceBundlePath
                     )
                 }
             } else {
-                try await copyInfoPlist(
+                try copyInfoPlist(
                     sourceContext: sourceContext,
                     destinationFrameworkBundlePath: destinationFrameworkBundlePath
                 )
-                let copiedResourceBundlePath = try await copyResourceBundle(
+                let copiedResourceBundlePath = try copyResourceBundle(
                     sourceContext: sourceContext,
                     destinationFrameworkBundlePath: destinationFrameworkBundlePath
                 )
 
                 if let copiedResourceBundlePath {
-                    try await extractPrivacyInfoIfExists(
+                    try extractPrivacyInfoIfExists(
                         from: RelativePath(validating: "PrivacyInfo.xcprivacy"),
                         in: copiedResourceBundlePath
                     )
@@ -216,20 +216,20 @@ extension FrameworkBundleAssembler {
         private func copyInfoPlist(
             sourceContext: SourceContext,
             destinationFrameworkBundlePath: AbsolutePath
-        ) async throws {
+        ) throws {
             let sourcePath = sourceContext.frameworkInfoPlistPath
             let destinationPath = destinationFrameworkBundlePath.appending(component: "Info.plist")
-            try await fileSystem.copy(from: sourcePath.asURL, to: destinationPath.asURL)
+            try fileSystem.copy(from: sourcePath.asURL, to: destinationPath.asURL)
         }
 
         /// Returns the resulting, copied resource bundle path.
         private func copyResourceBundle(
             sourceContext: SourceContext,
             destinationFrameworkBundlePath: AbsolutePath
-        ) async throws -> AbsolutePath? {
+        ) throws -> AbsolutePath? {
             if let sourcePath = sourceContext.resourceBundlePath {
                 let destinationPath = destinationFrameworkBundlePath.appending(component: sourcePath.basename)
-                try await fileSystem.copy(from: sourcePath.asURL, to: destinationPath.asURL)
+                try fileSystem.copy(from: sourcePath.asURL, to: destinationPath.asURL)
                 return destinationPath
             } else {
                 return nil
@@ -242,10 +242,10 @@ extension FrameworkBundleAssembler {
         private func extractPrivacyInfoIfExists(
             from relativePrivacyInfoPath: RelativePath,
             in resourceBundlePath: AbsolutePath
-        ) async throws {
+        ) throws {
             let privacyInfoPath = resourceBundlePath.appending(relativePrivacyInfoPath)
-            if await fileSystem.exists(privacyInfoPath.asURL) {
-                try await fileSystem.move(
+            if fileSystem.exists(privacyInfoPath.asURL) {
+                try fileSystem.move(
                     from: privacyInfoPath.asURL,
                     to: resourceBundlePath.parentDirectory
                         .appending(component: relativePrivacyInfoPath.basename)

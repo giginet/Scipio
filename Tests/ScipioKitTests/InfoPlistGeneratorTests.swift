@@ -16,10 +16,10 @@ final class InfoPlistGeneratorTests: XCTestCase {
             .appending(components: "Info.plist")
     }
 
-    func testGenerateForBundle() async throws {
-        try await generator.generateForResourceBundle(at: temporaryPath.absolutePath)
+    func testGenerateForBundle() throws {
+        try generator.generateForResourceBundle(at: temporaryPath.absolutePath)
 
-        let infoPlistBodyData = try await fileSystem.readFileContents(temporaryPath)
+        let infoPlistBodyData = try fileSystem.readFileContents(temporaryPath)
         let infoPlistBody = String(data: infoPlistBodyData, encoding: .utf8)!
 
         XCTAssertEqual(infoPlistBody, """
@@ -49,6 +49,6 @@ final class InfoPlistGeneratorTests: XCTestCase {
     override func tearDown() async throws {
         try await super.tearDown()
 
-        try await fileSystem.removeFileTree(temporaryPath)
+        try fileSystem.removeFileTree(temporaryPath)
     }
 }

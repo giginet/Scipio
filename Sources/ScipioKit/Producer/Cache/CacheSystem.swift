@@ -128,7 +128,7 @@ struct CacheSystem: Sendable {
 
         let data = try jsonEncoder.encode(cacheKey)
         let versionFilePath = outputDirectory.appendingPathComponent(versionFileName(for: target.buildProduct.target.name))
-        try await fileSystem.writeFileContents(
+        try fileSystem.writeFileContents(
             versionFilePath,
             data: data
         )
@@ -137,9 +137,9 @@ struct CacheSystem: Sendable {
     func existsValidCache(cacheKey: SwiftPMCacheKey) async -> Bool {
         do {
             let versionFilePath = versionFilePath(for: cacheKey.targetName)
-            guard await fileSystem.exists(versionFilePath) else { return false }
+            guard fileSystem.exists(versionFilePath) else { return false }
             let decoder = JSONDecoder()
-            guard let contents = try? await fileSystem.readFileContents(versionFilePath) else {
+            guard let contents = try? fileSystem.readFileContents(versionFilePath) else {
                 throw Error.couldNotReadVersionFile(versionFilePath)
             }
             let versionFileKey = try decoder.decode(SwiftPMCacheKey.self, from: Data(contents))
@@ -228,8 +228,8 @@ public struct VersionFileDecoder {
         self.fileSystem = fileSystem
     }
 
-    public func decode(versionFile: URL) async throws -> SwiftPMCacheKey {
-        let contents = try await fileSystem.readFileContents(versionFile)
+    public func decode(versionFile: URL) throws -> SwiftPMCacheKey {
+        let contents = try fileSystem.readFileContents(versionFile)
         return try jsonDecoder.decode(SwiftPMCacheKey.self, from: contents)
     }
 }

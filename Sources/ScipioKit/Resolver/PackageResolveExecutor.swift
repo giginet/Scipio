@@ -26,11 +26,11 @@ extension PackageResolver {
 
             let packageResolvedPath = packageDirectory.appending(component: "Package.resolved")
 
-            guard await fileSystem.exists(packageResolvedPath) else {
+            guard fileSystem.exists(packageResolvedPath) else {
                 return nil
             }
 
-            let packageResolvedData = try await fileSystem.readFileContents(packageResolvedPath)
+            let packageResolvedData = try fileSystem.readFileContents(packageResolvedPath)
             let packageResolved = try jsonDecoder.decode(PackageResolved.self, from: packageResolvedData)
 
             return packageResolved
