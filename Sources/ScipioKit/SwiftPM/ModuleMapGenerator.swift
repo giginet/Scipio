@@ -16,6 +16,7 @@
 
 import Foundation
 import TSCBasic
+import AsyncOperations
 
 /// Name of the module map file recognized by the Clang and Swift compilers.
 extension URL {
@@ -46,23 +47,23 @@ struct ModuleMapGenerator {
     }
 
     /// Inspects the file system at the public-headers directory with which the module map generator was instantiated, and returns the type of module map that applies to that directory.  This function contains all of the heuristics that implement module map policy for package targets; other functions just use the results of this determination.
-    func determineModuleMapType() -> ModuleMapType {
+    func determineModuleMapType() async -> ModuleMapType {
         // First check for a custom module map.
         let customModuleMapFile = publicHeadersDir.appending(component: moduleMapFilename)
-        if fileSystem.isFile(customModuleMapFile.absolutePath) {
+        if await fileSystem.isFile(customModuleMapFile) {
             return .custom(customModuleMapFile)
         }
 
         // Warn if the public-headers directory is missing.  For backward compatibility reasons, this is not an error, we just won't generate a module map in that case.
-        guard fileSystem.exists(publicHeadersDir.absolutePath) else {
+        guard await fileSystem.exists(publicHeadersDir) else {
             return .none
         }
 
         // Next try to get the entries in the public-headers directory.
-        let entries: Set<AbsolutePath>
+        let entries: Set<URL>
         do {
-            let array = try fileSystem.getDirectoryContents(publicHeadersDir.absolutePath)
-                .map({ publicHeadersDir.appending(component: $0).absolutePath })
+            let array = try await fileSystem.getDirectoryContents(publicHeadersDir)
+                .map({ publicHeadersDir.appending(component: $0) })
             entries = Set(array)
         } catch {
             // This might fail because of a file system error, etc.
@@ -71,12 +72,12 @@ struct ModuleMapGenerator {
 
         // Filter out headers and directories at the top level of the public-headers directory.
         // FIXME: What about .hh files, or .hpp, etc?  We should centralize the detection of file types based on names (and ideally share with SwiftDriver).
-        let headers = entries.filter({ fileSystem.isFile($0) && $0.suffix == ".h" })
-        let directories = entries.filter({ fileSystem.isDirectory($0) })
+        let headers = await entries.asyncFilter({ await fileSystem.isFile($0) && $0.pathExtension == "h" })
+        let directories = await entries.asyncFilter({ await fileSystem.isDirectory($0) })
 
         // If 'PublicHeadersDir/ModuleName.h' exists, then use it as the umbrella header.
         let umbrellaHeader = publicHeadersDir.appending(component: moduleName + ".h")
-        if fileSystem.isFile(umbrellaHeader.absolutePath) {
+        if await fileSystem.isFile(umbrellaHeader) {
             // In this case, 'PublicHeadersDir' is expected to contain no subdirectories.
             if directories.count != 0 {
                 return .none
@@ -86,7 +87,7 @@ struct ModuleMapGenerator {
 
         // If 'PublicHeadersDir/ModuleName/ModuleName.h' exists, then use it as the umbrella header.
         let nestedUmbrellaHeader = publicHeadersDir.appending(components: moduleName, moduleName + ".h")
-        if fileSystem.isFile(nestedUmbrellaHeader.absolutePath) {
+        if await fileSystem.isFile(nestedUmbrellaHeader) {
             // In this case, 'PublicHeadersDir' is expected to contain no subdirectories other than 'ModuleName'.
             if directories.count != 1 {
                 return .none
@@ -105,34 +106,6 @@ struct ModuleMapGenerator {
 
         // Otherwise, the module's headers are considered to be incompatible with modules.  Per the original design, though, an umbrella directory is still created for them.  This will lead to build failures if those headers are included and they are not compatible with modules.  A future evolution proposal should revisit these semantics, especially to make it easier to existing wrap C source bases that are incompatible with modules.
         return .umbrellaDirectory(publicHeadersDir)
-    }
-
-    /// Generates a module map based of the specified type, throwing an error if anything goes wrong.  Any diagnostics are added to the receiver's diagnostics engine.
-    func generateModuleMap(type: GeneratedModuleMapType, at path: AbsolutePath) throws {
-        var moduleMap = "module \(moduleName) {\n"
-        switch type {
-        case .umbrellaHeader(let hdr):
-            moduleMap.append("    umbrella header \"\(hdr.moduleEscapedPathString)\"\n")
-        case .umbrellaDirectory(let dir):
-            moduleMap.append("    umbrella \"\(dir.moduleEscapedPathString)\"\n")
-        }
-        moduleMap.append(
-            """
-                export *
-            }
-
-            """
-        )
-
-        // FIXME: This doesn't belong here.
-        try fileSystem.createDirectory(path.parentDirectory, recursive: true)
-
-        // If the file exists with the identical contents, we don't need to rewrite it.
-        // Otherwise, compiler will recompile even if nothing else has changed.
-        if let contents = try? fileSystem.readFileContents(path).validDescription, contents == moduleMap {
-            return
-        }
-        try fileSystem.writeFileContents(path, string: moduleMap)
     }
 }
 

@@ -277,12 +277,12 @@ actor PackageResolver {
     private func resolveModuleType(
         of target: Target,
         dependencyPackage: DependencyPackage
-    ) -> ResolvedModuleType {
+    ) async -> ResolvedModuleType {
         if let cachedModuleType = cachedModuleType[target] {
             return cachedModuleType
         }
 
-        let resolvedModuleType = moduleTypeResolver.resolve(
+        let resolvedModuleType = await moduleTypeResolver.resolve(
             target: target,
             dependencyPackage: dependencyPackage
         )

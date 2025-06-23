@@ -1,11 +1,12 @@
 import Foundation
 import TSCBasic
 import PIFKit
+import TSCUtility
 
 struct PIFGenerator {
     private let packageName: String
     private let packageLocator: any PackageLocator
-    private let toolchainLibDirectory: URL
+    private let toolchainLibDirectory: Foundation.URL
     private let buildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
     private let executor: any Executor
@@ -14,11 +15,11 @@ struct PIFGenerator {
     init(
         packageName: String,
         packageLocator: some PackageLocator,
-        toolchainLibDirectory: URL,
+        toolchainLibDirectory: Foundation.URL,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
         executor: some Executor = ProcessExecutor(),
-        fileSystem: any FileSystem = localFileSystem
+        fileSystem: any FileSystem = LocalFileSystem.default
     ) throws {
         self.packageName = packageName
         self.packageLocator = packageLocator
@@ -48,24 +49,24 @@ struct PIFGenerator {
     func generateJSON(for sdk: SDK) async throws -> AbsolutePath {
         let manipulator = try await buildPIFManipulator()
 
-        manipulator.updateTargets { target in
-            updateTarget(&target, sdk: sdk)
+        await manipulator.updateTargets { target in
+            await updateTarget(&target, sdk: sdk)
         }
 
         let newJSONData = try manipulator.dump()
 
         let path = packageLocator.workspaceDirectory
             .appending(component: "manifest-\(packageName)-\(sdk.settingValue).pif")
-        try fileSystem.writeFileContents(path, data: newJSONData)
+        try await fileSystem.writeFileContents(path.asURL, data: newJSONData)
         return path
     }
 
-    private func updateTarget(_ target: inout PIFKit.Target, sdk: SDK) {
+    private func updateTarget(_ target: inout PIFKit.Target, sdk: SDK) async {
         switch target.productType {
         case .objectFile:
             updateObjectFileTarget(&target, sdk: sdk)
         case .bundle:
-            generateInfoPlistForResource(for: &target)
+            await generateInfoPlistForResource(for: &target)
         default:
             break
         }
@@ -179,13 +180,13 @@ struct PIFGenerator {
         """)
     }
 
-    private func generateInfoPlistForResource(for target: inout PIFKit.Target) {
+    private func generateInfoPlistForResource(for target: inout PIFKit.Target) async {
         assert(target.productType == .bundle, "This method must be called for Resource bundles")
 
         let infoPlistGenerator = InfoPlistGenerator(fileSystem: fileSystem)
         let infoPlistPath = packageLocator.workspaceDirectory.appending(component: "Info-\(target.name).plist")
         do {
-            try infoPlistGenerator.generateForResourceBundle(at: infoPlistPath)
+            try await infoPlistGenerator.generateForResourceBundle(at: infoPlistPath)
         } catch {
             fatalError("Could not generate Info.plist file")
         }

@@ -24,18 +24,13 @@ extension PackageResolver {
 
             try await executor.execute(commands)
 
-            let packageResolvedPath = packageDirectory.appending(component: "Package.resolved").absolutePath
+            let packageResolvedPath = packageDirectory.appending(component: "Package.resolved")
 
-            guard fileSystem.exists(packageResolvedPath) else {
+            guard await fileSystem.exists(packageResolvedPath) else {
                 return nil
             }
 
-            guard let packageResolvedString = try fileSystem.readFileContents(packageResolvedPath).validDescription,
-                  let packageResolvedData = packageResolvedString.data(using: .utf8)
-            else {
-                throw Error.cannotReadPackageResolvedFile
-            }
-
+            let packageResolvedData = try await fileSystem.readFileContents(packageResolvedPath)
             let packageResolved = try jsonDecoder.decode(PackageResolved.self, from: packageResolvedData)
 
             return packageResolved

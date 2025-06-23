@@ -13,13 +13,13 @@ package final class PIFManipulator {
 
     /// Update targets in PIF JSON data
     /// - Parameters modifier: Closure to modify Target
-    package func updateTargets(_ modifier: (inout Target) -> Void) {
+    package func updateTargets(_ modifier: (inout Target) async -> Void) async {
         for index in 0..<topLevelObject.arrayValue.count {
             guard topLevelObject[index]["type"].stringValue == "target", var target = try? Target(from: topLevelObject[index]["contents"]) else {
                 continue
             }
 
-            modifier(&target)
+            await modifier(&target)
             apply(target, to: &topLevelObject[index])
         }
     }

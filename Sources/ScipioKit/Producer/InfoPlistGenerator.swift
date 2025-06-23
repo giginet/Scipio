@@ -8,9 +8,9 @@ struct InfoPlistGenerator {
         self.fileSystem = fileSystem
     }
 
-    func generateForResourceBundle(at path: AbsolutePath) throws {
+    func generateForResourceBundle(at path: AbsolutePath) async throws {
         let body = resourceBundleBody
-        try fileSystem.writeFileContents(path, string: body)
+        try await fileSystem.writeFileContents(path.asURL, string: body)
     }
 
     private var resourceBundleBody: String {

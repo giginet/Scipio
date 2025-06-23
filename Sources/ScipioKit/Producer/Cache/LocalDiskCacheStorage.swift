@@ -1,6 +1,5 @@
 import Foundation
 import ScipioStorage
-import TSCBasic
 
 struct LocalDiskCacheStorage: CacheStorage {
     private let fileSystem: any FileSystem
@@ -15,20 +14,20 @@ struct LocalDiskCacheStorage: CacheStorage {
 
     /// - Parameters:
     ///   - baseURL: The base url for the local disk cache. When it is nil, the system cache directory (`~/Library/Caches`) will be used.
-    init(baseURL: URL?, fileSystem: FileSystem = localFileSystem) {
+    init(baseURL: URL?, fileSystem: FileSystem = LocalFileSystem.default) {
         self.baseURL = baseURL
         self.fileSystem = fileSystem
     }
 
-    private func buildBaseDirectoryPath() throws -> URL {
+    private func buildBaseDirectoryPath() async throws -> URL {
         let cacheDir: URL
         if let baseURL {
             cacheDir = baseURL
         } else {
-            guard let systemCacheDir = fileSystem.cachesDirectory else {
+            guard let systemCacheDir = await fileSystem.cachesDirectory else {
                 throw Error.cacheDirectoryIsNotFound
             }
-            cacheDir = systemCacheDir.asURL
+            cacheDir = systemCacheDir
         }
         return cacheDir.appendingPathComponent("Scipio")
     }
@@ -37,8 +36,8 @@ struct LocalDiskCacheStorage: CacheStorage {
         "\(cacheKey.targetName.packageNamed()).xcframework"
     }
 
-    private func cacheFrameworkPath(for cacheKey: some CacheKey) throws -> URL {
-        let baseDirectory = try buildBaseDirectoryPath()
+    private func cacheFrameworkPath(for cacheKey: some CacheKey) async throws -> URL {
+        let baseDirectory = try await buildBaseDirectoryPath()
         let checksum = try cacheKey.calculateChecksum()
         return baseDirectory
             .appendingPathComponent(cacheKey.targetName.packageNamed())
@@ -48,8 +47,8 @@ struct LocalDiskCacheStorage: CacheStorage {
 
     func existsValidCache(for cacheKey: some CacheKey) async -> Bool {
         do {
-            let xcFrameworkPath = try cacheFrameworkPath(for: cacheKey)
-            return fileSystem.exists(xcFrameworkPath.absolutePath)
+            let xcFrameworkPath = try await cacheFrameworkPath(for: cacheKey)
+            return await fileSystem.exists(xcFrameworkPath)
         } catch {
             return false
         }
@@ -57,19 +56,19 @@ struct LocalDiskCacheStorage: CacheStorage {
 
     func cacheFramework(_ frameworkPath: URL, for cacheKey: some CacheKey) async {
         do {
-            let destination = try cacheFrameworkPath(for: cacheKey)
+            let destination = try await cacheFrameworkPath(for: cacheKey)
             let directoryPath = destination.deletingLastPathComponent()
 
-            try fileSystem.createDirectory(directoryPath.absolutePath, recursive: true)
-            try fileSystem.copy(from: frameworkPath.absolutePath, to: destination.absolutePath)
+            try await fileSystem.createDirectory(directoryPath, recursive: true)
+            try await fileSystem.copy(from: frameworkPath, to: destination)
         } catch {
             // ignore error
         }
     }
 
     func fetchArtifacts(for cacheKey: some CacheKey, to destinationDir: URL) async throws {
-        let source = try cacheFrameworkPath(for: cacheKey)
+        let source = try await cacheFrameworkPath(for: cacheKey)
         let destination = destinationDir.appendingPathComponent(xcFrameworkFileName(for: cacheKey))
-        try fileSystem.copy(from: source.absolutePath, to: destination.absolutePath)
+        try await fileSystem.copy(from: source, to: destination)
     }
 }

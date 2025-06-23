@@ -15,11 +15,11 @@ private struct PackageLocatorMock: PackageLocator {
 
 @Suite(.serialized)
 struct FrameworkModuleMapGeneratorTests {
-    let fileSystem = localFileSystem
-    let temporaryDirectory: AbsolutePath
+    let fileSystem = LocalFileSystem.default
+    let temporaryDirectory: URL
 
-    init() throws {
-        self.temporaryDirectory = try fileSystem
+    init() {
+        self.temporaryDirectory = fileSystem
             .tempDirectory
             .appending(components: "FrameworkModuleMapGeneratorTests")
     }
@@ -27,11 +27,11 @@ struct FrameworkModuleMapGeneratorTests {
     @Test
     func generate_keepPublicHeadersStructure_is_false() async throws {
         let outputDirectory = temporaryDirectory.appending(component: #function)
-        defer { try? fileSystem.removeFileTree(outputDirectory) }
+        defer { try? FileManager.default.removeItem(at: outputDirectory) }
 
         let generatedModuleMapContents = try await generateModuleMap(
             keepPublicHeadersStructure: false,
-            outputDirectory: outputDirectory
+            outputDirectory: outputDirectory.absolutePath
         )
         let expectedModuleMapContents = """
 framework module MyTarget {
@@ -49,11 +49,11 @@ framework module MyTarget {
     @Test
     func generate_keepPublicHeadersStructure_is_true() async throws {
         let outputDirectory = temporaryDirectory.appending(component: #function)
-        defer { try? fileSystem.removeFileTree(outputDirectory) }
+        defer { try? FileManager.default.removeItem(at: outputDirectory) }
 
         let generatedModuleMapContents = try await generateModuleMap(
             keepPublicHeadersStructure: true,
-            outputDirectory: outputDirectory
+            outputDirectory: outputDirectory.absolutePath
         )
         let expectedModuleMapContents = """
 framework module MyTarget {
@@ -83,7 +83,7 @@ framework module MyTarget {
             mode: .createPackage,
             onlyUseVersionsFromResolvedFile: false
         )
-        let generatedModuleMapPath = try generator.generate(
+        let generatedModuleMapPath = try await generator.generate(
             resolvedTarget: #require(descriptionPackage.graph.module(for: "MyTarget")),
             sdk: SDK.macOS,
             keepPublicHeadersStructure: keepPublicHeadersStructure

@@ -4,22 +4,23 @@ import XCTest
 import TSCBasic
 
 final class InfoPlistGeneratorTests: XCTestCase {
-    let fileSystem = localFileSystem
+    let fileSystem = LocalFileSystem.default
     lazy var generator = InfoPlistGenerator(fileSystem: fileSystem)
-    var temporaryPath: AbsolutePath!
+    var temporaryPath: URL!
 
     override func setUp() async throws {
         try await super.setUp()
 
-        self.temporaryPath = try localFileSystem
+        self.temporaryPath = fileSystem
             .tempDirectory
             .appending(components: "Info.plist")
     }
 
-    func testGenerateForBundle() throws {
-        try generator.generateForResourceBundle(at: temporaryPath)
+    func testGenerateForBundle() async throws {
+        try await generator.generateForResourceBundle(at: temporaryPath.absolutePath)
 
-        let infoPlistBody = try fileSystem.readFileContents(temporaryPath).cString
+        let infoPlistBodyData = try await fileSystem.readFileContents(temporaryPath)
+        let infoPlistBody = String(data: infoPlistBodyData, encoding: .utf8)!
 
         XCTAssertEqual(infoPlistBody, """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -48,6 +49,6 @@ final class InfoPlistGeneratorTests: XCTestCase {
     override func tearDown() async throws {
         try await super.tearDown()
 
-        try fileSystem.removeFileTree(temporaryPath)
+        try await fileSystem.removeFileTree(temporaryPath)
     }
 }

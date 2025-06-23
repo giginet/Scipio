@@ -1,4 +1,5 @@
 import Foundation
+import AsyncOperations
 import TSCBasic
 
 struct XCBuildClient {
@@ -26,7 +27,7 @@ struct XCBuildClient {
         buildOptions: BuildOptions,
         configuration: BuildConfiguration,
         packageLocator: some PackageLocator,
-        fileSystem: any FileSystem = localFileSystem,
+        fileSystem: any FileSystem = LocalFileSystem.default,
         executor: some Executor = ProcessExecutor(decoder: StandardOutputDecoder())
     ) {
         self.buildProduct = buildProduct
@@ -45,10 +46,10 @@ struct XCBuildClient {
             "../SharedFrameworks/SwiftBuild.framework/Versions/A/Support/swbuild", // >= Xcode 16.3
         ]
 
-        let foundXCBuildPath = xcBuildPathCandidates.map { relativePath in
+        let foundXCBuildPath = await xcBuildPathCandidates.map { relativePath in
             developerDirPath.appending(path: relativePath).standardizedFileURL
-        }.first { path in
-            fileSystem.exists(path.absolutePath)
+        }.asyncFirst { [fileSystem] path in
+            await fileSystem.exists(path)
         }
         guard let foundXCBuildPath else {
             throw Error.xcbuildNotFound
@@ -88,14 +89,14 @@ struct XCBuildClient {
             target: buildProduct.target
         )
 
-        let frameworkBundlePath = try assembleFramework(sdk: sdk)
+        let frameworkBundlePath = try await assembleFramework(sdk: sdk)
         return frameworkBundlePath
     }
 
     /// Assemble framework from build artifacts
     /// - Parameter sdk: SDK
     /// - Returns: Path to assembled framework bundle
-    private func assembleFramework(sdk: SDK) throws -> URL {
+    private func assembleFramework(sdk: SDK) async throws -> URL {
         let frameworkComponentsCollector = FrameworkComponentsCollector(
             buildProduct: buildProduct,
             sdk: sdk,
@@ -104,7 +105,7 @@ struct XCBuildClient {
             fileSystem: fileSystem
         )
 
-        let components = try frameworkComponentsCollector.collectComponents(sdk: sdk)
+        let components = try await frameworkComponentsCollector.collectComponents(sdk: sdk)
 
         let frameworkOutputDir = packageLocator.assembledFrameworksDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
@@ -118,7 +119,7 @@ struct XCBuildClient {
             fileSystem: fileSystem
         )
 
-        return try assembler.assemble()
+        return try await assembler.assemble()
     }
 
     private func assembledFrameworkPath(target: ResolvedModule, of sdk: SDK) throws -> AbsolutePath {

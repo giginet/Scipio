@@ -7,7 +7,7 @@ struct BinaryExtractor {
     var fileSystem: any FileSystem
 
     @discardableResult
-    func extract(of binaryTarget: ResolvedModule, overwrite: Bool) throws -> URL {
+    func extract(of binaryTarget: ResolvedModule, overwrite: Bool) async throws -> URL {
         guard case let .binary(binaryLocation) = binaryTarget.resolvedModuleType else {
             preconditionFailure(
                 """
@@ -22,13 +22,13 @@ struct BinaryExtractor {
         let frameworkName = "\(binaryTarget.c99name).xcframework"
         let fileName = artifactURL.absolutePath.basename
         let destinationPath = outputDirectory.appendingPathComponent(fileName)
-        if fileSystem.exists(destinationPath.absolutePath) && overwrite {
+        if await fileSystem.exists(destinationPath) && overwrite {
             logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(destinationPath.absolutePath)
+            try await fileSystem.removeFileTree(destinationPath)
         }
-        try fileSystem.copy(
-            from: artifactURL.absolutePath,
-            to: destinationPath.absolutePath
+        try await fileSystem.copy(
+            from: artifactURL,
+            to: destinationPath
         )
 
         return destinationPath

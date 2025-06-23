@@ -19,7 +19,7 @@ struct VariousModulePathsTests {
         "WithoutPath_LowercaseDir_src",
     ].map { fixturePath.appending(components: $0) }
 
-    let fileSystem = TSCBasic.localFileSystem
+    let fileSystem = LocalFileSystem.default
     let manifestLoader = ManifestLoader(executor: ProcessExecutor())
 
     @Test(

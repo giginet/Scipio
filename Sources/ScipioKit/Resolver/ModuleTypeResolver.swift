@@ -1,6 +1,7 @@
 import Foundation
 import TSCBasic
 import PackageManifestKit
+import AsyncOperations
 
 extension PackageResolver {
     struct ModuleTypeResolver {
@@ -16,15 +17,15 @@ extension PackageResolver {
         func resolve(
             target: Target,
             dependencyPackage: DependencyPackage
-        ) -> ResolvedModuleType {
+        ) async -> ResolvedModuleType {
             switch target.type {
             case .binary:
-                resolveModuleTypeForBinaryTarget(
+                await resolveModuleTypeForBinaryTarget(
                     target,
                     dependencyPackage: dependencyPackage
                 )
             default:
-                resolveModuleTypeForLibraryTarget(
+                await resolveModuleTypeForLibraryTarget(
                     target,
                     dependencyPackage: dependencyPackage
                 )
@@ -34,20 +35,20 @@ extension PackageResolver {
         private func resolveModuleTypeForBinaryTarget(
             _ target: Target,
             dependencyPackage: DependencyPackage
-        ) -> ResolvedModuleType {
+        ) async -> ResolvedModuleType {
             assert(target.type == .binary)
 
-            let artifactType: ResolvedModuleType.BinaryArtifactLocation = {
+            let artifactType: ResolvedModuleType.BinaryArtifactLocation = await {
                 let artifactsLocation: ResolvedModuleType.BinaryArtifactLocation = .remote(
                     packageIdentity: dependencyPackage.identity,
                     name: target.name
                 )
                 let artifactsURL = artifactsLocation.artifactURL(rootPackageDirectory: rootPackageDirectory).absolutePath
 
-                return if fileSystem.exists(artifactsURL) {
+                return if await fileSystem.exists(artifactsURL.asURL) {
                     artifactsLocation
                 } else {
-                    .local(resolveTargetFullPath(of: target, dependencyPackage: dependencyPackage))
+                    await .local(resolveTargetFullPath(of: target, dependencyPackage: dependencyPackage))
                 }
             }()
 
@@ -57,10 +58,10 @@ extension PackageResolver {
         private func resolveModuleTypeForLibraryTarget(
             _ target: Target,
             dependencyPackage: DependencyPackage
-        ) -> ResolvedModuleType {
+        ) async -> ResolvedModuleType {
             assert(target.type != .binary)
 
-            let moduleFullPath = resolveTargetFullPath(of: target, dependencyPackage: dependencyPackage)
+            let moduleFullPath = await resolveTargetFullPath(of: target, dependencyPackage: dependencyPackage)
             let moduleSourcesFullPaths = target.sources?.map { moduleFullPath.appending(component: $0) } ?? [moduleFullPath]
             let moduleExcludeFullPaths = target.exclude.map { moduleFullPath.appending(component: $0) }
             let publicHeadersPath = target.publicHeadersPath ?? "include"
@@ -102,12 +103,12 @@ extension PackageResolver {
         private func resolveTargetFullPath(
             of target: Target,
             dependencyPackage: DependencyPackage
-        ) -> URL {
+        ) async -> URL {
             let packageURL = URL(filePath: dependencyPackage.path)
 
             // If an explicit path is provided, use it first.
             if let explicitURL = target.path.map({ packageURL.appending(component: $0) }),
-               fileSystem.exists(explicitURL.absolutePath) {
+               await fileSystem.exists(explicitURL) {
                 return explicitURL
             }
 
@@ -117,7 +118,7 @@ extension PackageResolver {
             // - "src/<target name>".
             // - "srcs/<target name>".
             let defaultRoots = ["sources", "source", "src", "srcs"]
-            let entries = (try? fileSystem.getDirectoryContents(packageURL.absolutePath)) ?? []
+            let entries = (try? await fileSystem.getDirectoryContents(packageURL)) ?? []
 
             // Match using lowercase comparison since SwiftPM treats these names case-insensitively
             let sourcesURLs = entries.lazy
@@ -125,12 +126,12 @@ extension PackageResolver {
                 .map { packageURL.appending(component: $0) }
             let moduleURLs = sourcesURLs.map { $0.appending(component: target.name) }
 
-            return if let moduleURL = moduleURLs.first(where: { fileSystem.exists($0.absolutePath) }) {
+            return if let moduleURL = await moduleURLs.asyncFirst(where: { await fileSystem.exists($0) }) {
                 moduleURL
             }
             // If no nested module directory is found but exactly one default root exists
             // (e.g. only Source/xxx.swift in the package), allow that root itself as the module path.
-            else if let sourceURL = sourcesURLs.first(where: { fileSystem.exists($0.absolutePath) }) {
+            else if let sourceURL = await sourcesURLs.asyncFirst(where: { await fileSystem.exists($0) }) {
                 sourceURL
             } else {
                 preconditionFailure("Cannot find module directory for target '\(target.name)'")

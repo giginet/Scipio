@@ -33,7 +33,7 @@ struct FrameworkProducer {
         cachePolicies: [Runner.Options.CachePolicy],
         overwrite: Bool,
         outputDir: URL,
-        fileSystem: any FileSystem = localFileSystem
+        fileSystem: any FileSystem = LocalFileSystem.default
     ) {
         self.descriptionPackage = descriptionPackage
         self.baseBuildOptions = buildOptions
@@ -57,12 +57,12 @@ struct FrameworkProducer {
     }
 
     func clean() async throws {
-        if fileSystem.exists(descriptionPackage.derivedDataPath) {
-            try fileSystem.removeFileTree(descriptionPackage.derivedDataPath)
+        if await fileSystem.exists(descriptionPackage.derivedDataPath.asURL) {
+            try await fileSystem.removeFileTree(descriptionPackage.derivedDataPath.asURL)
         }
 
-        if fileSystem.exists(descriptionPackage.assembledFrameworksRootDirectory) {
-            try fileSystem.removeFileTree(descriptionPackage.assembledFrameworksRootDirectory)
+        if await fileSystem.exists(descriptionPackage.assembledFrameworksRootDirectory.asURL) {
+            try await fileSystem.removeFileTree(descriptionPackage.assembledFrameworksRootDirectory.asURL)
         }
     }
 
@@ -149,7 +149,7 @@ struct FrameworkProducer {
                             let product = target.buildProduct
                             let frameworkName = product.frameworkName
                             let outputPath = outputDir.appendingPathComponent(frameworkName)
-                            let exists = fileSystem.exists(outputPath.absolutePath)
+                            let exists = await fileSystem.exists(outputPath)
                             guard exists else { return nil }
 
                             let expectedCacheKey = try await cacheSystem.calculateCacheKey(of: target)
@@ -157,7 +157,7 @@ struct FrameworkProducer {
                             guard isValidCache else {
                                 logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
                                 logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-                                try fileSystem.removeFileTree(outputPath.absolutePath)
+                                try await fileSystem.removeFileTree(outputPath)
 
                                 return nil
                             }
@@ -347,7 +347,7 @@ struct FrameworkProducer {
                 outputDirectory: outputDir,
                 fileSystem: fileSystem
             )
-            try binaryExtractor.extract(of: product.target, overwrite: overwrite)
+            try await binaryExtractor.extract(of: product.target, overwrite: overwrite)
             logger.info("✅ Copy \(product.target.c99name).xcframework", metadata: .color(.green))
         default:
             fatalError("Unexpected target type \(product.target.underlying.type)")

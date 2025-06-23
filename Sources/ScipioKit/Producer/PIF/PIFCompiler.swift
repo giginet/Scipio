@@ -14,7 +14,7 @@ struct PIFCompiler: Compiler {
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
-        fileSystem: any FileSystem = localFileSystem,
+        fileSystem: any FileSystem = LocalFileSystem.default,
         executor: any Executor = ProcessExecutor()
     ) {
         self.descriptionPackage = descriptionPackage
@@ -68,7 +68,7 @@ struct PIFCompiler: Compiler {
                 buildOptionsMatrix: buildOptionsMatrix
             )
             let pifPath = try await generator.generateJSON(for: sdk)
-            let buildParametersPath = try buildParametersGenerator.generate(
+            let buildParametersPath = try await buildParametersGenerator.generate(
                 for: sdk,
                 buildParameters: buildParameters,
                 destinationDir: descriptionPackage.workspaceDirectory
@@ -97,9 +97,9 @@ struct PIFCompiler: Compiler {
         // If there is existing framework, remove it
         let frameworkName = target.xcFrameworkName
         let outputXCFrameworkPath = try AbsolutePath(validating: outputDirectory.path).appending(component: frameworkName)
-        if fileSystem.exists(outputXCFrameworkPath) && overwrite {
+        if await fileSystem.exists(outputXCFrameworkPath.asURL) && overwrite {
             logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(outputXCFrameworkPath)
+            try await fileSystem.removeFileTree(outputXCFrameworkPath.asURL)
         }
 
         let debugSymbolPaths: [SDK: [AbsolutePath]]?
