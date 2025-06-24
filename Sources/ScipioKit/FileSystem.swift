@@ -1,33 +1,99 @@
 import Foundation
 
+/// Provides abstracted access to file system operations.
 public protocol FileSystem: Sendable {
+    /// The URL of the temporary directory (e.g., NSTemporaryDirectory()).
     var tempDirectory: URL { get }
+
+    /// The URL of the user's caches directory, if available.
     var cachesDirectory: URL? { get }
+
+    /// The current working directory, similar to getcwd(3).
+    /// May be nil if the directory is unavailable.
     var currentWorkingDirectory: URL? { get }
 
+    /// Writes data to a file at the specified URL.
+    /// Creates parent directories if needed.
+    /// - Parameter path: The file URL to write to.
+    /// - Parameter data: The raw data to write.
     func writeFileContents(_ path: URL, data: Data) throws
+
+    /// Reads and returns the contents of the file at the specified URL.
+    /// - Parameter path: The file URL to read from.
+    /// - Returns: The file contents as Data.
     func readFileContents(_ path: URL) throws -> Data
+
+    /// Checks whether the given path exists.
+    /// - Parameters:
+    ///   - path: The URL to check.
+    ///   - followSymlink: If true, symlinks will be resolved.
+    /// - Returns: True if the path exists.
     func exists(_ path: URL, followSymlink: Bool) -> Bool
+
+    /// Determines if the given URL is an existing directory.
+    /// - Parameter path: The URL to check.
     func isDirectory(_ path: URL) -> Bool
+
+    /// Determines if the given URL is an existing regular file.
+    /// - Parameter path: The URL to check.
     func isFile(_ path: URL) -> Bool
+
+    /// Determines if the given URL is a symbolic link.
+    /// - Parameter path: The URL to check.
     func isSymlink(_ path: URL) -> Bool
+
+    /// Copies an item from one URL to another.
+    /// - Parameters:
+    ///   - fromURL: The source URL.
+    ///   - toURL: The destination URL.
     func copy(from fromURL: URL, to toURL: URL) throws
+
+    /// Creates a directory at the specified URL.
+    /// - Parameters:
+    ///   - directoryPath: The directory URL to create.
+    ///   - recursive: If true, create intermediate directories as needed.
     func createDirectory(_ directoryPath: URL, recursive: Bool) throws
+
+    /// Moves an item from one URL to another.
+    /// - Parameters:
+    ///   - fromURL: The source URL.
+    ///   - toURL: The destination URL.
     func move(from fromURL: URL, to toURL: URL) throws
+
+    /// Returns the names of items in the specified directory.
+    /// - Parameter directoryPath: The directory URL to list.
+    /// - Returns: An array of file and directory names; order is undefined.
     func getDirectoryContents(_ directoryPath: URL) throws -> [String]
+
+    /// Recursively removes the file or directory at the specified URL.
+    /// No error is thrown if the item does not exist.
+    /// - Parameter path: The URL of the item to remove.
     func removeFileTree(_ path: URL) throws
 }
 
 extension FileSystem {
+    /// Creates a directory at the specified URL without creating intermediate directories.
+    /// - Parameter directoryPath: The directory URL to create.
+    /// - Throws: An error if directory creation fails.
     func createDirectory(_ directoryPath: URL) throws {
         try createDirectory(directoryPath, recursive: false)
     }
 
+    /// Writes a UTF-8 encoded string to the file at the specified URL.
+    /// - Parameters:
+    ///   - path: The file URL to write to.
+    ///   - string: The string content to write.
+    /// - Throws: An error if the write operation fails.
     func writeFileContents(_ path: URL, string: String) throws {
-        let data = string.data(using: .utf8)!
+        guard let data = string.data(using: .utf8) else {
+            throw FileSystemError.utf8EncodingFailed
+        }
         try writeFileContents(path, data: data)
     }
 
+    /// Checks if the item at the specified URL exists, following symbolic links.
+    /// - Parameter path: The URL to check.
+    /// - Returns: True if the path exists; false otherwise.
     func exists(_ path: URL) -> Bool {
         exists(path, followSymlink: true)
     }
@@ -112,6 +178,7 @@ public struct LocalFileSystem: FileSystem {
         do {
             try FileManager.default.removeItem(atPath: path.path(percentEncoded: false))
         } catch let error as NSError {
+            // If we failed because the directory doesn't actually exist anymore, ignore the error.
             if !(error.domain == NSCocoaErrorDomain && error.code == NSFileNoSuchFileError) {
                 throw error
             }
@@ -121,11 +188,14 @@ public struct LocalFileSystem: FileSystem {
 
 public enum FileSystemError: LocalizedError {
     case cannotReadFileContents(path: URL)
+    case utf8EncodingFailed
 
     public var errorDescription: String? {
         switch self {
         case .cannotReadFileContents(let path):
-            return "Failed to read file contents at path \(path.path)"
+            "Failed to read file contents at path \(path.path)"
+        case .utf8EncodingFailed:
+            "Failed to convert the command output string to UTF-8 encoded data"
         }
     }
 }
