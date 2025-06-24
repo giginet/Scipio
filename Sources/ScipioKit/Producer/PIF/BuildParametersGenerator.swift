@@ -27,6 +27,12 @@ struct BuildParametersGenerator {
     private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem
     private let executor: any Executor
+    private let jsonEncoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting.formUnion([.sortedKeys, .prettyPrinted, .withoutEscapingSlashes])
+        return encoder
+    }()
 
     init(buildOptions: BuildOptions, fileSystem: any FileSystem = localFileSystem, executor: some Executor) {
         self.buildOptions = buildOptions
@@ -84,8 +90,9 @@ struct BuildParametersGenerator {
 
         // Write out the parameters as a JSON file, and return the path.
         let filePath = destinationDir.appending(component: "build-parameters-\(sdk.settingValue).json")
-        let encoder = JSONEncoder()
-        let data = try encoder.encode(params)
+
+        let data = try jsonEncoder.encode(params)
+
         try self.fileSystem.writeFileContents(filePath, bytes: ByteString(data))
         return filePath
     }
