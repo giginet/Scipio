@@ -34,24 +34,18 @@ extension FileSystem {
 }
 
 public struct LocalFileSystem: FileSystem {
-    nonisolated public static let `default` = LocalFileSystem()
+    public static let `default` = LocalFileSystem()
 
-    public init() {}
-
-    nonisolated public var tempDirectory: URL {
+    public var tempDirectory: URL {
         URL(filePath: NSTemporaryDirectory())
     }
 
     public var cachesDirectory: URL? {
-        get {
-            FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
-        }
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
     }
 
     public var currentWorkingDirectory: URL? {
-        get {
-            URL(filePath: FileManager.default.currentDirectoryPath)
-        }
+        URL(filePath: FileManager.default.currentDirectoryPath)
     }
 
     public func writeFileContents(_ path: URL, data: Data) throws {
@@ -90,7 +84,7 @@ public struct LocalFileSystem: FileSystem {
         return attributes?[.type] as? FileAttributeType == .typeRegular
     }
 
-    public nonisolated func isSymlink(_ path: URL) -> Bool {
+    public func isSymlink(_ path: URL) -> Bool {
         let values = try? path.resourceValues(forKeys: [.isSymbolicLinkKey])
         return values?.isSymbolicLink == true
     }
