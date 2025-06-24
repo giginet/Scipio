@@ -85,7 +85,7 @@ final class CacheSystemTests: XCTestCase {
     func testCacheKeyForRemoteAndLocalPackageDifference() async throws {
         let fileSystem = localFileSystem
 
-        let tempDir: AbsolutePath = try fileSystem.tempDirectory.appending(component: #function)
+        let tempDir = try fileSystem.tempDirectory.appending(component: #function)
         try fileSystem.removeFileTree(tempDir)
         try fileSystem.createDirectory(tempDir)
 
