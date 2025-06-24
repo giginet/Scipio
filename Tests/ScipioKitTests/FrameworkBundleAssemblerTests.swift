@@ -1,7 +1,7 @@
 import Foundation
 @testable import ScipioKit
 import Testing
-import Basics
+import TSCBasic
 
 private let fixturesPath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
@@ -11,7 +11,7 @@ private let fixturesPath = URL(fileURLWithPath: #filePath)
 @Suite(.serialized)
 struct FrameworkBundleAssemblerTests {
     let fileSystem = localFileSystem
-    let temporaryDirectory: TSCAbsolutePath
+    let temporaryDirectory: AbsolutePath
 
     init() throws {
         self.temporaryDirectory = try fileSystem
@@ -43,7 +43,7 @@ struct FrameworkBundleAssemblerTests {
         #expect(Set(try fileSystem.getDirectoryContents(frameworkHeadersPath.appending(component: "bar"))) == ["bar.h"])
     }
 
-    private func assembleFramework(keepPublicHeadersStructure: Bool, outputDirectory: TSCAbsolutePath) throws {
+    private func assembleFramework(keepPublicHeadersStructure: Bool, outputDirectory: AbsolutePath) throws {
         let fixture = fixturesPath.appendingPathComponent("FrameworkBundleAssemblerTests").absolutePath
         let frameworkComponents = FrameworkComponents(
             isVersionedBundle: false,

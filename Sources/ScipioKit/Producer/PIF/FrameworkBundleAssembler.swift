@@ -1,22 +1,22 @@
 import Foundation
-import Basics
+import TSCBasic
 
 /// A assembler to generate framework bundle
 /// This assembler just relocates framework components into the framework structure
 struct FrameworkBundleAssembler {
     private let frameworkComponents: FrameworkComponents
     private let keepPublicHeadersStructure: Bool
-    private let outputDirectory: TSCAbsolutePath
+    private let outputDirectory: AbsolutePath
     private let fileSystem: any FileSystem
 
-    private var frameworkBundlePath: TSCAbsolutePath {
+    private var frameworkBundlePath: AbsolutePath {
         outputDirectory.appending(component: "\(frameworkComponents.frameworkName).framework")
     }
 
     init(
         frameworkComponents: FrameworkComponents,
         keepPublicHeadersStructure: Bool,
-        outputDirectory: TSCAbsolutePath,
+        outputDirectory: AbsolutePath,
         fileSystem: some FileSystem
     ) {
         self.frameworkComponents = frameworkComponents
@@ -97,9 +97,9 @@ struct FrameworkBundleAssembler {
     }
 
     private func copyHeaderKeepingStructure(
-        header: TSCAbsolutePath,
-        includeDir: TSCAbsolutePath,
-        into headerDir: TSCAbsolutePath
+        header: AbsolutePath,
+        includeDir: AbsolutePath,
+        into headerDir: AbsolutePath
     ) throws {
         let subdirectoryComponents: [String] = if header.dirname.hasPrefix(includeDir.pathString) {
             header.dirname.dropFirst(includeDir.pathString.count)
@@ -160,9 +160,9 @@ extension FrameworkBundleAssembler {
     struct ResourcesProcessor {
         struct SourceContext {
             let isFrameworkVersionedBundle: Bool
-            let frameworkBundlePath: TSCAbsolutePath
-            let frameworkInfoPlistPath: TSCAbsolutePath
-            let resourceBundlePath: TSCAbsolutePath?
+            let frameworkBundlePath: AbsolutePath
+            let frameworkInfoPlistPath: AbsolutePath
+            let resourceBundlePath: AbsolutePath?
         }
 
         private let fileSystem: any FileSystem
@@ -173,7 +173,7 @@ extension FrameworkBundleAssembler {
 
         func copyResources(
             sourceContext: SourceContext,
-            destinationFrameworkBundlePath: TSCAbsolutePath
+            destinationFrameworkBundlePath: AbsolutePath
         ) throws {
             if sourceContext.isFrameworkVersionedBundle {
                 // The framework is a versioned bundle, so copy entire Resources directory
@@ -189,7 +189,7 @@ extension FrameworkBundleAssembler {
                     let resourceBundlePath = destinationResourcesPath.appending(component: resourceBundleName)
                     // A resource bundle of versioned bundle framework has "Contents/Resources" directory.
                     try extractPrivacyInfoIfExists(
-                        from: TSCRelativePath(validating: "Contents/Resources/PrivacyInfo.xcprivacy"),
+                        from: RelativePath(validating: "Contents/Resources/PrivacyInfo.xcprivacy"),
                         in: resourceBundlePath
                     )
                 }
@@ -205,7 +205,7 @@ extension FrameworkBundleAssembler {
 
                 if let copiedResourceBundlePath {
                     try extractPrivacyInfoIfExists(
-                        from: TSCRelativePath(validating: "PrivacyInfo.xcprivacy"),
+                        from: RelativePath(validating: "PrivacyInfo.xcprivacy"),
                         in: copiedResourceBundlePath
                     )
                 }
@@ -214,7 +214,7 @@ extension FrameworkBundleAssembler {
 
         private func copyInfoPlist(
             sourceContext: SourceContext,
-            destinationFrameworkBundlePath: TSCAbsolutePath
+            destinationFrameworkBundlePath: AbsolutePath
         ) throws {
             let sourcePath = sourceContext.frameworkInfoPlistPath
             let destinationPath = destinationFrameworkBundlePath.appending(component: "Info.plist")
@@ -224,8 +224,8 @@ extension FrameworkBundleAssembler {
         /// Returns the resulting, copied resource bundle path.
         private func copyResourceBundle(
             sourceContext: SourceContext,
-            destinationFrameworkBundlePath: TSCAbsolutePath
-        ) throws -> TSCAbsolutePath? {
+            destinationFrameworkBundlePath: AbsolutePath
+        ) throws -> AbsolutePath? {
             if let sourcePath = sourceContext.resourceBundlePath {
                 let destinationPath = destinationFrameworkBundlePath.appending(component: sourcePath.basename)
                 try fileSystem.copy(from: sourcePath, to: destinationPath)
@@ -239,8 +239,8 @@ extension FrameworkBundleAssembler {
         ///
         /// - seealso: https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk#Add-a-privacy-manifest-to-your-framework
         private func extractPrivacyInfoIfExists(
-            from relativePrivacyInfoPath: TSCRelativePath,
-            in resourceBundlePath: TSCAbsolutePath
+            from relativePrivacyInfoPath: RelativePath,
+            in resourceBundlePath: AbsolutePath
         ) throws {
             let privacyInfoPath = resourceBundlePath.appending(relativePrivacyInfoPath)
             if fileSystem.exists(privacyInfoPath) {
