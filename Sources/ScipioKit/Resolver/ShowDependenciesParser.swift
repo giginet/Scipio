@@ -37,7 +37,11 @@ extension PackageResolver {
             ]
 
             let dependencyString = try await executor.execute(commands).unwrapOutput()
-            let dependencyData = dependencyString.data(using: .utf8)!
+
+            guard let dependencyData = dependencyString.data(using: .utf8) else {
+                throw Error.utf8EncodingFailed
+            }
+
             let dependency = try jsonDecoder.decode(ShowDependenciesResponse.self, from: dependencyData)
             return flattenPackages(dependency)
         }
@@ -65,6 +69,17 @@ extension PackageResolver {
                 dependencyPackagesByID: dependencyPackagesByID,
                 dependencyPackagesByName: dependencyPackagesByName
             )
+        }
+
+        enum Error: LocalizedError {
+            case utf8EncodingFailed
+
+            var errorDescription: String? {
+                switch self {
+                case .utf8EncodingFailed:
+                    "Failed to convert the command output string to UTF-8 encoded data"
+                }
+            }
         }
     }
 }
