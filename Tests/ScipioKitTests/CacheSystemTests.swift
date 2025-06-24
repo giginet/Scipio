@@ -220,10 +220,11 @@ final class CacheSystemTests: XCTestCase {
 
         // Ensure that the cache key is properly calculated when the package is in a repository with the correct tag."
         let processExecutor: Executor = ProcessExecutor()
-        try await processExecutor.execute(["git", "init", tempTestingPackagePath.path(percentEncoded: false)])
-        try await processExecutor.execute(["git", "-C", tempTestingPackagePath.path(percentEncoded: false), "add", tempTestingPackagePath.path(percentEncoded: false)])
-        try await processExecutor.execute(["git", "-C", tempTestingPackagePath.path(percentEncoded: false), "commit", "-m", "Initial commit"])
-        try await processExecutor.execute(["git", "-C", tempTestingPackagePath.path(percentEncoded: false), "tag", "v1.1"])
+        let tempTestingPackagePathString = tempTestingPackagePath.path(percentEncoded: false)
+        try await processExecutor.execute(["git", "init", tempTestingPackagePathString])
+        try await processExecutor.execute(["git", "-C", tempTestingPackagePathString, "add", tempTestingPackagePathString])
+        try await processExecutor.execute(["git", "-C", tempTestingPackagePathString, "commit", "-m", "Initial commit"])
+        try await processExecutor.execute(["git", "-C", tempTestingPackagePathString, "tag", "v1.1"])
 
         let cacheKey = try await cacheSystem.calculateCacheKey(of: cacheTarget)
 
