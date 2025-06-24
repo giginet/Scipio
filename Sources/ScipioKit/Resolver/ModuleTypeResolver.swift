@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 import PackageManifestKit
 
 extension PackageResolver {
@@ -42,9 +41,9 @@ extension PackageResolver {
                     packageIdentity: dependencyPackage.identity,
                     name: target.name
                 )
-                let artifactsURL = artifactsLocation.artifactURL(rootPackageDirectory: rootPackageDirectory).absolutePath
+                let artifactsURL = artifactsLocation.artifactURL(rootPackageDirectory: rootPackageDirectory)
 
-                return if fileSystem.exists(artifactsURL.asURL) {
+                return if fileSystem.exists(artifactsURL) {
                     artifactsLocation
                 } else {
                     .local(resolveTargetFullPath(of: target, dependencyPackage: dependencyPackage))

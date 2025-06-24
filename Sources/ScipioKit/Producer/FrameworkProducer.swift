@@ -1,7 +1,6 @@
 import Foundation
 import ScipioStorage
 import Collections
-import TSCBasic
 import PackageManifestKit
 
 struct FrameworkProducer {

@@ -1,6 +1,5 @@
 import Foundation
 import Testing
-import TSCBasic
 import PackageManifestKit
 @testable import ScipioKit
 

@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 
 extension PackageResolver {
     struct PackageResolveExecutor: @unchecked Sendable {
