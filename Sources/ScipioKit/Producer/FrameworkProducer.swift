@@ -44,7 +44,7 @@ struct FrameworkProducer {
     }
 
     func produce() async throws {
-        try clean()
+        try await clean()
 
         let buildProductDependencyGraph = try descriptionPackage.resolveBuildProductDependencyGraph()
 
@@ -55,7 +55,7 @@ struct FrameworkProducer {
         buildOptionsMatrix[buildProduct.target.name] ?? baseBuildOptions
     }
 
-    func clean() throws {
+    func clean() async throws {
         if fileSystem.exists(descriptionPackage.derivedDataPath.asURL) {
             try fileSystem.removeFileTree(descriptionPackage.derivedDataPath.asURL)
         }
