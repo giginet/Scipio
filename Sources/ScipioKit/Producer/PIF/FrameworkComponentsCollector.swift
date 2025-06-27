@@ -204,7 +204,6 @@ struct FrameworkComponentsCollector {
         }
 
         let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0) }
-            .map { $0 }
         let symlinks = publicHeaders.filter { fileSystem.isSymlink($0) }
 
         // Sometimes, public headers include a file and its symlink both.
