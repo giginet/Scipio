@@ -19,21 +19,15 @@ struct PlatformTests {
     }
 
     @Test
-    func platformFilterString() {
-        #expect(Platform.platformFilterString(from: [.iOS]) == "ios")
+    func platformSettingValue() {
+        #expect([Platform.iOS].settingValue == "ios")
+        #expect([Platform.iOS, .iOSSimulator].settingValue == "ios;ios-simulator")
+        #expect([Platform.macOS].settingValue == "macos")
+        #expect([Platform.tvOS, .tvOSSimulator].settingValue == "tvos;tvos-simulator")
         #expect(
-            Platform.platformFilterString(from: [.iOS, .iOSSimulator])
-            == "ios;ios-simulator"
-        )
-        #expect(Platform.platformFilterString(from: [.macOS]) == "macos")
-        #expect(
-            Platform.platformFilterString(from: [.tvOS, .tvOSSimulator])
-            == "tvos;tvos-simulator"
-        )
-        #expect(
-            Platform.platformFilterString(from: [.watchOS, .watchOSSimulator, .visionOS, .visionOSSimulator])
+            [Platform.watchOS, .watchOSSimulator, .visionOS, .visionOSSimulator].settingValue
             == "watchos;watchos-simulator;visionos;visionos-simulator"
         )
-        #expect(Platform.platformFilterString(from: []) == "")
+        #expect([Platform]().settingValue == "")
     }
 }

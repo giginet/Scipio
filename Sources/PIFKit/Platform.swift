@@ -12,10 +12,12 @@ package enum Platform: String, CaseIterable, Sendable {
     case visionOS = "visionos"
     case visionOSSimulator = "visionos-simulator"
     case macCatalyst = "ios-maccatalyst"
+}
 
-    /// Converts an array of platforms to the platform filter string format used in PIF
+extension Array where Element == Platform {
+    /// The platform filter string format used in PIF build settings
     /// For example: [.iOS, .iOSSimulator] -> "ios;ios-simulator"
-    package static func platformFilterString(from platforms: [Platform]) -> String {
-        platforms.map(\.rawValue).joined(separator: ";")
+    package var settingValue: String {
+        map(\.rawValue).joined(separator: ";")
     }
 }
