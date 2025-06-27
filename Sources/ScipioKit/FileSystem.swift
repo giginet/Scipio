@@ -115,12 +115,17 @@ public struct LocalFileSystem: FileSystem {
     }
 
     public func writeFileContents(_ path: URL, data: Data) throws {
+        guard path.isFileURL else {
+            throw FileSystemError.invalidFileURL(path: path)
+        }
+
         if !exists(path) {
             try createDirectory(
                 path.deletingLastPathComponent(),
                 recursive: true
             )
         }
+
         try data.write(to: path, options: .atomic)
     }
 
@@ -187,11 +192,14 @@ public struct LocalFileSystem: FileSystem {
 }
 
 public enum FileSystemError: LocalizedError {
+    case invalidFileURL(path: URL)
     case cannotReadFileContents(path: URL)
     case utf8EncodingFailed
 
     public var errorDescription: String? {
         switch self {
+        case .invalidFileURL(let path):
+            "Cannot write to \"\(path.path)\": the URL must be a file URL."
         case .cannotReadFileContents(let path):
             "Failed to read file contents at path \(path.path)"
         case .utf8EncodingFailed:
