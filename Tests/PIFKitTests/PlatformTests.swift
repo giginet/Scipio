@@ -17,7 +17,7 @@ struct PlatformTests {
         #expect(Platform.visionOSSimulator.rawValue == "visionos-simulator")
         #expect(Platform.macCatalyst.rawValue == "ios-maccatalyst")
     }
-    
+
     @Test
     func platformFilterString() {
         #expect(Platform.platformFilterString(from: [.iOS]) == "ios")
