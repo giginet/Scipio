@@ -53,9 +53,9 @@ public struct Runner {
         fileprivate func resolve(packageDirectory: URL) -> URL {
             switch self {
             case .default:
-                return packageDirectory.appendingPathComponent("XCFrameworks")
+                packageDirectory.appendingPathComponent("XCFrameworks")
             case .custom(let url):
-                return url
+                url
             }
         }
     }
