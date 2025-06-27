@@ -1,6 +1,5 @@
 import Foundation
 import PIFKit
-import TSCUtility
 
 struct PIFGenerator {
     private let packageName: String
