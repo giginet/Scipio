@@ -4,7 +4,7 @@ import XCTest
 import TSCBasic
 
 final class InfoPlistGeneratorTests: XCTestCase {
-    let fileSystem = LocalFileSystem.default
+    let fileSystem: LocalFileSystem = .default
     lazy var generator = InfoPlistGenerator(fileSystem: fileSystem)
     var temporaryPath: URL!
 

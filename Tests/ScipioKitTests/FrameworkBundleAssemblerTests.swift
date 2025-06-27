@@ -10,7 +10,7 @@ private let fixturesPath = URL(fileURLWithPath: #filePath)
 
 @Suite(.serialized)
 struct FrameworkBundleAssemblerTests {
-    let fileSystem = LocalFileSystem.default
+    let fileSystem: LocalFileSystem = .default
     let temporaryDirectory: AbsolutePath
 
     init() {

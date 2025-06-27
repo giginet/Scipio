@@ -15,7 +15,7 @@ private struct PackageLocatorMock: PackageLocator {
 
 @Suite(.serialized)
 struct FrameworkModuleMapGeneratorTests {
-    let fileSystem = LocalFileSystem.default
+    let fileSystem: LocalFileSystem = .default
     let temporaryDirectory: URL
 
     init() {
