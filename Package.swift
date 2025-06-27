@@ -4,13 +4,6 @@
 import PackageDescription
 import Foundation
 
-let swiftPMBranch: String
-#if compiler(>=6.1)
-swiftPMBranch = "release/6.1"
-#else
-swiftPMBranch = "release/6.0"
-#endif
-
 let swiftSettings: [SwiftSetting] = [
     .enableExperimentalFeature("StrictConcurrency"),
     .unsafeFlags(["-strict-concurrency=complete"]),
@@ -47,8 +40,6 @@ let package = Package(
                  from: "0.1.0"),
         .package(url: "https://github.com/mtj0928/swift-async-operations.git",
                  from: "0.3.0"),
-        .package(url: "https://github.com/swiftlang/swift-tools-support-core",
-                 branch: swiftPMBranch),
     ],
     targets: [
         .executableTarget(
@@ -69,7 +60,6 @@ let package = Package(
                 .product(name: "ScipioStorage", package: "scipio-cache-storage"),
                 .product(name: "PackageManifestKit", package: "PackageManifestKit"),
                 .product(name: "AsyncOperations", package: "swift-async-operations"),
-                .product(name: "SwiftToolsSupport-auto", package: "swift-tools-support-core")
             ],
             plugins: [
                 .plugin(name: "GenerateScipioVersion")
