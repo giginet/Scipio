@@ -68,7 +68,13 @@ struct BuildConfigurationTests {
         #expect(buildSettings["OTHER_LDFLAGS[__platform_filter=macos]"] == .string("-framework Foundation"))
 
         // Test with multiple platforms
-        buildSettings["SUPPORTED_PLATFORMS", for: [.tvOS, .tvOSSimulator, .watchOS, .watchOSSimulator]] = .stringList(["tvos", "tvossimulator", "watchos", "watchossimulator"])
-        #expect(buildSettings["SUPPORTED_PLATFORMS[__platform_filter=tvos;tvos-simulator;watchos;watchos-simulator]"] == .stringList(["tvos", "tvossimulator", "watchos", "watchossimulator"]))
+        buildSettings[
+            "SUPPORTED_PLATFORMS",
+            for: [.tvOS, .tvOSSimulator, .watchOS, .watchOSSimulator]
+        ] = .stringList(["tvos", "tvossimulator", "watchos", "watchossimulator"])
+        #expect(
+            buildSettings["SUPPORTED_PLATFORMS[__platform_filter=tvos;tvos-simulator;watchos;watchos-simulator]"]
+            == .stringList(["tvos", "tvossimulator", "watchos", "watchossimulator"])
+        )
     }
 }

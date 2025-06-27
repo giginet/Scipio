@@ -21,10 +21,19 @@ struct PlatformTests {
     @Test
     func platformFilterString() {
         #expect(Platform.platformFilterString(from: [.iOS]) == "ios")
-        #expect(Platform.platformFilterString(from: [.iOS, .iOSSimulator]) == "ios;ios-simulator")
+        #expect(
+            Platform.platformFilterString(from: [.iOS, .iOSSimulator])
+            == "ios;ios-simulator"
+        )
         #expect(Platform.platformFilterString(from: [.macOS]) == "macos")
-        #expect(Platform.platformFilterString(from: [.tvOS, .tvOSSimulator]) == "tvos;tvos-simulator")
-        #expect(Platform.platformFilterString(from: [.watchOS, .watchOSSimulator, .visionOS, .visionOSSimulator]) == "watchos;watchos-simulator;visionos;visionos-simulator")
+        #expect(
+            Platform.platformFilterString(from: [.tvOS, .tvOSSimulator])
+            == "tvos;tvos-simulator"
+        )
+        #expect(
+            Platform.platformFilterString(from: [.watchOS, .watchOSSimulator, .visionOS, .visionOSSimulator])
+            == "watchos;watchos-simulator;visionos;visionos-simulator"
+        )
         #expect(Platform.platformFilterString(from: []) == "")
     }
 }
