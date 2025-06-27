@@ -248,8 +248,7 @@ extension FrameworkBundleAssembler {
             }
 
             let privacyInfoPath = resourceBundlePath.appending(components: relativePrivacyInfoPathComponents)
-            if fileSystem.exists(privacyInfoPath)
-            {
+            if fileSystem.exists(privacyInfoPath) {
                 try fileSystem.move(
                     from: privacyInfoPath,
                     to: resourceBundlePath.parentDirectory

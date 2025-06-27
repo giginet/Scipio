@@ -17,7 +17,6 @@ struct FrameworkBundleAssemblerTests {
         self.temporaryDirectory = fileSystem
             .tempDirectory
             .appending(components: "FrameworkBundleAssemblerTests")
-            
     }
 
     @Test
