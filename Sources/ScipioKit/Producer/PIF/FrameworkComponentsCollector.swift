@@ -74,7 +74,7 @@ struct FrameworkComponentsCollector {
         let generatedFrameworkPath = generatedFrameworkPath()
 
         let isVersionedBundle = fileSystem.exists(
-            generatedFrameworkPath.appending(component: "Resources"),
+            generatedFrameworkPath.appending(component: "Resources").asURL,
             followSymlink: true
         )
 
@@ -119,7 +119,7 @@ struct FrameworkComponentsCollector {
     private func copyModuleMapContentsToBuildArtifacts(_ data: Data) throws -> AbsolutePath {
         let generatedModuleMapPath = try packageLocator.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
 
-        try fileSystem.writeFileContents(generatedModuleMapPath, data: data)
+        try fileSystem.writeFileContents(generatedModuleMapPath.asURL, data: data)
         return generatedModuleMapPath
     }
 
@@ -150,7 +150,7 @@ struct FrameworkComponentsCollector {
         guard let bundleName else { return nil }
 
         let path = productsDirectory.appending(component: "\(bundleName).bundle")
-        return fileSystem.exists(path) ? path : nil
+        return fileSystem.exists(path.asURL) ? path : nil
     }
 
     private func collectInfoPlist(
@@ -165,7 +165,7 @@ struct FrameworkComponentsCollector {
             frameworkBundlePath.appending(component: "Info.plist")
         }
 
-        if fileSystem.exists(infoPlistLocation) {
+        if fileSystem.exists(infoPlistLocation.asURL) {
             return infoPlistLocation
         } else {
             throw Error.infoPlistNotFound(frameworkBundlePath: frameworkBundlePath)
@@ -178,7 +178,7 @@ struct FrameworkComponentsCollector {
             components: "Modules", "\(targetName).swiftmodule"
         )
 
-        if fileSystem.exists(swiftModulesPath) {
+        if fileSystem.exists(swiftModulesPath.asURL) {
             return swiftModulesPath
         }
         return nil
@@ -190,7 +190,7 @@ struct FrameworkComponentsCollector {
             components: "Headers", "\(targetName)-Swift.h"
         )
 
-        if fileSystem.exists(generatedBridgingHeader) {
+        if fileSystem.exists(generatedBridgingHeader.asURL) {
             return generatedBridgingHeader
         }
 
@@ -203,9 +203,9 @@ struct FrameworkComponentsCollector {
             return nil
         }
 
-        let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0.absolutePath) }
+        let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0) }
             .map { $0.absolutePath }
-        let symlinks = publicHeaders.filter { fileSystem.isSymlink($0.absolutePath) }
+        let symlinks = publicHeaders.filter { fileSystem.isSymlink($0) }
 
         // Sometimes, public headers include a file and its symlink both.
         // This situation raises a duplication error

@@ -15,7 +15,7 @@ extension Compiler {
         target: ResolvedModule,
         buildConfiguration: BuildConfiguration,
         sdks: Set<SDK>,
-        fileSystem: FileSystem = localFileSystem
+        fileSystem: some FileSystem = LocalFileSystem.default
     ) async throws -> [SDK: [AbsolutePath]] {
         let extractor = DwarfExtractor()
 
@@ -27,17 +27,17 @@ extension Compiler {
                 sdk: sdk,
                 target: target
             )
-            guard fileSystem.exists(dsymPath) else { continue }
+            guard fileSystem.exists(dsymPath.asURL) else { continue }
 
             let dwarfPath = extractor.dwarfPath(for: target, dSYMPath: dsymPath)
             let dumpedDSYMsMaps = try await extractor.dump(dwarfPath: dwarfPath)
-            let bcSymbolMapPaths: [AbsolutePath] = dumpedDSYMsMaps.values.compactMap { uuid in
+            let bcSymbolMapPaths: [AbsolutePath] = dumpedDSYMsMaps.values.compactMap { [descriptionPackage] uuid in
                 let path = descriptionPackage.productsDirectory(
                     buildConfiguration: buildConfiguration,
                     sdk: sdk
                 )
                     .appending(component: "\(uuid.uuidString).bcsymbolmap")
-                guard fileSystem.exists(path) else { return nil }
+                guard fileSystem.exists(path.asURL) else { return nil }
                 return path
             }
             result[sdk] = [dsymPath] + bcSymbolMapPaths

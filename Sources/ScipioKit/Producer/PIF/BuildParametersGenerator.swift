@@ -35,13 +35,21 @@ struct BuildParametersGenerator {
         return encoder
     }()
 
-    init(buildOptions: BuildOptions, fileSystem: any FileSystem = localFileSystem, executor: some Executor) {
+    init(
+        buildOptions: BuildOptions,
+        fileSystem: any FileSystem = LocalFileSystem.default,
+        executor: some Executor
+    ) {
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
         self.executor = executor
     }
 
-    func generate(for sdk: SDK, buildParameters: Parameters, destinationDir: AbsolutePath) throws -> AbsolutePath {
+    func generate(
+        for sdk: SDK,
+        buildParameters: Parameters,
+        destinationDir: AbsolutePath
+    ) throws -> AbsolutePath {
         let targetArchitecture = buildParameters.arch
 
         // Generate the run destination parameters.
@@ -93,8 +101,8 @@ struct BuildParametersGenerator {
         let filePath = destinationDir.appending(component: "build-parameters-\(sdk.settingValue).json")
 
         let data = try jsonEncoder.encode(params)
+        try self.fileSystem.writeFileContents(filePath.asURL, data: data)
 
-        try self.fileSystem.writeFileContents(filePath, bytes: ByteString(data))
         return filePath
     }
 

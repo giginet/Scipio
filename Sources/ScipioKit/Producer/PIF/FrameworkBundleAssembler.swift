@@ -27,7 +27,7 @@ struct FrameworkBundleAssembler {
 
     @discardableResult
     func assemble() throws -> URL {
-        try fileSystem.createDirectory(frameworkBundlePath, recursive: true)
+        try fileSystem.createDirectory(frameworkBundlePath.asURL, recursive: true)
 
         try copyBinary()
 
@@ -52,18 +52,18 @@ struct FrameworkBundleAssembler {
     private func copyBinary() throws {
         let sourcePath = frameworkComponents.binaryPath
         let destinationPath = frameworkBundlePath.appending(component: frameworkComponents.frameworkName)
-        if fileSystem.isSymlink(sourcePath) {
+        if fileSystem.isSymlink(sourcePath.asURL) {
             // Frameworks for macOS have Versions. So their binaries are symlinks
             // Follow symlink to copy a original binary
             let sourceURL = sourcePath.asURL
             try fileSystem.copy(
-                from: sourceURL.resolvingSymlinksInPath().absolutePath,
-                to: destinationPath
+                from: sourceURL.resolvingSymlinksInPath(),
+                to: destinationPath.asURL
             )
         } else {
             try fileSystem.copy(
-                from: frameworkComponents.binaryPath,
-                to: destinationPath
+                from: frameworkComponents.binaryPath.asURL,
+                to: destinationPath.asURL
             )
         }
     }
@@ -78,7 +78,7 @@ struct FrameworkBundleAssembler {
 
         let headerDir = frameworkBundlePath.appending(component: "Headers")
 
-        try fileSystem.createDirectory(headerDir)
+        try fileSystem.createDirectory(headerDir.asURL)
 
         for header in headers {
             if keepPublicHeadersStructure, let includeDir = frameworkComponents.includeDir {
@@ -89,8 +89,8 @@ struct FrameworkBundleAssembler {
                 )
             } else {
                 try fileSystem.copy(
-                    from: header,
-                    to: headerDir.appending(component: header.basename)
+                    from: header.asURL,
+                    to: headerDir.appending(component: header.basename).asURL
                 )
             }
         }
@@ -111,15 +111,16 @@ struct FrameworkBundleAssembler {
 
         if !subdirectoryComponents.isEmpty {
             try fileSystem.createDirectory(
-                headerDir.appending(components: subdirectoryComponents),
+                headerDir.appending(components: subdirectoryComponents).asURL,
                 recursive: true
             )
         }
         try fileSystem.copy(
-            from: header,
+            from: header.asURL,
             to: headerDir
                 .appending(components: subdirectoryComponents)
                 .appending(component: header.basename)
+                .asURL
         )
     }
 
@@ -138,19 +139,19 @@ struct FrameworkBundleAssembler {
 
         let modulesDir = frameworkBundlePath.appending(component: "Modules")
 
-        try fileSystem.createDirectory(modulesDir)
+        try fileSystem.createDirectory(modulesDir.asURL)
 
         if let swiftModulesPath = frameworkComponents.swiftModulesPath {
             try fileSystem.copy(
-                from: swiftModulesPath,
-                to: modulesDir.appending(component: swiftModulesPath.basename)
+                from: swiftModulesPath.asURL,
+                to: modulesDir.appending(component: swiftModulesPath.basename).asURL
             )
         }
 
         if let moduleMapPath = frameworkComponents.modulemapPath {
             try fileSystem.copy(
-                from: moduleMapPath,
-                to: modulesDir.appending(component: "module.modulemap")
+                from: moduleMapPath.asURL,
+                to: modulesDir.appending(component: "module.modulemap").asURL
             )
         }
     }
@@ -181,8 +182,8 @@ extension FrameworkBundleAssembler {
                 let sourceResourcesPath = sourceContext.frameworkBundlePath.appending(component: "Resources")
                 let destinationResourcesPath = destinationFrameworkBundlePath.appending(component: "Resources")
                 try fileSystem.copy(
-                    from: sourceResourcesPath.asURL.resolvingSymlinksInPath().absolutePath,
-                    to: destinationResourcesPath
+                    from: sourceResourcesPath.asURL.resolvingSymlinksInPath(),
+                    to: destinationResourcesPath.asURL
                 )
 
                 if let resourceBundleName = sourceContext.resourceBundlePath?.basename {
@@ -218,7 +219,7 @@ extension FrameworkBundleAssembler {
         ) throws {
             let sourcePath = sourceContext.frameworkInfoPlistPath
             let destinationPath = destinationFrameworkBundlePath.appending(component: "Info.plist")
-            try fileSystem.copy(from: sourcePath, to: destinationPath)
+            try fileSystem.copy(from: sourcePath.asURL, to: destinationPath.asURL)
         }
 
         /// Returns the resulting, copied resource bundle path.
@@ -228,7 +229,7 @@ extension FrameworkBundleAssembler {
         ) throws -> AbsolutePath? {
             if let sourcePath = sourceContext.resourceBundlePath {
                 let destinationPath = destinationFrameworkBundlePath.appending(component: sourcePath.basename)
-                try fileSystem.copy(from: sourcePath, to: destinationPath)
+                try fileSystem.copy(from: sourcePath.asURL, to: destinationPath.asURL)
                 return destinationPath
             } else {
                 return nil
@@ -243,10 +244,12 @@ extension FrameworkBundleAssembler {
             in resourceBundlePath: AbsolutePath
         ) throws {
             let privacyInfoPath = resourceBundlePath.appending(relativePrivacyInfoPath)
-            if fileSystem.exists(privacyInfoPath) {
+            if fileSystem.exists(privacyInfoPath.asURL) {
                 try fileSystem.move(
-                    from: privacyInfoPath,
-                    to: resourceBundlePath.parentDirectory.appending(component: relativePrivacyInfoPath.basename)
+                    from: privacyInfoPath.asURL,
+                    to: resourceBundlePath.parentDirectory
+                        .appending(component: relativePrivacyInfoPath.basename)
+                        .asURL
                 )
             }
         }

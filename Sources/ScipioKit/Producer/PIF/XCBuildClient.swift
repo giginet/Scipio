@@ -26,7 +26,7 @@ struct XCBuildClient {
         buildOptions: BuildOptions,
         configuration: BuildConfiguration,
         packageLocator: some PackageLocator,
-        fileSystem: any FileSystem = localFileSystem,
+        fileSystem: any FileSystem = LocalFileSystem.default,
         executor: some Executor = ProcessExecutor(decoder: StandardOutputDecoder())
     ) {
         self.buildProduct = buildProduct
@@ -47,8 +47,8 @@ struct XCBuildClient {
 
         let foundXCBuildPath = xcBuildPathCandidates.map { relativePath in
             developerDirPath.appending(path: relativePath).standardizedFileURL
-        }.first { path in
-            fileSystem.exists(path.absolutePath)
+        }.first { [fileSystem] path in
+            fileSystem.exists(path)
         }
         guard let foundXCBuildPath else {
             throw Error.xcbuildNotFound

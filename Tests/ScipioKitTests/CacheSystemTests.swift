@@ -83,9 +83,9 @@ final class CacheSystemTests: XCTestCase {
     }
 
     func testCacheKeyForRemoteAndLocalPackageDifference() async throws {
-        let fileSystem = localFileSystem
+        let fileSystem: LocalFileSystem = .default
 
-        let tempDir = try fileSystem.tempDirectory.appending(component: #function)
+        let tempDir = fileSystem.tempDirectory.appending(component: #function)
         try fileSystem.removeFileTree(tempDir)
         try fileSystem.createDirectory(tempDir)
 
@@ -93,7 +93,7 @@ final class CacheSystemTests: XCTestCase {
 
         let tempCacheKeyTestsDir = tempDir.appending(component: "CacheKeyTests")
         try fileSystem.copy(
-            from: fixturePath.appending(component: "CacheKeyTests").absolutePath,
+            from: fixturePath.appending(component: "CacheKeyTests"),
             to: tempCacheKeyTestsDir
         )
 
@@ -103,7 +103,7 @@ final class CacheSystemTests: XCTestCase {
             "git",
             "clone",
             "https://github.com/giginet/scipio-testing",
-            tempDir.appending(component: "scipio-testing").pathString,
+            tempDir.appending(component: "scipio-testing").path(percentEncoded: false),
             "-b",
             "3.0.0",
             "--depth",
@@ -112,7 +112,7 @@ final class CacheSystemTests: XCTestCase {
 
         func scipioTestingCacheKey(fixture: String) async throws -> SwiftPMCacheKey {
             let descriptionPackage = try await DescriptionPackage(
-                packageDirectory: tempCacheKeyTestsDir.appending(component: fixture),
+                packageDirectory: tempCacheKeyTestsDir.appending(component: fixture).absolutePath,
                 mode: .createPackage,
                 onlyUseVersionsFromResolvedFile: false
             )
@@ -155,7 +155,6 @@ final class CacheSystemTests: XCTestCase {
             scipioTestingLocal.localPackageCanonicalLocation,
             ScipioKit.CanonicalPackageLocation(
                 tempDir.appending(component: "scipio-testing")
-                    .asURL
                     .standardizedFileURL
                     .resolvingSymlinksInPath()
                     .path(percentEncoded: false)
@@ -166,17 +165,17 @@ final class CacheSystemTests: XCTestCase {
     }
 
     func testCacheKeyCalculationForRootPackageTarget() async throws {
-        let fileSystem = localFileSystem
+        let fileSystem: LocalFileSystem = .default
         let testingPackagePath = fixturePath.appendingPathComponent("TestingPackage")
-        let tempTestingPackagePath = try fileSystem.tempDirectory.appending(component: "temp_TestingPackage")
+        let tempTestingPackagePath = fileSystem.tempDirectory.appending(component: "temp_TestingPackage")
 
         try fileSystem.removeFileTree(tempTestingPackagePath)
-        try fileSystem.copy(from: testingPackagePath.absolutePath, to: tempTestingPackagePath)
+        try fileSystem.copy(from: testingPackagePath, to: tempTestingPackagePath)
 
         defer { try? fileSystem.removeFileTree(tempTestingPackagePath) }
 
         let descriptionPackage = try await DescriptionPackage(
-            packageDirectory: tempTestingPackagePath,
+            packageDirectory: tempTestingPackagePath.absolutePath,
             mode: .createPackage,
             onlyUseVersionsFromResolvedFile: false
         )
@@ -221,10 +220,11 @@ final class CacheSystemTests: XCTestCase {
 
         // Ensure that the cache key is properly calculated when the package is in a repository with the correct tag."
         let processExecutor: Executor = ProcessExecutor()
-        try await processExecutor.execute(["git", "init", tempTestingPackagePath.pathString])
-        try await processExecutor.execute(["git", "-C", tempTestingPackagePath.pathString, "add", tempTestingPackagePath.pathString])
-        try await processExecutor.execute(["git", "-C", tempTestingPackagePath.pathString, "commit", "-m", "Initial commit"])
-        try await processExecutor.execute(["git", "-C", tempTestingPackagePath.pathString, "tag", "v1.1"])
+        let tempTestingPackagePathString = tempTestingPackagePath.path(percentEncoded: false)
+        try await processExecutor.execute(["git", "init", tempTestingPackagePathString])
+        try await processExecutor.execute(["git", "-C", tempTestingPackagePathString, "add", tempTestingPackagePathString])
+        try await processExecutor.execute(["git", "-C", tempTestingPackagePathString, "commit", "-m", "Initial commit"])
+        try await processExecutor.execute(["git", "-C", tempTestingPackagePathString, "tag", "v1.1"])
 
         let cacheKey = try await cacheSystem.calculateCacheKey(of: cacheTarget)
 
