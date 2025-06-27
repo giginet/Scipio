@@ -68,7 +68,7 @@ struct PIFCompiler: Compiler {
                 buildOptionsMatrix: buildOptionsMatrix
             )
             let pifPath = try await generator.generateJSON(for: sdk)
-            let buildParametersPath = try await buildParametersGenerator.generate(
+            let buildParametersPath = try buildParametersGenerator.generate(
                 for: sdk,
                 buildParameters: buildParameters,
                 destinationDir: descriptionPackage.workspaceDirectory

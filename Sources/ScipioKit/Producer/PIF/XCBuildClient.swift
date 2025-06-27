@@ -88,14 +88,14 @@ struct XCBuildClient {
             target: buildProduct.target
         )
 
-        let frameworkBundlePath = try await assembleFramework(sdk: sdk)
+        let frameworkBundlePath = try assembleFramework(sdk: sdk)
         return frameworkBundlePath
     }
 
     /// Assemble framework from build artifacts
     /// - Parameter sdk: SDK
     /// - Returns: Path to assembled framework bundle
-    private func assembleFramework(sdk: SDK) async throws -> URL {
+    private func assembleFramework(sdk: SDK) throws -> URL {
         let frameworkComponentsCollector = FrameworkComponentsCollector(
             buildProduct: buildProduct,
             sdk: sdk,
@@ -104,7 +104,7 @@ struct XCBuildClient {
             fileSystem: fileSystem
         )
 
-        let components = try await frameworkComponentsCollector.collectComponents(sdk: sdk)
+        let components = try frameworkComponentsCollector.collectComponents(sdk: sdk)
 
         let frameworkOutputDir = packageLocator.assembledFrameworksDirectory(
             buildConfiguration: buildOptions.buildConfiguration,

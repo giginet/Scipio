@@ -49,7 +49,7 @@ struct BuildParametersGenerator {
         for sdk: SDK,
         buildParameters: Parameters,
         destinationDir: AbsolutePath
-    ) async throws -> AbsolutePath {
+    ) throws -> AbsolutePath {
         let targetArchitecture = buildParameters.arch
 
         // Generate the run destination parameters.
@@ -101,7 +101,7 @@ struct BuildParametersGenerator {
         let filePath = destinationDir.appending(component: "build-parameters-\(sdk.settingValue).json")
 
         let data = try jsonEncoder.encode(params)
-        try await self.fileSystem.writeFileContents(filePath.asURL, data: data)
+        try self.fileSystem.writeFileContents(filePath.asURL, data: data)
 
         return filePath
     }
