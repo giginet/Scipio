@@ -101,7 +101,7 @@ extension BuildConfiguration.MacroExpressionValue? {
     }
 }
 
-extension Dictionary where Key == String, Value == BuildConfiguration.MacroExpressionValue {
+extension [String: BuildConfiguration.MacroExpressionValue] {
     /// Sets a build setting value with an optional platform filter
     /// Example: buildSettings["FRAMEWORK_SEARCH_PATHS", for: [.iOS, .iOSSimulator]] = .stringList(["path1", "path2"])
     package subscript(key: String, for platforms: [Platform]) -> BuildConfiguration.MacroExpressionValue? {

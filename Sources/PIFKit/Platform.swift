@@ -14,7 +14,7 @@ package enum Platform: String, CaseIterable, Sendable {
     case macCatalyst = "ios-maccatalyst"
 }
 
-extension Array where Element == Platform {
+extension [Platform] {
     /// The platform filter string format used in PIF build settings
     /// For example: [.iOS, .iOSSimulator] -> "ios;ios-simulator"
     package var settingValue: String {
