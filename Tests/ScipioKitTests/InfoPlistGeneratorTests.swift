@@ -1,7 +1,6 @@
 import Foundation
 import XCTest
 @testable import ScipioKit
-import TSCBasic
 
 final class InfoPlistGeneratorTests: XCTestCase {
     let fileSystem: LocalFileSystem = .default

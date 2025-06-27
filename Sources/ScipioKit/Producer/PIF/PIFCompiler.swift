@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 
 struct PIFCompiler: Compiler {
     let descriptionPackage: DescriptionPackage

@@ -1,6 +1,5 @@
 import Foundation
 import PIFKit
-import TSCBasic
 
 protocol Compiler {
     var descriptionPackage: DescriptionPackage { get }

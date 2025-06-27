@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 import PackageManifestKit
 
 struct DescriptionPackage: PackageLocator, Sendable {

@@ -1,4 +1,3 @@
-import TSCBasic
 import Foundation
 
 /// Holds the packageDirectory Scipio works on, and defines some path-related functionalities.

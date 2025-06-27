@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 
 struct DwarfExtractor<E: Executor> {
     private let executor: E

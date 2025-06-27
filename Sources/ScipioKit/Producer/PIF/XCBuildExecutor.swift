@@ -1,6 +1,5 @@
 import Foundation
 import Logging
-import TSCBasic
 import Algorithms
 
 struct XCBuildExecutor {

@@ -1,6 +1,5 @@
 import Foundation
 import ScipioStorage
-import TSCBasic
 
 public typealias PlatformMatrix = [String: Set<SDK>]
 

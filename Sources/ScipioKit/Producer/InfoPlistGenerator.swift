@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 
 struct InfoPlistGenerator {
     private let fileSystem: any FileSystem
