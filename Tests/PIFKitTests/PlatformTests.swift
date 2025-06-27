@@ -13,8 +13,8 @@ struct PlatformTests {
         #expect(Platform.tvOSSimulator.rawValue == "tvos-simulator")
         #expect(Platform.watchOS.rawValue == "watchos")
         #expect(Platform.watchOSSimulator.rawValue == "watchos-simulator")
-        #expect(Platform.visionOS.rawValue == "visionos")
-        #expect(Platform.visionOSSimulator.rawValue == "visionos-simulator")
+        #expect(Platform.visionOS.rawValue == "xros")
+        #expect(Platform.visionOSSimulator.rawValue == "xros-simulator")
         #expect(Platform.macCatalyst.rawValue == "ios-maccatalyst")
     }
 
@@ -26,7 +26,7 @@ struct PlatformTests {
         #expect([Platform.tvOS, .tvOSSimulator].settingValue == "tvos;tvos-simulator")
         #expect(
             [Platform.watchOS, .watchOSSimulator, .visionOS, .visionOSSimulator].settingValue
-            == "watchos;watchos-simulator;visionos;visionos-simulator"
+            == "watchos;watchos-simulator;xros;xros-simulator"
         )
         #expect([Platform]().settingValue == "")
     }

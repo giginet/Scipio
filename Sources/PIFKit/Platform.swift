@@ -9,8 +9,8 @@ package enum Platform: String, CaseIterable, Sendable {
     case tvOSSimulator = "tvos-simulator"
     case watchOS = "watchos"
     case watchOSSimulator = "watchos-simulator"
-    case visionOS = "visionos"
-    case visionOSSimulator = "visionos-simulator"
+    case visionOS = "xros"
+    case visionOSSimulator = "xros-simulator"
     case macCatalyst = "ios-maccatalyst"
 }
 
