@@ -59,6 +59,9 @@ final class IntegrationTests: XCTestCase {
                 ("CNIOLinux", .static, [.iOS], true),
                 ("CNIODarwin", .static, [.iOS], true),
                 ("CNIOWindows", .static, [.iOS], true),
+                ("CNIOWASI", .static, [.iOS], true),
+                ("InternalCollectionsUtilities", .static, [.iOS], false),
+                ("_NIOBase64", .static, [.iOS], false),
             ]
         )
     }
@@ -85,6 +88,9 @@ final class IntegrationTests: XCTestCase {
                 ("NIOTLS", .static, [.macOS], false),
                 ("_AtomicsShims", .static, [.macOS], true),
                 ("_NIODataStructures", .static, [.macOS], false),
+                ("CNIOWASI", .static, [.macOS], true),
+                ("InternalCollectionsUtilities", .static, [.macOS], false),
+                ("_NIOBase64", .static, [.macOS], false),
             ]
         )
     }

@@ -47,8 +47,10 @@ final class DescriptionPackageTests: XCTestCase {
                 "CNIOAtomics",
                 "CNIODarwin",
                 "CNIOLinux",
+                "CNIOWASI",
                 "CNIOWindows",
                 "DequeModule",
+                "InternalCollectionsUtilities",
                 "Logging",
                 "NIO",
                 "NIOConcurrencyHelpers",
@@ -59,6 +61,7 @@ final class DescriptionPackageTests: XCTestCase {
                 "SDWebImage",
                 "SDWebImageMapKit",
                 "_AtomicsShims",
+                "_NIOBase64",
                 "_NIODataStructures",
             ]
         )
