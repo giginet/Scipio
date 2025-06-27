@@ -103,7 +103,7 @@ public struct LocalFileSystem: FileSystem {
     public static let `default` = LocalFileSystem()
 
     public var tempDirectory: URL {
-        URL(filePath: NSTemporaryDirectory())
+        FileManager.default.temporaryDirectory
     }
 
     public var cachesDirectory: URL? {
