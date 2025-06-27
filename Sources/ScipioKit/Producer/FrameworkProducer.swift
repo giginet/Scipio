@@ -56,12 +56,12 @@ struct FrameworkProducer {
     }
 
     func clean() async throws {
-        if fileSystem.exists(descriptionPackage.derivedDataPath.asURL) {
-            try fileSystem.removeFileTree(descriptionPackage.derivedDataPath.asURL)
+        if fileSystem.exists(descriptionPackage.derivedDataPath) {
+            try fileSystem.removeFileTree(descriptionPackage.derivedDataPath)
         }
 
-        if fileSystem.exists(descriptionPackage.assembledFrameworksRootDirectory.asURL) {
-            try fileSystem.removeFileTree(descriptionPackage.assembledFrameworksRootDirectory.asURL)
+        if fileSystem.exists(descriptionPackage.assembledFrameworksRootDirectory) {
+            try fileSystem.removeFileTree(descriptionPackage.assembledFrameworksRootDirectory)
         }
     }
 

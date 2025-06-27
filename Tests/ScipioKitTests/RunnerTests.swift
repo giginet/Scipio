@@ -270,7 +270,7 @@ final class RunnerTests: XCTestCase {
 
     func testCacheIsValid() async throws {
         let descriptionPackage = try await DescriptionPackage(
-            packageDirectory: testPackagePath.absolutePath,
+            packageDirectory: testPackagePath,
             mode: .prepareDependencies,
             onlyUseVersionsFromResolvedFile: false
         )
@@ -496,7 +496,7 @@ final class RunnerTests: XCTestCase {
     func testBinaryHasValidCache() async throws {
         // Generate VersionFile
         let descriptionPackage = try await DescriptionPackage(
-            packageDirectory: usingBinaryPackagePath.absolutePath,
+            packageDirectory: usingBinaryPackagePath,
             mode: .prepareDependencies,
             onlyUseVersionsFromResolvedFile: false
         )

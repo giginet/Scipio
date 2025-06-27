@@ -74,8 +74,8 @@ struct XCBuildClient {
 
     func buildFramework(
         sdk: SDK,
-        pifPath: AbsolutePath,
-        buildParametersPath: AbsolutePath
+        pifPath: URL,
+        buildParametersPath: URL
     ) async throws -> URL {
         let xcbuildPath = try await fetchXCBuildPath()
 
@@ -121,7 +121,7 @@ struct XCBuildClient {
         return try assembler.assemble()
     }
 
-    private func assembledFrameworkPath(target: ResolvedModule, of sdk: SDK) throws -> AbsolutePath {
+    private func assembledFrameworkPath(target: ResolvedModule, of sdk: SDK) throws -> URL {
         let assembledFrameworkDir = packageLocator.assembledFrameworksDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
             sdk: sdk
@@ -132,8 +132,8 @@ struct XCBuildClient {
 
     func createXCFramework(
         sdks: Set<SDK>,
-        debugSymbols: [SDK: [AbsolutePath]]?,
-        outputPath: AbsolutePath
+        debugSymbols: [SDK: [URL]]?,
+        outputPath: URL
     ) async throws {
         let xcbuildPath = try await fetchXCBuildPath()
 
@@ -153,21 +153,21 @@ struct XCBuildClient {
 
     private func buildCreateXCFrameworkArguments(
         sdks: Set<SDK>,
-        debugSymbols: [SDK: [AbsolutePath]]?,
-        outputPath: AbsolutePath
+        debugSymbols: [SDK: [URL]]?,
+        outputPath: URL
     ) throws -> [String] {
         let frameworksWithDebugSymbolArguments: [String] = try sdks.reduce([]) { arguments, sdk in
             let path = try assembledFrameworkPath(target: buildProduct.target, of: sdk)
-            var result = arguments + ["-framework", path.pathString]
+            var result = arguments + ["-framework", path.path(percentEncoded: false)]
             if let debugSymbols, let paths = debugSymbols[sdk] {
                 paths.forEach { path in
-                    result += ["-debug-symbols", path.pathString]
+                    result += ["-debug-symbols", path.path(percentEncoded: false)]
                 }
             }
             return result
         }
 
-        let outputPathArguments: [String] = ["-output", outputPath.pathString]
+        let outputPathArguments: [String] = ["-output", outputPath.path(percentEncoded: false)]
 
         // Default behavior, this command requires swiftinterface. If they don't exist, `-allow-internal-distribution` must be required.
         let additionalFlags = buildOptions.enableLibraryEvolution ? [] : ["-allow-internal-distribution"]

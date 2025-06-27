@@ -10,7 +10,7 @@ private let fixturesPath = URL(fileURLWithPath: #filePath)
 private let clangPackageWithUmbrellaDirectoryPath = fixturesPath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
 
 private struct PackageLocatorMock: PackageLocator {
-    let packageDirectory: AbsolutePath
+    let packageDirectory: URL
 }
 
 @Suite(.serialized)
@@ -31,7 +31,7 @@ struct FrameworkModuleMapGeneratorTests {
 
         let generatedModuleMapContents = try await generateModuleMap(
             keepPublicHeadersStructure: false,
-            outputDirectory: outputDirectory.absolutePath
+            outputDirectory: outputDirectory
         )
         let expectedModuleMapContents = """
 framework module MyTarget {
@@ -53,7 +53,7 @@ framework module MyTarget {
 
         let generatedModuleMapContents = try await generateModuleMap(
             keepPublicHeadersStructure: true,
-            outputDirectory: outputDirectory.absolutePath
+            outputDirectory: outputDirectory
         )
         let expectedModuleMapContents = """
 framework module MyTarget {
@@ -70,7 +70,7 @@ framework module MyTarget {
 
     private func generateModuleMap(
         keepPublicHeadersStructure: Bool,
-        outputDirectory: AbsolutePath
+        outputDirectory: URL
     ) async throws -> String {
         let packageLocator = PackageLocatorMock(packageDirectory: outputDirectory)
         let generator = FrameworkModuleMapGenerator(
@@ -79,7 +79,7 @@ framework module MyTarget {
         )
 
         let descriptionPackage = try await DescriptionPackage(
-            packageDirectory: clangPackageWithUmbrellaDirectoryPath.absolutePath,
+            packageDirectory: clangPackageWithUmbrellaDirectoryPath,
             mode: .createPackage,
             onlyUseVersionsFromResolvedFile: false
         )
@@ -89,7 +89,7 @@ framework module MyTarget {
             keepPublicHeadersStructure: keepPublicHeadersStructure
         )
 
-        let generatedModuleMapData = try Data(contentsOf: #require(generatedModuleMapPath).asURL)
+        let generatedModuleMapData = try Data(contentsOf: #require(generatedModuleMapPath))
         let generatedModuleMapContents = String(decoding: generatedModuleMapData, as: UTF8.self)
         return generatedModuleMapContents
     }

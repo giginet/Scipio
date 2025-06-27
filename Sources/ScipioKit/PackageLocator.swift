@@ -1,47 +1,46 @@
 import TSCBasic
+import Foundation
 
 /// Holds the packageDirectory Scipio works on, and defines some path-related functionalities.
 protocol PackageLocator: Sendable {
-    var packageDirectory: AbsolutePath { get }
+    var packageDirectory: URL { get }
 }
 
 extension PackageLocator {
-    var buildDirectory: AbsolutePath {
+    var buildDirectory: URL {
         packageDirectory.appending(component: ".build")
     }
 
-    var workspaceDirectory: AbsolutePath {
+    var workspaceDirectory: URL {
         buildDirectory.appending(component: "scipio")
     }
 
-    var derivedDataPath: AbsolutePath {
+    var derivedDataPath: URL {
         workspaceDirectory.appending(component: "DerivedData")
     }
 
-    func generatedModuleMapPath(of target: ResolvedModule, sdk: SDK) throws -> AbsolutePath {
-        let relativePath = try RelativePath(validating: "ModuleMapsForFramework/\(sdk.settingValue)")
-        return workspaceDirectory
-            .appending(relativePath)
-            .appending(component: target.modulemapName)
+    func generatedModuleMapPath(of target: ResolvedModule, sdk: SDK) throws -> URL {
+        workspaceDirectory
+            .appending(components: "ModuleMapsForFramework", sdk.settingValue, target.modulemapName)
     }
 
     /// Returns an Products directory path
     /// It should be the default setting of `TARGET_BUILD_DIR`
-    func productsDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> AbsolutePath {
+    func productsDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> URL {
         let intermediateDirectoryName = productDirectoryName(
             buildConfiguration: buildConfiguration,
             sdk: sdk
         )
-        return derivedDataPath.appending(components: ["Products", intermediateDirectoryName])
+        return derivedDataPath.appending(components: "Products", intermediateDirectoryName)
     }
 
     /// Returns a directory path which contains assembled frameworks
-    var assembledFrameworksRootDirectory: AbsolutePath {
+    var assembledFrameworksRootDirectory: URL {
         workspaceDirectory.appending(component: "AssembledFrameworks")
     }
 
     /// Returns a directory path of the assembled frameworks path for the specific Configuration/Platform
-    func assembledFrameworksDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> AbsolutePath {
+    func assembledFrameworksDirectory(buildConfiguration: BuildConfiguration, sdk: SDK) -> URL {
         let intermediateDirName = productDirectoryName(buildConfiguration: buildConfiguration, sdk: sdk)
         return assembledFrameworksRootDirectory
             .appending(component: intermediateDirName)

@@ -38,14 +38,11 @@ public struct Runner {
         self.fileSystem = fileSystem
     }
 
-    private func resolveURL(_ fileURL: URL) throws -> AbsolutePath {
-        if fileURL.path.hasPrefix("/") {
-            return try AbsolutePath(validating: fileURL.path)
-        } else if let currentDirectory = fileSystem.currentWorkingDirectory {
-            let scipioCurrentDirectory = currentDirectory.absolutePath
-            return try AbsolutePath(scipioCurrentDirectory, validating: fileURL.path)
+    private func resolveURL(_ fileURL: URL) -> URL {
+        if let currentDirectory = fileSystem.currentWorkingDirectory {
+            URL(filePath: fileURL.path, relativeTo: currentDirectory)
         } else {
-            return try! AbsolutePath(validating: fileURL.path)
+            URL(filePath: fileURL.path)
         }
     }
 
@@ -64,7 +61,7 @@ public struct Runner {
     }
 
     public func run(packageDirectory: URL, frameworkOutputDir: OutputDirectory) async throws {
-        let packagePath = try resolveURL(packageDirectory)
+        let packagePath = resolveURL(packageDirectory)
         let descriptionPackage: DescriptionPackage
 
         logger.info("🔁 Resolving Dependencies...")
@@ -83,7 +80,7 @@ public struct Runner {
             throw Error.platformNotSpecified
         }
 
-        try fileSystem.createDirectory(descriptionPackage.workspaceDirectory.asURL, recursive: true)
+        try fileSystem.createDirectory(descriptionPackage.workspaceDirectory, recursive: true)
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
 

@@ -25,12 +25,11 @@ struct PIFCompiler: Compiler {
         self.buildParametersGenerator = .init(buildOptions: buildOptions, fileSystem: fileSystem, executor: executor)
     }
 
-    private func fetchDefaultToolchainBinPath() async throws -> AbsolutePath {
+    private func fetchDefaultToolchainBinPath() async throws -> URL {
         let result = try await executor.execute("/usr/bin/xcrun", "xcode-select", "-p")
         let rawString = try result.unwrapOutput().trimmingCharacters(in: .whitespacesAndNewlines)
-        let developerDirPath = try AbsolutePath(validating: rawString)
-        let toolchainPath = try RelativePath(validating: "./Toolchains/XcodeDefault.xctoolchain/usr/bin")
-        return developerDirPath.appending(toolchainPath)
+        let developerDirPath = URL(filePath: rawString)
+        return developerDirPath.appending(components: "Toolchains", "XcodeDefault.xctoolchain", "usr", "bin")
     }
 
     private func makeToolchain(for sdk: SDK) async throws -> UserToolchain {
@@ -96,13 +95,13 @@ struct PIFCompiler: Compiler {
 
         // If there is existing framework, remove it
         let frameworkName = target.xcFrameworkName
-        let outputXCFrameworkPath = try AbsolutePath(validating: outputDirectory.path).appending(component: frameworkName)
-        if fileSystem.exists(outputXCFrameworkPath.asURL) && overwrite {
+        let outputXCFrameworkPath = URL(filePath: outputDirectory.path).appending(component: frameworkName)
+        if fileSystem.exists(outputXCFrameworkPath) && overwrite {
             logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(outputXCFrameworkPath.asURL)
+            try fileSystem.removeFileTree(outputXCFrameworkPath)
         }
 
-        let debugSymbolPaths: [SDK: [AbsolutePath]]?
+        let debugSymbolPaths: [SDK: [URL]]?
         if buildOptions.isDebugSymbolsEmbedded {
             debugSymbolPaths = try await extractDebugSymbolPaths(target: target,
                                                                  buildConfiguration: buildOptions.buildConfiguration,
