@@ -171,10 +171,22 @@ public struct LocalFileSystem: FileSystem {
     }
 
     public func createDirectory(_ directoryPath: URL, recursive: Bool) throws {
-        try FileManager.default.createDirectory(
-            at: directoryPath,
-            withIntermediateDirectories: recursive
-        )
+        if isDirectory(directoryPath) {
+            return
+        }
+
+        do {
+            try FileManager.default.createDirectory(
+                atPath: directoryPath.path(percentEncoded: false),
+                withIntermediateDirectories: recursive,
+                attributes: [:]
+            )
+        } catch {
+            if isDirectory(directoryPath) {
+                return
+            }
+            throw error
+        }
     }
 
     public func move(from fromURL: URL, to toURL: URL) throws {
