@@ -190,6 +190,12 @@ public struct LocalFileSystem: FileSystem {
     }
 
     public func move(from fromURL: URL, to toURL: URL) throws {
+        guard exists(fromURL) else {
+            throw FileSystemError.entryNotFound(path: fromURL)
+        }
+        guard !exists(toURL) else {
+            throw FileSystemError.alreadyExistsAtDestination(path: toURL)
+        }
         try FileManager.default.moveItem(at: fromURL, to: toURL)
     }
 
