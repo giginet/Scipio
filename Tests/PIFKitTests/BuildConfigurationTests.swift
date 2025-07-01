@@ -49,32 +49,44 @@ struct BuildConfigurationTests {
         #expect(mutableSetting == .stringList(expected))
     }
 
-    @Test
-    func platformFilterSubscript() {
+    @Test(arguments: [
+        (
+            "FRAMEWORK_SEARCH_PATHS",
+            [Platform.iOS, .iOSSimulator],
+            BuildConfiguration.MacroExpressionValue.stringList(["path1", "path2"]),
+            "FRAMEWORK_SEARCH_PATHS[__platform_filter=ios;ios-simulator]"
+        ),
+        (
+            "OTHER_LDFLAGS",
+            [Platform.macOS],
+            BuildConfiguration.MacroExpressionValue.string("-framework Foundation"),
+            "OTHER_LDFLAGS[__platform_filter=macos]"
+        ),
+        (
+            "SUPPORTED_PLATFORMS",
+            [Platform.tvOS, .tvOSSimulator, .watchOS, .watchOSSimulator],
+            BuildConfiguration.MacroExpressionValue.stringList([
+                "tvos", "tvossimulator", "watchos", "watchossimulator"
+            ]),
+            "SUPPORTED_PLATFORMS[__platform_filter=tvos;tvos-simulator;watchos;watchos-simulator]"
+        )
+    ])
+    func platformFilterSubscript(
+        key: String,
+        platforms: [Platform],
+        value: BuildConfiguration.MacroExpressionValue,
+        expectedKey: String
+    ) {
         var buildSettings: [String: BuildConfiguration.MacroExpressionValue] = [:]
 
         // Test setting value with platform filter
-        buildSettings["FRAMEWORK_SEARCH_PATHS", for: [.iOS, .iOSSimulator]] = .stringList(["path1", "path2"])
+        buildSettings[key, for: platforms] = value
 
         // Verify the key is constructed correctly
-        #expect(buildSettings["FRAMEWORK_SEARCH_PATHS[__platform_filter=ios;ios-simulator]"] == .stringList(["path1", "path2"]))
+        #expect(buildSettings[expectedKey] == value)
 
         // Test getting value with platform filter
-        let value = buildSettings["FRAMEWORK_SEARCH_PATHS", for: [.iOS, .iOSSimulator]]
-        #expect(value == .stringList(["path1", "path2"]))
-
-        // Test with different platforms
-        buildSettings["OTHER_LDFLAGS", for: [.macOS]] = .string("-framework Foundation")
-        #expect(buildSettings["OTHER_LDFLAGS[__platform_filter=macos]"] == .string("-framework Foundation"))
-
-        // Test with multiple platforms
-        buildSettings[
-            "SUPPORTED_PLATFORMS",
-            for: [.tvOS, .tvOSSimulator, .watchOS, .watchOSSimulator]
-        ] = .stringList(["tvos", "tvossimulator", "watchos", "watchossimulator"])
-        #expect(
-            buildSettings["SUPPORTED_PLATFORMS[__platform_filter=tvos;tvos-simulator;watchos;watchos-simulator]"]
-            == .stringList(["tvos", "tvossimulator", "watchos", "watchossimulator"])
-        )
+        let retrievedValue = buildSettings[key, for: platforms]
+        #expect(retrievedValue == value)
     }
 }
