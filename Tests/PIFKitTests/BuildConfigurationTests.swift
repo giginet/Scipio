@@ -69,7 +69,7 @@ struct BuildConfigurationTests {
                 "tvos", "tvossimulator", "watchos", "watchossimulator"
             ]),
             "SUPPORTED_PLATFORMS[__platform_filter=tvos;tvos-simulator;watchos;watchos-simulator]"
-        )
+        ),
     ])
     func platformFilterSubscript(
         key: String,
