@@ -177,9 +177,8 @@ public struct LocalFileSystem: FileSystem {
 
         do {
             try FileManager.default.createDirectory(
-                atPath: directoryPath.path(percentEncoded: false),
-                withIntermediateDirectories: recursive,
-                attributes: [:]
+                at: directoryPath,
+                withIntermediateDirectories: recursive
             )
         } catch {
             if isDirectory(directoryPath) {
