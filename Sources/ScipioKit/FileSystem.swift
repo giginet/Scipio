@@ -232,7 +232,7 @@ public enum FileSystemError: LocalizedError {
         case .entryNotFound(let path):
             "No file system entry found at \"\(path.path)\"."
         case .alreadyExistsAtDestination(let path):
-            "Cannot copy: destination already exists at \"\(path.path)\"."
+            "Cannot create: destination already exists at \"\(path.path)\"."
         }
     }
 }
