@@ -20,7 +20,7 @@ final class InfoPlistGeneratorTests: XCTestCase {
         try generator.generateForResourceBundle(at: temporaryPath.absolutePath)
 
         let infoPlistBodyData = try fileSystem.readFileContents(temporaryPath)
-        let infoPlistBody = String(data: infoPlistBodyData, encoding: .utf8)!
+        let infoPlistBody = try XCTUnwrap(String(data: infoPlistBodyData, encoding: .utf8))
 
         XCTAssertEqual(infoPlistBody, """
         <?xml version="1.0" encoding="UTF-8"?>
