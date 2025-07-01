@@ -161,6 +161,12 @@ public struct LocalFileSystem: FileSystem {
     }
 
     public func copy(from fromURL: URL, to toURL: URL) throws {
+        guard exists(fromURL) else {
+            throw FileSystemError.entryNotFound(path: fromURL)
+        }
+        guard !exists(toURL) else {
+            throw FileSystemError.alreadyExistsAtDestination(path: toURL)
+        }
         try FileManager.default.copyItem(at: fromURL, to: toURL)
     }
 
@@ -195,6 +201,8 @@ public enum FileSystemError: LocalizedError {
     case invalidFileURL(path: URL)
     case cannotReadFileContents(path: URL)
     case utf8EncodingFailed
+    case entryNotFound(path: URL)
+    case alreadyExistsAtDestination(path: URL)
 
     public var errorDescription: String? {
         switch self {
@@ -204,6 +212,10 @@ public enum FileSystemError: LocalizedError {
             "Failed to read file contents at path \(path.path)"
         case .utf8EncodingFailed:
             "Failed to convert the command output string to UTF-8 encoded data"
+        case .entryNotFound(let path):
+            "No file system entry found at \"\(path.path)\"."
+        case .alreadyExistsAtDestination(let path):
+            "Cannot copy: destination already exists at \"\(path.path)\"."
         }
     }
 }
