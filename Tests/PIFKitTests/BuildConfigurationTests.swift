@@ -48,4 +48,45 @@ struct BuildConfigurationTests {
         mutableSetting.append("added")
         #expect(mutableSetting == .stringList(expected))
     }
+
+    @Test(arguments: [
+        (
+            "FRAMEWORK_SEARCH_PATHS",
+            [Platform.iOS, .iOSSimulator],
+            BuildConfiguration.MacroExpressionValue.stringList(["path1", "path2"]),
+            "FRAMEWORK_SEARCH_PATHS[__platform_filter=ios;ios-simulator]"
+        ),
+        (
+            "OTHER_LDFLAGS",
+            [Platform.macOS],
+            BuildConfiguration.MacroExpressionValue.string("-framework Foundation"),
+            "OTHER_LDFLAGS[__platform_filter=macos]"
+        ),
+        (
+            "SUPPORTED_PLATFORMS",
+            [Platform.tvOS, .tvOSSimulator, .watchOS, .watchOSSimulator],
+            BuildConfiguration.MacroExpressionValue.stringList([
+                "tvos", "tvossimulator", "watchos", "watchossimulator"
+            ]),
+            "SUPPORTED_PLATFORMS[__platform_filter=tvos;tvos-simulator;watchos;watchos-simulator]"
+        ),
+    ])
+    func platformFilterSubscript(
+        key: String,
+        platforms: [Platform],
+        value: BuildConfiguration.MacroExpressionValue,
+        expectedKey: String
+    ) {
+        var buildSettings: [String: BuildConfiguration.MacroExpressionValue] = [:]
+
+        // Test setting value with platform filter
+        buildSettings[key, for: platforms] = value
+
+        // Verify the key is constructed correctly
+        #expect(buildSettings[expectedKey] == value)
+
+        // Test getting value with platform filter
+        let retrievedValue = buildSettings[key, for: platforms]
+        #expect(retrievedValue == value)
+    }
 }
