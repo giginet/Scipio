@@ -3,7 +3,7 @@ import Foundation
 extension URL {
     // ref: https://github.com/swiftlang/swift-tools-support-core/blob/f9b401016b70c6b8409e5c97e74d97513d1a8d02/Sources/TSCBasic/Path.swift#L598-L614
     var dirname: String {
-        let path = self.standardizedFileURL.path
+        let path = self.standardizedFileURL.path(percentEncoded: false)
         guard let idx = path.lastIndex(of: "/") else {
             // No path separators, so directory is current directory
             return "."
