@@ -1,7 +1,7 @@
 import TSCBasic
 
 /// Holds the packageDirectory Scipio works on, and defines some path-related functionalities.
-protocol PackageLocator {
+protocol PackageLocator: Sendable {
     var packageDirectory: AbsolutePath { get }
 }
 

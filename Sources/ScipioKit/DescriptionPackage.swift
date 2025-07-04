@@ -2,7 +2,7 @@ import Foundation
 import TSCBasic
 import PackageManifestKit
 
-struct DescriptionPackage: PackageLocator {
+struct DescriptionPackage: PackageLocator, Sendable {
     let mode: Runner.Mode
     let packageDirectory: AbsolutePath
     let graph: ModulesGraph
@@ -54,7 +54,7 @@ struct DescriptionPackage: PackageLocator {
         self.graph = try await PackageResolver(
             packageDirectory: packageDirectory.asURL,
             rootManifest: self.manifest,
-            fileSystem: localFileSystem
+            fileSystem: LocalFileSystem.default
         ).resolve()
     }
 }

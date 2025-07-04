@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 import PackageManifestKit
 
 extension PackageResolver {
@@ -42,7 +41,7 @@ extension PackageResolver {
                     packageIdentity: dependencyPackage.identity,
                     name: target.name
                 )
-                let artifactsURL = artifactsLocation.artifactURL(rootPackageDirectory: rootPackageDirectory).absolutePath
+                let artifactsURL = artifactsLocation.artifactURL(rootPackageDirectory: rootPackageDirectory)
 
                 return if fileSystem.exists(artifactsURL) {
                     artifactsLocation
@@ -107,7 +106,7 @@ extension PackageResolver {
 
             // If an explicit path is provided, use it first.
             if let explicitURL = target.path.map({ packageURL.appending(component: $0) }),
-               fileSystem.exists(explicitURL.absolutePath) {
+               fileSystem.exists(explicitURL) {
                 return explicitURL
             }
 
@@ -117,7 +116,7 @@ extension PackageResolver {
             // - "src/<target name>".
             // - "srcs/<target name>".
             let defaultRoots = ["sources", "source", "src", "srcs"]
-            let entries = (try? fileSystem.getDirectoryContents(packageURL.absolutePath)) ?? []
+            let entries = (try? fileSystem.getDirectoryContents(packageURL)) ?? []
 
             // Match using lowercase comparison since SwiftPM treats these names case-insensitively
             let sourcesURLs = entries.lazy
@@ -125,12 +124,12 @@ extension PackageResolver {
                 .map { packageURL.appending(component: $0) }
             let moduleURLs = sourcesURLs.map { $0.appending(component: target.name) }
 
-            return if let moduleURL = moduleURLs.first(where: { fileSystem.exists($0.absolutePath) }) {
+            return if let moduleURL = moduleURLs.first(where: { fileSystem.exists($0) }) {
                 moduleURL
             }
             // If no nested module directory is found but exactly one default root exists
             // (e.g. only Source/xxx.swift in the package), allow that root itself as the module path.
-            else if let sourceURL = sourcesURLs.first(where: { fileSystem.exists($0.absolutePath) }) {
+            else if let sourceURL = sourcesURLs.first(where: { fileSystem.exists($0) }) {
                 sourceURL
             } else {
                 preconditionFailure("Cannot find module directory for target '\(target.name)'")

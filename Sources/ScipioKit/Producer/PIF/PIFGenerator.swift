@@ -1,11 +1,12 @@
 import Foundation
 import TSCBasic
 import PIFKit
+import TSCUtility
 
 struct PIFGenerator {
     private let packageName: String
     private let packageLocator: any PackageLocator
-    private let toolchainLibDirectory: URL
+    private let toolchainLibDirectory: Foundation.URL
     private let buildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
     private let executor: any Executor
@@ -14,11 +15,11 @@ struct PIFGenerator {
     init(
         packageName: String,
         packageLocator: some PackageLocator,
-        toolchainLibDirectory: URL,
+        toolchainLibDirectory: Foundation.URL,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
         executor: some Executor = ProcessExecutor(),
-        fileSystem: any FileSystem = localFileSystem
+        fileSystem: any FileSystem = LocalFileSystem.default
     ) throws {
         self.packageName = packageName
         self.packageLocator = packageLocator
@@ -56,7 +57,7 @@ struct PIFGenerator {
 
         let path = packageLocator.workspaceDirectory
             .appending(component: "manifest-\(packageName)-\(sdk.settingValue).pif")
-        try fileSystem.writeFileContents(path, data: newJSONData)
+        try fileSystem.writeFileContents(path.asURL, data: newJSONData)
         return path
     }
 

@@ -14,7 +14,7 @@ struct PIFCompiler: Compiler {
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
-        fileSystem: any FileSystem = localFileSystem,
+        fileSystem: any FileSystem = LocalFileSystem.default,
         executor: any Executor = ProcessExecutor()
     ) {
         self.descriptionPackage = descriptionPackage
@@ -97,9 +97,9 @@ struct PIFCompiler: Compiler {
         // If there is existing framework, remove it
         let frameworkName = target.xcFrameworkName
         let outputXCFrameworkPath = try AbsolutePath(validating: outputDirectory.path).appending(component: frameworkName)
-        if fileSystem.exists(outputXCFrameworkPath) && overwrite {
+        if fileSystem.exists(outputXCFrameworkPath.asURL) && overwrite {
             logger.info("💥 Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(outputXCFrameworkPath)
+            try fileSystem.removeFileTree(outputXCFrameworkPath.asURL)
         }
 
         let debugSymbolPaths: [SDK: [AbsolutePath]]?

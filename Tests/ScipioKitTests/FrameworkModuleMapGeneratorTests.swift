@@ -15,11 +15,11 @@ private struct PackageLocatorMock: PackageLocator {
 
 @Suite(.serialized)
 struct FrameworkModuleMapGeneratorTests {
-    let fileSystem = localFileSystem
-    let temporaryDirectory: AbsolutePath
+    let fileSystem: LocalFileSystem = .default
+    let temporaryDirectory: URL
 
-    init() throws {
-        self.temporaryDirectory = try fileSystem
+    init() {
+        self.temporaryDirectory = fileSystem
             .tempDirectory
             .appending(components: "FrameworkModuleMapGeneratorTests")
     }
@@ -31,7 +31,7 @@ struct FrameworkModuleMapGeneratorTests {
 
         let generatedModuleMapContents = try await generateModuleMap(
             keepPublicHeadersStructure: false,
-            outputDirectory: outputDirectory
+            outputDirectory: outputDirectory.absolutePath
         )
         let expectedModuleMapContents = """
 framework module MyTarget {
@@ -53,7 +53,7 @@ framework module MyTarget {
 
         let generatedModuleMapContents = try await generateModuleMap(
             keepPublicHeadersStructure: true,
-            outputDirectory: outputDirectory
+            outputDirectory: outputDirectory.absolutePath
         )
         let expectedModuleMapContents = """
 framework module MyTarget {

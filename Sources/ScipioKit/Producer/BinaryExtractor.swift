@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 
 struct BinaryExtractor {
     var descriptionPackage: DescriptionPackage
@@ -22,13 +21,13 @@ struct BinaryExtractor {
         let frameworkName = "\(binaryTarget.c99name).xcframework"
         let fileName = artifactURL.absolutePath.basename
         let destinationPath = outputDirectory.appendingPathComponent(fileName)
-        if fileSystem.exists(destinationPath.absolutePath) && overwrite {
+        if fileSystem.exists(destinationPath) && overwrite {
             logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(destinationPath.absolutePath)
+            try fileSystem.removeFileTree(destinationPath)
         }
         try fileSystem.copy(
-            from: artifactURL.absolutePath,
-            to: destinationPath.absolutePath
+            from: artifactURL,
+            to: destinationPath
         )
 
         return destinationPath

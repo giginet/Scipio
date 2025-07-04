@@ -113,9 +113,9 @@ struct FrameworkModuleMapGenerator {
     }
 
     private func walkDirectoryContents(of directoryPath: AbsolutePath) throws -> Set<AbsolutePath> {
-        try fileSystem.getDirectoryContents(directoryPath).reduce(into: Set()) { headers, file in
+        try fileSystem.getDirectoryContents(directoryPath.asURL).reduce(into: Set()) { headers, file in
             let path = directoryPath.appending(component: file)
-            if fileSystem.isDirectory(path) {
+            if fileSystem.isDirectory(path.asURL) {
                 headers.formUnion(try walkDirectoryContents(of: path))
             } else if file.hasSuffix(".h") {
                 headers.insert(path)
@@ -150,12 +150,16 @@ struct FrameworkModuleMapGenerator {
             .map { "    link framework \"\($0)\"" }
     }
 
-    private func generateModuleMapFile(context: Context, moduleMapType: ModuleMapType?, outputPath: AbsolutePath) throws {
+    private func generateModuleMapFile(
+        context: Context,
+        moduleMapType: ModuleMapType?,
+        outputPath: AbsolutePath
+    ) throws {
         let dirPath = outputPath.parentDirectory
-        try fileSystem.createDirectory(dirPath, recursive: true)
+        try fileSystem.createDirectory(dirPath.asURL, recursive: true)
 
         let contents = try generateModuleMapContents(context: context, moduleMapType: moduleMapType)
-        try fileSystem.writeFileContents(outputPath, string: contents)
+        try fileSystem.writeFileContents(outputPath.asURL, string: contents)
     }
 
     private func constructGeneratedModuleMapPath(context: Context) throws -> AbsolutePath {
@@ -168,7 +172,7 @@ struct FrameworkModuleMapGenerator {
         // However, these are not for frameworks
         // This process converts them to modulemaps for frameworks
         // like `module MyModule` to `framework module MyModule`
-        let rawData = try fileSystem.readFileContents(customModuleMap).contents
+        let rawData = try fileSystem.readFileContents(customModuleMap.asURL)
         guard let contents = String(bytes: rawData, encoding: .utf8) else {
             throw Error.unableToLoadCustomModuleMap(customModuleMap)
         }
