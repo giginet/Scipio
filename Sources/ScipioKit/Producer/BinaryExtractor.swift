@@ -1,5 +1,4 @@
 import Foundation
-import Basics
 
 struct BinaryExtractor {
     var descriptionPackage: DescriptionPackage
@@ -20,15 +19,15 @@ struct BinaryExtractor {
         let artifactURL = binaryLocation.artifactURL(rootPackageDirectory: descriptionPackage.packageDirectory.asURL)
 
         let frameworkName = "\(binaryTarget.c99name).xcframework"
-        let fileName = artifactURL.spmAbsolutePath.basename
+        let fileName = artifactURL.absolutePath.basename
         let destinationPath = outputDirectory.appendingPathComponent(fileName)
-        if fileSystem.exists(destinationPath.absolutePath) && overwrite {
+        if fileSystem.exists(destinationPath) && overwrite {
             logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-            try fileSystem.removeFileTree(destinationPath.absolutePath)
+            try fileSystem.removeFileTree(destinationPath)
         }
         try fileSystem.copy(
-            from: artifactURL.spmAbsolutePath,
-            to: destinationPath.spmAbsolutePath
+            from: artifactURL,
+            to: destinationPath
         )
 
         return destinationPath

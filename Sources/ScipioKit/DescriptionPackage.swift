@@ -1,10 +1,10 @@
 import Foundation
-import Basics
+import TSCBasic
 import PackageManifestKit
 
-struct DescriptionPackage: PackageLocator {
+struct DescriptionPackage: PackageLocator, Sendable {
     let mode: Runner.Mode
-    let packageDirectory: TSCAbsolutePath
+    let packageDirectory: AbsolutePath
     let graph: ModulesGraph
     let manifest: PackageManifestKit.Manifest
     let jsonDecoder = JSONDecoder()
@@ -33,26 +33,6 @@ struct DescriptionPackage: PackageLocator {
         Set(manifest.platforms?.map(\.platformName).compactMap(SDK.init(platformName:)) ?? [])
     }
 
-    private static func makeManifest(
-        packageDirectory: TSCAbsolutePath,
-        jsonDecoder: JSONDecoder,
-        executor: some Executor
-    ) async throws -> PackageManifestKit.Manifest {
-        let commands = [
-            "/usr/bin/xcrun",
-            "swift",
-            "package",
-            "dump-package",
-            "--package-path",
-            packageDirectory.pathString,
-        ]
-
-        let manifestString = try await executor.execute(commands).unwrapOutput()
-        let manifest = try jsonDecoder.decode(PackageManifestKit.Manifest.self, from: manifestString)
-
-        return manifest
-    }
-
     /// Make DescriptionPackage from a passed package directory
     /// - Parameter packageDirectory: A path for the Swift package to build
     /// - Parameter mode: A Scipio running mode
@@ -61,7 +41,7 @@ struct DescriptionPackage: PackageLocator {
     ///   If it is `true`, Package.resolved never be updated.
     ///   Instead, the resolving will fail if the Package.resolved is mis-matched with the workspace.
     init(
-        packageDirectory: TSCAbsolutePath,
+        packageDirectory: AbsolutePath,
         mode: Runner.Mode,
         onlyUseVersionsFromResolvedFile: Bool,
         executor: some Executor = ProcessExecutor(decoder: StandardOutputDecoder())
@@ -74,7 +54,7 @@ struct DescriptionPackage: PackageLocator {
         self.graph = try await PackageResolver(
             packageDirectory: packageDirectory.asURL,
             rootManifest: self.manifest,
-            fileSystem: Basics.localFileSystem
+            fileSystem: LocalFileSystem.default
         ).resolve()
     }
 }

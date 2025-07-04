@@ -1,5 +1,4 @@
 import Foundation
-import Basics
 
 extension PackageResolver {
     struct PackageResolveExecutor: @unchecked Sendable {
@@ -24,17 +23,14 @@ extension PackageResolver {
 
             try await executor.execute(commands)
 
-            let packageResolvedPath = packageDirectory.appending(component: "Package.resolved").spmAbsolutePath
+            let packageResolvedPath = packageDirectory.appending(component: "Package.resolved")
 
             guard fileSystem.exists(packageResolvedPath) else {
                 return nil
             }
 
-            guard let packageResolvedString = try fileSystem.readFileContents(packageResolvedPath).validDescription else {
-                throw Error.cannotReadPackageResolvedFile
-            }
-
-            let packageResolved = try jsonDecoder.decode(PackageResolved.self, from: packageResolvedString)
+            let packageResolvedData = try fileSystem.readFileContents(packageResolvedPath)
+            let packageResolved = try jsonDecoder.decode(PackageResolved.self, from: packageResolvedData)
 
             return packageResolved
         }

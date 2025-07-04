@@ -1,7 +1,7 @@
 import Foundation
 @testable import ScipioKit
 import Testing
-import Basics
+import TSCBasic
 
 private let fixturesPath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
@@ -10,16 +10,16 @@ private let fixturesPath = URL(fileURLWithPath: #filePath)
 private let clangPackageWithUmbrellaDirectoryPath = fixturesPath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
 
 private struct PackageLocatorMock: PackageLocator {
-    let packageDirectory: TSCAbsolutePath
+    let packageDirectory: AbsolutePath
 }
 
 @Suite(.serialized)
 struct FrameworkModuleMapGeneratorTests {
-    let fileSystem = localFileSystem
-    let temporaryDirectory: TSCAbsolutePath
+    let fileSystem: LocalFileSystem = .default
+    let temporaryDirectory: URL
 
-    init() throws {
-        self.temporaryDirectory = try fileSystem
+    init() {
+        self.temporaryDirectory = fileSystem
             .tempDirectory
             .appending(components: "FrameworkModuleMapGeneratorTests")
     }
@@ -31,7 +31,7 @@ struct FrameworkModuleMapGeneratorTests {
 
         let generatedModuleMapContents = try await generateModuleMap(
             keepPublicHeadersStructure: false,
-            outputDirectory: outputDirectory
+            outputDirectory: outputDirectory.absolutePath
         )
         let expectedModuleMapContents = """
 framework module MyTarget {
@@ -53,7 +53,7 @@ framework module MyTarget {
 
         let generatedModuleMapContents = try await generateModuleMap(
             keepPublicHeadersStructure: true,
-            outputDirectory: outputDirectory
+            outputDirectory: outputDirectory.absolutePath
         )
         let expectedModuleMapContents = """
 framework module MyTarget {
@@ -70,7 +70,7 @@ framework module MyTarget {
 
     private func generateModuleMap(
         keepPublicHeadersStructure: Bool,
-        outputDirectory: TSCAbsolutePath
+        outputDirectory: AbsolutePath
     ) async throws -> String {
         let packageLocator = PackageLocatorMock(packageDirectory: outputDirectory)
         let generator = FrameworkModuleMapGenerator(

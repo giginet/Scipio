@@ -1,5 +1,5 @@
 import Foundation
-import Basics
+import TSCBasic
 
 struct XCBuildClient {
     enum Error: LocalizedError {
@@ -26,7 +26,7 @@ struct XCBuildClient {
         buildOptions: BuildOptions,
         configuration: BuildConfiguration,
         packageLocator: some PackageLocator,
-        fileSystem: any FileSystem = localFileSystem,
+        fileSystem: any FileSystem = LocalFileSystem.default,
         executor: some Executor = ProcessExecutor(decoder: StandardOutputDecoder())
     ) {
         self.buildProduct = buildProduct
@@ -47,8 +47,8 @@ struct XCBuildClient {
 
         let foundXCBuildPath = xcBuildPathCandidates.map { relativePath in
             developerDirPath.appending(path: relativePath).standardizedFileURL
-        }.first { path in
-            fileSystem.exists(path.absolutePath)
+        }.first { [fileSystem] path in
+            fileSystem.exists(path)
         }
         guard let foundXCBuildPath else {
             throw Error.xcbuildNotFound
@@ -74,8 +74,8 @@ struct XCBuildClient {
 
     func buildFramework(
         sdk: SDK,
-        pifPath: TSCAbsolutePath,
-        buildParametersPath: TSCAbsolutePath
+        pifPath: AbsolutePath,
+        buildParametersPath: AbsolutePath
     ) async throws -> URL {
         let xcbuildPath = try await fetchXCBuildPath()
 
@@ -121,7 +121,7 @@ struct XCBuildClient {
         return try assembler.assemble()
     }
 
-    private func assembledFrameworkPath(target: ResolvedModule, of sdk: SDK) throws -> TSCAbsolutePath {
+    private func assembledFrameworkPath(target: ResolvedModule, of sdk: SDK) throws -> AbsolutePath {
         let assembledFrameworkDir = packageLocator.assembledFrameworksDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
             sdk: sdk
@@ -132,8 +132,8 @@ struct XCBuildClient {
 
     func createXCFramework(
         sdks: Set<SDK>,
-        debugSymbols: [SDK: [TSCAbsolutePath]]?,
-        outputPath: TSCAbsolutePath
+        debugSymbols: [SDK: [AbsolutePath]]?,
+        outputPath: AbsolutePath
     ) async throws {
         let xcbuildPath = try await fetchXCBuildPath()
 
@@ -153,8 +153,8 @@ struct XCBuildClient {
 
     private func buildCreateXCFrameworkArguments(
         sdks: Set<SDK>,
-        debugSymbols: [SDK: [TSCAbsolutePath]]?,
-        outputPath: TSCAbsolutePath
+        debugSymbols: [SDK: [AbsolutePath]]?,
+        outputPath: AbsolutePath
     ) throws -> [String] {
         let frameworksWithDebugSymbolArguments: [String] = try sdks.reduce([]) { arguments, sdk in
             let path = try assembledFrameworkPath(target: buildProduct.target, of: sdk)
@@ -172,39 +172,5 @@ struct XCBuildClient {
         // Default behavior, this command requires swiftinterface. If they don't exist, `-allow-internal-distribution` must be required.
         let additionalFlags = buildOptions.enableLibraryEvolution ? [] : ["-allow-internal-distribution"]
         return frameworksWithDebugSymbolArguments + outputPathArguments + additionalFlags
-    }
-}
-
-private struct XCBuildOutputDecoder: ErrorDecoder {
-    private let jsonDecoder = JSONDecoder()
-
-    func decode(_ result: ExecutorResult) throws -> String? {
-        let lines = try result.unwrapOutput().split(separator: "\n")
-            .map(String.init)
-        return lines.compactMap { line -> String? in
-            if let info = try? jsonDecoder.decode(XCBuildErrorInfo.self, from: line), !info.isIgnored {
-                return info.message ?? info.data
-            }
-            return nil
-        }
-        .compactMap { $0 }
-        .joined(separator: "\n")
-    }
-}
-
-private let ignoredKind = ["didUpdateProgress"]
-
-private struct XCBuildErrorInfo: Decodable {
-    var kind: String?
-    var result: String?
-    var error: String?
-    var message: String?
-    var data: String?
-
-    fileprivate var isIgnored: Bool {
-        if let kind {
-            return ignoredKind.contains(kind)
-        }
-        return false
     }
 }

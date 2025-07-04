@@ -100,3 +100,18 @@ extension BuildConfiguration.MacroExpressionValue? {
         }
     }
 }
+
+extension [String: BuildConfiguration.MacroExpressionValue] {
+    /// Sets a build setting value with an optional platform filter
+    /// Example: buildSettings["FRAMEWORK_SEARCH_PATHS", for: [.iOS, .iOSSimulator]] = .stringList(["path1", "path2"])
+    package subscript(key: String, for platforms: [Platform]) -> BuildConfiguration.MacroExpressionValue? {
+        get {
+            let platformFilterKey = "\(key)[__platform_filter=\(platforms.settingValue)]"
+            return self[platformFilterKey]
+        }
+        set {
+            let platformFilterKey = "\(key)[__platform_filter=\(platforms.settingValue)]"
+            self[platformFilterKey] = newValue
+        }
+    }
+}

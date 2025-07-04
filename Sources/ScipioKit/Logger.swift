@@ -1,7 +1,6 @@
 import Foundation
 import Logging
 import Rainbow
-import class Basics.ObservabilitySystem
 
 let logger = Logger(label: "me.giginet.Scipio")
 
@@ -73,21 +72,6 @@ extension LoggingSystem {
             var handler = ScipioLogHandler()
             handler.logLevel = logLevel
             return handler
-        }
-    }
-}
-
-func makeObservabilitySystem() -> ObservabilitySystem {
-    ObservabilitySystem { _, diagnostics in
-        switch diagnostics.severity {
-        case .error:
-            logger.error("\(diagnostics.message)")
-        case .warning:
-            logger.warning("\(diagnostics.message)")
-        case .info:
-            logger.info("\(diagnostics.message)")
-        case .debug:
-            logger.debug("\(diagnostics.message)")
         }
     }
 }

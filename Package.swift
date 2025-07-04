@@ -29,8 +29,6 @@ let package = Package(
             targets: ["ScipioKit"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/swiftlang/swift-package-manager.git",
-                 branch: swiftPMBranch),
         .package(url: "https://github.com/apple/swift-log.git",
                  from: "1.5.2"),
         .package(url: "https://github.com/apple/swift-collections",
@@ -49,6 +47,8 @@ let package = Package(
                  from: "0.1.0"),
         .package(url: "https://github.com/mtj0928/swift-async-operations.git",
                  from: "0.3.0"),
+        .package(url: "https://github.com/swiftlang/swift-tools-support-core",
+                 branch: swiftPMBranch),
     ],
     targets: [
         .executableTarget(
@@ -62,15 +62,14 @@ let package = Package(
             name: "ScipioKit",
             dependencies: [
                 .target(name: "PIFKit"),
-                .product(name: "SwiftPMDataModel-auto", package: "swift-package-manager"),
-                .product(name: "XCBuildSupport", package: "swift-package-manager"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Collections", package: "swift-collections"),
                 .product(name: "Algorithms", package: "swift-algorithms"),
                 .product(name: "Rainbow", package: "Rainbow"),
                 .product(name: "ScipioStorage", package: "scipio-cache-storage"),
                 .product(name: "PackageManifestKit", package: "PackageManifestKit"),
-                .product(name: "AsyncOperations", package: "swift-async-operations")
+                .product(name: "AsyncOperations", package: "swift-async-operations"),
+                .product(name: "SwiftToolsSupport-auto", package: "swift-tools-support-core")
             ],
             plugins: [
                 .plugin(name: "GenerateScipioVersion")

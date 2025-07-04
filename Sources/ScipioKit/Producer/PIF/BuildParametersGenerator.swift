@@ -1,6 +1,5 @@
 import Foundation
-import Basics
-import struct TSCBasic.ByteString
+import TSCBasic
 
 struct XCBBuildParameters: Encodable, Sendable {
     struct RunDestination: Encodable, Sendable {
@@ -29,14 +28,28 @@ struct BuildParametersGenerator {
     private let buildOptions: BuildOptions
     private let fileSystem: any FileSystem
     private let executor: any Executor
+    private let jsonEncoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting.formUnion([.sortedKeys, .prettyPrinted, .withoutEscapingSlashes])
+        return encoder
+    }()
 
-    init(buildOptions: BuildOptions, fileSystem: any FileSystem = localFileSystem, executor: some Executor) {
+    init(
+        buildOptions: BuildOptions,
+        fileSystem: any FileSystem = LocalFileSystem.default,
+        executor: some Executor
+    ) {
         self.buildOptions = buildOptions
         self.fileSystem = fileSystem
         self.executor = executor
     }
 
-    func generate(for sdk: SDK, buildParameters: Parameters, destinationDir: TSCAbsolutePath) throws -> TSCAbsolutePath {
+    func generate(
+        for sdk: SDK,
+        buildParameters: Parameters,
+        destinationDir: AbsolutePath
+    ) throws -> AbsolutePath {
         let targetArchitecture = buildParameters.arch
 
         // Generate the run destination parameters.
@@ -86,9 +99,10 @@ struct BuildParametersGenerator {
 
         // Write out the parameters as a JSON file, and return the path.
         let filePath = destinationDir.appending(component: "build-parameters-\(sdk.settingValue).json")
-        let encoder = JSONEncoder.makeWithDefaults()
-        let data = try encoder.encode(params)
-        try self.fileSystem.writeFileContents(filePath, bytes: ByteString(data))
+
+        let data = try jsonEncoder.encode(params)
+        try self.fileSystem.writeFileContents(filePath.asURL, data: data)
+
         return filePath
     }
 

@@ -1,7 +1,6 @@
 import Foundation
 import Logging
-import Basics
-import XCBuildSupport
+import TSCBasic
 import Algorithms
 
 struct XCBuildExecutor {
@@ -9,10 +8,10 @@ struct XCBuildExecutor {
     var xcbuildPath: URL
 
     func build(
-        pifPath: TSCAbsolutePath,
+        pifPath: AbsolutePath,
         configuration: BuildConfiguration,
-        derivedDataPath: TSCAbsolutePath,
-        buildParametersPath: TSCAbsolutePath,
+        derivedDataPath: AbsolutePath,
+        buildParametersPath: AbsolutePath,
         target: ResolvedModule
     ) async throws {
         let executor = _Executor(args: [
@@ -38,17 +37,16 @@ private final class _Executor {
 
         self.executor = ProcessExecutor<StandardErrorOutputDecoder>()
 
-        self.parser = XCBuildOutputParser(delegate: self)
-
-        executor.streamOutput = { [weak self] (bytes) in
-            self?.parser.parse(bytes: bytes)
+        executor.streamOutput = { [weak self] bytes in
+            self?.parse(bytes: bytes)
         }
         executor.collectsOutput = false
     }
 
     let args: [String]
 
-    lazy var parser: XCBuildOutputParser = { preconditionFailure("uninitialized") }()
+    let jsonDecoder = JSONDecoder()
+
     var executor: ProcessExecutor<StandardErrorOutputDecoder>
 
     // FIXME: store log on file
@@ -82,6 +80,17 @@ private final class _Executor {
 
         if let parseError {
             throw ProcessExecutorError.unknownError(parseError)
+        }
+    }
+
+    private func parse(bytes: [UInt8]) {
+        let jsons = String(bytes: bytes, encoding: .utf8)?
+            .components(separatedBy: "\n")
+            .compactMap { $0.data(using: .utf8) } ?? []
+        for json in jsons {
+            if let message = try? jsonDecoder.decode(XCBuildMessage.self, from: json) {
+                handle(message: message)
+            }
         }
     }
 
@@ -169,17 +178,5 @@ private final class _Executor {
 
         allMessages.append(message)
         logger.log(level: level, "\(message)")
-    }
-}
-
-extension _Executor: XCBuildOutputParserDelegate {
-    func xcBuildOutputParser(_ parser: XCBuildOutputParser, didParse message: XCBuildMessage) {
-        handle(message: message)
-    }
-
-    func xcBuildOutputParser(_ parser: XCBuildOutputParser, didFailWith error: Error) {
-        self.parseError = error
-        logger.error("xcbuild output parse failed", metadata: .color(.red))
-        logger.error(error)
     }
 }

@@ -34,8 +34,27 @@ struct ManifestLoader: @unchecked Sendable {
             "--package-path",
             path,
         ]
-        let manifestString = try await executor.execute(commands).unwrapOutput()
-        let manifest = try jsonDecoder.decode(Manifest.self, from: manifestString)
+
+        let manifestData = try await executor.execute(commands)
+            .unwrapOutput()
+            .data(using: .utf8)
+
+        guard let manifestData else {
+            throw Error.utf8EncodingFailed
+        }
+
+        let manifest = try jsonDecoder.decode(Manifest.self, from: manifestData)
         return manifest
+    }
+
+    enum Error: LocalizedError {
+        case utf8EncodingFailed
+
+        var errorDescription: String? {
+            switch self {
+            case .utf8EncodingFailed:
+                "Failed to convert the command output string to UTF-8 encoded data"
+            }
+        }
     }
 }

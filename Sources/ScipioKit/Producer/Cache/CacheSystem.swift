@@ -1,7 +1,5 @@
 import Foundation
 import ScipioStorage
-import Basics
-import struct TSCUtility.Version
 import Algorithms
 import PackageManifestKit
 
@@ -81,7 +79,7 @@ struct CacheSystem: Sendable {
 
     init(
         outputDirectory: URL,
-        fileSystem: any FileSystem = localFileSystem
+        fileSystem: any FileSystem = LocalFileSystem.default
     ) {
         self.outputDirectory = outputDirectory
         self.fileSystem = fileSystem
@@ -131,7 +129,7 @@ struct CacheSystem: Sendable {
         let data = try jsonEncoder.encode(cacheKey)
         let versionFilePath = outputDirectory.appendingPathComponent(versionFileName(for: target.buildProduct.target.name))
         try fileSystem.writeFileContents(
-            versionFilePath.absolutePath.spmAbsolutePath,
+            versionFilePath,
             data: data
         )
     }
@@ -139,9 +137,9 @@ struct CacheSystem: Sendable {
     func existsValidCache(cacheKey: SwiftPMCacheKey) async -> Bool {
         do {
             let versionFilePath = versionFilePath(for: cacheKey.targetName)
-            guard fileSystem.exists(versionFilePath.absolutePath) else { return false }
+            guard fileSystem.exists(versionFilePath) else { return false }
             let decoder = JSONDecoder()
-            guard let contents = try? fileSystem.readFileContents(versionFilePath.absolutePath).contents else {
+            guard let contents = try? fileSystem.readFileContents(versionFilePath) else {
                 throw Error.couldNotReadVersionFile(versionFilePath)
             }
             let versionFileKey = try decoder.decode(SwiftPMCacheKey.self, from: Data(contents))
@@ -226,16 +224,13 @@ struct CacheSystem: Sendable {
 public struct VersionFileDecoder {
     private let fileSystem: any FileSystem
 
-    public init(fileSystem: any FileSystem = localFileSystem) {
+    public init(fileSystem: any FileSystem = LocalFileSystem.default) {
         self.fileSystem = fileSystem
     }
 
     public func decode(versionFile: URL) throws -> SwiftPMCacheKey {
-        try jsonDecoder.decode(
-            path: versionFile.absolutePath.spmAbsolutePath,
-            fileSystem: fileSystem,
-            as: SwiftPMCacheKey.self
-        )
+        let contents = try fileSystem.readFileContents(versionFile)
+        return try jsonDecoder.decode(SwiftPMCacheKey.self, from: contents)
     }
 }
 

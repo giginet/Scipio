@@ -1,6 +1,5 @@
 import Foundation
 import ScipioStorage
-import Basics
 
 struct LocalDiskCacheStorage: CacheStorage {
     private let fileSystem: any FileSystem
@@ -15,7 +14,7 @@ struct LocalDiskCacheStorage: CacheStorage {
 
     /// - Parameters:
     ///   - baseURL: The base url for the local disk cache. When it is nil, the system cache directory (`~/Library/Caches`) will be used.
-    init(baseURL: URL?, fileSystem: FileSystem = localFileSystem) {
+    init(baseURL: URL?, fileSystem: FileSystem = LocalFileSystem.default) {
         self.baseURL = baseURL
         self.fileSystem = fileSystem
     }
@@ -28,7 +27,7 @@ struct LocalDiskCacheStorage: CacheStorage {
             guard let systemCacheDir = fileSystem.cachesDirectory else {
                 throw Error.cacheDirectoryIsNotFound
             }
-            cacheDir = systemCacheDir.asURL
+            cacheDir = systemCacheDir
         }
         return cacheDir.appendingPathComponent("Scipio")
     }
@@ -49,7 +48,7 @@ struct LocalDiskCacheStorage: CacheStorage {
     func existsValidCache(for cacheKey: some CacheKey) async -> Bool {
         do {
             let xcFrameworkPath = try cacheFrameworkPath(for: cacheKey)
-            return fileSystem.exists(xcFrameworkPath.absolutePath)
+            return fileSystem.exists(xcFrameworkPath)
         } catch {
             return false
         }
@@ -60,8 +59,8 @@ struct LocalDiskCacheStorage: CacheStorage {
             let destination = try cacheFrameworkPath(for: cacheKey)
             let directoryPath = destination.deletingLastPathComponent()
 
-            try fileSystem.createDirectory(directoryPath.absolutePath, recursive: true)
-            try fileSystem.copy(from: frameworkPath.absolutePath, to: destination.absolutePath)
+            try fileSystem.createDirectory(directoryPath, recursive: true)
+            try fileSystem.copy(from: frameworkPath, to: destination)
         } catch {
             // ignore error
         }
@@ -70,6 +69,6 @@ struct LocalDiskCacheStorage: CacheStorage {
     func fetchArtifacts(for cacheKey: some CacheKey, to destinationDir: URL) async throws {
         let source = try cacheFrameworkPath(for: cacheKey)
         let destination = destinationDir.appendingPathComponent(xcFrameworkFileName(for: cacheKey))
-        try fileSystem.copy(from: source.absolutePath, to: destination.absolutePath)
+        try fileSystem.copy(from: source, to: destination)
     }
 }

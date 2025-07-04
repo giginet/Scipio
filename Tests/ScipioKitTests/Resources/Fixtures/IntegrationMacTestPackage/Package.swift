@@ -12,7 +12,7 @@ let package = Package(
             targets: ["IntegrationMacTestPackage"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio-ssl", from: "2.24.0")
+        .package(url: "https://github.com/apple/swift-nio-ssl", from: "2.32.0")
     ],
     targets: [
         .target(

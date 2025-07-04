@@ -1,8 +1,6 @@
 import Foundation
 import ScipioStorage
 import Collections
-import protocol TSCBasic.FileSystem
-import Basics
 import PackageManifestKit
 
 struct FrameworkProducer {
@@ -34,7 +32,7 @@ struct FrameworkProducer {
         cachePolicies: [Runner.Options.CachePolicy],
         overwrite: Bool,
         outputDir: URL,
-        fileSystem: any FileSystem = localFileSystem
+        fileSystem: any FileSystem = LocalFileSystem.default
     ) {
         self.descriptionPackage = descriptionPackage
         self.baseBuildOptions = buildOptions
@@ -58,12 +56,12 @@ struct FrameworkProducer {
     }
 
     func clean() async throws {
-        if fileSystem.exists(descriptionPackage.derivedDataPath) {
-            try fileSystem.removeFileTree(descriptionPackage.derivedDataPath)
+        if fileSystem.exists(descriptionPackage.derivedDataPath.asURL) {
+            try fileSystem.removeFileTree(descriptionPackage.derivedDataPath.asURL)
         }
 
-        if fileSystem.exists(descriptionPackage.assembledFrameworksRootDirectory) {
-            try fileSystem.removeFileTree(descriptionPackage.assembledFrameworksRootDirectory)
+        if fileSystem.exists(descriptionPackage.assembledFrameworksRootDirectory.asURL) {
+            try fileSystem.removeFileTree(descriptionPackage.assembledFrameworksRootDirectory.asURL)
         }
     }
 
@@ -115,7 +113,7 @@ struct FrameworkProducer {
 
         let targetBuildResult = await buildTargets(dependencyGraphToBuild)
 
-        let builtTargets: OrderedSet<CacheSystem.CacheTarget> = switch targetBuildResult {
+        let builtTargets: OrderedCollections.OrderedSet<CacheSystem.CacheTarget> = switch targetBuildResult {
             case .completed(let builtTargets),
                  .interrupted(let builtTargets, _):
                 builtTargets
@@ -150,7 +148,7 @@ struct FrameworkProducer {
                             let product = target.buildProduct
                             let frameworkName = product.frameworkName
                             let outputPath = outputDir.appendingPathComponent(frameworkName)
-                            let exists = fileSystem.exists(outputPath.absolutePath)
+                            let exists = fileSystem.exists(outputPath)
                             guard exists else { return nil }
 
                             let expectedCacheKey = try await cacheSystem.calculateCacheKey(of: target)
@@ -158,7 +156,7 @@ struct FrameworkProducer {
                             guard isValidCache else {
                                 logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
                                 logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
-                                try fileSystem.removeFileTree(outputPath.absolutePath)
+                                try fileSystem.removeFileTree(outputPath)
 
                                 return nil
                             }
@@ -298,7 +296,7 @@ struct FrameworkProducer {
     }
 
     private func buildTargets(_ targets: DependencyGraph<CacheSystem.CacheTarget>) async -> TargetBuildResult {
-        var builtTargets = OrderedSet<CacheSystem.CacheTarget>()
+        var builtTargets = OrderedCollections.OrderedSet<CacheSystem.CacheTarget>()
 
         do {
             var targets = targets
@@ -319,8 +317,8 @@ struct FrameworkProducer {
     }
 
     private enum TargetBuildResult {
-        case interrupted(builtTargets: OrderedSet<CacheSystem.CacheTarget>, error: any Error)
-        case completed(builtTargets: OrderedSet<CacheSystem.CacheTarget>)
+        case interrupted(builtTargets: OrderedCollections.OrderedSet<CacheSystem.CacheTarget>, error: any Error)
+        case completed(builtTargets: OrderedCollections.OrderedSet<CacheSystem.CacheTarget>)
     }
 
     @discardableResult

@@ -2,7 +2,6 @@ import Foundation
 import PackageManifestKit
 import OrderedCollections
 import AsyncOperations
-import Basics
 
 actor PackageResolver {
     // Because `dump-package` is called for each child dependency, all PackageKinds are mistakenly set to `.root`.
