@@ -6,6 +6,7 @@ import TSCUtility
 struct PIFGenerator {
     private let packageName: String
     private let packageLocator: any PackageLocator
+    private let allModules: Set<ResolvedModule>
     private let toolchainLibDirectory: Foundation.URL
     private let buildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
@@ -15,6 +16,7 @@ struct PIFGenerator {
     init(
         packageName: String,
         packageLocator: some PackageLocator,
+        allModules: Set<ResolvedModule>,
         toolchainLibDirectory: Foundation.URL,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
@@ -23,6 +25,7 @@ struct PIFGenerator {
     ) throws {
         self.packageName = packageName
         self.packageLocator = packageLocator
+        self.allModules = allModules
         self.toolchainLibDirectory = toolchainLibDirectory
         self.buildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
@@ -133,22 +136,22 @@ struct PIFGenerator {
             configuration.buildSettings["OTHER_LDFLAGS"]
                 .append("-Wl,-make_mergeable")
         case .dynamic:
-            guard let recursiveDependencies = try? resolvedTarget.recursiveDependencies() else {
+            guard let resolvedTarget = allModules.first(where: { $0.c99name == target.c99Name }),
+                  let recursiveDependencies = try? resolvedTarget.recursiveDependencies() else {
                 break
             }
 
             let moduleDependenciesPerPlatforms = categorizeModuleDependenciesByPlatform(recursiveDependencies)
 
-            for (platform, dependencies) in moduleDependenciesPerPlatforms {
+            for (platforms, dependencies) in moduleDependenciesPerPlatforms {
                 let flags = dependencies.flatMap {
                     ["-framework", $0.name]
                 }
 
-                if let platform {
-                    settings[.OTHER_LDFLAGS, for: platform, default: ["$(inherited)"]]
-                        .append(contentsOf: flags)
+                if let platforms {
+                    configuration.buildSettings["OTHER_LDFLAGS", for: platforms].append(flags)
                 } else {
-                    settings[.OTHER_LDFLAGS, default: ["$(inherited)"]].append(contentsOf: flags)
+                    configuration.buildSettings["OTHER_LDFLAGS"].append(flags)
                 }
             }
         }
@@ -168,7 +171,7 @@ struct PIFGenerator {
 
     private func categorizeModuleDependenciesByPlatform(
         _ dependencies: [ResolvedModule.Dependency]
-    ) -> [PIF.BuildSettings.Platform?: [ResolvedModule]] {
+    ) -> [[PIFKit.Platform]?: [ResolvedModule]] {
         dependencies.reduce(into: [:]) { partialResult, dependency in
             guard case .module(let module, let conditions) = dependency else {
                 return
@@ -178,20 +181,17 @@ struct PIFGenerator {
                 return
             }
             for condition in conditions {
-                switch condition {
-                case .platforms(let platformCondition):
-                    for platform in platformCondition.platforms {
-                        if let pifPlatform = PIF.BuildSettings.Platform(rawValue: platform.name) {
-                            partialResult[pifPlatform, default: []].append(module)
-                        }
-                    }
-                case .configuration:
-                    partialResult[nil, default: []].append(module)
-#if compiler(>=6.1)
-                case .traits:
+                let platforms = condition.platformNames.compactMap {
+                    PIFKit.Platform(rawValue: $0)
+                }
+                partialResult[platforms, default: []].append(module)
+
+                if let _ = condition.config {
+                    // FIXME: Handle config condition
+                }
+
+                if let _ = condition.traits {
                     // FIXME: Handle trait condition
-                    break
-#endif
                 }
             }
         }
@@ -209,24 +209,6 @@ struct PIFGenerator {
         createOrUpdateFlags(for: "OTHER_CPLUSPLUSFLAGS", to: \.cxxFlags)
         createOrUpdateFlags(for: "OTHER_SWIFT_FLAGS", to: \.swiftFlags)
         createOrUpdateFlags(for: "OTHER_LDFLAGS", to: \.linkerFlags)
-    }
-
-    private func modulemapFileContents(swiftTarget: ScipioSwiftModule) -> String {
-        // Bridging Headers will be generated inside generated frameworks
-        let productsDirectory = descriptionPackage.productsDirectory(
-            buildConfiguration: buildOptions.buildConfiguration,
-            sdk: sdk
-        )
-        let bridgingHeaderFullPath = productsDirectory.appending(
-            components: ["\(swiftTarget.c99name).framework", "Headers", "\(swiftTarget.name)-Swift.h"]
-        )
-
-        return """
-            module \(swiftTarget.c99name) {
-                header "\(bridgingHeaderFullPath.pathString)"
-                export *
-            }
-        """
     }
 
     /// Resolve Bridging Header path to absolute path.
