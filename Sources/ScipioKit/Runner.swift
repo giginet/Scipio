@@ -37,14 +37,6 @@ public struct Runner {
         self.fileSystem = fileSystem
     }
 
-    private func resolveURL(_ fileURL: URL) -> URL {
-        if let currentDirectory = fileSystem.currentWorkingDirectory {
-            URL(filePath: fileURL.path, relativeTo: currentDirectory)
-        } else {
-            URL(filePath: fileURL.path)
-        }
-    }
-
     public enum OutputDirectory {
         case `default`
         case custom(URL)
@@ -60,13 +52,12 @@ public struct Runner {
     }
 
     public func run(packageDirectory: URL, frameworkOutputDir: OutputDirectory) async throws {
-        let packagePath = resolveURL(packageDirectory)
         let descriptionPackage: DescriptionPackage
 
         logger.info("🔁 Resolving Dependencies...")
         do {
             descriptionPackage = try await DescriptionPackage(
-                packageDirectory: packagePath,
+                packageDirectory: packageDirectory,
                 mode: mode,
                 onlyUseVersionsFromResolvedFile: options.shouldOnlyUseVersionsFromResolvedFile
             )
