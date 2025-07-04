@@ -1,5 +1,6 @@
 import Foundation
 
+/// Extensions for compatibility with TSC's Path implementation.
 extension URL {
     // ref: https://github.com/swiftlang/swift-tools-support-core/blob/f9b401016b70c6b8409e5c97e74d97513d1a8d02/Sources/TSCBasic/Path.swift#L598-L614
     var dirname: String {
