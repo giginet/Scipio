@@ -186,11 +186,11 @@ struct PIFGenerator {
                 }
                 partialResult[platforms, default: []].append(module)
 
-                if let _ = condition.config {
+                if condition.config != nil {
                     // FIXME: Handle config condition
                 }
 
-                if let _ = condition.traits {
+                if condition.traits != nil {
                     // FIXME: Handle trait condition
                 }
             }
