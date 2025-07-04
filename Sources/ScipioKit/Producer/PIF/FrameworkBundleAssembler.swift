@@ -116,10 +116,7 @@ struct FrameworkBundleAssembler {
         }
         try fileSystem.copy(
             from: header,
-            to: headerDir
-                .appending(components: subdirectoryComponents)
-                .appending(component: header.lastPathComponent)
-
+            to: headerDir.appending(components: subdirectoryComponents)
         )
     }
 
