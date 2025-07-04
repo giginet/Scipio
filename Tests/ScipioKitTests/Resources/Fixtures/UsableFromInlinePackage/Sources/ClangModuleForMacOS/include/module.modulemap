@@ -1,0 +1,3 @@
+module ClangModuleForMacOS {
+    header "ClangModuleForMacOS.h"
+}

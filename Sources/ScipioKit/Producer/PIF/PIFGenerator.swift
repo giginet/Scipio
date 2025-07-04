@@ -6,6 +6,7 @@ import TSCUtility
 struct PIFGenerator {
     private let packageName: String
     private let packageLocator: any PackageLocator
+    private let allModules: Set<ResolvedModule>
     private let toolchainLibDirectory: Foundation.URL
     private let buildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
@@ -15,6 +16,7 @@ struct PIFGenerator {
     init(
         packageName: String,
         packageLocator: some PackageLocator,
+        allModules: Set<ResolvedModule>,
         toolchainLibDirectory: Foundation.URL,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
@@ -23,6 +25,7 @@ struct PIFGenerator {
     ) throws {
         self.packageName = packageName
         self.packageLocator = packageLocator
+        self.allModules = allModules
         self.toolchainLibDirectory = toolchainLibDirectory
         self.buildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
@@ -126,9 +129,31 @@ struct PIFGenerator {
         }
         configuration.buildSettings["SWIFT_INSTALL_OBJC_HEADER"] = "YES"
 
-        if frameworkType == .mergeable {
+        switch frameworkType {
+        case .static:
+            break
+        case .mergeable:
             configuration.buildSettings["OTHER_LDFLAGS"]
                 .append("-Wl,-make_mergeable")
+        case .dynamic:
+            guard let resolvedTarget = allModules.first(where: { $0.c99name == target.c99Name }),
+                  let recursiveDependencies = try? resolvedTarget.recursiveDependencies() else {
+                break
+            }
+
+            let moduleDependenciesPerPlatforms = categorizeModuleDependenciesByPlatform(recursiveDependencies)
+
+            for (platforms, dependencies) in moduleDependenciesPerPlatforms {
+                let flags = dependencies.flatMap {
+                    ["-framework", $0.name]
+                }
+
+                if let platforms {
+                    configuration.buildSettings["OTHER_LDFLAGS", for: platforms].append(flags)
+                } else {
+                    configuration.buildSettings["OTHER_LDFLAGS"].append(flags)
+                }
+            }
         }
 
         appendExtraFlagsByBuildOptionsMatrix(to: &configuration, target: target)
@@ -141,6 +166,34 @@ struct PIFGenerator {
         if case .string(let moduleMapFileContents) = configuration.buildSettings["MODULEMAP_FILE_CONTENTS"],
             moduleMapFileContents.contains("\(target.name)-Swift.h") {
             resolveModuleMapPath(of: target, configuration: &configuration, sdk: sdk)
+        }
+    }
+
+    private func categorizeModuleDependenciesByPlatform(
+        _ dependencies: [ResolvedModule.Dependency]
+    ) -> [[PIFKit.Platform]?: [ResolvedModule]] {
+        dependencies.reduce(into: [:]) { partialResult, dependency in
+            guard case .module(let module, let conditions) = dependency else {
+                return
+            }
+            if conditions.isEmpty {
+                partialResult[nil, default: []].append(module)
+                return
+            }
+            for condition in conditions {
+                let platforms = condition.platformNames.compactMap {
+                    PIFKit.Platform(rawValue: $0)
+                }
+                partialResult[platforms, default: []].append(module)
+
+                if condition.config != nil {
+                    // FIXME: Handle config condition
+                }
+
+                if condition.traits != nil {
+                    // FIXME: Handle trait condition
+                }
+            }
         }
     }
 
