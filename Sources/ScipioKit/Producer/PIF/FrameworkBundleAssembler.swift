@@ -239,16 +239,12 @@ extension FrameworkBundleAssembler {
             from relativePrivacyInfoPathComponents: String...,
             in resourceBundlePath: URL,
         ) throws {
-            guard let privacyInfoLastPathComponent = relativePrivacyInfoPathComponents.last else {
-                preconditionFailure("relativePrivacyInfoPathComponents must not be empty")
-            }
-
             let privacyInfoPath = resourceBundlePath.appending(components: relativePrivacyInfoPathComponents)
             if fileSystem.exists(privacyInfoPath) {
                 try fileSystem.move(
                     from: privacyInfoPath,
                     to: resourceBundlePath.parentDirectory
-                        .appending(component: privacyInfoLastPathComponent)
+                        .appending(component: privacyInfoPath.lastPathComponent)
                 )
             }
         }
