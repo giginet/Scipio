@@ -1,7 +1,6 @@
 import Foundation
 import XCTest
 @testable import ScipioKit
-import TSCBasic
 
 final class InfoPlistGeneratorTests: XCTestCase {
     let fileSystem: LocalFileSystem = .default
@@ -17,7 +16,7 @@ final class InfoPlistGeneratorTests: XCTestCase {
     }
 
     func testGenerateForBundle() throws {
-        try generator.generateForResourceBundle(at: temporaryPath.absolutePath)
+        try generator.generateForResourceBundle(at: temporaryPath)
 
         let infoPlistBodyData = try fileSystem.readFileContents(temporaryPath)
         let infoPlistBody = try XCTUnwrap(String(data: infoPlistBodyData, encoding: .utf8))

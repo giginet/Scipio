@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 
 struct DwarfExtractor<E: Executor> {
     private let executor: E
@@ -10,12 +9,12 @@ struct DwarfExtractor<E: Executor> {
 
     typealias Arch = String
 
-    func dwarfPath(for target: ResolvedModule, dSYMPath: AbsolutePath) -> AbsolutePath {
+    func dwarfPath(for target: ResolvedModule, dSYMPath: URL) -> URL {
         dSYMPath.appending(components: "Contents", "Resources", "DWARF", target.name)
     }
 
-    func dump(dwarfPath: AbsolutePath) async throws -> [Arch: UUID] {
-        let result = try await executor.execute("/usr/bin/xcrun", "dwarfdump", "--uuid", dwarfPath.pathString)
+    func dump(dwarfPath: URL) async throws -> [Arch: UUID] {
+        let result = try await executor.execute("/usr/bin/xcrun", "dwarfdump", "--uuid", dwarfPath.path(percentEncoded: false))
 
         let output = try result.unwrapOutput()
 

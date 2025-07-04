@@ -28,7 +28,7 @@ struct DwarfExtractorTests {
         }
         let extractor = DwarfExtractor(executor: executor)
         let dwarfPath = URL(fileURLWithPath: "/dev/null")
-        let uuids = try await extractor.dump(dwarfPath: dwarfPath.absolutePath)
+        let uuids = try await extractor.dump(dwarfPath: dwarfPath)
 
         let firstArguments = try #require(executor.calledArguments.first)
         #expect(firstArguments == ["/usr/bin/xcrun", "dwarfdump", "--uuid", dwarfPath.path])

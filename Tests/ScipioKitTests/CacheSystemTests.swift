@@ -1,7 +1,6 @@
 import Foundation
 @testable import ScipioKit
 import XCTest
-import TSCBasic
 
 private let fixturePath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
@@ -112,7 +111,7 @@ final class CacheSystemTests: XCTestCase {
 
         func scipioTestingCacheKey(fixture: String) async throws -> SwiftPMCacheKey {
             let descriptionPackage = try await DescriptionPackage(
-                packageDirectory: tempCacheKeyTestsDir.appending(component: fixture).absolutePath,
+                packageDirectory: tempCacheKeyTestsDir.appending(component: fixture),
                 mode: .createPackage,
                 onlyUseVersionsFromResolvedFile: false
             )
@@ -175,7 +174,7 @@ final class CacheSystemTests: XCTestCase {
         defer { try? fileSystem.removeFileTree(tempTestingPackagePath) }
 
         let descriptionPackage = try await DescriptionPackage(
-            packageDirectory: tempTestingPackagePath.absolutePath,
+            packageDirectory: tempTestingPackagePath,
             mode: .createPackage,
             onlyUseVersionsFromResolvedFile: false
         )

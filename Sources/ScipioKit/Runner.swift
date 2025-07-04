@@ -1,6 +1,5 @@
 import Foundation
 import ScipioStorage
-import TSCBasic
 
 public typealias PlatformMatrix = [String: Set<SDK>]
 
@@ -38,17 +37,6 @@ public struct Runner {
         self.fileSystem = fileSystem
     }
 
-    private func resolveURL(_ fileURL: URL) throws -> AbsolutePath {
-        if fileURL.path.hasPrefix("/") {
-            return try AbsolutePath(validating: fileURL.path)
-        } else if let currentDirectory = fileSystem.currentWorkingDirectory {
-            let scipioCurrentDirectory = currentDirectory.absolutePath
-            return try AbsolutePath(scipioCurrentDirectory, validating: fileURL.path)
-        } else {
-            return try! AbsolutePath(validating: fileURL.path)
-        }
-    }
-
     public enum OutputDirectory {
         case `default`
         case custom(URL)
@@ -56,21 +44,20 @@ public struct Runner {
         fileprivate func resolve(packageDirectory: URL) -> URL {
             switch self {
             case .default:
-                return packageDirectory.appendingPathComponent("XCFrameworks")
+                packageDirectory.appendingPathComponent("XCFrameworks")
             case .custom(let url):
-                return url
+                url
             }
         }
     }
 
     public func run(packageDirectory: URL, frameworkOutputDir: OutputDirectory) async throws {
-        let packagePath = try resolveURL(packageDirectory)
         let descriptionPackage: DescriptionPackage
 
         logger.info("🔁 Resolving Dependencies...")
         do {
             descriptionPackage = try await DescriptionPackage(
-                packageDirectory: packagePath,
+                packageDirectory: packageDirectory,
                 mode: mode,
                 onlyUseVersionsFromResolvedFile: options.shouldOnlyUseVersionsFromResolvedFile
             )
@@ -83,7 +70,7 @@ public struct Runner {
             throw Error.platformNotSpecified
         }
 
-        try fileSystem.createDirectory(descriptionPackage.workspaceDirectory.asURL, recursive: true)
+        try fileSystem.createDirectory(descriptionPackage.workspaceDirectory, recursive: true)
 
         let outputDir = frameworkOutputDir.resolve(packageDirectory: packageDirectory)
 

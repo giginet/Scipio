@@ -16,10 +16,10 @@ struct BinaryExtractor {
             )
         }
 
-        let artifactURL = binaryLocation.artifactURL(rootPackageDirectory: descriptionPackage.packageDirectory.asURL)
+        let artifactURL = binaryLocation.artifactURL(rootPackageDirectory: descriptionPackage.packageDirectory)
 
         let frameworkName = "\(binaryTarget.c99name).xcframework"
-        let fileName = artifactURL.absolutePath.basename
+        let fileName = artifactURL.lastPathComponent
         let destinationPath = outputDirectory.appendingPathComponent(fileName)
         if fileSystem.exists(destinationPath) && overwrite {
             logger.info("🗑️ Delete \(frameworkName)", metadata: .color(.red))
