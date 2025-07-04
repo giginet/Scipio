@@ -7,7 +7,6 @@ private let fixturePath = URL(fileURLWithPath: #filePath)
     .appendingPathComponent("Resources")
     .appendingPathComponent("Fixtures")
 
-@Suite(.serialized)
 struct DynamicFrameworkTests {
     private let fileManager: FileManager = .default
 
