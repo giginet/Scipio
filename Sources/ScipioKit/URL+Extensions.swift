@@ -19,7 +19,7 @@ extension URL {
 
     // ref: https://github.com/swiftlang/swift-tools-support-core/blob/f9b401016b70c6b8409e5c97e74d97513d1a8d02/Sources/TSCBasic/Path.swift#L661-L663
     var parentDirectory: URL {
-        pathComponents.isEmpty ? self : deletingLastPathComponent()
+        standardizedFileURL.path(percentEncoded: false) == "/" ? self : standardizedFileURL.deletingLastPathComponent()
     }
 
     func appending(components: [String]) -> URL {
