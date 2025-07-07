@@ -19,9 +19,14 @@ struct URLExtensionsTests {
     }
 
     @Test("parentDirectory returns the parent directory URL for given file paths", arguments: [
-        ("/path/to/documents/projects", "/path/to/documents/"),
-        ("/path/to/../test.txt", "/path/"),
+        ("/path/to/test.txt", "/path/to"),
+        ("/test.txt", "/"),
         ("/", "/"),
+        ("/path//to///test.txt", "/path/to"),
+        ("/path/to/", "/path/to"),
+        ("///multiple///slashes///test.txt", "/multiple/slashes"),
+        ("/path/to/../..", "/"),
+        ("/path/to/../test.txt", "/path"),
     ])
     func parentDirectory(input: String, expectedPath: String) {
         let url = URL(filePath: input)
