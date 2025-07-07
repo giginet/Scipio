@@ -8,7 +8,8 @@ struct URLExtensionsTests {
         ("/test.txt", "/"),
         ("/", "/"),
         ("/path//to///test.txt", "/path/to"),
-        ("/path/to/", "/path/to"),
+        ("/path/to/", "/path"),
+        ("/path/to", "/path"),
         ("///multiple///slashes///test.txt", "/multiple/slashes"),
         ("/path/to/../..", "/"),
         ("/path/to/../test.txt", "/path"),
@@ -19,18 +20,18 @@ struct URLExtensionsTests {
     }
 
     @Test("parentDirectory returns the parent directory URL for given file paths", arguments: [
-        ("/path/to/test.txt", "/path/to"),
+        ("/path/to/test.txt", "/path/to/"),
         ("/test.txt", "/"),
         ("/", "/"),
-        ("/path//to///test.txt", "/path/to"),
-        ("/path/to/", "/path/to"),
-        ("///multiple///slashes///test.txt", "/multiple/slashes"),
+        ("/path//to///test.txt", "/path/to/"),
+        ("/path/to/", "/path/"),
+        ("/path/to", "/path/"),
+        ("///multiple///slashes///test.txt", "/multiple/slashes/"),
         ("/path/to/../..", "/"),
-        ("/path/to/../test.txt", "/path"),
+        ("/path/to/../test.txt", "/path/"),
     ])
     func parentDirectory(input: String, expectedPath: String) {
         let url = URL(filePath: input)
-        let expected = URL(filePath: expectedPath)
-        #expect(url.parentDirectory == expected)
+        #expect(url.parentDirectory.path(percentEncoded: false) == expectedPath)
     }
 }
