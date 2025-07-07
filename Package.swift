@@ -90,8 +90,7 @@ let package = Package(
             dependencies: [
                 .target(name: "ScipioKit"),
             ],
-            exclude: ["Resources/Fixtures/"],
-            resources: [.copy("Resources/Fixtures")]
+            exclude: ["Resources/Fixtures/"]
         ),
         .testTarget(
             name: "PIFKitTests",
