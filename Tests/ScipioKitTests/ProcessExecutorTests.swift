@@ -27,12 +27,7 @@ struct ProcessExecutorTests {
 
         #expect(result.arguments == ["/bin/echo", "hello", "world"])
 
-        switch result.exitStatus {
-        case .terminated(let code):
-            #expect(code == 0)
-        case .signalled:
-            Issue.record("Process should not be signalled")
-        }
+        #expect(result.exitStatus == .terminated(code: 0))
 
         let output = try result.unwrapOutput()
         #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "hello world")
@@ -44,12 +39,7 @@ struct ProcessExecutorTests {
         // Use a command that writes to stderr
         let result = try await executor.execute(["/bin/sh", "-c", "echo 'error message' >&2"])
 
-        switch result.exitStatus {
-        case .terminated(let code):
-            #expect(code == 0)
-        case .signalled:
-            Issue.record("Process should not be signalled")
-        }
+        #expect(result.exitStatus == .terminated(code: 0))
 
         let stderrOutput = try result.unwrapStdErrOutput()
         #expect(stderrOutput.trimmingCharacters(in: .whitespacesAndNewlines) == "error message")
@@ -60,12 +50,7 @@ struct ProcessExecutorTests {
         let executor = createExecutor()
         let result = try await executor.execute(["/bin/sh", "-c", "echo $1 $2", "--", "arg1", "arg2"])
 
-        switch result.exitStatus {
-        case .terminated(let code):
-            #expect(code == 0)
-        case .signalled:
-            Issue.record("Process should not be signalled")
-        }
+        #expect(result.exitStatus == .terminated(code: 0))
 
         let output = try result.unwrapOutput()
         #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "arg1 arg2")
@@ -86,17 +71,12 @@ struct ProcessExecutorTests {
         let (executor, collector) = createOutputStreamCollector()
         let result = try await executor.execute(["/bin/echo", "streaming test"])
 
-        switch result.exitStatus {
-        case .terminated(let code):
-            #expect(code == 0)
-        case .signalled:
-            Issue.record("Process should not be signalled")
-        }
+        #expect(result.exitStatus == .terminated(code: 0))
 
         // Verify that stream output was collected
         #expect(!collector.collectedOutput.isEmpty)
         let streamedData = Data(collector.collectedOutput.flatMap { $0 })
-        let streamedString = String(data: streamedData, encoding: .utf8) ?? ""
+        let streamedString = try #require(String(data: streamedData, encoding: .utf8))
         #expect(streamedString.contains("streaming test"))
     }
 
@@ -186,12 +166,7 @@ struct ProcessExecutorTests {
         let longString = String(repeating: "a", count: 10000)
         let result = try await executor.execute(["/bin/echo", longString])
 
-        switch result.exitStatus {
-        case .terminated(let code):
-            #expect(code == 0)
-        case .signalled:
-            Issue.record("Process should not be signalled")
-        }
+        #expect(result.exitStatus == .terminated(code: 0))
 
         let output = try result.unwrapOutput()
         #expect(output.trimmingCharacters(in: .whitespacesAndNewlines).count == 10000)
@@ -202,12 +177,7 @@ struct ProcessExecutorTests {
         let executor = createExecutor()
         let result = try await executor.execute(["/usr/bin/true"])
 
-        switch result.exitStatus {
-        case .terminated(let code):
-            #expect(code == 0)
-        case .signalled:
-            Issue.record("Process should not be signalled")
-        }
+        #expect(result.exitStatus == .terminated(code: 0))
 
         let output = try result.unwrapOutput()
         #expect(output.isEmpty)
@@ -219,12 +189,7 @@ struct ProcessExecutorTests {
         // Create a command that outputs binary data using printf with $'...' format
         let result = try await executor.execute(["/bin/sh", "-c", "printf '\\x00\\x01\\x02\\x03'"])
 
-        switch result.exitStatus {
-        case .terminated(let code):
-            #expect(code == 0)
-        case .signalled:
-            Issue.record("Process should not be signalled")
-        }
+        #expect(result.exitStatus == .terminated(code: 0))
 
         switch result.output {
         case .success(let bytes):
