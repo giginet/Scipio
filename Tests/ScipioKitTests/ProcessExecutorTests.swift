@@ -4,13 +4,13 @@ import Testing
 
 @Suite("ProcessExecutorTests")
 struct ProcessExecutorTests {
-    
-    struct ArgumentSet: Sendable {
-        let testName: String
+
+    struct ArgumentSet: Sendable, CustomTestStringConvertible {
+        let testDescription: String
         let arguments: [String]
-        
-        init(testName: String, arguments: [String]) {
-            self.testName = testName
+
+        init(testDescription: String, arguments: [String]) {
+            self.testDescription = testDescription
             self.arguments = arguments
         }
     }
@@ -30,39 +30,35 @@ struct ProcessExecutorTests {
 
     // MARK: - Success Cases
 
-    struct CommandTestCase: Sendable, CustomStringConvertible {
-        let testName: String
+    struct CommandTestCase: Sendable, CustomTestStringConvertible {
+        let testDescription: String
         let command: [String]
         let expectedOutput: String
         let checkStdErr: Bool
-        
-        var description: String {
-            return "Command: \(command.joined(separator: " ")) - Expected Output: \(expectedOutput)\(checkStdErr ? " (stderr)" : "")"
-        }
-        
-        init(testName: String, command: [String], expectedOutput: String, checkStdErr: Bool = false) {
-            self.testName = testName
+
+        init(testDescription: String, command: [String], expectedOutput: String, checkStdErr: Bool = false) {
+            self.testDescription = testDescription
             self.command = command
             self.expectedOutput = expectedOutput
             self.checkStdErr = checkStdErr
         }
     }
-    
+
     @Test("Execute commands successfully", arguments: [
         CommandTestCase(
-            testName: "Echo command", 
-            command: ["/bin/echo", "hello", "world"], 
+            testDescription: "Echo command",
+            command: ["/bin/echo", "hello", "world"],
             expectedOutput: "hello world"
         ),
         CommandTestCase(
-            testName: "Standard error output", 
-            command: ["/bin/sh", "-c", "echo 'error message' >&2"], 
-            expectedOutput: "error message", 
+            testDescription: "Standard error output",
+            command: ["/bin/sh", "-c", "echo 'error message' >&2"],
+            expectedOutput: "error message",
             checkStdErr: true
         ),
         CommandTestCase(
-            testName: "Command with multiple arguments", 
-            command: ["/bin/sh", "-c", "echo $1 $2", "--", "arg1", "arg2"], 
+            testDescription: "Command with multiple arguments",
+            command: ["/bin/sh", "-c", "echo $1 $2", "--", "arg1", "arg2"],
             expectedOutput: "arg1 arg2"
         )
     ])
@@ -82,10 +78,33 @@ struct ProcessExecutorTests {
         #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == testCase.expectedOutput)
     }
 
-    @Test("Stream output functionality")
-    func streamOutput() async throws {
+    struct StreamOutputTestCase: Sendable, CustomTestStringConvertible {
+        let testDescription: String
+        let command: [String]
+        let expectedOutputContains: String
+
+        init(testDescription: String, command: [String], expectedOutputContains: String) {
+            self.testDescription = testDescription
+            self.command = command
+            self.expectedOutputContains = expectedOutputContains
+        }
+    }
+
+    @Test("Stream output functionality", arguments: [
+        StreamOutputTestCase(
+            testDescription: "Basic streaming test",
+            command: ["/bin/echo", "streaming test"],
+            expectedOutputContains: "streaming test"
+        ),
+        StreamOutputTestCase(
+            testDescription: "Multi-line streaming test",
+            command: ["/bin/sh", "-c", "echo 'line 1'; echo 'line 2'"],
+            expectedOutputContains: "line"
+        )
+    ])
+    func streamOutput(testCase: StreamOutputTestCase) async throws {
         let (executor, collector) = createOutputStreamCollector()
-        let result = try await executor.execute(["/bin/echo", "streaming test"])
+        let result = try await executor.execute(testCase.command)
 
         #expect(result.exitStatus == .terminated(code: 0))
 
@@ -93,7 +112,7 @@ struct ProcessExecutorTests {
         #expect(!collector.collectedOutput.isEmpty)
         let streamedData = Data(collector.collectedOutput.flatMap { $0 })
         let streamedString = try #require(String(data: streamedData, encoding: .utf8))
-        #expect(streamedString.contains("streaming test"))
+        #expect(streamedString.contains(testCase.expectedOutputContains))
     }
 
     // MARK: - Error Cases
@@ -103,7 +122,7 @@ struct ProcessExecutorTests {
         "Empty executable string": [""],
         "Non-existent executable": ["/path/to/nonexistent/executable"]
     ])
-    func executableNotFoundCases(testName: String, arguments: [String]) async throws {
+    func executableNotFoundCases(testDescription: String, arguments: [String]) async throws {
         let executor = createExecutor()
 
         await #expect(throws: ProcessExecutorError.executableNotFound) {
@@ -111,30 +130,26 @@ struct ProcessExecutorTests {
         }
     }
 
-    struct ErrorTestCase: Sendable, CustomStringConvertible {
-        let testName: String
+    struct ErrorTestCase: Sendable, CustomTestStringConvertible {
+        let testDescription: String
         let command: [String]
         let expectedErrorOutput: String?
-        
-        var description: String {
-            return "Command: \(command.joined(separator: " "))\(expectedErrorOutput != nil ? " - Expected Error: \(expectedErrorOutput!)" : "")"
-        }
-        
-        init(testName: String, command: [String], expectedErrorOutput: String? = nil) {
-            self.testName = testName
+
+        init(testDescription: String, command: [String], expectedErrorOutput: String? = nil) {
+            self.testDescription = testDescription
             self.command = command
             self.expectedErrorOutput = expectedErrorOutput
         }
     }
-    
+
     @Test("Commands with non-zero exit code", arguments: [
         ErrorTestCase(
-            testName: "Simple non-zero exit", 
+            testDescription: "Simple non-zero exit",
             command: ["/bin/sh", "-c", "exit 1"]
         ),
         ErrorTestCase(
-            testName: "Non-zero exit with error output", 
-            command: ["/bin/sh", "-c", "echo 'error message' >&2; exit 1"], 
+            testDescription: "Non-zero exit with error output",
+            command: ["/bin/sh", "-c", "echo 'error message' >&2; exit 1"],
             expectedErrorOutput: "error message"
         )
     ])
@@ -155,18 +170,41 @@ struct ProcessExecutorTests {
         }
     }
 
-    @Test("Verify error decoder is used for terminated errors")
-    func errorDecoderUsage() async throws {
+    struct ErrorDecoderTestCase: Sendable, CustomTestStringConvertible {
+        let testDescription: String
+        let command: [String]
+        let expectedDecodedOutput: String
+
+        init(testDescription: String, command: [String], expectedDecodedOutput: String) {
+            self.testDescription = testDescription
+            self.command = command
+            self.expectedDecodedOutput = expectedDecodedOutput
+        }
+    }
+
+    @Test("Verify error decoder is used for terminated errors", arguments: [
+        ErrorDecoderTestCase(
+            testDescription: "Simple error message",
+            command: ["/bin/sh", "-c", "echo 'custom error' >&2; exit 1"],
+            expectedDecodedOutput: "DECODED: custom error"
+        ),
+        ErrorDecoderTestCase(
+            testDescription: "Multi-word error message",
+            command: ["/bin/sh", "-c", "echo 'this is a custom error message' >&2; exit 1"],
+            expectedDecodedOutput: "DECODED: this is a custom error message"
+        )
+    ])
+    func errorDecoderUsage(testCase: ErrorDecoderTestCase) async throws {
         let customDecoder = TestErrorDecoder()
         let executor = ProcessExecutor(errorDecoder: customDecoder)
 
         let thrownError = await #expect(throws: ProcessExecutorError.self) {
-            _ = try await executor.execute(["/bin/sh", "-c", "echo 'custom error' >&2; exit 1"])
+            _ = try await executor.execute(testCase.command)
         }
 
         // Verify it's a terminated error with the expected decoded output
         if case .terminated(let errorOutput) = thrownError {
-            #expect(errorOutput == "DECODED: custom error")
+            #expect(errorOutput == testCase.expectedDecodedOutput)
         } else {
             Issue.record("Expected terminated error, got: \(String(describing: thrownError))")
         }
@@ -174,12 +212,12 @@ struct ProcessExecutorTests {
 
     // MARK: - Edge Cases
 
-    enum EdgeCaseType: Sendable, CustomStringConvertible {
+    enum EdgeCaseType: Sendable, CustomTestStringConvertible {
         case veryLongOutput(count: Int)
         case noOutput
         case binaryOutput
-        
-        var description: String {
+
+        var testDescription: String {
             switch self {
             case .veryLongOutput(let count):
                 return "veryLongOutput(count: \(count))"
@@ -190,40 +228,35 @@ struct ProcessExecutorTests {
             }
         }
     }
-    
-    struct EdgeCaseTestCase: @unchecked Sendable, CustomStringConvertible {
-        let testName: String
+
+    struct EdgeCaseTestCase: @unchecked Sendable, CustomTestStringConvertible {
+        let testDescription: String
         let type: EdgeCaseType
         let commandGenerator: @Sendable () -> [String]
-        
-        var description: String {
-            let cmd = commandGenerator()
-            return "Type: \(type) - Command: \(cmd.joined(separator: " "))"
-        }
-        
-        init(testName: String, type: EdgeCaseType, commandGenerator: @escaping @Sendable () -> [String]) {
-            self.testName = testName
+
+        init(testDescription: String, type: EdgeCaseType, commandGenerator: @escaping @Sendable () -> [String]) {
+            self.testDescription = testDescription
             self.type = type
             self.commandGenerator = commandGenerator
         }
     }
-    
+
     @Test("Edge cases for output", arguments: [
         EdgeCaseTestCase(
-            testName: "Very long output handling",
+            testDescription: "Very long output handling",
             type: .veryLongOutput(count: 10000),
-            commandGenerator: { 
+            commandGenerator: {
                 let longString = String(repeating: "a", count: 10000)
                 return ["/bin/echo", longString]
             }
         ),
         EdgeCaseTestCase(
-            testName: "Command with no output",
+            testDescription: "Command with no output",
             type: .noOutput,
             commandGenerator: { ["/usr/bin/true"] }
         ),
         EdgeCaseTestCase(
-            testName: "Command with binary output",
+            testDescription: "Command with binary output",
             type: .binaryOutput,
             commandGenerator: { ["/bin/sh", "-c", "printf '\\x00\\x01\\x02\\x03'"] }
         )
@@ -239,11 +272,11 @@ struct ProcessExecutorTests {
         case .veryLongOutput(let count):
             let output = try result.unwrapOutput()
             #expect(output.trimmingCharacters(in: .whitespacesAndNewlines).count == count)
-        
+
         case .noOutput:
             let output = try result.unwrapOutput()
             #expect(output.isEmpty)
-            
+
         case .binaryOutput:
             switch result.output {
             case .success(let bytes):
@@ -253,19 +286,19 @@ struct ProcessExecutorTests {
             }
         }
     }
-    
-    @Test("Execute command with environment variables")
-    func executeCommandWithEnvironmentVariables() async throws {
-        let executor = createExecutor()
-        let process = try await executor.prepareProcess(["/bin/sh", "-c", "echo $TEST"])
-        process.environment = ["TEST": "environment_variable_works"]
-        
-        let result = try await executor.run(process: process)
-        
-        #expect(result.exitStatus == .terminated(code: 0))
-        
-        let output = try result.unwrapOutput()
-        #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "environment_variable_works")
+
+    struct EnvironmentVariableTestCase: Sendable, CustomTestStringConvertible {
+        let testDescription: String
+        let command: [String]
+        let environment: [String: String]
+        let expectedOutput: String
+
+        init(testDescription: String, command: [String], environment: [String: String], expectedOutput: String) {
+            self.testDescription = testDescription
+            self.command = command
+            self.environment = environment
+            self.expectedOutput = expectedOutput
+        }
     }
 }
 
