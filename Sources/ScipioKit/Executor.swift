@@ -175,10 +175,6 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
                         await errorBuffer.append(bytes)
                     }
 
-                    // Close file handles
-                    try? outputHandle.close()
-                    try? errorHandle.close()
-
                     let exitStatus: ProcessExitStatus
                     if process.terminationReason == .exit {
                         exitStatus = .terminated(code: process.terminationStatus)
