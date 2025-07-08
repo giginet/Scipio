@@ -18,7 +18,7 @@ file_length: 600
 nesting:
   type_level: 3
 function_body_length:
-  warning: 100
+  warning: 75
 trailing_comma:
   mandatory_comma: true
 type_body_length:
