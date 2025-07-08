@@ -98,7 +98,8 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
             throw ProcessExecutorError.executableNotFound
         }
 
-        guard let executable = arguments.first, !executable.isEmpty else {
+        let executable = arguments[0]
+        guard !executable.isEmpty else {
             throw ProcessExecutorError.executableNotFound
         }
 
