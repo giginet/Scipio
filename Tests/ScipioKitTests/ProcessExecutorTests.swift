@@ -2,7 +2,6 @@ import Foundation
 import Testing
 @testable import ScipioKit
 
-@Suite("ProcessExecutorTests")
 struct ProcessExecutorTests {
 
     struct ArgumentSet: Sendable, CustomTestStringConvertible {
