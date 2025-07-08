@@ -8,11 +8,6 @@ struct ProcessExecutorTests {
     struct ArgumentSet: Sendable, CustomTestStringConvertible {
         let testDescription: String
         let arguments: [String]
-
-        init(testDescription: String, arguments: [String]) {
-            self.testDescription = testDescription
-            self.arguments = arguments
-        }
     }
 
     // MARK: - Test Helpers
@@ -35,13 +30,6 @@ struct ProcessExecutorTests {
         let command: [String]
         let expectedOutput: String
         let checkStdErr: Bool
-
-        init(testDescription: String, command: [String], expectedOutput: String, checkStdErr: Bool = false) {
-            self.testDescription = testDescription
-            self.command = command
-            self.expectedOutput = expectedOutput
-            self.checkStdErr = checkStdErr
-        }
     }
 
     @Test("Execute commands successfully", arguments: [
@@ -60,7 +48,7 @@ struct ProcessExecutorTests {
             testDescription: "Command with multiple arguments",
             command: ["/bin/sh", "-c", "echo $1 $2", "--", "arg1", "arg2"],
             expectedOutput: "arg1 arg2"
-        )
+        ),
     ])
     func executeCommandsSuccessfully(testCase: CommandTestCase) async throws {
         let executor = createExecutor()
@@ -82,12 +70,6 @@ struct ProcessExecutorTests {
         let testDescription: String
         let command: [String]
         let expectedOutputContains: String
-
-        init(testDescription: String, command: [String], expectedOutputContains: String) {
-            self.testDescription = testDescription
-            self.command = command
-            self.expectedOutputContains = expectedOutputContains
-        }
     }
 
     @Test("Stream output functionality", arguments: [
@@ -100,7 +82,7 @@ struct ProcessExecutorTests {
             testDescription: "Multi-line streaming test",
             command: ["/bin/sh", "-c", "echo 'line 1'; echo 'line 2'"],
             expectedOutputContains: "line"
-        )
+        ),
     ])
     func streamOutput(testCase: StreamOutputTestCase) async throws {
         let (executor, collector) = createOutputStreamCollector()
@@ -120,7 +102,7 @@ struct ProcessExecutorTests {
     @Test("Executable not found error cases", arguments: [
         "Empty arguments array": [],
         "Empty executable string": [""],
-        "Non-existent executable": ["/path/to/nonexistent/executable"]
+        "Non-existent executable": ["/path/to/nonexistent/executable"],
     ])
     func executableNotFoundCases(testDescription: String, arguments: [String]) async throws {
         let executor = createExecutor()
@@ -134,24 +116,19 @@ struct ProcessExecutorTests {
         let testDescription: String
         let command: [String]
         let expectedErrorOutput: String?
-
-        init(testDescription: String, command: [String], expectedErrorOutput: String? = nil) {
-            self.testDescription = testDescription
-            self.command = command
-            self.expectedErrorOutput = expectedErrorOutput
-        }
     }
 
     @Test("Commands with non-zero exit code", arguments: [
         ErrorTestCase(
             testDescription: "Simple non-zero exit",
-            command: ["/bin/sh", "-c", "exit 1"]
+            command: ["/bin/sh", "-c", "exit 1"],
+            expectedErrorOutput: nil
         ),
         ErrorTestCase(
             testDescription: "Non-zero exit with error output",
             command: ["/bin/sh", "-c", "echo 'error message' >&2; exit 1"],
             expectedErrorOutput: "error message"
-        )
+        ),
     ])
     func nonZeroExitCodeCases(testCase: ErrorTestCase) async throws {
         let executor = createExecutor()
@@ -174,12 +151,6 @@ struct ProcessExecutorTests {
         let testDescription: String
         let command: [String]
         let expectedDecodedOutput: String
-
-        init(testDescription: String, command: [String], expectedDecodedOutput: String) {
-            self.testDescription = testDescription
-            self.command = command
-            self.expectedDecodedOutput = expectedDecodedOutput
-        }
     }
 
     @Test("Verify error decoder is used for terminated errors", arguments: [
@@ -192,7 +163,7 @@ struct ProcessExecutorTests {
             testDescription: "Multi-word error message",
             command: ["/bin/sh", "-c", "echo 'this is a custom error message' >&2; exit 1"],
             expectedDecodedOutput: "DECODED: this is a custom error message"
-        )
+        ),
     ])
     func errorDecoderUsage(testCase: ErrorDecoderTestCase) async throws {
         let customDecoder = TestErrorDecoder()
@@ -259,7 +230,7 @@ struct ProcessExecutorTests {
             testDescription: "Command with binary output",
             type: .binaryOutput,
             commandGenerator: { ["/bin/sh", "-c", "printf '\\x00\\x01\\x02\\x03'"] }
-        )
+        ),
     ])
     func edgeCases(testCase: EdgeCaseTestCase) async throws {
         let executor = createExecutor()
@@ -292,13 +263,6 @@ struct ProcessExecutorTests {
         let command: [String]
         let environment: [String: String]
         let expectedOutput: String
-
-        init(testDescription: String, command: [String], environment: [String: String], expectedOutput: String) {
-            self.testDescription = testDescription
-            self.command = command
-            self.environment = environment
-            self.expectedOutput = expectedOutput
-        }
     }
 }
 
