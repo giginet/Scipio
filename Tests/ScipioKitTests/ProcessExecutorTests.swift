@@ -36,7 +36,8 @@ struct ProcessExecutorTests {
         CommandTestCase(
             testDescription: "Echo command",
             command: ["/bin/echo", "hello", "world"],
-            expectedOutput: "hello world"
+            expectedOutput: "hello world",
+            checkStdErr: false
         ),
         CommandTestCase(
             testDescription: "Standard error output",
@@ -47,7 +48,8 @@ struct ProcessExecutorTests {
         CommandTestCase(
             testDescription: "Command with multiple arguments",
             command: ["/bin/sh", "-c", "echo $1 $2", "--", "arg1", "arg2"],
-            expectedOutput: "arg1 arg2"
+            expectedOutput: "arg1 arg2",
+            checkStdErr: false
         ),
     ])
     func executeCommandsSuccessfully(testCase: CommandTestCase) async throws {
