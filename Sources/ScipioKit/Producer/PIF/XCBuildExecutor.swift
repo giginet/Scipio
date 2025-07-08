@@ -38,7 +38,6 @@ private actor BufferedXCBuildMessageExecutor {
         executor.streamOutput = { [weak self] bytes in
             await self?.parse(bytes: bytes)
         }
-
     }
 
     let args: [String]
