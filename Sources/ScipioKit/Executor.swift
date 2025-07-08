@@ -1,5 +1,6 @@
 import Foundation
 
+/// Buffer to collect process output bytes.
 private actor ProcessOutputBuffer {
     private(set) var bytes: [UInt8] = []
 
@@ -17,15 +18,13 @@ protocol ErrorDecoder: Sendable {
     func decode(_ result: ExecutorResult) throws -> String?
 }
 
-enum ProcessExitStatus {
+enum ProcessExitStatus: Sendable, Equatable {
     case terminated(code: Int32)
     case signalled(signal: Int32)
 }
 
 protocol ExecutorResult: Sendable {
     var arguments: [String] { get }
-    /// The environment with which the process was launched.
-    var environment: [String: String] { get }
 
     /// The exit status of the process.
     var exitStatus: ProcessExitStatus { get }
@@ -48,7 +47,6 @@ extension Executor {
 
 struct FoundationProcessResult: ExecutorResult, Sendable {
     let arguments: [String]
-    let environment: [String: String]
     let exitStatus: ProcessExitStatus
     var output: Result<[UInt8], Swift.Error>
     var stderrOutput: Result<[UInt8], Swift.Error>
@@ -84,31 +82,24 @@ Unknown error occurered.
 
 struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
     private let decoder: Decoder
-    init(decoder: Decoder = StandardErrorOutputDecoder()) {
+    private let fileSystem: any FileSystem
+
+    init(decoder: Decoder = StandardErrorOutputDecoder(), fileSystem: some FileSystem = LocalFileSystem()) {
         self.decoder = decoder
+        self.fileSystem = fileSystem
     }
 
     var streamOutput: (@Sendable ([UInt8]) async -> Void)?
 
     func execute(_ arguments: [String]) async throws -> ExecutorResult {
-        logger.debug("\(arguments.joined(separator: " "))")
-
-        // Validate arguments
-        guard !arguments.isEmpty else {
-            throw ProcessExecutorError.executableNotFound
-        }
-
-        let executable = arguments[0]
-        guard !executable.isEmpty else {
-            throw ProcessExecutorError.executableNotFound
-        }
-
-        // Validate executable exists
-        if !FileManager.default.fileExists(atPath: executable) {
+        guard let executable = arguments.first, !executable.isEmpty else {
             throw ProcessExecutorError.executableNotFound
         }
 
         let executableURL = URL(filePath: executable)
+        guard fileSystem.exists(executableURL), fileSystem.isFile(executableURL) else {
+            throw ProcessExecutorError.executableNotFound
+        }
 
         let process = Foundation.Process()
         let stdoutPipe = Pipe()
@@ -134,6 +125,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
                 await localStreamOutput?(bytes)
                 await outputBuffer.append(bytes)
             }
+            return await outputBuffer.bytes
         }
 
         let errorOutputTask = Task {
@@ -141,6 +133,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
                 let bytes = [UInt8](data)
                 await errorBuffer.append(bytes)
             }
+            return await errorBuffer.bytes
         }
 
         do {
@@ -149,65 +142,49 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
             throw ProcessExecutorError.unknownError(error)
         }
 
-        try await outputTask.value
-        try await errorOutputTask.value
+        process.waitUntilExit()
+
+        let finalOutput = try await outputTask.value
+        let finalErrorOutput = try await errorOutputTask.value
 
         // Wait for process to complete
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Error>) in
             process.terminationHandler = { process in
-                Task {
-                    // Clean up handlers
-                    outputHandle.readabilityHandler = nil
-                    errorHandle.readabilityHandler = nil
+                outputHandle.readabilityHandler = nil
+                errorHandle.readabilityHandler = nil
 
-                    // Read any remaining data
-                    let remainingStdout = outputHandle.readDataToEndOfFile()
-                    let remainingStderr = errorHandle.readDataToEndOfFile()
+                let exitStatus = exitStatus(of: process)
 
-                    if !remainingStdout.isEmpty {
-                        let bytes = [UInt8](remainingStdout)
-                        await localStreamOutput?(bytes)
-                        await outputBuffer.append(bytes)
+                let result = FoundationProcessResult(
+                    arguments: arguments,
+                    exitStatus: exitStatus,
+                    output: .success(finalOutput),
+                    stderrOutput: .success(finalErrorOutput)
+                )
+
+                switch exitStatus {
+                case .terminated(let code) where code == 0:
+                    continuation.resume(returning: result)
+                case .terminated:
+                    do {
+                        let errorOutput = try localDecoder.decode(result)
+                        continuation.resume(throwing: ProcessExecutorError.terminated(errorOutput: errorOutput))
+                    } catch {
+                        continuation.resume(throwing: ProcessExecutorError.terminated(errorOutput: nil))
                     }
-
-                    if !remainingStderr.isEmpty {
-                        let bytes = [UInt8](remainingStderr)
-                        await errorBuffer.append(bytes)
-                    }
-
-                    let exitStatus: ProcessExitStatus
-                    if process.terminationReason == .exit {
-                        exitStatus = .terminated(code: process.terminationStatus)
-                    } else {
-                        exitStatus = .signalled(signal: process.terminationStatus)
-                    }
-
-                    let finalOutputBuffer = await outputBuffer.bytes
-                    let finalErrorBuffer = await errorBuffer.bytes
-
-                    let result = FoundationProcessResult(
-                        arguments: arguments,
-                        environment: process.environment ?? [:],
-                        exitStatus: exitStatus,
-                        output: .success(finalOutputBuffer),
-                        stderrOutput: .success(finalErrorBuffer)
-                    )
-
-                    switch exitStatus {
-                    case .terminated(let code) where code == 0:
-                        continuation.resume(returning: result)
-                    case .terminated:
-                        do {
-                            let errorOutput = try localDecoder.decode(result)
-                            continuation.resume(throwing: ProcessExecutorError.terminated(errorOutput: errorOutput))
-                        } catch {
-                            continuation.resume(throwing: ProcessExecutorError.terminated(errorOutput: nil))
-                        }
-                    case .signalled(let signal):
-                        continuation.resume(throwing: ProcessExecutorError.signalled(signal))
-                    }
+                case .signalled(let signal):
+                    continuation.resume(throwing: ProcessExecutorError.signalled(signal))
                 }
             }
+        }
+    }
+
+    /// Determines the exit status of the process based on its termination reason.
+    private func exitStatus(of process: Process) -> ProcessExitStatus {
+        if process.terminationReason == .exit {
+            .terminated(code: process.terminationStatus)
+        } else {
+            .signalled(signal: process.terminationStatus)
         }
     }
 }

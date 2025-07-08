@@ -56,16 +56,6 @@ struct ProcessExecutorTests {
         #expect(output.trimmingCharacters(in: .whitespacesAndNewlines) == "arg1 arg2")
     }
 
-    @Test("Verify environment variables are captured")
-    func environmentVariablesCaptured() async throws {
-        let executor = createExecutor()
-        let result = try await executor.execute(["/usr/bin/env"])
-
-        #expect(!result.environment.isEmpty)
-        // Check that some common environment variables exist
-        #expect(result.environment["PATH"] != nil)
-    }
-
     @Test("Stream output functionality")
     func streamOutput() async throws {
         let (executor, collector) = createOutputStreamCollector()
