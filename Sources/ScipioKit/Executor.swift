@@ -118,7 +118,6 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
         process.arguments = Array(arguments.dropFirst())
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
-        process.environment = ProcessInfo.processInfo.environment
 
         let outputHandle = stdoutPipe.fileHandleForReading
         let errorHandle = stderrPipe.fileHandleForReading
