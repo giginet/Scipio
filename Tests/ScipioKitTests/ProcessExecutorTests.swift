@@ -8,7 +8,7 @@ struct ProcessExecutorTests {
     // MARK: - Test Helpers
 
     private func createExecutor() -> ProcessExecutor<StandardErrorOutputDecoder> {
-        ProcessExecutor(decoder: StandardErrorOutputDecoder())
+        ProcessExecutor(errorDecoder: StandardErrorOutputDecoder())
     }
 
     private func createOutputStreamCollector() -> (executor: ProcessExecutor<StandardErrorOutputDecoder>, outputCollector: OutputCollector) {
@@ -134,7 +134,7 @@ struct ProcessExecutorTests {
     @Test("Verify error decoder is used for terminated errors")
     func errorDecoderUsage() async throws {
         let customDecoder = TestErrorDecoder()
-        let executor = ProcessExecutor(decoder: customDecoder)
+        let executor = ProcessExecutor(errorDecoder: customDecoder)
 
         let thrownError = await #expect(throws: ProcessExecutorError.self) {
             _ = try await executor.execute(["/bin/sh", "-c", "echo 'custom error' >&2; exit 1"])

@@ -81,11 +81,11 @@ Unknown error occurered.
 }
 
 struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
-    private let decoder: Decoder
+    private let errorDecoder: Decoder
     private let fileSystem: any FileSystem
 
-    init(decoder: Decoder = StandardErrorOutputDecoder(), fileSystem: some FileSystem = LocalFileSystem()) {
-        self.decoder = decoder
+    init(errorDecoder: Decoder = StandardErrorOutputDecoder(), fileSystem: some FileSystem = LocalFileSystem()) {
+        self.errorDecoder = errorDecoder
         self.fileSystem = fileSystem
     }
 
@@ -117,7 +117,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
         let errorBuffer = ProcessOutputBuffer()
 
         let localStreamOutput = streamOutput
-        let localDecoder = decoder
+        let localDecoder = errorDecoder
 
         let outputTask = Task {
             for try await data in outputHandle.byteStream() {

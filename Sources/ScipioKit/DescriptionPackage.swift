@@ -44,7 +44,7 @@ struct DescriptionPackage: PackageLocator, Sendable {
         packageDirectory: AbsolutePath,
         mode: Runner.Mode,
         onlyUseVersionsFromResolvedFile: Bool,
-        executor: some Executor = ProcessExecutor(decoder: StandardOutputDecoder())
+        executor: some Executor = ProcessExecutor(errorDecoder: StandardOutputDecoder())
     ) async throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
