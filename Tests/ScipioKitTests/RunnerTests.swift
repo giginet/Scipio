@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import ScipioKit
+@testable @_spi(Internals) import ScipioKit
 import Logging
 
 private let fixturePath = URL(fileURLWithPath: #filePath)

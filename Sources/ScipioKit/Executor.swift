@@ -9,21 +9,25 @@ private actor ProcessOutputBuffer {
     }
 }
 
-protocol Executor {
+@_spi(Internals)
+public protocol Executor {
     @discardableResult
     func execute(_ arguments: [String]) async throws -> ExecutorResult
 }
 
-protocol ErrorDecoder: Sendable {
+@_spi(Internals)
+public protocol ErrorDecoder: Sendable {
     func decode(_ result: ExecutorResult) throws -> String?
 }
 
-enum ProcessExitStatus: Sendable, Equatable {
+@_spi(Internals)
+public enum ProcessExitStatus: Sendable, Equatable {
     case terminated(code: Int32)
     case signalled(signal: Int32)
 }
 
-protocol ExecutorResult: Sendable {
+@_spi(Internals)
+public protocol ExecutorResult: Sendable {
     var arguments: [String] { get }
 
     /// The exit status of the process.
@@ -38,27 +42,29 @@ protocol ExecutorResult: Sendable {
     var stderrOutput: Result<[UInt8], Swift.Error> { get }
 }
 
-extension Executor {
+public extension Executor {
     @discardableResult
     func execute(_ arguments: String...) async throws -> ExecutorResult {
         try await execute(arguments)
     }
 }
 
-struct FoundationProcessResult: ExecutorResult, Sendable {
-    let arguments: [String]
-    let exitStatus: ProcessExitStatus
-    var output: Result<[UInt8], Swift.Error>
-    var stderrOutput: Result<[UInt8], Swift.Error>
+@_spi(Internals)
+public struct FoundationProcessResult: ExecutorResult, Sendable {
+    public let arguments: [String]
+    public let exitStatus: ProcessExitStatus
+    public var output: Result<[UInt8], Swift.Error>
+    public var stderrOutput: Result<[UInt8], Swift.Error>
 }
 
-enum ProcessExecutorError: LocalizedError {
+@_spi(Internals)
+public enum ProcessExecutorError: LocalizedError {
     case executableNotFound
     case terminated(errorOutput: String?)
     case signalled(Int32)
     case unknownError(Swift.Error)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .executableNotFound:
             return "Executable not found or invalid"
@@ -80,18 +86,19 @@ Unknown error occurered.
     }
 }
 
-struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
+@_spi(Internals)
+public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
     private let errorDecoder: Decoder
     private let fileSystem: any FileSystem
 
-    init(errorDecoder: Decoder = StandardErrorOutputDecoder(), fileSystem: some FileSystem = LocalFileSystem()) {
+    public init(errorDecoder: Decoder = StandardErrorOutputDecoder(), fileSystem: some FileSystem = LocalFileSystem.default) {
         self.errorDecoder = errorDecoder
         self.fileSystem = fileSystem
     }
 
-    var streamOutput: (@Sendable ([UInt8]) async -> Void)?
+    public  var streamOutput: (@Sendable ([UInt8]) async -> Void)?
 
-    func execute(_ arguments: [String]) async throws -> ExecutorResult {
+    public func execute(_ arguments: [String]) async throws -> ExecutorResult {
         guard let executable = arguments.first, !executable.isEmpty else {
             throw ProcessExecutorError.executableNotFound
         }
@@ -189,7 +196,7 @@ struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
     }
 }
 
-extension ExecutorResult {
+public extension ExecutorResult {
     func unwrapOutput() throws -> String {
         switch output {
         case .success(let data):
@@ -209,14 +216,20 @@ extension ExecutorResult {
     }
 }
 
-struct StandardErrorOutputDecoder: ErrorDecoder, Sendable {
-    func decode(_ result: ExecutorResult) throws -> String? {
+@_spi(Internals)
+public struct StandardErrorOutputDecoder: ErrorDecoder, Sendable {
+    public init() {}
+
+    public func decode(_ result: ExecutorResult) throws -> String? {
         try result.unwrapStdErrOutput()
     }
 }
 
-struct StandardOutputDecoder: ErrorDecoder, Sendable {
-    func decode(_ result: ExecutorResult) throws -> String? {
+@_spi(Internals)
+public struct StandardOutputDecoder: ErrorDecoder, Sendable {
+    public init() {}
+
+    public func decode(_ result: ExecutorResult) throws -> String? {
         try result.unwrapOutput()
     }
 }

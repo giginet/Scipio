@@ -1,5 +1,5 @@
 import Foundation
-@testable import ScipioKit
+@testable @_spi(Internals) import ScipioKit
 
 final class StubbableExecutor: Executor {
     init(executeHook: @escaping (([String]) throws -> ExecutorResult)) {
