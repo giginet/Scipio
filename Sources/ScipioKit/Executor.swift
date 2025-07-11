@@ -96,7 +96,7 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
         self.fileSystem = fileSystem
     }
 
-    public  var streamOutput: (@Sendable ([UInt8]) async -> Void)?
+    public var streamOutput: (@Sendable ([UInt8]) async -> Void)?
 
     public func execute(_ arguments: [String]) async throws -> ExecutorResult {
         guard let executable = arguments.first, !executable.isEmpty else {
