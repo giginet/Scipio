@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 
 struct ToolchainGenerator {
     private let toolchainDirPath: URL
@@ -97,7 +96,7 @@ extension ToolchainGenerator {
         .spm_chomp()
 
         guard !platformPath.isEmpty else {
-            throw StringError("could not determine SDK platform path")
+            throw Error.couldNotDetermineSDKPlatformPath
         }
 
         // For XCTest framework.
@@ -113,6 +112,16 @@ extension ToolchainGenerator {
         return (frameworkPath, libPath)
     }
 
+    enum Error: LocalizedError {
+        case couldNotDetermineSDKPlatformPath
+
+        var errorDescription: String? {
+            switch self {
+            case .couldNotDetermineSDKPlatformPath:
+                return "Could not determine SDK platform path"
+            }
+        }
+    }
 }
 
 struct UserToolchain {
