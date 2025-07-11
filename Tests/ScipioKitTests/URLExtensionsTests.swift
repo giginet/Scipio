@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 @testable import ScipioKit
+import TSCBasic
 
 struct URLExtensionsTests {
     @Test("dirname returns the parent path component for given file paths", arguments: [
@@ -20,15 +21,15 @@ struct URLExtensionsTests {
     }
 
     @Test("parentDirectory returns the parent directory URL for given file paths", arguments: [
-        ("/path/to/test.txt", "/path/to/"),
+        ("/path/to/test.txt", "/path/to"),
         ("/test.txt", "/"),
         ("/", "/"),
-        ("/path//to///test.txt", "/path/to/"),
-        ("/path/to/", "/path/"),
-        ("/path/to", "/path/"),
-        ("///multiple///slashes///test.txt", "/multiple/slashes/"),
+        ("/path//to///test.txt", "/path/to"),
+        ("/path/to/", "/path"),
+        ("/path/to", "/path"),
+        ("///multiple///slashes///test.txt", "/multiple/slashes"),
         ("/path/to/../..", "/"),
-        ("/path/to/../test.txt", "/path/"),
+        ("/path/to/../test.txt", "/path"),
     ])
     func parentDirectory(input: String, expectedPath: String) {
         let url = URL(filePath: input)
