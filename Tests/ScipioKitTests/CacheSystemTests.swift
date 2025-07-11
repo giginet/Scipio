@@ -1,5 +1,5 @@
 import Foundation
-@testable import ScipioKit
+@testable @_spi(Internals) import ScipioKit
 import XCTest
 
 private let fixturePath = URL(fileURLWithPath: #filePath)

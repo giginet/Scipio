@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 import PackageManifestKit
-@testable import ScipioKit
+@testable @_spi(Internals) import ScipioKit
 
 struct VariousModulePathsTests {
     private static let fixturePath = URL(filePath: #filePath)

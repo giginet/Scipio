@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import ScipioKit
+@testable @_spi(Internals) import ScipioKit
 
 final class XcodeVersionFetcherTests: XCTestCase {
     func testFetchVersionForStableVersion() async throws {
