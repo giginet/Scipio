@@ -1,6 +1,5 @@
 import Foundation
 import Logging
-import TSCBasic
 import Algorithms
 
 struct XCBuildExecutor {
@@ -8,22 +7,22 @@ struct XCBuildExecutor {
     var xcbuildPath: URL
 
     func build(
-        pifPath: AbsolutePath,
+        pifPath: URL,
         configuration: BuildConfiguration,
-        derivedDataPath: AbsolutePath,
-        buildParametersPath: AbsolutePath,
+        derivedDataPath: URL,
+        buildParametersPath: URL,
         target: ResolvedModule
     ) async throws {
         let executor = await BufferedXCBuildMessageExecutor([
             xcbuildPath.path(percentEncoded: false),
             "build",
-            pifPath.pathString,
+            pifPath.path(percentEncoded: false),
             "--configuration",
             configuration.settingsValue,
             "--derivedDataPath",
-            derivedDataPath.pathString,
+            derivedDataPath.path(percentEncoded: false),
             "--buildParametersFile",
-            buildParametersPath.pathString,
+            buildParametersPath.path(percentEncoded: false),
             "--target",
             target.name,
         ])

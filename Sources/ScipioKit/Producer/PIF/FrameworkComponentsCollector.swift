@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 
 /// FileLists to assemble a framework bundle
 struct FrameworkComponents {
@@ -10,26 +9,26 @@ struct FrameworkComponents {
     /// - seealso: https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/FrameworkAnatomy.html
     var isVersionedBundle: Bool
     var frameworkName: String
-    var frameworkPath: AbsolutePath
-    var binaryPath: AbsolutePath
-    var infoPlistPath: AbsolutePath
-    var swiftModulesPath: AbsolutePath?
-    var includeDir: AbsolutePath?
-    var publicHeaderPaths: Set<AbsolutePath>?
-    var bridgingHeaderPath: AbsolutePath?
-    var modulemapPath: AbsolutePath?
-    var resourceBundlePath: AbsolutePath?
+    var frameworkPath: URL
+    var binaryPath: URL
+    var infoPlistPath: URL
+    var swiftModulesPath: URL?
+    var includeDir: URL?
+    var publicHeaderPaths: Set<URL>?
+    var bridgingHeaderPath: URL?
+    var modulemapPath: URL?
+    var resourceBundlePath: URL?
 }
 
 /// A collector to collect framework components from a DerivedData dir
 struct FrameworkComponentsCollector {
     enum Error: LocalizedError {
-        case infoPlistNotFound(frameworkBundlePath: AbsolutePath)
+        case infoPlistNotFound(frameworkBundlePath: URL)
 
         var errorDescription: String? {
             switch self {
             case .infoPlistNotFound(let frameworkBundlePath):
-                return "Info.plist is not found in \(frameworkBundlePath.pathString)"
+                return "Info.plist is not found in \(frameworkBundlePath.path(percentEncoded: false))"
             }
         }
     }
@@ -40,7 +39,7 @@ struct FrameworkComponentsCollector {
     private let packageLocator: any PackageLocator
     private let fileSystem: any FileSystem
 
-    private let productsDirectory: AbsolutePath
+    private let productsDirectory: URL
 
     init(
         buildProduct: BuildProduct,
@@ -62,7 +61,7 @@ struct FrameworkComponentsCollector {
     }
 
     func collectComponents(sdk: SDK) throws -> FrameworkComponents {
-        let frameworkModuleMapPath: AbsolutePath?
+        let frameworkModuleMapPath: URL?
         if let customFrameworkModuleMapContents = buildOptions.customFrameworkModuleMapContents {
             logger.info("📝 Using custom modulemap for \(buildProduct.target.name)(\(sdk.displayName))")
             frameworkModuleMapPath = try copyModuleMapContentsToBuildArtifacts(customFrameworkModuleMapContents)
@@ -74,7 +73,7 @@ struct FrameworkComponentsCollector {
         let generatedFrameworkPath = generatedFrameworkPath()
 
         let isVersionedBundle = fileSystem.exists(
-            generatedFrameworkPath.appending(component: "Resources").asURL,
+            generatedFrameworkPath.appending(component: "Resources"),
             followSymlink: true
         )
 
@@ -106,7 +105,7 @@ struct FrameworkComponentsCollector {
             binaryPath: binaryPath,
             infoPlistPath: infoPlistPath,
             swiftModulesPath: swiftModulesPath,
-            includeDir: buildProduct.target.resolvedModuleType.includeDir?.absolutePath,
+            includeDir: buildProduct.target.resolvedModuleType.includeDir,
             publicHeaderPaths: publicHeaders,
             bridgingHeaderPath: bridgingHeaderPath,
             modulemapPath: frameworkModuleMapPath,
@@ -116,14 +115,14 @@ struct FrameworkComponentsCollector {
     }
 
     /// Copy content data to the build artifacts
-    private func copyModuleMapContentsToBuildArtifacts(_ data: Data) throws -> AbsolutePath {
+    private func copyModuleMapContentsToBuildArtifacts(_ data: Data) throws -> URL {
         let generatedModuleMapPath = try packageLocator.generatedModuleMapPath(of: buildProduct.target, sdk: sdk)
 
-        try fileSystem.writeFileContents(generatedModuleMapPath.asURL, data: data)
+        try fileSystem.writeFileContents(generatedModuleMapPath, data: data)
         return generatedModuleMapPath
     }
 
-    private func generateFrameworkModuleMap() throws -> AbsolutePath? {
+    private func generateFrameworkModuleMap() throws -> URL? {
         let modulemapGenerator = FrameworkModuleMapGenerator(
             packageLocator: packageLocator,
             fileSystem: fileSystem
@@ -140,23 +139,23 @@ struct FrameworkComponentsCollector {
         return frameworkModuleMapPath
     }
 
-    private func generatedFrameworkPath() -> AbsolutePath {
+    private func generatedFrameworkPath() -> URL {
         productsDirectory.appending(component: "\(buildProduct.target.c99name).framework")
     }
 
-    private func generatedResourceBundlePath() -> AbsolutePath? {
+    private func generatedResourceBundlePath() -> URL? {
         let bundleName: String? = buildProduct.target.underlying.bundleName(for: buildProduct.package.manifest)
 
         guard let bundleName else { return nil }
 
         let path = productsDirectory.appending(component: "\(bundleName).bundle")
-        return fileSystem.exists(path.asURL) ? path : nil
+        return fileSystem.exists(path) ? path : nil
     }
 
     private func collectInfoPlist(
-        in frameworkBundlePath: AbsolutePath,
+        in frameworkBundlePath: URL,
         isVersionedBundle: Bool
-    ) throws -> AbsolutePath {
+    ) throws -> URL {
         let infoPlistLocation = if isVersionedBundle {
             // In a versioned framework bundle (for macOS), Info.plist should be in Resources
             frameworkBundlePath.appending(components: "Resources", "Info.plist")
@@ -165,7 +164,7 @@ struct FrameworkComponentsCollector {
             frameworkBundlePath.appending(component: "Info.plist")
         }
 
-        if fileSystem.exists(infoPlistLocation.asURL) {
+        if fileSystem.exists(infoPlistLocation) {
             return infoPlistLocation
         } else {
             throw Error.infoPlistNotFound(frameworkBundlePath: frameworkBundlePath)
@@ -173,24 +172,24 @@ struct FrameworkComponentsCollector {
     }
 
     /// Collects *.swiftmodules* in a generated framework bundle
-    private func collectSwiftModules(of targetName: String, in frameworkPath: AbsolutePath) throws -> AbsolutePath? {
+    private func collectSwiftModules(of targetName: String, in frameworkPath: URL) throws -> URL? {
         let swiftModulesPath = frameworkPath.appending(
             components: "Modules", "\(targetName).swiftmodule"
         )
 
-        if fileSystem.exists(swiftModulesPath.asURL) {
+        if fileSystem.exists(swiftModulesPath) {
             return swiftModulesPath
         }
         return nil
     }
 
     /// Collects a bridging header in a generated framework bundle
-    private func collectBridgingHeader(of targetName: String, in frameworkPath: AbsolutePath) throws -> AbsolutePath? {
+    private func collectBridgingHeader(of targetName: String, in frameworkPath: URL) throws -> URL? {
         let generatedBridgingHeader = frameworkPath.appending(
             components: "Headers", "\(targetName)-Swift.h"
         )
 
-        if fileSystem.exists(generatedBridgingHeader.asURL) {
+        if fileSystem.exists(generatedBridgingHeader) {
             return generatedBridgingHeader
         }
 
@@ -198,13 +197,12 @@ struct FrameworkComponentsCollector {
     }
 
     /// Collects public headers of clangTarget
-    private func collectPublicHeaders() throws -> Set<AbsolutePath>? {
+    private func collectPublicHeaders() throws -> Set<URL>? {
         guard case let .clang(_, publicHeaders) = buildProduct.target.resolvedModuleType else {
             return nil
         }
 
         let notSymlinks = publicHeaders.filter { !fileSystem.isSymlink($0) }
-            .map { $0.absolutePath }
         let symlinks = publicHeaders.filter { fileSystem.isSymlink($0) }
 
         // Sometimes, public headers include a file and its symlink both.
@@ -214,9 +212,13 @@ struct FrameworkComponentsCollector {
             // `FileManager.contentsEqual` does not traverse symbolic links, but compares the links themselves.
             // So we need to resolve the links beforehand.
             .map { $0.resolvingSymlinksInPath() }
-            .map(\.absolutePath)
             .filter { path in
-                notSymlinks.allSatisfy { !FileManager.default.contentsEqual(atPath: path.pathString, andPath: $0.pathString) }
+                notSymlinks.allSatisfy {
+                    !FileManager.default.contentsEqual(
+                        atPath: path.path(percentEncoded: false),
+                        andPath: $0.path(percentEncoded: false)
+                    )
+                }
             }
 
         return Set(notSymlinks + notDuplicatedSymlinks)

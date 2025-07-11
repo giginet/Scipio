@@ -11,7 +11,7 @@ final class DescriptionPackageTests: XCTestCase {
     func testDescriptionPackage() async throws {
         let rootPath = fixturePath.appendingPathComponent("TestingPackage")
         let package = try await DescriptionPackage(
-            packageDirectory: rootPath.absolutePath,
+            packageDirectory: rootPath,
             mode: .prepareDependencies,
             onlyUseVersionsFromResolvedFile: false
         )
@@ -21,12 +21,12 @@ final class DescriptionPackageTests: XCTestCase {
         XCTAssertEqual(packageNames.sorted(), ["TestingPackage", "swift-log"].sorted())
 
         XCTAssertEqual(
-            package.workspaceDirectory.pathString,
+            package.workspaceDirectory.path(percentEncoded: false),
             rootPath.appendingPathComponent(".build/scipio").path
         )
 
         XCTAssertEqual(
-            package.derivedDataPath.pathString,
+            package.derivedDataPath.path(percentEncoded: false),
             rootPath.appendingPathComponent(".build/scipio/DerivedData").path
         )
     }
@@ -34,7 +34,7 @@ final class DescriptionPackageTests: XCTestCase {
     func testBuildProductsInPrepareMode() async throws {
         let rootPath = fixturePath.appendingPathComponent("IntegrationTestPackage")
         let package = try await DescriptionPackage(
-            packageDirectory: rootPath.absolutePath,
+            packageDirectory: rootPath,
             mode: .prepareDependencies,
             onlyUseVersionsFromResolvedFile: false
         )
@@ -70,7 +70,7 @@ final class DescriptionPackageTests: XCTestCase {
     func testBuildProductsInCreateMode() async throws {
         let rootPath = fixturePath.appendingPathComponent("TestingPackage")
         let package = try await DescriptionPackage(
-            packageDirectory: rootPath.absolutePath,
+            packageDirectory: rootPath,
             mode: .createPackage,
             onlyUseVersionsFromResolvedFile: false
         )
@@ -91,7 +91,7 @@ final class DescriptionPackageTests: XCTestCase {
     func testBinaryBuildProductsInCreateMode() async throws {
         let rootPath = fixturePath.appendingPathComponent("BinaryPackage")
         let package = try await DescriptionPackage(
-            packageDirectory: rootPath.absolutePath,
+            packageDirectory: rootPath,
             mode: .createPackage,
             onlyUseVersionsFromResolvedFile: false
         )

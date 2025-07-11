@@ -1,7 +1,6 @@
 import Foundation
 @testable import ScipioKit
 import Testing
-import TSCBasic
 
 private let fixturesPath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
@@ -11,41 +10,40 @@ private let fixturesPath = URL(fileURLWithPath: #filePath)
 @Suite(.serialized)
 struct FrameworkBundleAssemblerTests {
     let fileSystem: LocalFileSystem = .default
-    let temporaryDirectory: AbsolutePath
+    let temporaryDirectory: URL
 
     init() {
         self.temporaryDirectory = fileSystem
             .tempDirectory
             .appending(components: "FrameworkBundleAssemblerTests")
-            .absolutePath
     }
 
     @Test
     func copyHeaders_keepPublicHeadersStructure_is_false() throws {
         let outputDirectory = temporaryDirectory.appending(component: #function)
-        defer { try? fileSystem.removeFileTree(outputDirectory.asURL) }
+        defer { try? fileSystem.removeFileTree(outputDirectory) }
 
         try assembleFramework(keepPublicHeadersStructure: false, outputDirectory: outputDirectory)
 
         let frameworkHeadersPath = outputDirectory.appending(components: "Foo.framework", "Headers")
-        #expect(Set(try fileSystem.getDirectoryContents(frameworkHeadersPath.asURL)) == ["foo.h", "bar.h"])
+        #expect(Set(try fileSystem.getDirectoryContents(frameworkHeadersPath)) == ["foo.h", "bar.h"])
     }
 
     @Test
     func copyHeaders_keepPublicHeadersStructure_is_true() throws {
         let outputDirectory = temporaryDirectory.appending(component: #function)
-        defer { try? fileSystem.removeFileTree(outputDirectory.asURL) }
+        defer { try? fileSystem.removeFileTree(outputDirectory) }
 
         try assembleFramework(keepPublicHeadersStructure: true, outputDirectory: outputDirectory)
 
         let frameworkHeadersPath = outputDirectory.appending(components: "Foo.framework", "Headers")
-        #expect(Set(try fileSystem.getDirectoryContents(frameworkHeadersPath.asURL)) == ["foo", "bar"])
-        #expect(Set(try fileSystem.getDirectoryContents(frameworkHeadersPath.appending(component: "foo").asURL)) == ["foo.h"])
-        #expect(Set(try fileSystem.getDirectoryContents(frameworkHeadersPath.appending(component: "bar").asURL)) == ["bar.h"])
+        #expect(Set(try fileSystem.getDirectoryContents(frameworkHeadersPath)) == ["foo", "bar"])
+        #expect(Set(try fileSystem.getDirectoryContents(frameworkHeadersPath.appending(component: "foo"))) == ["foo.h"])
+        #expect(Set(try fileSystem.getDirectoryContents(frameworkHeadersPath.appending(component: "bar"))) == ["bar.h"])
     }
 
-    private func assembleFramework(keepPublicHeadersStructure: Bool, outputDirectory: AbsolutePath) throws {
-        let fixture = fixturesPath.appendingPathComponent("FrameworkBundleAssemblerTests").absolutePath
+    private func assembleFramework(keepPublicHeadersStructure: Bool, outputDirectory: URL) throws {
+        let fixture = fixturesPath.appendingPathComponent("FrameworkBundleAssemblerTests")
         let frameworkComponents = FrameworkComponents(
             isVersionedBundle: false,
             frameworkName: "Foo",
