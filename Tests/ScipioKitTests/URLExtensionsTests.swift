@@ -1,7 +1,6 @@
 import Testing
 import Foundation
 @testable import ScipioKit
-import TSCBasic
 
 struct URLExtensionsTests {
     @Test("dirname returns the parent path component for given file paths", arguments: [
