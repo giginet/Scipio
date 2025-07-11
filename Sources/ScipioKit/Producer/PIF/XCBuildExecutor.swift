@@ -14,7 +14,7 @@ struct XCBuildExecutor {
         buildParametersPath: AbsolutePath,
         target: ResolvedModule
     ) async throws {
-        let executor = _Executor(args: [
+        let executor = await BufferedXCBuildMessageExecutor([
             xcbuildPath.path(percentEncoded: false),
             "build",
             pifPath.pathString,
@@ -31,23 +31,20 @@ struct XCBuildExecutor {
     }
 }
 
-private final class _Executor {
-    init(args: [String]) {
+private actor BufferedXCBuildMessageExecutor {
+    init(_ args: [String]) async {
         self.args = args
-
         self.executor = ProcessExecutor<StandardErrorOutputDecoder>()
-
         executor.streamOutput = { [weak self] bytes in
-            self?.parse(bytes: bytes)
+            await self?.parse(bytes: bytes)
         }
-        executor.collectsOutput = false
     }
 
     let args: [String]
 
     let jsonDecoder = JSONDecoder()
 
-    var executor: ProcessExecutor<StandardErrorOutputDecoder>
+    private var executor: ProcessExecutor<StandardErrorOutputDecoder>
 
     // FIXME: store log on file
     private var allMessages: [String] = []
@@ -69,7 +66,7 @@ private final class _Executor {
             _ = try await executor.execute(args)
         } catch let error as ProcessExecutorError {
             switch error {
-            case .signalled, .unknownError: throw error
+            case .executableNotFound, .signalled, .unknownError: throw error
             case .terminated:
                 let output = allMessages.joined(separator: "\n")
                 throw ProcessExecutorError.terminated(errorOutput: output)
