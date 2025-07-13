@@ -135,6 +135,7 @@ struct PIFGenerator {
         case .mergeable:
             configuration.buildSettings["OTHER_LDFLAGS"]
                 .append("-Wl,-make_mergeable")
+            fallthrough
         case .dynamic:
             guard let resolvedTarget = allModules.first(where: { $0.c99name == target.c99Name }),
                   let recursiveDependencies = try? resolvedTarget.recursiveDependencies() else {
