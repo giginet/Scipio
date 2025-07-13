@@ -6,11 +6,14 @@ private let fixturePath = URL(filePath: #filePath)
     .deletingLastPathComponent()
     .appending(components: "Resources", "Fixtures")
 
+@Suite(.serialized)
 struct DynamicFrameworkTests {
     private let fileManager: FileManager = .default
 
-    @Test
-    func otherLDFlags() async throws {
+    @Test(
+        arguments: [FrameworkType.dynamic, .mergeable]
+    )
+    func otherLDFlags(frameworkType: FrameworkType) async throws {
         let packageName = "DynamicFrameworkOtherLDFlagsTestPackage"
 
         let outputDir = fileManager.temporaryDirectory
@@ -23,7 +26,7 @@ struct DynamicFrameworkTests {
         try await buildPackage(
             packageName: packageName,
             buildOptionsMatrix: [
-                "UsableFromInlinePackage": .init(frameworkType: .dynamic),
+                "UsableFromInlinePackage": .init(frameworkType: frameworkType),
             ],
             outputDir: outputDir
         )
