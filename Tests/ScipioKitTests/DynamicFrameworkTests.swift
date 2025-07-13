@@ -2,10 +2,9 @@ import Foundation
 import Testing
 @testable import ScipioKit
 
-private let fixturePath = URL(fileURLWithPath: #filePath)
+private let fixturePath = URL(filePath: #filePath)
     .deletingLastPathComponent()
-    .appendingPathComponent("Resources")
-    .appendingPathComponent("Fixtures")
+    .appending(components: "Resources", "Fixtures")
 
 struct DynamicFrameworkTests {
     private let fileManager: FileManager = .default
@@ -15,11 +14,9 @@ struct DynamicFrameworkTests {
         let packageName = "DynamicFrameworkOtherLDFlagsTestPackage"
 
         let outputDir = fileManager.temporaryDirectory
-            .appendingPathComponent("Scipio")
-            .appendingPathComponent(packageName)
+            .appending(components: "Scipio", packageName)
 
         defer {
-            print("remove output directory: \(outputDir.path)")
             _ = try? FileManager.default.removeItem(atPath: outputDir.path)
         }
 
@@ -67,7 +64,7 @@ struct DynamicFrameworkTests {
                 verbose: false
             )
         )
-        let packageDir = fixturePath.appendingPathComponent(packageName)
+        let packageDir = fixturePath.appending(component: packageName)
 
         try await runner.run(
             packageDirectory: packageDir,
@@ -80,15 +77,14 @@ struct DynamicFrameworkTests {
         dependencies: [String: Set<Destination>],
         outputDir: URL
     ) async throws {
-        let xcFrameworkPath = outputDir.appendingPathComponent(framework.xcFrameworkName)
+        let xcFrameworkPath = outputDir.appending(component: framework.xcFrameworkName)
 
         let executor = ProcessExecutor()
 
         for arch in Destination.allCases {
-            let binaryPath = xcFrameworkPath
-                .appendingPathComponent(arch.rawValue)
-                .appendingPathComponent("\(framework.name).framework")
-                .appendingPathComponent(framework.name)
+            let binaryPath = xcFrameworkPath.appending(
+                components: arch.rawValue, "\(framework.name).framework", framework.name
+            )
 
             let executionResult = try await executor.execute("/usr/bin/otool", "-l", binaryPath.path())
             let loadCommands = try executionResult.unwrapOutput()
