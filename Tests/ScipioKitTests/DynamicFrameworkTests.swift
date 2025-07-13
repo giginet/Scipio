@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ScipioKit
+@testable @_spi(Internals) import ScipioKit
 
 private let fixturePath = URL(filePath: #filePath)
     .deletingLastPathComponent()
