@@ -1,7 +1,6 @@
 import Foundation
-@testable import ScipioKit
+@testable @_spi(Internals) import ScipioKit
 import XCTest
-import TSCBasic
 
 private let fixturePath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
@@ -100,6 +99,7 @@ final class CacheSystemTests: XCTestCase {
         // For local package consumption
         let executor = ProcessExecutor()
         _ = try await executor.execute([
+            "/usr/bin/xcrun",
             "git",
             "clone",
             "https://github.com/giginet/scipio-testing",
@@ -112,7 +112,7 @@ final class CacheSystemTests: XCTestCase {
 
         func scipioTestingCacheKey(fixture: String) async throws -> SwiftPMCacheKey {
             let descriptionPackage = try await DescriptionPackage(
-                packageDirectory: tempCacheKeyTestsDir.appending(component: fixture).absolutePath,
+                packageDirectory: tempCacheKeyTestsDir.appending(component: fixture),
                 mode: .createPackage,
                 onlyUseVersionsFromResolvedFile: false
             )
@@ -175,7 +175,7 @@ final class CacheSystemTests: XCTestCase {
         defer { try? fileSystem.removeFileTree(tempTestingPackagePath) }
 
         let descriptionPackage = try await DescriptionPackage(
-            packageDirectory: tempTestingPackagePath.absolutePath,
+            packageDirectory: tempTestingPackagePath,
             mode: .createPackage,
             onlyUseVersionsFromResolvedFile: false
         )
@@ -221,10 +221,17 @@ final class CacheSystemTests: XCTestCase {
         // Ensure that the cache key is properly calculated when the package is in a repository with the correct tag."
         let processExecutor: Executor = ProcessExecutor()
         let tempTestingPackagePathString = tempTestingPackagePath.path(percentEncoded: false)
-        try await processExecutor.execute(["git", "init", tempTestingPackagePathString])
-        try await processExecutor.execute(["git", "-C", tempTestingPackagePathString, "add", tempTestingPackagePathString])
-        try await processExecutor.execute(["git", "-C", tempTestingPackagePathString, "commit", "-m", "Initial commit"])
-        try await processExecutor.execute(["git", "-C", tempTestingPackagePathString, "tag", "v1.1"])
+        try await processExecutor.execute(["/usr/bin/xcrun", "git", "init", tempTestingPackagePathString])
+        try await processExecutor.execute([
+            "/usr/bin/xcrun",
+            "git",
+            "-C",
+            tempTestingPackagePathString,
+            "add",
+            tempTestingPackagePathString,
+        ])
+        try await processExecutor.execute(["/usr/bin/xcrun", "git", "-C", tempTestingPackagePathString, "commit", "-m", "Initial commit"])
+        try await processExecutor.execute(["/usr/bin/xcrun", "git", "-C", tempTestingPackagePathString, "tag", "v1.1"])
 
         let cacheKey = try await cacheSystem.calculateCacheKey(of: cacheTarget)
 

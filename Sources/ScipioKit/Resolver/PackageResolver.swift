@@ -27,7 +27,7 @@ actor PackageResolver {
         packageDirectory: URL,
         rootManifest: Manifest,
         fileSystem: some FileSystem,
-        executor: some Executor = ProcessExecutor(decoder: StandardOutputDecoder())
+        executor: some Executor = ProcessExecutor(errorDecoder: StandardOutputDecoder())
     ) async throws {
         // Run `swift package resolve` and read Package.resolved
         let packageResolved = try await PackageResolveExecutor(fileSystem: fileSystem, executor: executor).execute(packageDirectory: packageDirectory)

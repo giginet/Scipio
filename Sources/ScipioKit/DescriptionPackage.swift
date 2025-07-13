@@ -1,10 +1,9 @@
 import Foundation
-import TSCBasic
 import PackageManifestKit
 
 struct DescriptionPackage: PackageLocator, Sendable {
     let mode: Runner.Mode
-    let packageDirectory: AbsolutePath
+    let packageDirectory: URL
     let graph: ModulesGraph
     let manifest: PackageManifestKit.Manifest
     let jsonDecoder = JSONDecoder()
@@ -41,18 +40,18 @@ struct DescriptionPackage: PackageLocator, Sendable {
     ///   If it is `true`, Package.resolved never be updated.
     ///   Instead, the resolving will fail if the Package.resolved is mis-matched with the workspace.
     init(
-        packageDirectory: AbsolutePath,
+        packageDirectory: URL,
         mode: Runner.Mode,
         onlyUseVersionsFromResolvedFile: Bool,
-        executor: some Executor = ProcessExecutor(decoder: StandardOutputDecoder())
+        executor: some Executor = ProcessExecutor(errorDecoder: StandardOutputDecoder())
     ) async throws {
         self.packageDirectory = packageDirectory
         self.mode = mode
 
-        self.manifest = try await ScipioKit.ManifestLoader(executor: executor).loadManifest(for: packageDirectory.asURL)
+        self.manifest = try await ScipioKit.ManifestLoader(executor: executor).loadManifest(for: packageDirectory)
 
         self.graph = try await PackageResolver(
-            packageDirectory: packageDirectory.asURL,
+            packageDirectory: packageDirectory,
             rootManifest: self.manifest,
             fileSystem: LocalFileSystem.default
         ).resolve()

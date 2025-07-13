@@ -1,5 +1,4 @@
 import Foundation
-import TSCBasic
 
 // A generator to generate modulemaps which are distributed in the XCFramework
 struct FrameworkModuleMapGenerator {
@@ -13,12 +12,12 @@ struct FrameworkModuleMapGenerator {
     private var fileSystem: any FileSystem
 
     enum Error: LocalizedError {
-        case unableToLoadCustomModuleMap(AbsolutePath)
+        case unableToLoadCustomModuleMap(URL)
 
         var errorDescription: String? {
             switch self {
             case .unableToLoadCustomModuleMap(let customModuleMapPath):
-                return "Something went wrong to load \(customModuleMapPath.pathString)"
+                return "Something went wrong to load \(customModuleMapPath.path(percentEncoded: false))"
             }
         }
     }
@@ -32,7 +31,7 @@ struct FrameworkModuleMapGenerator {
         resolvedTarget: ResolvedModule,
         sdk: SDK,
         keepPublicHeadersStructure: Bool
-    ) throws -> AbsolutePath? {
+    ) throws -> URL? {
         let context = Context(
             resolvedTarget: resolvedTarget,
             sdk: sdk,
@@ -67,23 +66,23 @@ struct FrameworkModuleMapGenerator {
         if let moduleMapType {
             switch moduleMapType {
             case .custom(let customModuleMap):
-                return try convertCustomModuleMapForFramework(customModuleMap.absolutePath)
+                return try convertCustomModuleMapForFramework(customModuleMap)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
             case .umbrellaHeader(let headerPath):
                 return ([
                     "framework module \(context.resolvedTarget.c99name) {",
-                    "    umbrella header \"\(headerPath.absolutePath.basename)\"",
+                    "    umbrella header \"\(headerPath.lastPathComponent)\"",
                     "    export *",
                 ]
                 + generateLinkSection(context: context)
                 + ["}"])
                 .joined()
             case .umbrellaDirectory(let directoryPath):
-                let headers = try walkDirectoryContents(of: directoryPath.absolutePath)
+                let headers = try walkDirectoryContents(of: directoryPath)
                 let declarations = headers.map { header in
                     generateHeaderEntry(
                         for: header,
-                        of: directoryPath.absolutePath,
+                        of: directoryPath,
                         keepPublicHeadersStructure: context.keepPublicHeadersStructure
                     )
                 }
@@ -112,10 +111,10 @@ struct FrameworkModuleMapGenerator {
         }
     }
 
-    private func walkDirectoryContents(of directoryPath: AbsolutePath) throws -> Set<AbsolutePath> {
-        try fileSystem.getDirectoryContents(directoryPath.asURL).reduce(into: Set()) { headers, file in
+    private func walkDirectoryContents(of directoryPath: URL) throws -> Set<URL> {
+        try fileSystem.getDirectoryContents(directoryPath).reduce(into: Set()) { headers, file in
             let path = directoryPath.appending(component: file)
-            if fileSystem.isDirectory(path.asURL) {
+            if fileSystem.isDirectory(path) {
                 headers.formUnion(try walkDirectoryContents(of: path))
             } else if file.hasSuffix(".h") {
                 headers.insert(path)
@@ -124,23 +123,23 @@ struct FrameworkModuleMapGenerator {
     }
 
     private func generateHeaderEntry(
-        for header: AbsolutePath,
-        of directoryPath: AbsolutePath,
+        for header: URL,
+        of directoryPath: URL,
         keepPublicHeadersStructure: Bool
     ) -> String {
         if keepPublicHeadersStructure {
-            let subdirectoryComponents: [String] = if header.dirname.hasPrefix(directoryPath.pathString) {
-                header.dirname.dropFirst(directoryPath.pathString.count)
+            let subdirectoryComponents: [String] = if header.dirname.hasPrefix(directoryPath.path(percentEncoded: false)) {
+                header.dirname.dropFirst(directoryPath.path(percentEncoded: false).count)
                     .split(separator: "/")
                     .map(String.init)
             } else {
                 []
             }
 
-            let path = (subdirectoryComponents + [header.basename]).joined(separator: "/")
+            let path = (subdirectoryComponents + [header.lastPathComponent]).joined(separator: "/")
             return "    header \"\(path)\""
         } else {
-            return "    header \"\(header.basename)\""
+            return "    header \"\(header.lastPathComponent)\""
         }
     }
 
@@ -153,26 +152,26 @@ struct FrameworkModuleMapGenerator {
     private func generateModuleMapFile(
         context: Context,
         moduleMapType: ModuleMapType?,
-        outputPath: AbsolutePath
+        outputPath: URL
     ) throws {
         let dirPath = outputPath.parentDirectory
-        try fileSystem.createDirectory(dirPath.asURL, recursive: true)
+        try fileSystem.createDirectory(dirPath, recursive: true)
 
         let contents = try generateModuleMapContents(context: context, moduleMapType: moduleMapType)
-        try fileSystem.writeFileContents(outputPath.asURL, string: contents)
+        try fileSystem.writeFileContents(outputPath, string: contents)
     }
 
-    private func constructGeneratedModuleMapPath(context: Context) throws -> AbsolutePath {
+    private func constructGeneratedModuleMapPath(context: Context) throws -> URL {
         let generatedModuleMapPath = try packageLocator.generatedModuleMapPath(of: context.resolvedTarget, sdk: context.sdk)
         return generatedModuleMapPath
     }
 
-    private func convertCustomModuleMapForFramework(_ customModuleMap: AbsolutePath) throws -> String {
+    private func convertCustomModuleMapForFramework(_ customModuleMap: URL) throws -> String {
         // Sometimes, targets have their custom modulemaps.
         // However, these are not for frameworks
         // This process converts them to modulemaps for frameworks
         // like `module MyModule` to `framework module MyModule`
-        let rawData = try fileSystem.readFileContents(customModuleMap.asURL)
+        let rawData = try fileSystem.readFileContents(customModuleMap)
         guard let contents = String(bytes: rawData, encoding: .utf8) else {
             throw Error.unableToLoadCustomModuleMap(customModuleMap)
         }

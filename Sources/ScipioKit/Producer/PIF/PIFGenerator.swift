@@ -1,7 +1,5 @@
 import Foundation
-import TSCBasic
 import PIFKit
-import TSCUtility
 
 struct PIFGenerator {
     private let packageName: String
@@ -40,7 +38,7 @@ struct PIFGenerator {
             "package",
             "dump-pif",
             "--package-path",
-            packageLocator.packageDirectory.pathString,
+            packageLocator.packageDirectory.path(percentEncoded: false),
             "--build-system",
             "xcode",
         ]
@@ -49,7 +47,7 @@ struct PIFGenerator {
         return try PIFManipulator(jsonData: data)
     }
 
-    func generateJSON(for sdk: SDK) async throws -> AbsolutePath {
+    func generateJSON(for sdk: SDK) async throws -> Foundation.URL {
         let manipulator = try await buildPIFManipulator()
 
         manipulator.updateTargets { target in
@@ -60,7 +58,7 @@ struct PIFGenerator {
 
         let path = packageLocator.workspaceDirectory
             .appending(component: "manifest-\(packageName)-\(sdk.settingValue).pif")
-        try fileSystem.writeFileContents(path.asURL, data: newJSONData)
+        try fileSystem.writeFileContents(path, data: newJSONData)
         return path
     }
 
@@ -223,12 +221,12 @@ struct PIFGenerator {
             sdk: sdk
         )
         let bridgingHeaderFullPath = productsDirectory.appending(
-            components: ["\(target.c99Name).framework", "Headers", "\(target.name)-Swift.h"]
+            components: "\(target.c99Name).framework", "Headers", "\(target.name)-Swift.h"
         )
 
         configuration.buildSettings["MODULEMAP_FILE_CONTENTS"] = .string("""
         module \(target.c99Name) {
-            header "\(bridgingHeaderFullPath.pathString)"
+            header "\(bridgingHeaderFullPath.path(percentEncoded: false))"
             export *
         }
         """)
@@ -252,7 +250,7 @@ struct PIFGenerator {
             // `CFBundleExecutable` is not allowed for Info.plist contains in resource bundles.
             // So generating a Info.plist and set this
             mutableConfiguration.buildSettings["GENERATE_INFOPLIST_FILE"] = false
-            mutableConfiguration.buildSettings["INFOPLIST_FILE"] = .string(infoPlistPath.pathString)
+            mutableConfiguration.buildSettings["INFOPLIST_FILE"] = .string(infoPlistPath.path(percentEncoded: false))
             return mutableConfiguration
         }
     }

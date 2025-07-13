@@ -1,13 +1,12 @@
 import Foundation
-import TSCBasic
 
 struct ToolchainGenerator {
-    private let toolchainDirPath: AbsolutePath
+    private let toolchainDirPath: URL
     private let environment: [String: String]?
     private let executor: any Executor
 
     init(
-        toolchainDirPath: AbsolutePath,
+        toolchainDirPath: URL,
         environment: [String: String]? = nil,
         executor: any Executor = ProcessExecutor()
     ) {
@@ -25,16 +24,16 @@ struct ToolchainGenerator {
         )
             .unwrapOutput()
             .spm_chomp()
-        let sdkPath = try AbsolutePath(validating: sdkPathString)
+        let sdkPath = URL(filePath: sdkPathString)
 
         // Compute common arguments for clang and swift.
         var extraCCFlags: [String] = []
         var extraSwiftCFlags: [String] = []
         let macosSDKPlatformPaths = try await resolveSDKPlatformFrameworkPaths()
-        extraCCFlags += ["-F", macosSDKPlatformPaths.frameworkPath.pathString]
-        extraSwiftCFlags += ["-F", macosSDKPlatformPaths.frameworkPath.pathString]
-        extraSwiftCFlags += ["-I", macosSDKPlatformPaths.libPath.pathString]
-        extraSwiftCFlags += ["-L", macosSDKPlatformPaths.libPath.pathString]
+        extraCCFlags += ["-F", macosSDKPlatformPaths.frameworkPath.path(percentEncoded: false)]
+        extraSwiftCFlags += ["-F", macosSDKPlatformPaths.frameworkPath.path(percentEncoded: false)]
+        extraSwiftCFlags += ["-I", macosSDKPlatformPaths.libPath.path(percentEncoded: false)]
+        extraSwiftCFlags += ["-L", macosSDKPlatformPaths.libPath.path(percentEncoded: false)]
 
         let clangCompilerPath = try await resolveClangCompilerPath()
         let swiftCompilerPath = try await resolveSwiftCompilerPath()
@@ -46,7 +45,7 @@ struct ToolchainGenerator {
             clangCompilerPath: clangCompilerPath,
             swiftCompilerPath: swiftCompilerPath,
             toolchainLibDir: toolchainLibDir,
-            sdkPath: sdkPath.asURL,
+            sdkPath: sdkPath,
             extraFlags: UserToolchain.ExtraFlags(
                 cCompilerFlags: extraCCFlags,
                 cxxCompilerFlags: [],
@@ -86,7 +85,7 @@ extension ToolchainGenerator {
     /// This implementation is based on the original SwiftPM
     /// https://github.com/swiftlang/swift-package-manager/blob/release/6.0/Sources/PackageModel/SwiftSDKs/SwiftSDK.swift#L592-L595
     /// Returns `macosx` sdk platform framework path.
-    fileprivate func resolveSDKPlatformFrameworkPaths() async throws -> (frameworkPath: AbsolutePath, libPath: AbsolutePath) {
+    fileprivate func resolveSDKPlatformFrameworkPaths() async throws -> (frameworkPath: URL, libPath: URL) {
         let platformPath = try await executor.execute(
             "/usr/bin/xcrun",
             "--sdk",
@@ -97,22 +96,32 @@ extension ToolchainGenerator {
         .spm_chomp()
 
         guard !platformPath.isEmpty else {
-            throw StringError("could not determine SDK platform path")
+            throw Error.couldNotDetermineSDKPlatformPath
         }
 
         // For XCTest framework.
-        let frameworkPath = try AbsolutePath(validating: platformPath).appending(
+        let frameworkPath = URL(filePath: platformPath).appending(
             components: "Developer", "Library", "Frameworks"
         )
 
         // For XCTest Swift library.
-        let libPath = try AbsolutePath(validating: platformPath).appending(
+        let libPath = URL(filePath: platformPath).appending(
             components: "Developer", "usr", "lib"
         )
 
         return (frameworkPath, libPath)
     }
 
+    enum Error: LocalizedError {
+        case couldNotDetermineSDKPlatformPath
+
+        var errorDescription: String? {
+            switch self {
+            case .couldNotDetermineSDKPlatformPath:
+                return "Could not determine SDK platform path"
+            }
+        }
+    }
 }
 
 struct UserToolchain {
