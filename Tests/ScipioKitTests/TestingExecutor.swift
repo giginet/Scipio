@@ -13,7 +13,7 @@ final class StubbableExecutor: Executor {
         calledArguments.count
     }
 
-    func execute(_ arguments: [String]) async throws -> ExecutorResult {
+    func execute(_ arguments: [String], environment: [String: String]?) async throws -> ExecutorResult {
         calledArguments.append(arguments)
         return try executeHook(arguments)
     }
