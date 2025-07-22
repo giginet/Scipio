@@ -12,7 +12,7 @@ private actor ProcessOutputBuffer {
 @_spi(Internals)
 public protocol Executor {
     @discardableResult
-    func execute(_ arguments: [String]) async throws -> ExecutorResult
+    func execute(_ arguments: [String], environment: [String: String]?) async throws -> ExecutorResult
 }
 
 @_spi(Internals)
@@ -43,6 +43,11 @@ public protocol ExecutorResult: Sendable {
 }
 
 public extension Executor {
+    @discardableResult
+    func execute(_ arguments: [String]) async throws -> ExecutorResult {
+        try await execute(arguments, environment: nil)
+    }
+
     @discardableResult
     func execute(_ arguments: String...) async throws -> ExecutorResult {
         try await execute(arguments)
@@ -98,7 +103,7 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
 
     public var streamOutput: (@Sendable ([UInt8]) async -> Void)?
 
-    public func execute(_ arguments: [String]) async throws -> ExecutorResult {
+    public func execute(_ arguments: [String], environment: [String: String]?) async throws -> ExecutorResult {
         guard let executable = arguments.first, !executable.isEmpty else {
             throw ProcessExecutorError.executableNotFound
         }
@@ -108,7 +113,7 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
             throw ProcessExecutorError.executableNotFound
         }
 
-        let process = Foundation.Process()
+        let process = Process()
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
 
@@ -116,6 +121,10 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
         process.arguments = Array(arguments.dropFirst())
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
+
+        if let environment {
+            process.environment = environment
+        }
 
         let outputHandle = stdoutPipe.fileHandleForReading
         let errorHandle = stderrPipe.fileHandleForReading
