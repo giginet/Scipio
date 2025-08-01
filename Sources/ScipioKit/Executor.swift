@@ -28,7 +28,7 @@ public protocol Executor {
 
 @_spi(Internals)
 public protocol ErrorDecoder: Sendable {
-    func decode(_ result: ExecutorResult) throws -> String?git
+    func decode(_ result: ExecutorResult) throws -> String?
 }
 
 @_spi(Internals)
