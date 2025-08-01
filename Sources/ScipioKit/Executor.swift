@@ -11,13 +11,24 @@ private actor ProcessOutputBuffer {
 
 @_spi(Internals)
 public protocol Executor {
+    /// Executes the command with the given arguments and environment variables.
+    ///
+    /// - Parameters:
+    ///   - arguments: Command-line arguments for the process.
+    ///   - environment: Complete set of environment variables for the process.
+    ///     If `nil`, the current environment is used.
+    ///     If non-nil, it **replaces** the entire environment.
+    ///     Use `ProcessInfo.processInfo.environment` to preserve existing values if needed.
+    ///
+    /// - Note:
+    ///   This does not merge with the existing environment.
     @discardableResult
     func execute(_ arguments: [String], environment: [String: String]?) async throws -> ExecutorResult
 }
 
 @_spi(Internals)
 public protocol ErrorDecoder: Sendable {
-    func decode(_ result: ExecutorResult) throws -> String?
+    func decode(_ result: ExecutorResult) throws -> String?git
 }
 
 @_spi(Internals)
@@ -122,6 +133,8 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
 
+        // Completely replace the process environment if provided.
+        // If nil, the process inherits the current environment.
         if let environment {
             process.environment = environment
         }
