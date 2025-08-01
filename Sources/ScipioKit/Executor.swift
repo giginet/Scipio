@@ -127,6 +127,7 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
         let localDecoder = errorDecoder
 
         let outputTask = Task {
+            defer { try? outputHandle.close() }
             for try await data in outputHandle.byteStream() {
                 let bytes = [UInt8](data)
                 await localStreamOutput?(bytes)
@@ -136,6 +137,7 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
         }
 
         let errorOutputTask = Task {
+            defer { try? errorHandle.close() }
             for try await data in errorHandle.byteStream() {
                 let bytes = [UInt8](data)
                 await errorBuffer.append(bytes)
