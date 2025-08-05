@@ -325,7 +325,7 @@ final class RunnerTests: XCTestCase {
                 framework module ClangPackageWithCustomModulePath {
                   header "add.h"
                 }
-                
+
                 """,
             "modulemap should be converted for frameworks"
         )
