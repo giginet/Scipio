@@ -270,6 +270,10 @@ final class RunnerTests: XCTestCase {
     }
 
     func testBuildClangPackageWithCustomModulePath() async throws {
+        defer {
+            try? fileManager.removeItem(at: clangPackageWithCustomModulePath.appending(component: ".build"))
+        }
+
         let runner = Runner(
             mode: .createPackage,
             options: .init(

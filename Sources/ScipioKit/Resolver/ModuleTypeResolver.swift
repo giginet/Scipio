@@ -69,7 +69,7 @@ extension PackageResolver {
                 FileManager.default
                     .enumerator(at: source, includingPropertiesForKeys: nil)?
                     .lazy
-                    .compactMap { ($0 as? URL)?.standardizedFileURL }
+                    .compactMap { $0 as? URL }
                     .filter { url in
                         moduleExcludeFullPaths.allSatisfy { !url.path.hasPrefix($0.path) }
                     } ?? []
@@ -89,7 +89,11 @@ extension PackageResolver {
             } else {
                 .clang(
                     includeDir: includeDir,
-                    publicHeaders: sources.filter { headerExtensions.contains($0.pathExtension) }
+                    publicHeaders: FileManager.default
+                         .enumerator(at: includeDir, includingPropertiesForKeys: nil)?
+                         .compactMap { $0 as? URL }
+                         .filter { headerExtensions.contains($0.pathExtension) }
+                         ?? []
                 )
             }
         }
