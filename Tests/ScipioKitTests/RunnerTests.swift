@@ -15,6 +15,7 @@ private let clangPackagePath = fixturePath.appendingPathComponent("ClangPackage"
 private let clangPackageWithSymbolicLinkHeadersPath = fixturePath.appendingPathComponent("ClangPackageWithSymbolicLinkHeaders")
 private let clangPackageWithCustomModuleMapPath = fixturePath.appendingPathComponent("ClangPackageWithCustomModuleMap")
 private let clangPackageWithUmbrellaDirectoryPath = fixturePath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
+private let clangPackageWithCustomModulePath = fixturePath.appendingPathComponent("ClangPackageWithCustomModulePath")
 
 private struct InfoPlist: Decodable {
     var bundleVersion: String
@@ -266,6 +267,74 @@ final class RunnerTests: XCTestCase {
             XCTAssertFalse(fileManager.fileExists(atPath: versionFile.path),
                            "Should not create .\(library).version in create mode")
         }
+    }
+
+    func testBuildClangPackageWithCustomModulePath() async throws {
+        let runner = Runner(
+            mode: .createPackage,
+            options: .init(
+                baseBuildOptions: .init(isSimulatorSupported: false),
+                buildOptionsMatrix: [
+                    "ClangPackageWithCustomModulePath": .init(
+                        keepPublicHeadersStructure: true,
+                        frameworkModuleMapGenerationPolicy: .custom(
+                            clangPackageWithCustomModulePath.appending(components: [
+                                "ClangPackageWithCustomModulePath",
+                                "module.modulemap",
+                            ])
+                        )
+                    ),
+                ],
+                shouldOnlyUseVersionsFromResolvedFile: true
+            )
+        )
+        do {
+            try await runner.run(packageDirectory: clangPackageWithCustomModulePath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+        }
+
+        let libraryName = "ClangPackageWithCustomModulePath"
+        let xcFramework = frameworkOutputDir.appendingPathComponent("\(libraryName).xcframework")
+        let versionFile = frameworkOutputDir.appendingPathComponent(".\(libraryName).version")
+        let framework = xcFramework.appendingPathComponent("ios-arm64")
+            .appendingPathComponent("\(libraryName).framework")
+
+        XCTAssertTrue(
+            fileManager.fileExists(
+                atPath: framework.appending(
+                    components: ["Headers", "ClangPackageWithCustomModulePath", "add.h"]
+                )
+                .path(percentEncoded: false)
+            ),
+            "Should exist an umbrella header"
+        )
+
+        let moduleMapPath = framework.appending(components: ["Modules", "module.modulemap"])
+            .path(percentEncoded: false)
+
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: moduleMapPath),
+            "Should exist a modulemap"
+        )
+        let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: UTF8.self) })
+        XCTAssertEqual(
+            moduleMapContents,
+                """
+                framework module ClangPackageWithCustomModulePath {
+                  header "add.h"
+                }
+                
+                """,
+            "modulemap should be converted for frameworks"
+        )
+
+        XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
+                      "Should create \(libraryName).xcframework")
+        XCTAssertFalse(fileManager.fileExists(atPath: versionFile.path),
+                       "Should not create .\(libraryName).version in create mode")
+
     }
 
     func testCacheIsValid() async throws {

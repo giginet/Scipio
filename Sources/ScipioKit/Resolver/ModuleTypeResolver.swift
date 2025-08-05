@@ -63,13 +63,13 @@ extension PackageResolver {
             let moduleSourcesFullPaths = target.sources?.map { moduleFullPath.appending(component: $0) } ?? [moduleFullPath]
             let moduleExcludeFullPaths = target.exclude.map { moduleFullPath.appending(component: $0) }
             let publicHeadersPath = target.publicHeadersPath ?? "include"
-            let includeDir = moduleFullPath.appendingPathComponent(publicHeadersPath)
+            let includeDir = moduleFullPath.appending(component: publicHeadersPath).standardizedFileURL
 
             let sources: [URL] = moduleSourcesFullPaths.flatMap { source in
                 FileManager.default
                     .enumerator(at: source, includingPropertiesForKeys: nil)?
                     .lazy
-                    .compactMap { $0 as? URL }
+                    .compactMap { ($0 as? URL)?.standardizedFileURL }
                     .filter { url in
                         moduleExcludeFullPaths.allSatisfy { !url.path.hasPrefix($0.path) }
                     } ?? []
@@ -89,11 +89,7 @@ extension PackageResolver {
             } else {
                 .clang(
                     includeDir: includeDir,
-                    publicHeaders: FileManager.default
-                        .enumerator(at: includeDir, includingPropertiesForKeys: nil)?
-                        .compactMap { $0 as? URL }
-                        .filter { headerExtensions.contains($0.pathExtension) }
-                        ?? []
+                    publicHeaders: sources.filter { headerExtensions.contains($0.pathExtension) }
                 )
             }
         }
