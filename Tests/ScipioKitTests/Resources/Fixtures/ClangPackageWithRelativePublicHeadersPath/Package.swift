@@ -4,24 +4,24 @@
 import PackageDescription
 
 let package = Package(
-    name: "ClangPackageWithCustomModulePath",
+    name: "ClangPackageWithRelativePublicHeadersPath",
     platforms: [
         .iOS(.v18)
     ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "ClangPackageWithCustomModulePath",
-            targets: ["ClangPackageWithCustomModulePath"]
+            name: "ClangPackageWithRelativePublicHeadersPath",
+            targets: ["ClangPackageWithRelativePublicHeadersPath"]
         )
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "ClangPackageWithCustomModulePath",
+            name: "ClangPackageWithRelativePublicHeadersPath",
             path: ".",
-            sources: ["ClangPackageWithCustomModulePath"],
+            sources: ["ClangPackageWithRelativePublicHeadersPath"],
             publicHeadersPath: "."
         ),
     ]

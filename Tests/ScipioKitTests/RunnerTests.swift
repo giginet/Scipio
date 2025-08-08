@@ -15,7 +15,7 @@ private let clangPackagePath = fixturePath.appendingPathComponent("ClangPackage"
 private let clangPackageWithSymbolicLinkHeadersPath = fixturePath.appendingPathComponent("ClangPackageWithSymbolicLinkHeaders")
 private let clangPackageWithCustomModuleMapPath = fixturePath.appendingPathComponent("ClangPackageWithCustomModuleMap")
 private let clangPackageWithUmbrellaDirectoryPath = fixturePath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
-private let clangPackageWithCustomModulePath = fixturePath.appendingPathComponent("ClangPackageWithCustomModulePath")
+private let clangPackageWithRelativePublicHeadersPath = fixturePath.appendingPathComponent("ClangPackageWithRelativePublicHeadersPath")
 
 private struct InfoPlist: Decodable {
     var bundleVersion: String
@@ -269,9 +269,9 @@ final class RunnerTests: XCTestCase {
         }
     }
 
-    func testBuildClangPackageWithCustomModulePath() async throws {
+    func testBuildClangPackageWithRelativePublicHeadersPath() async throws {
         defer {
-            try? fileManager.removeItem(at: clangPackageWithCustomModulePath.appending(component: ".build"))
+            try? fileManager.removeItem(at: clangPackageWithRelativePublicHeadersPath.appending(component: ".build"))
         }
 
         let runner = Runner(
@@ -279,21 +279,21 @@ final class RunnerTests: XCTestCase {
             options: .init(
                 baseBuildOptions: .init(isSimulatorSupported: false),
                 buildOptionsMatrix: [
-                    "ClangPackageWithCustomModulePath": .init(
+                    "ClangPackageWithRelativePublicHeadersPath": .init(
                         keepPublicHeadersStructure: true
-                    )
+                    ),
                 ],
                 shouldOnlyUseVersionsFromResolvedFile: true
             )
         )
         do {
-            try await runner.run(packageDirectory: clangPackageWithCustomModulePath,
+            try await runner.run(packageDirectory: clangPackageWithRelativePublicHeadersPath,
                                  frameworkOutputDir: .custom(frameworkOutputDir))
         } catch {
             XCTFail("Build should be succeeded. \(error.localizedDescription)")
         }
 
-        let libraryName = "ClangPackageWithCustomModulePath"
+        let libraryName = "ClangPackageWithRelativePublicHeadersPath"
         let xcFramework = frameworkOutputDir.appendingPathComponent("\(libraryName).xcframework")
         let versionFile = frameworkOutputDir.appendingPathComponent(".\(libraryName).version")
         let framework = xcFramework.appendingPathComponent("ios-arm64")
@@ -302,7 +302,7 @@ final class RunnerTests: XCTestCase {
         XCTAssertTrue(
             fileManager.fileExists(
                 atPath: framework.appending(
-                    components: ["Headers", "ClangPackageWithCustomModulePath", "add.h"]
+                    components: ["Headers", "ClangPackageWithRelativePublicHeadersPath", "add.h"]
                 )
                 .path(percentEncoded: false)
             ),
@@ -320,8 +320,8 @@ final class RunnerTests: XCTestCase {
         XCTAssertEqual(
             moduleMapContents,
                 """
-                framework module ClangPackageWithCustomModulePath {
-                    header "ClangPackageWithCustomModulePath/add.h"
+                framework module ClangPackageWithRelativePublicHeadersPath {
+                    header "ClangPackageWithRelativePublicHeadersPath/add.h"
                     export *
                 }
                 """,

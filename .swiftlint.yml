@@ -23,3 +23,7 @@ trailing_comma:
   mandatory_comma: true
 type_body_length:
   warning: 400
+identifier_name:
+  max_length:
+    warning: 45
+
