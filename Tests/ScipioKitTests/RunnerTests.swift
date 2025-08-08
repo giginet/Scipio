@@ -280,14 +280,8 @@ final class RunnerTests: XCTestCase {
                 baseBuildOptions: .init(isSimulatorSupported: false),
                 buildOptionsMatrix: [
                     "ClangPackageWithCustomModulePath": .init(
-                        keepPublicHeadersStructure: true,
-                        frameworkModuleMapGenerationPolicy: .custom(
-                            clangPackageWithCustomModulePath.appending(components: [
-                                "ClangPackageWithCustomModulePath",
-                                "module.modulemap",
-                            ])
-                        )
-                    ),
+                        keepPublicHeadersStructure: true
+                    )
                 ],
                 shouldOnlyUseVersionsFromResolvedFile: true
             )
@@ -312,7 +306,7 @@ final class RunnerTests: XCTestCase {
                 )
                 .path(percentEncoded: false)
             ),
-            "Should exist an umbrella header"
+            "Should exist a header while preserving the public header structure"
         )
 
         let moduleMapPath = framework.appending(components: ["Modules", "module.modulemap"])
@@ -327,9 +321,9 @@ final class RunnerTests: XCTestCase {
             moduleMapContents,
                 """
                 framework module ClangPackageWithCustomModulePath {
-                  header "add.h"
+                    header "ClangPackageWithCustomModulePath/add.h"
+                    export *
                 }
-
                 """,
             "modulemap should be converted for frameworks"
         )
@@ -338,7 +332,6 @@ final class RunnerTests: XCTestCase {
                       "Should create \(libraryName).xcframework")
         XCTAssertFalse(fileManager.fileExists(atPath: versionFile.path),
                        "Should not create .\(libraryName).version in create mode")
-
     }
 
     func testCacheIsValid() async throws {
