@@ -149,6 +149,10 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
         let localDecoder = errorDecoder
 
         let outputTask = Task {
+            // Workaround to avoid "Bad file descriptor" error when executing processes at high concurrency.
+            // Investigate this section if command output is missing
+            // ref: https://github.com/swiftlang/swift/issues/57827
+            defer { try? outputHandle.close() }
             for try await data in outputHandle.byteStream() {
                 let bytes = [UInt8](data)
                 await localStreamOutput?(bytes)
@@ -158,6 +162,10 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
         }
 
         let errorOutputTask = Task {
+            // Workaround to avoid "Bad file descriptor" error when executing processes at high concurrency.
+            // Investigate this section if command output is missing
+            // ref: https://github.com/swiftlang/swift/issues/57827
+            defer { try? errorHandle.close() }
             for try await data in errorHandle.byteStream() {
                 let bytes = [UInt8](data)
                 await errorBuffer.append(bytes)
