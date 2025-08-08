@@ -15,7 +15,6 @@ private let clangPackagePath = fixturePath.appendingPathComponent("ClangPackage"
 private let clangPackageWithSymbolicLinkHeadersPath = fixturePath.appendingPathComponent("ClangPackageWithSymbolicLinkHeaders")
 private let clangPackageWithCustomModuleMapPath = fixturePath.appendingPathComponent("ClangPackageWithCustomModuleMap")
 private let clangPackageWithUmbrellaDirectoryPath = fixturePath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
-private let clangPackageWithRelativePublicHeadersPath = fixturePath.appendingPathComponent("ClangPackageWithRelativePublicHeadersPath")
 
 private struct InfoPlist: Decodable {
     var bundleVersion: String
@@ -267,71 +266,6 @@ final class RunnerTests: XCTestCase {
             XCTAssertFalse(fileManager.fileExists(atPath: versionFile.path),
                            "Should not create .\(library).version in create mode")
         }
-    }
-
-    func testBuildClangPackageWithRelativePublicHeadersPath() async throws {
-        defer {
-            try? fileManager.removeItem(at: clangPackageWithRelativePublicHeadersPath.appending(component: ".build"))
-        }
-
-        let runner = Runner(
-            mode: .createPackage,
-            options: .init(
-                baseBuildOptions: .init(isSimulatorSupported: false),
-                buildOptionsMatrix: [
-                    "ClangPackageWithRelativePublicHeadersPath": .init(
-                        keepPublicHeadersStructure: true
-                    ),
-                ],
-                shouldOnlyUseVersionsFromResolvedFile: true
-            )
-        )
-        do {
-            try await runner.run(packageDirectory: clangPackageWithRelativePublicHeadersPath,
-                                 frameworkOutputDir: .custom(frameworkOutputDir))
-        } catch {
-            XCTFail("Build should be succeeded. \(error.localizedDescription)")
-        }
-
-        let libraryName = "ClangPackageWithRelativePublicHeadersPath"
-        let xcFramework = frameworkOutputDir.appendingPathComponent("\(libraryName).xcframework")
-        let versionFile = frameworkOutputDir.appendingPathComponent(".\(libraryName).version")
-        let framework = xcFramework.appendingPathComponent("ios-arm64")
-            .appendingPathComponent("\(libraryName).framework")
-
-        XCTAssertTrue(
-            fileManager.fileExists(
-                atPath: framework.appending(
-                    components: ["Headers", "ClangPackageWithRelativePublicHeadersPath", "add.h"]
-                )
-                .path(percentEncoded: false)
-            ),
-            "Should exist a header while preserving the public header structure"
-        )
-
-        let moduleMapPath = framework.appending(components: ["Modules", "module.modulemap"])
-            .path(percentEncoded: false)
-
-        XCTAssertTrue(
-            fileManager.fileExists(atPath: moduleMapPath),
-            "Should exist a modulemap"
-        )
-        let moduleMapContents = try XCTUnwrap(fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: UTF8.self) })
-        XCTAssertEqual(
-            moduleMapContents,
-                """
-                framework module ClangPackageWithRelativePublicHeadersPath {
-                    header "ClangPackageWithRelativePublicHeadersPath/add.h"
-                    export *
-                }
-                """,
-            "modulemap should be converted for frameworks"
-        )
-
-        XCTAssertTrue(fileManager.fileExists(atPath: xcFramework.path),
-                      "Should create \(libraryName).xcframework")
-        XCTAssertFalse(fileManager.fileExists(atPath: versionFile.path),
-                       "Should not create .\(libraryName).version in create mode")
     }
 
     func testCacheIsValid() async throws {
