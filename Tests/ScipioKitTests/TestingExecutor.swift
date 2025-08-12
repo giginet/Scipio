@@ -1,7 +1,7 @@
 import Foundation
 @testable @_spi(Internals) import ScipioKit
 
-final class StubbableExecutor: Executor {
+actor StubbableExecutor: Executor {
     init(executeHook: @escaping (([String]) throws -> ExecutorResult)) {
         self.executeHook = executeHook
     }
