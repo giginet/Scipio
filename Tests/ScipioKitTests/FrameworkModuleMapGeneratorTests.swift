@@ -7,6 +7,7 @@ private let fixturesPath = URL(fileURLWithPath: #filePath)
     .appendingPathComponent("Resources")
     .appendingPathComponent("Fixtures")
 private let clangPackageWithUmbrellaDirectoryPath = fixturesPath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
+private let clangPackageWithRelativePublicHeadersPath = fixturesPath.appendingPathComponent("ClangPackageWithRelativePublicHeadersPath")
 
 private struct PackageLocatorMock: PackageLocator {
     let packageDirectory: URL
@@ -29,6 +30,8 @@ struct FrameworkModuleMapGeneratorTests {
         defer { try? fileSystem.removeFileTree(outputDirectory) }
 
         let generatedModuleMapContents = try await generateModuleMap(
+            for: clangPackageWithUmbrellaDirectoryPath,
+            moduleName: "MyTarget",
             keepPublicHeadersStructure: false,
             outputDirectory: outputDirectory
         )
@@ -51,6 +54,8 @@ framework module MyTarget {
         defer { try? fileSystem.removeFileTree(outputDirectory) }
 
         let generatedModuleMapContents = try await generateModuleMap(
+            for: clangPackageWithUmbrellaDirectoryPath,
+            moduleName: "MyTarget",
             keepPublicHeadersStructure: true,
             outputDirectory: outputDirectory
         )
@@ -67,7 +72,29 @@ framework module MyTarget {
         #expect(generatedModuleMapContents == expectedModuleMapContents)
     }
 
+    @Test
+    func generate_keepPublicHeadersStructure_is_true_withRelativePublicHeadersPath() async throws {
+        let outputDirectory = temporaryDirectory.appending(component: #function)
+        defer { try? fileSystem.removeFileTree(outputDirectory) }
+
+        let generatedModuleMapContents = try await generateModuleMap(
+            for: clangPackageWithRelativePublicHeadersPath,
+            moduleName: "ClangPackageWithRelativePublicHeadersPath",
+            keepPublicHeadersStructure: true,
+            outputDirectory: outputDirectory
+        )
+        let expectedModuleMapContents = """
+framework module ClangPackageWithRelativePublicHeadersPath {
+    header "ClangPackageWithRelativePublicHeadersPath/add.h"
+    export *
+}
+"""
+        #expect(generatedModuleMapContents == expectedModuleMapContents)
+    }
+
     private func generateModuleMap(
+        for packageDirectory: URL,
+        moduleName: String,
         keepPublicHeadersStructure: Bool,
         outputDirectory: URL
     ) async throws -> String {
@@ -78,12 +105,12 @@ framework module MyTarget {
         )
 
         let descriptionPackage = try await DescriptionPackage(
-            packageDirectory: clangPackageWithUmbrellaDirectoryPath,
+            packageDirectory: packageDirectory,
             mode: .createPackage,
             onlyUseVersionsFromResolvedFile: false
         )
         let generatedModuleMapPath = try generator.generate(
-            resolvedTarget: #require(descriptionPackage.graph.module(for: "MyTarget")),
+            resolvedTarget: #require(descriptionPackage.graph.module(for: moduleName)),
             sdk: SDK.macOS,
             keepPublicHeadersStructure: keepPublicHeadersStructure
         )

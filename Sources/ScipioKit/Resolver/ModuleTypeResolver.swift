@@ -63,7 +63,7 @@ extension PackageResolver {
             let moduleSourcesFullPaths = target.sources?.map { moduleFullPath.appending(component: $0) } ?? [moduleFullPath]
             let moduleExcludeFullPaths = target.exclude.map { moduleFullPath.appending(component: $0) }
             let publicHeadersPath = target.publicHeadersPath ?? "include"
-            let includeDir = moduleFullPath.appendingPathComponent(publicHeadersPath)
+            let includeDir = moduleFullPath.appending(component: publicHeadersPath).standardizedFileURL
 
             let sources: [URL] = moduleSourcesFullPaths.flatMap { source in
                 FileManager.default
