@@ -73,7 +73,7 @@ framework module MyTarget {
     }
 
     @Test
-    func generate_keepPublicHeadersStructure_withRelativePublicHeadersPath_is_true() async throws {
+    func generate_keepPublicHeadersStructure_is_true_withRelativePublicHeadersPath() async throws {
         let outputDirectory = temporaryDirectory.appending(component: #function)
         defer { try? fileSystem.removeFileTree(outputDirectory) }
 
