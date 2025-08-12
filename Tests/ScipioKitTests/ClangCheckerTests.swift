@@ -10,9 +10,9 @@ final class ClangCheckerTests: XCTestCase {
     """
 
     func testParseClangVersion() async throws {
-        let hook = { arguments in
+        let hook = { @Sendable [clangVersion] arguments in
             XCTAssertEqual(arguments, ["/usr/bin/xcrun", "clang", "--version"])
-            return StubbableExecutorResult(arguments: arguments, success: self.clangVersion)
+            return StubbableExecutorResult(arguments: arguments, success: clangVersion)
         }
         let clangParser = ClangChecker(executor: StubbableExecutor(executeHook: hook))
         let version = try await clangParser.fetchClangVersion()

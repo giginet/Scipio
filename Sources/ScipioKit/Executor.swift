@@ -10,7 +10,7 @@ private actor ProcessOutputBuffer {
 }
 
 @_spi(Internals)
-public protocol Executor {
+public protocol Executor: Sendable {
     /// Executes the command with the given arguments and environment variables.
     ///
     /// - Parameters:
