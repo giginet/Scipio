@@ -78,7 +78,8 @@ struct DynamicFrameworkTests {
     private func checkPlatformDependentLibraries(
         framework: Framework,
         dependencies: [String: Set<Destination>],
-        outputDir: URL
+        outputDir: URL,
+        sourceLocation: SourceLocation = #_sourceLocation
     ) async throws {
         let xcFrameworkPath = outputDir.appending(component: framework.xcFrameworkName)
 
@@ -89,7 +90,7 @@ struct DynamicFrameworkTests {
                 components: arch.rawValue, "\(framework.name).framework", framework.name
             )
 
-            let executionResult = try await executor.execute("/usr/bin/otool", "-l", binaryPath.path())
+            let executionResult = try await executor.execute("/usr/bin/otool", "-l", binaryPath.path(percentEncoded: false))
             let loadCommands = try executionResult.unwrapOutput()
 
             for (dependencyName, destinations) in dependencies {

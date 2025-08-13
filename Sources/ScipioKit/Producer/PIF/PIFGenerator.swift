@@ -144,7 +144,7 @@ struct PIFGenerator {
 
             for (platforms, dependencies) in moduleDependenciesPerPlatforms {
                 let flags = dependencies.flatMap {
-                    ["-framework", $0.name]
+                    ["-framework", $0.c99name]
                 }
 
                 if let platforms {
