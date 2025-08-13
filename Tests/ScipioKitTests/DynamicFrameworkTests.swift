@@ -85,19 +85,19 @@ struct DynamicFrameworkTests {
 
         let executor = ProcessExecutor()
 
-        for arch in Destination.allCases {
+        for destination in Destination.allCases {
             let binaryPath = xcFrameworkPath.appending(
-                components: arch.rawValue, "\(framework.name).framework", framework.name
+                components: destination.rawValue, "\(framework.name).framework", framework.name
             )
 
             let executionResult = try await executor.execute("/usr/bin/otool", "-l", binaryPath.path(percentEncoded: false))
             let loadCommands = try executionResult.unwrapOutput()
 
             for (dependencyName, destinations) in dependencies {
-                let shouldContain = destinations.contains(arch)
+                let shouldContain = destinations.contains(destination)
                 #expect(
                     loadCommands.contains(dependencyName) == shouldContain,
-                    "\(dependencyName) \(shouldContain ? "must" : "must NOT") be linked to \(framework.name) for \(arch)."
+                    "\(dependencyName) \(shouldContain ? "must" : "must NOT") be linked to \(framework.name) for \(destination)."
                 )
             }
         }
