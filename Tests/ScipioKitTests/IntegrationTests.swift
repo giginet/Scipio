@@ -95,6 +95,21 @@ final class IntegrationTests: XCTestCase {
         )
     }
 
+    func testDynamicFramework() async throws {
+        try await testBuildPackages(
+            packageName: "DynamicFrameworkOtherLDFlagsTestPackage",
+            buildOptionsMatrix: [
+                "UsableFromInlinePackage": .init(frameworkType: .dynamic),
+            ],
+            testCases: [
+                ("UsableFromInlinePackage", .dynamic, [.iOS, .macOS], false),
+                ("ClangModule", .static, [.iOS, .macOS], true),
+                ("ClangModuleForIOS", .static, [.iOS, .macOS], true),
+                ("ClangModuleForMacOS", .static, [.iOS, .macOS], true),
+            ]
+        )
+    }
+
     private typealias TestCase = (String, FrameworkType, Set<Destination>, Bool)
 
     private func testBuildPackages(
