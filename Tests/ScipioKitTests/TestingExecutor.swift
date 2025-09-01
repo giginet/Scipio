@@ -1,19 +1,19 @@
 import Foundation
 @testable @_spi(Internals) import ScipioKit
 
-actor StubbableExecutor: Executor {
-    init(executeHook: @escaping (([String]) throws -> ExecutorResult)) {
+actor StubbableExecutor<R: ExecutorResult>: Executor {
+    init(executeHook: @escaping (([String]) throws -> R)) {
         self.executeHook = executeHook
     }
 
-    let executeHook: (([String]) throws -> any ExecutorResult)
+    let executeHook: (([String]) throws -> R)
     private(set) var calledArguments: [[String]] = []
 
     var calledCount: Int {
         calledArguments.count
     }
 
-    func execute(_ arguments: [String], environment: [String: String]?) async throws -> ExecutorResult {
+    func execute(_ arguments: [String], environment: [String: String]?) async throws -> R {
         calledArguments.append(arguments)
         return try executeHook(arguments)
     }

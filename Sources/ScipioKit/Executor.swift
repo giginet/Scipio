@@ -11,6 +11,7 @@ private actor ProcessOutputBuffer {
 
 @_spi(Internals)
 public protocol Executor: Sendable {
+    associatedtype Result: ExecutorResult
     /// Executes the command with the given arguments and environment variables.
     ///
     /// - Parameters:
@@ -23,7 +24,7 @@ public protocol Executor: Sendable {
     /// - Note:
     ///   This does not merge with the existing environment.
     @discardableResult
-    func execute(_ arguments: [String], environment: [String: String]?) async throws -> ExecutorResult
+    func execute(_ arguments: [String], environment: [String: String]?) async throws -> Result
 }
 
 @_spi(Internals)
@@ -55,12 +56,12 @@ public protocol ExecutorResult: Sendable {
 
 public extension Executor {
     @discardableResult
-    func execute(_ arguments: [String]) async throws -> ExecutorResult {
+    func execute(_ arguments: [String]) async throws -> some ExecutorResult {
         try await execute(arguments, environment: nil)
     }
 
     @discardableResult
-    func execute(_ arguments: String...) async throws -> ExecutorResult {
+    func execute(_ arguments: String...) async throws -> some ExecutorResult {
         try await execute(arguments)
     }
 }
@@ -114,7 +115,10 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
 
     public var streamOutput: (@Sendable ([UInt8]) async -> Void)?
 
-    public func execute(_ arguments: [String], environment: [String: String]?) async throws -> ExecutorResult {
+    public func execute(
+        _ arguments: [String],
+        environment: [String: String]?
+    ) async throws -> some ExecutorResult {
         guard let executable = arguments.first, !executable.isEmpty else {
             throw ProcessExecutorError.executableNotFound
         }
@@ -185,7 +189,7 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
         let finalErrorOutput = try await errorOutputTask.value
 
         // Wait for process to complete
-        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Error>) in
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<FoundationProcessResult, Error>) in
             process.terminationHandler = { process in
                 outputHandle.readabilityHandler = nil
                 errorHandle.readabilityHandler = nil
