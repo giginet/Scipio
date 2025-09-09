@@ -21,7 +21,7 @@ jobs:
           --hosting-base-path Scipio
         env:
           SCIPIO_DEVELOPMENT: 1
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: docs
   DeployDocC:
