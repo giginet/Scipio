@@ -375,7 +375,7 @@ struct FrameworkProducer {
         }
     }
 
-    internal func shareRestoredCachesToProducers(
+    private func shareRestoredCachesToProducers(
         _ restoredTargets: Set<CacheSystem.CacheTarget>,
         cacheSystem: CacheSystem
     ) async {

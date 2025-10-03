@@ -103,20 +103,25 @@ struct FrameworkProducerTests {
             )
         )
 
-        let restoredTargets: Set<CacheSystem.CacheTarget> = [mockTarget]
         let mockCacheKey = try await cacheSystem.calculateCacheKey(of: mockTarget)
 
-        // Setup initial state: producer1 has cache, producer2 doesn't
+        // Setup initial state: consumer and producer1 have cache, producer2 doesn't
+        try await consumerStorage.setHasCache(for: mockCacheKey, value: true)
         try await producer1Storage.setHasCache(for: mockCacheKey, value: true)
         try await producer2Storage.setHasCache(for: mockCacheKey, value: false)
 
         // Test FrameworkProducer's cache sharing functionality
-        await frameworkProducer.shareRestoredCachesToProducers(restoredTargets, cacheSystem: cacheSystem)
+        try await frameworkProducer.produce()
 
+        let consumerCacheCalls = await consumerStorage.getCacheFrameworkCalls()
         let producer1CacheCalls = await producer1Storage.getCacheFrameworkCalls()
         let producer2CacheCalls = await producer2Storage.getCacheFrameworkCalls()
 
-        // Verify behavior: producer1 already has cache so no call, producer2 doesn't have cache so gets a call
+        // Verify cache sharing behavior:
+        // - Consumer storage should not be called for caching (it's only used for restoration)
+        // - Producer1 already has cache so no call should be made
+        // - Producer2 doesn't have cache so should receive shared cache
+        #expect(consumerCacheCalls.count == 0, "Consumer storage should not be called for caching during sharing")
         #expect(producer1CacheCalls.count == 0, "Producer1 already has cache, so cacheFramework should not be called")
         try #require(producer2CacheCalls.count == 1, "Producer2 doesn't have cache, so cacheFramework should be called once")
 
