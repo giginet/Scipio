@@ -390,6 +390,8 @@ struct FrameworkProducer {
         for storage in storagesWithProducer {
             await shareCachesToStorage(restoredTargets, to: storage, cacheSystem: cacheSystem)
         }
+
+        logger.info("⏹️ Sharing to other cache storages finished", metadata: .color(.green))
     }
 
     private func shareCachesToStorage(
