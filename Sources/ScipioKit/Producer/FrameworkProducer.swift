@@ -105,6 +105,11 @@ struct FrameworkProducer {
                     to: storagesWithConsumer,
                     cacheSystem: cacheSystem
                 )
+                
+                if !restored.isEmpty {
+                    await shareRestoredCachesToProducers(restored, cacheSystem: cacheSystem)
+                }
+                
                 let skipTargets = valid.union(restored)
                 targetGraph.remove(skipTargets)
             }
@@ -367,6 +372,44 @@ struct FrameworkProducer {
             try await cacheSystem.generateVersionFile(for: target)
         } catch {
             logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
+        }
+    }
+    
+    internal func shareRestoredCachesToProducers(_ restoredTargets: Set<CacheSystem.CacheTarget>, cacheSystem: CacheSystem) async {
+        let storagesWithProducer = cachePolicies.storages(for: .producer)
+        guard !storagesWithProducer.isEmpty else { return }
+        
+        logger.info("🔄 Sharing \(restoredTargets.count) restored framework(s) to other cache storages", metadata: .color(.blue))
+        
+        for storage in storagesWithProducer {
+            await shareCachesToStorage(restoredTargets, to: storage, cacheSystem: cacheSystem)
+        }
+    }
+    
+    private func shareCachesToStorage(_ targets: Set<CacheSystem.CacheTarget>, to storage: any CacheStorage, cacheSystem: CacheSystem) async {
+        let chunked = targets.chunks(ofCount: storage.parallelNumber ?? CacheSystem.defaultParalellNumber)
+        
+        for chunk in chunked {
+            await withTaskGroup(of: Void.self) { group in
+                for target in chunk {
+                    group.addTask {
+                        do {
+                            let cacheKey = try await cacheSystem.calculateCacheKey(of: target)
+                            let hasCache = try await storage.existsValidCache(for: cacheKey)
+                            guard !hasCache else { return }
+                            
+                            let frameworkName = target.buildProduct.frameworkName
+                            let frameworkPath = outputDir.appendingPathComponent(frameworkName)
+                            
+                            logger.info("🔄 Share \(frameworkName) to cache storage: \(storage.displayName)", metadata: .color(.blue))
+                            try await storage.cacheFramework(frameworkPath, for: cacheKey)
+                        } catch {
+                            logger.warning("⚠️ Failed to share cache to \(storage.displayName): \(error.localizedDescription)", metadata: .color(.yellow))
+                        }
+                    }
+                }
+                await group.waitForAll()
+            }
         }
     }
 }
