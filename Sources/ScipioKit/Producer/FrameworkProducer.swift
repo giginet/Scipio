@@ -142,7 +142,7 @@ struct FrameworkProducer {
         availableTargets: Set<CacheSystem.CacheTarget>,
         cacheSystem: CacheSystem
     ) async -> Set<CacheSystem.CacheTarget> {
-        let chunked = availableTargets.chunks(ofCount: CacheSystem.defaultParalellNumber)
+        let chunked = availableTargets.chunks(ofCount: CacheSystem.defaultParallelNumber)
 
         var validFrameworks: Set<CacheSystem.CacheTarget> = []
         for chunk in chunked {
@@ -237,7 +237,7 @@ struct FrameworkProducer {
         from cacheStorage: any CacheStorage,
         cacheSystem: CacheSystem
     ) async -> Set<CacheSystem.CacheTarget> {
-        let chunked = targets.chunks(ofCount: cacheStorage.parallelNumber ?? CacheSystem.defaultParalellNumber)
+        let chunked = targets.chunks(ofCount: cacheStorage.parallelNumber ?? CacheSystem.defaultParallelNumber)
 
         var restored: Set<CacheSystem.CacheTarget> = []
         for chunk in chunked {
@@ -397,7 +397,7 @@ struct FrameworkProducer {
         to storage: any CacheStorage,
         cacheSystem: CacheSystem
     ) async {
-        let chunked = targets.chunks(ofCount: storage.parallelNumber ?? CacheSystem.defaultParalellNumber)
+        let chunked = targets.chunks(ofCount: storage.parallelNumber ?? CacheSystem.defaultParallelNumber)
 
         for chunk in chunked {
             await withTaskGroup(of: Void.self) { group in

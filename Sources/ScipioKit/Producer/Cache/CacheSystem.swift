@@ -48,7 +48,7 @@ public struct SwiftPMCacheKey: CacheKey {
 }
 
 struct CacheSystem: Sendable {
-    static let defaultParalellNumber = 8
+    static let defaultParallelNumber = 8
     private let outputDirectory: URL
     private let fileSystem: any FileSystem
 
@@ -92,7 +92,7 @@ struct CacheSystem: Sendable {
     }
 
     private func cacheFrameworks(_ targets: Set<CacheTarget>, to storage: some CacheStorage) async {
-        let chunked = targets.chunks(ofCount: storage.parallelNumber ?? CacheSystem.defaultParalellNumber)
+        let chunked = targets.chunks(ofCount: storage.parallelNumber ?? CacheSystem.defaultParallelNumber)
 
         let storageName = storage.displayName
         for chunk in chunked {
