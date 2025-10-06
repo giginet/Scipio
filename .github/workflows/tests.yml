@@ -14,6 +14,7 @@ jobs:
       matrix:
         xcode_version:
           - "16.4" # 6.1.2
+          - "26.0.1" # 6.2
     env:
       DEVELOPER_DIR: "/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
     runs-on: macos-15
