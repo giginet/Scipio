@@ -12,7 +12,7 @@ struct FrameworkProducerTests {
 
     @Test func cacheSharing() async throws {
         let tempDir = FileManager.default.temporaryDirectory
-        let outputDir = tempDir.appendingPathComponent("test-output-\(UUID().uuidString)")
+        let outputDir = tempDir.appending(component: "test-output-\(UUID().uuidString)")
 
         try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
 
@@ -42,12 +42,9 @@ struct FrameworkProducerTests {
         let cachePolicies = [restoreSourcePolicy, alreadyHasCachePolicy, needsSharedCachePolicy]
 
         // Use the CacheKeyTests/AsRemotePackage fixture here because it simulates a remote package with a fixed revision.
-        let testPackagePath = URL(fileURLWithPath: #filePath)
+        let testPackagePath = URL(filePath: #filePath)
             .deletingLastPathComponent()
-            .appendingPathComponent("Resources")
-            .appendingPathComponent("Fixtures")
-            .appendingPathComponent("CacheKeyTests")
-            .appendingPathComponent("AsRemotePackage")
+            .appending(components: "Resources", "Fixtures", "CacheKeyTests", "AsRemotePackage")
 
         let descriptionPackage = try await DescriptionPackage(
             packageDirectory: testPackagePath,
@@ -142,7 +139,7 @@ struct FrameworkProducerTests {
 
         // Verify the cache call was made with correct parameters
         let actualFrameworkPath = needsSharedCacheCalls[0].frameworkPath
-        let expectedFrameworkPath = outputDir.appendingPathComponent(buildProduct.frameworkName)
+        let expectedFrameworkPath = outputDir.appending(component: buildProduct.frameworkName)
         #expect(actualFrameworkPath == expectedFrameworkPath, "Framework path should match")
 
         // Verify the cache call was made with the correct cache key

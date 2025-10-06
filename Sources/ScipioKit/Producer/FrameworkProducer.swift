@@ -160,7 +160,7 @@ struct FrameworkProducer {
                         do {
                             let product = target.buildProduct
                             let frameworkName = product.frameworkName
-                            let outputPath = outputDir.appendingPathComponent(frameworkName)
+                            let outputPath = outputDir.appending(component: frameworkName)
                             let exists = fileSystem.exists(outputPath)
                             guard exists else { return nil }
 
@@ -450,7 +450,7 @@ struct FrameworkProducer {
                             guard !hasCache else { return }
 
                             let frameworkName = target.buildProduct.frameworkName
-                            let frameworkPath = outputDir.appendingPathComponent(frameworkName)
+                            let frameworkPath = outputDir.appending(component: frameworkName)
 
                             logger.info(
                                 "🔄 Share \(frameworkName) to cache storage: \(storage.displayName)",
