@@ -61,6 +61,10 @@ let package = Package(
                 .product(name: "PackageManifestKit", package: "PackageManifestKit"),
                 .product(name: "AsyncOperations", package: "swift-async-operations"),
             ],
+            exclude: [
+                "SwiftPM/NOTICE.txt",
+                "SwiftPM/LICENSE",
+            ],
             plugins: [
                 .plugin(name: "GenerateScipioVersion")
             ]
@@ -86,7 +90,8 @@ let package = Package(
             name: "PIFKitTests",
             dependencies: [
                 .target(name: "PIFKit"),
-            ]
+            ],
+            exclude: ["Fixtures/"]
         ),
     ],
     swiftLanguageModes: [.v6]
