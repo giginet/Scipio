@@ -41,7 +41,7 @@ struct FrameworkProducerTests {
 
         let cachePolicies = [restoreSourcePolicy, alreadyHasCachePolicy, needsSharedCachePolicy]
 
-        // Use CacheKeyTests/AsRemotePackage fixture to avoid revision detection issues
+        // Use the CacheKeyTests/AsRemotePackage fixture here because it simulates a remote package with a fixed revision.
         let testPackagePath = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .appendingPathComponent("Resources")
