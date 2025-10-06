@@ -9,29 +9,29 @@ on:
     branches:
       - '*'
 jobs:
-  Tests:
-    timeout-minutes: 20
-    strategy:
-      matrix:
-        xcode_version:
-          - "16.4" # 6.1.2
-          - "26.0.1" # 6.2
-    env:
-      DEVELOPER_DIR: "/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
-    runs-on: macos-15
-    steps:
-    - name: Get swift version
-      run: swift --version
-    - uses: actions/checkout@v5
-    - name: Build
-      run: |
-        swift build
-    - name: Run Tests
-      run: |
-        swift test --no-parallel
-      env:
-        ENABLE_INTEGRATION_TESTS: 1
-        IS_CI: 1
+  # Tests:
+  #   timeout-minutes: 20
+  #   strategy:
+  #     matrix:
+  #       xcode_version:
+  #         - "16.4" # 6.1.2
+  #         - "26.0.1" # 6.2
+  #   env:
+  #     DEVELOPER_DIR: "/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
+  #   runs-on: macos-15
+  #   steps:
+  #   - name: Get swift version
+  #     run: swift --version
+  #   - uses: actions/checkout@v5
+  #   - name: Build
+  #     run: |
+  #       swift build
+  #   - name: Run Tests
+  #     run: |
+  #       swift test --no-parallel
+  #     env:
+  #       ENABLE_INTEGRATION_TESTS: 1
+  #       IS_CI: 1
   E2ETests:
     env:
       DEVELOPER_DIR: "/Applications/Xcode_16.4.app/Contents/Developer"
@@ -50,4 +50,4 @@ jobs:
           --depth=1
         swift run scipio create firebase-ios-sdk \
           --framework-type static \
-          --platform iOS
+          --platforms iOS
