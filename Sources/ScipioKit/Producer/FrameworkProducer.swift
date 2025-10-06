@@ -100,17 +100,25 @@ struct FrameworkProducer {
                 // no-op
                 targetGraph.remove(valid)
             } else {
-                let restored = await restoreAllAvailableCachesIfNeeded(
+                let restoredSetsToSourceStorage = await restoreAllAvailableCachesIfNeeded(
                     availableTargets: targets.subtracting(valid),
                     to: storagesWithConsumer,
                     cacheSystem: cacheSystem
                 )
 
-                if !restored.isEmpty {
-                    await shareRestoredCachesToProducers(restored, cacheSystem: cacheSystem)
+                let allRestoredTargets = restoredSetsToSourceStorage.keys.reduce(into: Set<CacheSystem.CacheTarget>()) { result, targetSet in
+                    result.formUnion(targetSet)
                 }
 
-                let skipTargets = valid.union(restored)
+                if !allRestoredTargets.isEmpty {
+                    await shareRestoredCachesToProducers(
+                        allRestoredTargets,
+                        restoredSetsToSourceStorage: restoredSetsToSourceStorage,
+                        cacheSystem: cacheSystem
+                    )
+                }
+
+                let skipTargets = valid.union(allRestoredTargets)
                 targetGraph.remove(skipTargets)
             }
             dependencyGraphToBuild = targetGraph
@@ -189,9 +197,9 @@ struct FrameworkProducer {
         availableTargets: Set<CacheSystem.CacheTarget>,
         to storages: [any CacheStorage],
         cacheSystem: CacheSystem
-    ) async -> Set<CacheSystem.CacheTarget> {
+    ) async -> [Set<CacheSystem.CacheTarget>: any CacheStorage] {
         var remainingTargets = availableTargets
-        var restored: Set<CacheSystem.CacheTarget> = []
+        var restoredSetsToSourceStorage: [Set<CacheSystem.CacheTarget>: any CacheStorage] = [:]
 
         for index in storages.indices {
             let storage = storages[index]
@@ -214,7 +222,11 @@ struct FrameworkProducer {
                 from: storage,
                 cacheSystem: cacheSystem
             )
-            restored.formUnion(restoredPerStorage)
+
+            // Record which storage restored which set of targets
+            if !restoredPerStorage.isEmpty {
+                restoredSetsToSourceStorage[restoredPerStorage] = storage
+            }
 
             logger.info(
                 "⏸️ Restoration finished with cache storage: \(logSuffix)",
@@ -229,7 +241,7 @@ struct FrameworkProducer {
         }
 
         logger.info("⏹️ Restoration finished", metadata: .color(.green))
-        return restored
+        return restoredSetsToSourceStorage
     }
 
     private func restoreCaches(
@@ -376,22 +388,49 @@ struct FrameworkProducer {
     }
 
     private func shareRestoredCachesToProducers(
-        _ restoredTargets: Set<CacheSystem.CacheTarget>,
+        _ allRestoredTargets: Set<CacheSystem.CacheTarget>,
+        restoredSetsToSourceStorage: [Set<CacheSystem.CacheTarget>: any CacheStorage],
         cacheSystem: CacheSystem
     ) async {
         let storagesWithProducer = cachePolicies.storages(for: .producer)
         guard !storagesWithProducer.isEmpty else { return }
 
         logger.info(
-            "🔄 Sharing \(restoredTargets.count) restored framework(s) to other cache storages",
+            "🔄 Sharing \(allRestoredTargets.count) restored framework(s) to other cache storages",
             metadata: .color(.blue)
         )
 
         for storage in storagesWithProducer {
-            await shareCachesToStorage(restoredTargets, to: storage, cacheSystem: cacheSystem)
+            // Filter targets to exclude those that were restored from this storage
+            var targetsToShare = allRestoredTargets
+
+            // Remove targets that were restored from this storage
+            for (restoredSet, sourceStorage) in restoredSetsToSourceStorage where areStoragesEqual(sourceStorage, storage) {
+                targetsToShare.subtract(restoredSet)
+            }
+
+            if !targetsToShare.isEmpty {
+                await shareCachesToStorage(targetsToShare, to: storage, cacheSystem: cacheSystem)
+            }
         }
 
         logger.info("⏹️ Sharing to other cache storages finished", metadata: .color(.green))
+    }
+
+    private func areStoragesEqual(_ lhs: any CacheStorage, _ rhs: any CacheStorage) -> Bool {
+        // ProjectCacheStorage instances are always considered the same
+        if lhs is ProjectCacheStorage && rhs is ProjectCacheStorage {
+            return true
+        }
+
+        // For LocalDiskCacheStorage (value type), use Equatable comparison
+        if let lhsLocal = lhs as? LocalDiskCacheStorage,
+           let rhsLocal = rhs as? LocalDiskCacheStorage {
+            return lhsLocal == rhsLocal
+        }
+
+        // For reference types (actors, classes), use ObjectIdentifier comparison
+        return ObjectIdentifier(lhs as AnyObject) == ObjectIdentifier(rhs as AnyObject)
     }
 
     private func shareCachesToStorage(

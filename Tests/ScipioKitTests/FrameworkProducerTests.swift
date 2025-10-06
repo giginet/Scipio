@@ -21,25 +21,25 @@ struct FrameworkProducerTests {
         }
 
         // Create mock cache storages
-        let consumerStorage = MockCacheStorage(name: "consumer")
-        let producer1Storage = MockCacheStorage(name: "producer1")
-        let producer2Storage = MockCacheStorage(name: "producer2")
+        let restoreSourceStorage = MockCacheStorage(name: "RestoreSource")
+        let alreadyHasCacheStorage = MockCacheStorage(name: "AlreadyHasCache")
+        let needsSharedCacheStorage = MockCacheStorage(name: "NeedsSharedCache")
 
         // Create cache policies
-        let consumerPolicy = Runner.Options.CachePolicy(
-            storage: consumerStorage,
-            actors: [.consumer]
+        let restoreSourcePolicy = Runner.Options.CachePolicy(
+            storage: restoreSourceStorage,
+            actors: [.consumer, .producer]  // Will restore and should be excluded from sharing
         )
-        let producerPolicy1 = Runner.Options.CachePolicy(
-            storage: producer1Storage,
-            actors: [.producer]
+        let alreadyHasCachePolicy = Runner.Options.CachePolicy(
+            storage: alreadyHasCacheStorage,
+            actors: [.producer]  // Already has cache, won't be shared
         )
-        let producerPolicy2 = Runner.Options.CachePolicy(
-            storage: producer2Storage,
-            actors: [.producer]
+        let needsSharedCachePolicy = Runner.Options.CachePolicy(
+            storage: needsSharedCacheStorage,
+            actors: [.producer]  // No cache, should receive share
         )
 
-        let cachePolicies = [consumerPolicy, producerPolicy1, producerPolicy2]
+        let cachePolicies = [restoreSourcePolicy, alreadyHasCachePolicy, needsSharedCachePolicy]
 
         // Use CacheKeyTests/AsRemotePackage fixture to avoid revision detection issues
         let testPackagePath = URL(fileURLWithPath: #filePath)
@@ -105,34 +105,49 @@ struct FrameworkProducerTests {
 
         let mockCacheKey = try await cacheSystem.calculateCacheKey(of: mockTarget)
 
-        // Setup initial state: consumer and producer1 have cache, producer2 doesn't
-        try await consumerStorage.setHasCache(for: mockCacheKey, value: true)
-        try await producer1Storage.setHasCache(for: mockCacheKey, value: true)
-        try await producer2Storage.setHasCache(for: mockCacheKey, value: false)
+        // Setup initial state: 
+        // - RestoreSource: has cache and will be the restore source (should be excluded from sharing)
+        // - AlreadyHasCache: has cache and should not receive share 
+        // - NeedsSharedCache: no cache and should receive shared cache
+        try await restoreSourceStorage.setHasCache(for: mockCacheKey, value: true)
+        try await alreadyHasCacheStorage.setHasCache(for: mockCacheKey, value: true)
+        try await needsSharedCacheStorage.setHasCache(for: mockCacheKey, value: false)
 
         // Test FrameworkProducer's cache sharing functionality
         try await frameworkProducer.produce()
 
-        let consumerCacheCalls = await consumerStorage.getCacheFrameworkCalls()
-        let producer1CacheCalls = await producer1Storage.getCacheFrameworkCalls()
-        let producer2CacheCalls = await producer2Storage.getCacheFrameworkCalls()
+        // Get restoration calls (fetch operations)
+        let restoreSourceFetchCalls = await restoreSourceStorage.getFetchArtifactsCalls()
+        let alreadyHasFetchCalls = await alreadyHasCacheStorage.getFetchArtifactsCalls()
+        let needsSharedFetchCalls = await needsSharedCacheStorage.getFetchArtifactsCalls()
+
+        // Get cache sharing calls (cache operations)
+        let restoreSourceCacheCalls = await restoreSourceStorage.getCacheFrameworkCalls()
+        let alreadyHasCacheCalls = await alreadyHasCacheStorage.getCacheFrameworkCalls()
+        let needsSharedCacheCalls = await needsSharedCacheStorage.getCacheFrameworkCalls()
+
+        // Verify restoration behavior:
+        // - RestoreSource should be used for restoration (has cache and is consumer)
+        #expect(restoreSourceFetchCalls.count == 1, "RestoreSource storage should be used for restoration")
+        #expect(alreadyHasFetchCalls.count == 0, "AlreadyHasCache has cache but restoreSource is tried first")
+        #expect(needsSharedFetchCalls.count == 0, "NeedsSharedCache has no cache, so not used for restoration")
 
         // Verify cache sharing behavior:
-        // - Consumer storage should not be called for caching (it's only used for restoration)
-        // - Producer1 already has cache so no call should be made
-        // - Producer2 doesn't have cache so should receive shared cache
-        #expect(consumerCacheCalls.count == 0, "Consumer storage should not be called for caching during sharing")
-        #expect(producer1CacheCalls.count == 0, "Producer1 already has cache, so cacheFramework should not be called")
-        try #require(producer2CacheCalls.count == 1, "Producer2 doesn't have cache, so cacheFramework should be called once")
+        // - RestoreSource was the restore source, so it should be excluded from sharing
+        // - AlreadyHasCache already has cache, so it should not receive share
+        // - NeedsSharedCache doesn't have cache and should receive shared cache
+        #expect(restoreSourceCacheCalls.count == 0, "RestoreSource was the restore source, so it should be excluded from sharing")
+        #expect(alreadyHasCacheCalls.count == 0, "AlreadyHasCache already has cache, so cacheFramework should not be called")
+        try #require(needsSharedCacheCalls.count == 1, "NeedsSharedCache doesn't have cache, so cacheFramework should be called once")
 
         // Verify the cache call was made with correct parameters
-        let actualFrameworkPath = producer2CacheCalls[0].frameworkPath
+        let actualFrameworkPath = needsSharedCacheCalls[0].frameworkPath
         let expectedFrameworkPath = outputDir.appendingPathComponent(buildProduct.frameworkName)
         #expect(actualFrameworkPath == expectedFrameworkPath, "Framework path should match")
 
         // Verify the cache call was made with the correct cache key
         let expectedCacheKey = try mockCacheKey.calculateChecksum()
-        #expect(producer2CacheCalls[0].cacheKey == expectedCacheKey, "Cache key should match the actual cache key used")
+        #expect(needsSharedCacheCalls[0].cacheKey == expectedCacheKey, "Cache key should match the actual cache key used")
     }
 }
 
@@ -153,6 +168,7 @@ private actor MockCacheStorage: CacheStorage {
     let parallelNumber: Int? = 1
 
     private var hasCacheMap: [String: Bool] = [:]
+    private var fetchArtifactsCalls: [(cacheKey: String, destinationDir: URL)] = []
     private var cacheFrameworkCalls: [(frameworkPath: URL, cacheKey: String)] = []
 
     init(name: String) {
@@ -165,7 +181,9 @@ private actor MockCacheStorage: CacheStorage {
     }
 
     func fetchArtifacts(for cacheKey: some CacheKey, to destinationDir: URL) async throws {
-        // Mock implementation - no-op
+        let keyString = try cacheKey.calculateChecksum()
+        let call = (cacheKey: keyString, destinationDir: destinationDir)
+        fetchArtifactsCalls.append(call)
     }
 
     func cacheFramework(_ frameworkPath: URL, for cacheKey: some CacheKey) async throws {
@@ -178,6 +196,10 @@ private actor MockCacheStorage: CacheStorage {
     func setHasCache(for cacheKey: some CacheKey, value: Bool) async throws {
         let keyString = try cacheKey.calculateChecksum()
         hasCacheMap[keyString] = value
+    }
+
+    func getFetchArtifactsCalls() -> [(cacheKey: String, destinationDir: URL)] {
+        return fetchArtifactsCalls
     }
 
     func getCacheFrameworkCalls() -> [(frameworkPath: URL, cacheKey: String)] {
