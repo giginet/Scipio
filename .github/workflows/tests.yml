@@ -45,7 +45,7 @@ jobs:
       run: |
         # https://github.com/giginet/Scipio/issues/239
         # https://github.com/giginet/Scipio/issues/241
-        git checkout https://github.com/firebase/firebase-ios-sdk --tag 11.15.0
+        git checkout https://github.com/firebase/firebase-ios-sdk 11.15.0
         swift run scipio create firebase-ios-sdk \
           --framework-type static \
           --platform iOS
