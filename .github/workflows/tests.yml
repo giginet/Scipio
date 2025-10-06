@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - e2e-tests
   pull_request:
     branches:
       - '*'
@@ -31,3 +32,20 @@ jobs:
       env:
         ENABLE_INTEGRATION_TESTS: 1
         IS_CI: 1
+  E2ETests:
+    env:
+      DEVELOPER_DIR: "/Applications/Xcode_16.4.app/Contents/Developer"
+    runs-on: macos-15
+    steps:
+    - uses: actions/checkout@v5
+    - name: Build Scipio
+      run: |
+        swift build
+    - name: Build firebase-ios-sdk 11.15.0
+      run: |
+        # https://github.com/giginet/Scipio/issues/239
+        # https://github.com/giginet/Scipio/issues/241
+        git checkout https://github.com/firebase/firebase-ios-sdk --tag 11.15.0
+        swift run scipio create firebase-ios-sdk \
+          --framework-type static \
+          --platform iOS
