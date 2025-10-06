@@ -1,7 +1,7 @@
 import Foundation
 import ScipioStorage
 
-struct LocalDiskCacheStorage: CacheStorage {
+struct LocalDiskCacheStorage: CacheStorage, Equatable {
     private let fileSystem: any FileSystem
 
     var parallelNumber: Int? { nil }
@@ -17,6 +17,11 @@ struct LocalDiskCacheStorage: CacheStorage {
     init(baseURL: URL?, fileSystem: FileSystem = LocalFileSystem.default) {
         self.baseURL = baseURL
         self.fileSystem = fileSystem
+    }
+
+    // MARK: - Equatable
+    static func == (lhs: LocalDiskCacheStorage, rhs: LocalDiskCacheStorage) -> Bool {
+        lhs.baseURL == rhs.baseURL
     }
 
     private func buildBaseDirectoryPath() throws -> URL {
