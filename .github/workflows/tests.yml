@@ -50,4 +50,5 @@ jobs:
           --depth=1
         swift run scipio create firebase-ios-sdk \
           --framework-type static \
-          --platforms iOS
+          --platforms iOS \
+          --verbose
