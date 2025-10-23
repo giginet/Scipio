@@ -11,6 +11,8 @@ actor PackageResolver {
     private var allModules: Set<ResolvedModule> = []
     private var cachedModuleType: [Target: ResolvedModuleType] = [:]
     private var cachedDependencyManifests: [DependencyPackage: Manifest] = [:]
+    private var cachedResolvedModules: [Target: AsyncCacheEntry<ResolvedModule>] = [:]
+    private let numberOfConcurrentTasks: UInt = 8
     private let jsonDecoder = JSONDecoder()
 
     private let dependencyPackagesByID: [DependencyPackage.ID: DependencyPackage]
@@ -72,13 +74,13 @@ actor PackageResolver {
                 packageIdentity: dependencyPackage.identity,
                 pinState: pins[dependencyPackage.identity]?.state,
                 path: dependencyPackage.path,
-                targets: try await manifest.targets.filter { shouldBuild($0.type) }.asyncMap {
+                targets: try await manifest.targets.filter { shouldBuild($0.type) }.asyncMap(numberOfConcurrentTasks: numberOfConcurrentTasks) {
                     try await self.resolve(
                         target: $0,
                         in: manifest
                     )
                 },
-                products: try await manifest.products.asyncMap {
+                products: try await manifest.products.asyncMap(numberOfConcurrentTasks: numberOfConcurrentTasks) {
                     try await self.resolve(
                         product: $0,
                         in: manifest
@@ -135,7 +137,7 @@ actor PackageResolver {
     ) async throws -> [ResolvedModule.Dependency] {
         let dependencyPackage = resolveDependencyPackage(for: manifest)
 
-        return try await dependencies.asyncCompactMap { dependency -> ResolvedModule.Dependency? in
+        return try await dependencies.asyncCompactMap(numberOfConcurrentTasks: numberOfConcurrentTasks) { dependency -> ResolvedModule.Dependency? in
             switch dependency {
             case .target(let name, let condition):
                 guard let target = manifest.targets.first(where: { $0.name == name }) else {
@@ -205,7 +207,7 @@ actor PackageResolver {
             modules: try await product.targets
                 .compactMap { targetName in manifest.targets.first(where: { $0.name == targetName }) }
                 .filter { shouldBuild($0.type) }
-                .asyncMap { try await self.resolve(target: $0, in: manifest) },
+                .asyncMap(numberOfConcurrentTasks: numberOfConcurrentTasks) { try await self.resolve(target: $0, in: manifest) },
             type: product.type,
             packageID: PackageID(packageKind: manifest.packageKind, packageIdentity: packageIdentity)
         )
@@ -256,15 +258,39 @@ actor PackageResolver {
             )
         }
 
-        let module = try await ResolvedModule(
-            underlying: target,
-            dependencies: resolve(dependencies: target.dependencies, in: manifest),
-            localPackageURL: localPackageURL,
-            packageID: PackageID(packageKind: manifest.packageKind, packageIdentity: dependencyPackage.identity),
-            resolvedModuleType: resolveModuleType(of: target, dependencyPackage: dependencyPackage)
-        )
-        allModules.insert(module)
-        return module
+        if let cached = cachedResolvedModules[target] {
+            switch cached {
+            case .inProgress(let task):
+                return try await task.value
+
+            case .ready(let module):
+                return module
+            }
+        }
+
+        let task = Task {
+            try await ResolvedModule(
+                underlying: target,
+                dependencies: resolve(dependencies: target.dependencies, in: manifest),
+                localPackageURL: localPackageURL,
+                packageID: PackageID(packageKind: manifest.packageKind, packageIdentity: dependencyPackage.identity),
+                resolvedModuleType: resolveModuleType(of: target, dependencyPackage: dependencyPackage)
+            )
+        }
+
+        cachedResolvedModules[target] = .inProgress(task)
+
+        do {
+            let module = try await task.value
+
+            cachedResolvedModules[target] = .ready(module)
+            allModules.insert(module)
+
+            return module
+        } catch {
+            cachedResolvedModules[target] = nil
+            throw error
+        }
     }
 
     /// Normalizes an optional PackageCondition into an array.
@@ -330,5 +356,13 @@ actor PackageResolver {
 
     private func shouldBuild(_ target: Target.TargetKind) -> Bool {
         target == .regular || target == .binary
+    }
+}
+
+extension PackageResolver {
+    /// Caches ongoing or finished async work to avoid doing the same work twice.
+    enum AsyncCacheEntry<T> {
+        case inProgress(Task<T, Error>)
+        case ready(T)
     }
 }
