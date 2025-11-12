@@ -39,7 +39,7 @@ let package = Package(
         .package(url: "https://github.com/giginet/PackageManifestKit",
                  from: "0.1.0"),
         .package(url: "https://github.com/mtj0928/swift-async-operations.git",
-                 from: "0.3.0"),
+                 from: "0.4.0"),
     ],
     targets: [
         .executableTarget(
