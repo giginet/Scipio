@@ -32,8 +32,6 @@ let package = Package(
                  from: "1.0.0"),
         .package(url: "https://github.com/onevcat/Rainbow",
                  from: "4.0.1"),
-        .package(url: "https://github.com/giginet/scipio-cache-storage.git",
-                 from: "1.0.0"),
         .package(url: "https://github.com/SwiftyJSON/SwiftyJSON.git",
                  from: "5.0.0"),
         .package(url: "https://github.com/giginet/PackageManifestKit",
@@ -53,11 +51,12 @@ let package = Package(
             name: "ScipioKit",
             dependencies: [
                 .target(name: "PIFKit"),
+                .target(name: "ScipioKitCore"),
+                .target(name: "CacheStorage"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Collections", package: "swift-collections"),
                 .product(name: "Algorithms", package: "swift-algorithms"),
                 .product(name: "Rainbow", package: "Rainbow"),
-                .product(name: "ScipioStorage", package: "scipio-cache-storage"),
                 .product(name: "PackageManifestKit", package: "PackageManifestKit"),
                 .product(name: "AsyncOperations", package: "swift-async-operations"),
             ],
@@ -73,6 +72,19 @@ let package = Package(
             name: "PIFKit",
             dependencies: [
                 .product(name: "SwiftyJSON", package: "SwiftyJSON"),
+            ]
+        ),
+        .target(
+            name: "CacheStorage",
+            dependencies: [
+                "ScipioKitCore"
+            ]
+        ),
+        .target(
+            name: "ScipioKitCore",
+            dependencies: [
+                .product(name: "OrderedCollections", package: "swift-collections"),
+                .product(name: "PackageManifestKit", package: "PackageManifestKit")
             ]
         ),
         .plugin(

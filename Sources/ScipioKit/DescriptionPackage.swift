@@ -1,4 +1,5 @@
 import Foundation
+import ScipioKitCore
 import PackageManifestKit
 
 struct DescriptionPackage: PackageLocator, Sendable {

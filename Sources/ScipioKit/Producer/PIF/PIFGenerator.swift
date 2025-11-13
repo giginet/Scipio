@@ -1,5 +1,6 @@
 import Foundation
 import PIFKit
+import ScipioKitCore
 
 struct PIFGenerator {
     private let packageName: String

@@ -1,4 +1,5 @@
 import Foundation
+import ScipioKitCore
 
 struct XCBuildClient {
     enum Error: LocalizedError {
