@@ -3,7 +3,6 @@ import PackageManifestKit
 import OrderedCollections
 import AsyncOperations
 import ScipioKitCore
-import struct UniformTypeIdentifiers.UTType
 
 actor PackageResolver {
     // Because `dump-package` is called for each child dependency, all PackageKinds are mistakenly set to `.root`.
