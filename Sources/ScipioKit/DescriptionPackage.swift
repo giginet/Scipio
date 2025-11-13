@@ -43,6 +43,7 @@ struct DescriptionPackage: PackageLocator, Sendable {
     init(
         packageDirectory: URL,
         mode: Runner.Mode,
+        resolvedPackagesCachePolicies: [Runner.Options.ResolvedPackagesCachePolicy],
         onlyUseVersionsFromResolvedFile: Bool,
         executor: some Executor = ProcessExecutor(errorDecoder: StandardOutputDecoder())
     ) async throws {
@@ -52,10 +53,15 @@ struct DescriptionPackage: PackageLocator, Sendable {
         self.manifest = try await ScipioKit.ManifestLoader(executor: executor).loadManifest(for: packageDirectory)
 
         self.graph = try await PackageResolver(
-            packageDirectory: packageDirectory,
+            packageLocator: PackageLocation(packageDirectory: packageDirectory),
             rootManifest: self.manifest,
+            cachePolicies: resolvedPackagesCachePolicies,
             fileSystem: LocalFileSystem.default
         ).resolve()
+    }
+
+    private struct PackageLocation: PackageLocator {
+        var packageDirectory: URL
     }
 }
 

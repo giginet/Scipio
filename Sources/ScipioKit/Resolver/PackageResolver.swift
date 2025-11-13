@@ -16,35 +16,36 @@ actor PackageResolver {
     private let numberOfConcurrentTasks: UInt = 8
     private let jsonDecoder = JSONDecoder()
 
-    private let dependencyPackagesByID: [DependencyPackage.ID: DependencyPackage]
-    private let dependencyPackagesByName: [String: DependencyPackage]
+    private var dependencyPackagesByID: [DependencyPackage.ID: DependencyPackage] = [:]
+    private var dependencyPackagesByName: [String: DependencyPackage] = [:]
     // URL of the root package directory.
     private let packageDirectory: URL
     private let rootManifest: Manifest
-    private let pins: [Pin.ID: Pin]
+    private var pins: [Pin.ID: Pin] = [:]
     private let manifestLoader: ManifestLoader
     private let moduleTypeResolver: ModuleTypeResolver
+    private let cacheSystem: PackageResolver.CacheSystem
     private let fileSystem: any FileSystem
+    private let executor: any Executor
 
     init(
-        packageDirectory: URL,
+        packageLocator: some PackageLocator,
         rootManifest: Manifest,
+        cachePolicies: [Runner.Options.ResolvedPackagesCachePolicy],
         fileSystem: some FileSystem,
         executor: some Executor = ProcessExecutor(errorDecoder: StandardOutputDecoder())
     ) async throws {
-        // Run `swift package resolve` and read Package.resolved
-        let packageResolved = try await PackageResolveExecutor(fileSystem: fileSystem, executor: executor).execute(packageDirectory: packageDirectory)
-        // Run `swift package show-dependencies` and parse dependency tree
-        let parseResult = try await ShowDependenciesParser(executor: executor).parse(packageDirectory: packageDirectory)
-
-        self.packageDirectory = packageDirectory
-        self.pins = Dictionary(uniqueKeysWithValues: packageResolved?.pins.map { ($0.id, $0) } ?? [])
-        self.dependencyPackagesByID = parseResult.dependencyPackagesByID
-        self.dependencyPackagesByName = parseResult.dependencyPackagesByName
+        self.packageDirectory = packageLocator.packageDirectory
         self.rootManifest = rootManifest
-        self.manifestLoader = ManifestLoader(executor: executor)
-        self.moduleTypeResolver = ModuleTypeResolver(fileSystem: fileSystem, rootPackageDirectory: packageDirectory)
         self.fileSystem = fileSystem
+        self.executor = executor
+        self.manifestLoader = ManifestLoader(executor: executor)
+        self.cacheSystem = CacheSystem(
+            fileSystem: fileSystem,
+            packageLocator: packageLocator,
+            cachePolicies: cachePolicies
+        )
+        self.moduleTypeResolver = ModuleTypeResolver(fileSystem: fileSystem, rootPackageDirectory: packageDirectory)
 
         setActualPackageKinds(for: rootManifest)
     }
@@ -52,13 +53,60 @@ actor PackageResolver {
     /// Start resolving modules and products from the root manifest.
     /// - Returns: Graph containing all resolved packages and modules.
     func resolve() async throws -> ModulesGraph {
+        // Run `swift package resolve` and read Package.resolved`
+        let packageResolved = try await PackageResolveExecutor(fileSystem: fileSystem, executor: executor).execute(packageDirectory: packageDirectory)
+        self.pins = Dictionary(uniqueKeysWithValues: packageResolved?.pins.map { ($0.id, $0) } ?? [])
+
+        // Try to restore resolved packages from cache
+        let restoredData = await restoreCache(for: packageResolved?.originHash)
+
+        if let (allPackages, allModules) = restoredData {
+            self.allPackages = allPackages
+            self.allModules = allModules
+        }
+
+        let isRestored = restoredData != nil
+
+        if !isRestored {
+            // Run `swift package show-dependencies` and parse dependency tree
+            let parseResult = try await ShowDependenciesParser(executor: executor).parse(packageDirectory: packageDirectory)
+
+            self.dependencyPackagesByID = parseResult.dependencyPackagesByID
+            self.dependencyPackagesByName = parseResult.dependencyPackagesByName
+        }
+
         let rootPackage = try await resolve(manifest: rootManifest)
+
+        // Save to cache if restored
+        if let originHash = packageResolved?.originHash, isRestored {
+            await cacheSystem.cacheResolvedPackages(Array(allPackages.values), for: originHash)
+        }
 
         return ModulesGraph(
             rootPackage: rootPackage,
             allPackages: allPackages,
             allModules: allModules
         )
+    }
+
+    private func restoreCache(
+        for originHash: String?
+    ) async -> (allPackages: [PackageID: ResolvedPackage], allModules: Set<ResolvedModule>)? {
+        guard let originHash,
+              case let .restored(packages) = await cacheSystem.restoreCacheIfPossible(for: originHash) else {
+            return nil
+        }
+
+        let allPackages = packages.reduce(into: [PackageID: ResolvedPackage]()) { partialResult, resolvedPackage in
+            partialResult[resolvedPackage.id] = resolvedPackage
+        }
+        let allModules = Set(
+            packages.flatMap(\.targets).flatMap { target in
+                [target] + ((try? target.recursiveModuleDependencies()) ?? [])
+            }
+        )
+
+        return (allPackages: allPackages, allModules: allModules)
     }
 
     /// Resolve a manifest into a concrete ResolvedPackage with modules and products.

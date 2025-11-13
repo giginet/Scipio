@@ -7,7 +7,7 @@ struct FrameworkProducer {
     private let descriptionPackage: DescriptionPackage
     private let baseBuildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
-    private let cachePolicies: [Runner.Options.CachePolicy]
+    private let cachePolicies: [Runner.Options.FrameworkCachePolicy]
     private let overwrite: Bool
     private let outputDir: URL
     private let fileSystem: any FileSystem
@@ -29,7 +29,7 @@ struct FrameworkProducer {
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
-        cachePolicies: [Runner.Options.CachePolicy],
+        cachePolicies: [Runner.Options.FrameworkCachePolicy],
         overwrite: Bool,
         outputDir: URL,
         fileSystem: any FileSystem = LocalFileSystem.default
@@ -471,8 +471,8 @@ struct FrameworkProducer {
     }
 }
 
-extension [Runner.Options.CachePolicy] {
-    fileprivate func storages(for actor: Runner.Options.CachePolicy.CacheActorKind) -> [any FrameworkCacheStorage] {
+extension [Runner.Options.FrameworkCachePolicy] {
+    fileprivate func storages(for actor: Runner.Options.CacheActorKind) -> [any FrameworkCacheStorage] {
         reduce(into: []) { result, cachePolicy in
             if cachePolicy.actors.contains(actor) {
                 result.append(cachePolicy.storage)
