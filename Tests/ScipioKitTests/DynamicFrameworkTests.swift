@@ -62,7 +62,7 @@ struct DynamicFrameworkTests {
                 ),
                 buildOptionsMatrix: buildOptionsMatrix,
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cachePolicies: .disabled,
+                frameworkCachePolicies: .disabled,
                 overwrite: true,
                 verbose: false
             )

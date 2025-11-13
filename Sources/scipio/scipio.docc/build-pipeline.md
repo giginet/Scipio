@@ -248,7 +248,7 @@ You can also implement your custom cache storage by implementing `FrameworkCache
 
 There are two cache actors `consumer` and `producer`.
 
-You can specify it by `Runner.Options.CachePolicy.actors`.
+You can specify it by `Runner.Options.FrameworkCachePolicy.actors`.
 
 `consumer` is an actor who can fetch cache from the cache storage.
 

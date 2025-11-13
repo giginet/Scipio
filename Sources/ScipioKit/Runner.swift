@@ -343,6 +343,7 @@ extension Runner {
             deprecated,
             message: "Use init(baseBuildOptions:buildOptionsMatrix:shouldOnlyUseVersionsFromResolvedFile:frameworkCachePolicies:resolvedPackagesCachePolicies:overwrite:verbose:) instead."
         )
+        @_disfavoredOverload
         public init(
             baseBuildOptions: BuildOptions = .init(),
             buildOptionsMatrix: [String: TargetBuildOptions] = [:],

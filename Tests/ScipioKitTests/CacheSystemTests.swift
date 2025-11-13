@@ -115,6 +115,7 @@ final class CacheSystemTests: XCTestCase {
             let descriptionPackage = try await DescriptionPackage(
                 packageDirectory: tempCacheKeyTestsDir.appending(component: fixture),
                 mode: .createPackage,
+                resolvedPackagesCachePolicies: [],
                 onlyUseVersionsFromResolvedFile: false
             )
             let package = descriptionPackage
@@ -178,6 +179,7 @@ final class CacheSystemTests: XCTestCase {
         let descriptionPackage = try await DescriptionPackage(
             packageDirectory: tempTestingPackagePath,
             mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: false
         )
         let cacheSystem = CacheSystem(

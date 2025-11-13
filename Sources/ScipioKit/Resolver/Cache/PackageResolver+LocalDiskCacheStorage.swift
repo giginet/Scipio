@@ -45,7 +45,6 @@ extension PackageResolver {
         }
 
         private func buildBaseURL() throws -> URL {
-            let cacheDir: URL
             if let baseURL {
                 return baseURL
             } else {
