@@ -77,7 +77,7 @@ actor PackageResolver {
 
         let rootPackage = try await resolve(manifest: rootManifest)
 
-        // Save to cache if restored
+        // Cache resolved packages to specified storages if restored
         if let originHash = packageResolved?.originHash, isRestored {
             await cacheSystem.cacheResolvedPackages(Array(allPackages.values), for: originHash)
         }
