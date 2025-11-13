@@ -14,7 +14,7 @@ public struct ModulesGraph: Sendable {
         allModules.first { $0.name == name }
     }
 
-    public init(rootPackage: ResolvedPackage, allPackages: [PackageID : ResolvedPackage], allModules: Set<ResolvedModule>) {
+    public init(rootPackage: ResolvedPackage, allPackages: [PackageID: ResolvedPackage], allModules: Set<ResolvedModule>) {
         self.rootPackage = rootPackage
         self.allPackages = allPackages
         self.allModules = allModules
