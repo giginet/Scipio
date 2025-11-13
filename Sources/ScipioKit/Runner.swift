@@ -209,10 +209,10 @@ extension Runner {
                 case consumer
             }
 
-            public let storage: any CacheStorage
+            public let storage: any FrameworkCacheStorage
             public let actors: Set<CacheActorKind>
 
-            public init(storage: some CacheStorage, actors: Set<CacheActorKind>) {
+            public init(storage: some FrameworkCacheStorage, actors: Set<CacheActorKind>) {
                 self.storage = storage
                 self.actors = actors
             }

@@ -159,7 +159,7 @@ private struct MockCacheKey: CacheKey {
 
 // MARK: - Mock Cache Storage
 
-private actor MockCacheStorage: CacheStorage {
+private actor MockCacheStorage: FrameworkCacheStorage {
     let displayName: String
     let parallelNumber: Int? = 1
 
