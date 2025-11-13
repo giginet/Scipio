@@ -30,7 +30,7 @@ public struct PackageID: Hashable, Codable, Sendable {
         packageIdentity: String
     ) {
         // FIXME: Dependency mirroring is not considered here yet.
-        // If a public is resolved using the original URL in one case and a mirror URL in another,
+        // If a package is resolved using the original URL in one case and a mirror URL in another,
         // the cache key may not match correctly, which could cause cache restore to fail.
         self.packageIdentity = packageIdentity
         switch packageKind {
