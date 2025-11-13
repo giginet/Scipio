@@ -231,7 +231,7 @@ public enum ResolvedModuleType: Hashable, Codable, Sendable {
     }
 }
 
-public struct PackageResolved: Decodable {
+public struct PackageResolved: Decodable, Sendable {
     public let originHash: String?
     public let pins: [Pin]
     public let version: Int
