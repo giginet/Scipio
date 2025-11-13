@@ -1,5 +1,6 @@
 import Foundation
 import PackageManifestKit
+import ScipioKitCore
 
 extension PackageResolver {
     struct ModuleTypeResolver {

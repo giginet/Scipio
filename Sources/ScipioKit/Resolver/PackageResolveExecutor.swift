@@ -1,4 +1,5 @@
 import Foundation
+import ScipioKitCore
 
 extension PackageResolver {
     struct PackageResolveExecutor: @unchecked Sendable {

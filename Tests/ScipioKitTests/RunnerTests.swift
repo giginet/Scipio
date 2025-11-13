@@ -36,7 +36,9 @@ final class RunnerTests: XCTestCase {
     private let plistDecoder: PropertyListDecoder = .init()
 
     override static func setUp() {
-        LoggingSystem.bootstrap { _ in SwiftLogNoOpLogHandler() }
+        Task {
+            await LoggingTestHelper.shared.bootstrap()
+        }
 
         super.setUp()
     }

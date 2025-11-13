@@ -1,5 +1,5 @@
 import Foundation
-import ScipioStorage
+import CacheStorage
 
 struct LocalDiskCacheStorage: CacheStorage, Equatable {
     private let fileSystem: any FileSystem

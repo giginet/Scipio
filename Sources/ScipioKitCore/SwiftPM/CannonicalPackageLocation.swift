@@ -16,25 +16,13 @@
 
 import Foundation
 
-struct CanonicalPackageLocation: Equatable, CustomStringConvertible {
+public struct CanonicalPackageLocation: Equatable, CustomStringConvertible {
     /// A textual representation of this instance.
-    let description: String
+    public let description: String
 
     /// Instantiates an instance of the conforming type from a string representation.
-    init(_ string: String) {
+    public init(_ string: String) {
         self.description = computeCanonicalLocation(string).description
-    }
-}
-
-/// Similar to `CanonicalPackageLocation` but differentiates based on the scheme.
-struct CanonicalPackageURL: Equatable, CustomStringConvertible {
-    let description: String
-    let scheme: String?
-
-    init(_ string: String) {
-        let location = computeCanonicalLocation(string)
-        self.description = location.description
-        self.scheme = location.scheme
     }
 }
 

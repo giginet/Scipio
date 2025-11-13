@@ -1,13 +1,12 @@
 import Foundation
 import Testing
 @testable @_spi(Internals) import ScipioKit
-import ScipioStorage
+import CacheStorage
 import Logging
 
 struct FrameworkProducerTests {
-
-    init() {
-        LoggingSystem.bootstrap { _ in SwiftLogNoOpLogHandler() }
+    init() async {
+        await LoggingTestHelper.shared.bootstrap()
     }
 
     @Test func cacheSharing() async throws {

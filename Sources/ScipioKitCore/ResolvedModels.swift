@@ -1,30 +1,36 @@
 import Foundation
 import PackageManifestKit
 
-struct ModulesGraph {
-    var rootPackage: ResolvedPackage
-    var allPackages: [PackageID: ResolvedPackage]
-    var allModules: Set<ResolvedModule>
+public struct ModulesGraph: Sendable {
+    public var rootPackage: ResolvedPackage
+    public var allPackages: [PackageID: ResolvedPackage]
+    public var allModules: Set<ResolvedModule>
 
-    func package(for module: ResolvedModule) -> ResolvedPackage? {
+    public func package(for module: ResolvedModule) -> ResolvedPackage? {
         allPackages[module.packageID]
     }
 
-    func module(for name: String) -> ResolvedModule? {
+    public func module(for name: String) -> ResolvedModule? {
         allModules.first { $0.name == name }
+    }
+
+    public init(rootPackage: ResolvedPackage, allPackages: [PackageID : ResolvedPackage], allModules: Set<ResolvedModule>) {
+        self.rootPackage = rootPackage
+        self.allPackages = allPackages
+        self.allModules = allModules
     }
 }
 
-struct PackageID: Hashable {
-    var description: String
-    var packageIdentity: String
+public struct PackageID: Hashable, Codable, Sendable {
+    public var description: String
+    public var packageIdentity: String
 
-    init(
+    public init(
         packageKind: PackageKind,
         packageIdentity: String
     ) {
         // FIXME: Dependency mirroring is not considered here yet.
-        // If a package is resolved using the original URL in one case and a mirror URL in another,
+        // If a public is resolved using the original URL in one case and a mirror URL in another,
         // the cache key may not match correctly, which could cause cache restore to fail.
         self.packageIdentity = packageIdentity
         switch packageKind {
@@ -38,20 +44,20 @@ struct PackageID: Hashable {
     }
 }
 
-struct ResolvedPackage: Identifiable {
-    var id: PackageID
-    var manifest: Manifest
-    var resolvedPackageKind: PackageKind
-    var path: String
-    var targets: [ResolvedModule]
-    var products: [ResolvedProduct]
-    var pinState: Pin.State?
+public struct ResolvedPackage: Identifiable, Codable, Sendable {
+    public var id: PackageID
+    public var manifest: Manifest
+    public var resolvedPackageKind: PackageKind
+    public var path: String
+    public var targets: [ResolvedModule]
+    public var products: [ResolvedProduct]
+    public var pinState: Pin.State?
 
-    var name: String {
+    public var name: String {
         manifest.name
     }
 
-    init(
+    public init(
         manifest: Manifest,
         resolvedPackageKind: PackageKind,
         packageIdentity: String,
@@ -70,7 +76,7 @@ struct ResolvedPackage: Identifiable {
     }
 }
 
-extension ResolvedPackage {
+public extension ResolvedPackage {
     var canonicalPackageLocation: CanonicalPackageLocation {
         CanonicalPackageLocation(
             URL(filePath: path)
@@ -81,9 +87,9 @@ extension ResolvedPackage {
     }
 }
 
-struct ResolvedModule: Hashable, Sendable {
-    enum Dependency: Hashable, Identifiable {
-        var id: String {
+public struct ResolvedModule: Hashable, Sendable, Codable {
+    public enum Dependency: Hashable, Identifiable, Codable, Sendable {
+        public var id: String {
             switch self {
             case .module(let module, _):
                 module.name
@@ -95,7 +101,7 @@ struct ResolvedModule: Hashable, Sendable {
         case module(ResolvedModule, conditions: [PackageCondition])
         case product(ResolvedProduct, conditions: [PackageCondition])
 
-        var dependencies: [Dependency] {
+        public var dependencies: [Dependency] {
             switch self {
             case .module(let module, _):
                 return module.dependencies
@@ -104,21 +110,21 @@ struct ResolvedModule: Hashable, Sendable {
             }
         }
 
-        var module: ResolvedModule? {
+        public var module: ResolvedModule? {
             switch self {
             case .module(let module, _): return module
             case .product: return nil
             }
         }
 
-        var product: ResolvedProduct? {
+        public var product: ResolvedProduct? {
             switch self {
             case .module: return nil
             case .product(let product, _): return product
             }
         }
 
-        var moduleNames: [String] {
+        public var moduleNames: [String] {
             let moduleNames = switch self {
             case .module(let module, _): [module.name]
             case .product(let product, _): product.modules.map(\.name)
@@ -127,54 +133,80 @@ struct ResolvedModule: Hashable, Sendable {
         }
     }
 
-    var underlying: PackageManifestKit.Target
-    var dependencies: [Dependency]
-    var localPackageURL: URL
-    var packageID: PackageID
-    var resolvedModuleType: ResolvedModuleType
+    public var underlying: PackageManifestKit.Target
+    public var dependencies: [Dependency]
+    public var localPackageURL: URL
+    public var packageID: PackageID
+    public var resolvedModuleType: ResolvedModuleType
 
-    var name: String {
+    public init(
+        underlying: PackageManifestKit.Target,
+        dependencies: [Dependency],
+        localPackageURL: URL,
+        packageID: PackageID,
+        resolvedModuleType: ResolvedModuleType
+    ) {
+        self.underlying = underlying
+        self.dependencies = dependencies
+        self.localPackageURL = localPackageURL
+        self.packageID = packageID
+        self.resolvedModuleType = resolvedModuleType
+    }
+
+    public var name: String {
         underlying.name
     }
 
-    var c99name: String {
+    public var c99name: String {
         name.spm_mangledToC99ExtendedIdentifier()
     }
 
-    var xcFrameworkName: String {
+    public var xcFrameworkName: String {
         "\(c99name.packageNamed()).xcframework"
     }
 
-    var modulemapName: String {
+    public var modulemapName: String {
         "\(c99name.packageNamed()).modulemap"
     }
 
-    func recursiveModuleDependencies() throws -> [ResolvedModule] {
+    public func recursiveModuleDependencies() throws -> [ResolvedModule] {
         try topologicalSort(self.dependencies) { $0.dependencies }.compactMap { $0.module }
     }
 
-    func recursiveDependencies() throws -> [Dependency] {
+    public func recursiveDependencies() throws -> [Dependency] {
         try topologicalSort(self.dependencies) { $0.dependencies }
     }
 }
 
-struct ResolvedProduct: Hashable {
-    var underlying: PackageManifestKit.Product
-    var modules: [ResolvedModule]
-    var type: ProductType
-    var packageID: PackageID
+public struct ResolvedProduct: Hashable, Codable, Sendable {
+    public var underlying: PackageManifestKit.Product
+    public var modules: [ResolvedModule]
+    public var type: ProductType
+    public var packageID: PackageID
 
-    var name: String {
+    public var name: String {
         underlying.name
+    }
+
+    public init(
+        underlying: PackageManifestKit.Product,
+        modules: [ResolvedModule],
+        type: ProductType,
+        packageID: PackageID
+    ) {
+        self.underlying = underlying
+        self.modules = modules
+        self.type = type
+        self.packageID = packageID
     }
 }
 
-enum ResolvedModuleType: Hashable {
+public enum ResolvedModuleType: Hashable, Codable, Sendable {
     case clang(includeDir: URL, publicHeaders: [URL])
     case binary(BinaryArtifactLocation)
     case swift
 
-    var includeDir: URL? {
+    public var includeDir: URL? {
         switch self {
         case .clang(let includeDir, _):
             includeDir
@@ -182,11 +214,11 @@ enum ResolvedModuleType: Hashable {
         }
     }
 
-    enum BinaryArtifactLocation: Hashable {
+    public enum BinaryArtifactLocation: Hashable, Codable, Sendable {
         case local(URL)
         case remote(packageIdentity: String, name: String)
 
-        func artifactURL(rootPackageDirectory: URL) -> URL {
+        public func artifactURL(rootPackageDirectory: URL) -> URL {
             switch self {
             case .local(let url):
                 return url
@@ -199,9 +231,10 @@ enum ResolvedModuleType: Hashable {
     }
 }
 
-struct PackageResolved: Decodable {
-    let pins: [Pin]
-    let version: Int
+public struct PackageResolved: Decodable {
+    public let originHash: String?
+    public let pins: [Pin]
+    public let version: Int
 }
 
 public struct Pin: Sendable, Codable, Identifiable, Hashable {
@@ -218,17 +251,31 @@ public struct Pin: Sendable, Codable, Identifiable, Hashable {
         public var revision: String
         public var version: String?
         public var branch: String?
+
+        public init(revision: String, version: String? = nil, branch: String? = nil) {
+            self.revision = revision
+            self.version = version
+            self.branch = branch
+        }
     }
 }
 
-struct DependencyPackage: Decodable, Identifiable, Hashable {
-    var id: String {
+public struct DependencyPackage: Decodable, Identifiable, Hashable, Sendable {
+    public var id: String {
         identity
     }
 
-    var identity: String
-    var name: String
-    var url: String
-    var version: String
-    var path: String
+    public var identity: String
+    public var name: String
+    public var url: String
+    public var version: String
+    public var path: String
+
+    public init(identity: String, name: String, url: String, version: String, path: String) {
+        self.identity = identity
+        self.name = name
+        self.url = url
+        self.version = version
+        self.path = path
+    }
 }

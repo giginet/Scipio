@@ -1,7 +1,8 @@
 import Foundation
-import ScipioStorage
+import CacheStorage
 import Algorithms
 import PackageManifestKit
+import ScipioKitCore
 
 private let jsonEncoder = {
     let encoder = JSONEncoder()
