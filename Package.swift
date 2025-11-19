@@ -78,7 +78,10 @@ let package = Package(
             ]
         ),
         .target(
-            name: "CacheStorage"
+            name: "CacheStorage",
+            dependencies: [
+                "ScipioKitCore"
+            ]
         ),
         .target(
             name: "ScipioKitCore",
