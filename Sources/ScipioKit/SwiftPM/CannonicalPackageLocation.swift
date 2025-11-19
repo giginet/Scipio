@@ -16,12 +16,12 @@
 
 import Foundation
 
-public struct CanonicalPackageLocation: Equatable, CustomStringConvertible {
+struct CanonicalPackageLocation: Equatable, CustomStringConvertible {
     /// A textual representation of this instance.
-    public let description: String
+    let description: String
 
     /// Instantiates an instance of the conforming type from a string representation.
-    public init(_ string: String) {
+    init(_ string: String) {
         self.description = computeCanonicalLocation(string).description
     }
 }

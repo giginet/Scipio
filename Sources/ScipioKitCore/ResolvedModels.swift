@@ -10,10 +10,6 @@ public struct ModulesGraph: Sendable {
         allPackages[module.packageID]
     }
 
-    public func module(for name: String) -> ResolvedModule? {
-        allModules.first { $0.name == name }
-    }
-
     public init(rootPackage: ResolvedPackage, allPackages: [PackageID: ResolvedPackage], allModules: Set<ResolvedModule>) {
         self.rootPackage = rootPackage
         self.allPackages = allPackages
@@ -76,61 +72,10 @@ public struct ResolvedPackage: Identifiable, Codable, Sendable {
     }
 }
 
-public extension ResolvedPackage {
-    var canonicalPackageLocation: CanonicalPackageLocation {
-        CanonicalPackageLocation(
-            URL(filePath: path)
-                .standardizedFileURL
-                .resolvingSymlinksInPath()
-                .path(percentEncoded: false)
-        )
-    }
-}
-
 public struct ResolvedModule: Hashable, Sendable, Codable {
-    public enum Dependency: Hashable, Identifiable, Codable, Sendable {
-        public var id: String {
-            switch self {
-            case .module(let module, _):
-                module.name
-            case .product(let product, _):
-                product.name + product.modules.map(\.name).joined()
-            }
-        }
-
+    public enum Dependency: Hashable, Codable, Sendable {
         case module(ResolvedModule, conditions: [PackageCondition])
         case product(ResolvedProduct, conditions: [PackageCondition])
-
-        public var dependencies: [Dependency] {
-            switch self {
-            case .module(let module, _):
-                return module.dependencies
-            case .product(let product, _):
-                return product.modules.map { .module($0, conditions: []) }
-            }
-        }
-
-        public var module: ResolvedModule? {
-            switch self {
-            case .module(let module, _): return module
-            case .product: return nil
-            }
-        }
-
-        public var product: ResolvedProduct? {
-            switch self {
-            case .module: return nil
-            case .product(let product, _): return product
-            }
-        }
-
-        public var moduleNames: [String] {
-            let moduleNames = switch self {
-            case .module(let module, _): [module.name]
-            case .product(let product, _): product.modules.map(\.name)
-            }
-            return moduleNames
-        }
     }
 
     public var underlying: PackageManifestKit.Target
@@ -151,30 +96,6 @@ public struct ResolvedModule: Hashable, Sendable, Codable {
         self.localPackageURL = localPackageURL
         self.packageID = packageID
         self.resolvedModuleType = resolvedModuleType
-    }
-
-    public var name: String {
-        underlying.name
-    }
-
-    public var c99name: String {
-        name.spm_mangledToC99ExtendedIdentifier()
-    }
-
-    public var xcFrameworkName: String {
-        "\(c99name.packageNamed()).xcframework"
-    }
-
-    public var modulemapName: String {
-        "\(c99name.packageNamed()).modulemap"
-    }
-
-    public func recursiveModuleDependencies() throws -> [ResolvedModule] {
-        try topologicalSort(self.dependencies) { $0.dependencies }.compactMap { $0.module }
-    }
-
-    public func recursiveDependencies() throws -> [Dependency] {
-        try topologicalSort(self.dependencies) { $0.dependencies }
     }
 }
 

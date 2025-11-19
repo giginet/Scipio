@@ -10,7 +10,7 @@
 
 /// Extensions to `String` to provide various forms of identifier mangling. Many
 /// of them are programming-related.
-package extension String {
+extension String {
 
     /// Returns a form of the string that is a valid bundle identifier
     func spm_mangledToBundleIdentifier() -> String {
