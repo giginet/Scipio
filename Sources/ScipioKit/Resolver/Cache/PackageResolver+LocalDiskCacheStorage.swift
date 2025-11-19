@@ -60,3 +60,9 @@ extension PackageResolver {
         }
     }
 }
+
+extension PackageResolver.LocalDiskCacheStorage: Equatable {
+    static func == (lhs: PackageResolver.LocalDiskCacheStorage, rhs: PackageResolver.LocalDiskCacheStorage) -> Bool {
+        lhs.baseURL == rhs.baseURL
+    }
+}

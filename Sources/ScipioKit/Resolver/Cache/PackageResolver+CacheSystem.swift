@@ -27,17 +27,15 @@ extension PackageResolver {
             let storages = cachePolicies.storages(for: .producer, packageLocator: packageLocator, fileSystem: fileSystem)
             guard !storages.isEmpty else { return }
 
-            logger.info(
-                "🚀 Caching resolved packages to \(storages.count) cache storage(s)",
-                metadata: .color(.green)
-            )
-
             await storages.asyncForEach(numberOfConcurrentTasks: Self.defaultParallelNumber) { storage in
+                logger.info("🚀 Cache resolved packages to cache storage: \(storage.displayName)")
                 await self.cacheResolvedPackages(resolvedPackages, for: originHash, to: storage)
             }
         }
 
-        func restoreCacheIfPossible(for originHash: String) async -> RestoreResult {
+        func restoreCacheIfPossible(
+            for originHash: String,
+        ) async -> RestoreResult {
             let storages = cachePolicies.storages(for: .consumer, packageLocator: packageLocator, fileSystem: fileSystem)
             guard !storages.isEmpty else {
                 return .noCache
@@ -49,42 +47,22 @@ extension PackageResolver {
             )
 
             var errors: [any Error] = []
-            var storagesNeedingShare: [any ResolvedPackagesCacheStorage] = []
 
             for (index, storage) in storages.enumerated() {
                 let storageName = storage.displayName
                 let logSuffix = "[\(index)] \(storageName)"
 
-                if index == storages.startIndex {
-                    logger.info(
-                        "▶️ Starting restoration with cache storage: \(logSuffix)",
-                        metadata: .color(.green)
-                    )
-                } else {
-                    logger.info(
-                        "⏭️ Falling back to next cache storage: \(logSuffix)",
-                        metadata: .color(.green)
-                    )
-                }
-
                 do {
                     let result = try await restoreCacheIfPossible(for: originHash, storage: storage)
-                    if result.isEmpty {
-                        logger.info("ℹ️ Cache not found for resolved packages from cache storage: \(logSuffix)", metadata: .color(.green))
-                        // No valid cache here
-                        // remember to share later if we find one.
-                        storagesNeedingShare.append(storage)
-                        continue
-                    } else {
+                    if !result.isEmpty {
                         logger.info(
                             "✅ Restored resolved packages from cache storage: \(logSuffix)",
                             metadata: .color(.green)
                         )
                         // Found a cache. Share it to any storages that were missing it.
-                        if !storagesNeedingShare.isEmpty {
-                            await shareResolvedPackages(result, for: originHash, to: storagesNeedingShare)
-                        }
-                        logger.info("⏹️ Restoration finished", metadata: .color(.green))
+                        let storagesNeedingShare = storages.filter { !areStoragesEqual($0, storage) }
+                        await shareResolvedPackages(result, for: originHash, to: storagesNeedingShare)
+
                         return .restored(result)
                     }
                 } catch {
@@ -97,7 +75,7 @@ extension PackageResolver {
                 }
             }
 
-            logger.info("⏹️ Restoration finished", metadata: .color(.green))
+            logger.info("⏹️ Restoration of resolved packages finished", metadata: .color(.green))
 
             if errors.isEmpty {
                 return .noCache
@@ -111,20 +89,21 @@ extension PackageResolver {
             for originHash: String,
             to storages: [any ResolvedPackagesCacheStorage]
         ) async {
-            logger.info(
-                "🔄 Sharing resolved packages to \(storages.count) other cache storage(s)",
-                metadata: .color(.blue)
-            )
-
-            await storages.asyncForEach(numberOfConcurrentTasks: Self.defaultParallelNumber) { storage in
-                await self.cacheResolvedPackages(resolvedPackages, for: originHash, to: storage)
+            do {
+                try await storages.asyncForEach(numberOfConcurrentTasks: Self.defaultParallelNumber) { storage in
+                    if try await !storage.existsValidCache(for: originHash) {
+                        logger.info("🔄 Sharing resolved packages to \(storage.displayName)")
+                        await self.cacheResolvedPackages(resolvedPackages, for: originHash, to: storage)
+                    }
+                }
+            } catch {
+                logger.warning("⚠️ Failed to share resolved packages to cache storages: \(error)", metadata: .color(.yellow))
             }
-
-            logger.info("⏹️ Sharing to other cache storages finished", metadata: .color(.green))
         }
 
         private func restoreCacheIfPossible(for originHash: String, storage: some ResolvedPackagesCacheStorage) async throws -> [ResolvedPackage] {
             guard try await storage.existsValidCache(for: originHash) else {
+                logger.info("ℹ️ Cache not found for resolved packages (\(originHash)) from cache storage.", metadata: .color(.green))
                 return []
             }
 
@@ -138,13 +117,10 @@ extension PackageResolver {
             to storage: some ResolvedPackagesCacheStorage
         ) async {
             do {
-                logger.info(
-                    "🚀 Cache resolved packages to cache storage: \(storage.displayName)",
-                    metadata: .color(.green)
-                )
                 try await storage.cacheResolvedPackages(resolvedPackages, for: originHash)
             } catch {
                 logger.warning("⚠️ Can't create resolved package caches for \(originHash) to cache storage: \(storage.displayName)")
+                logger.error(error)
             }
         }
 
@@ -158,6 +134,17 @@ extension PackageResolver {
             var errorDescription: String? {
                 errors.compactMap(\.localizedDescription).joined(separator: "\n\n")
             }
+        }
+
+        private func areStoragesEqual(_ lhs: any ResolvedPackagesCacheStorage, _ rhs: any ResolvedPackagesCacheStorage) -> Bool {
+            // For LocalDiskCacheStorage (value type), use Equatable comparison
+            if let lhsLocal = lhs as? LocalDiskCacheStorage,
+               let rhsLocal = rhs as? LocalDiskCacheStorage {
+                return lhsLocal == rhsLocal
+            }
+
+            // For reference types (actors, classes), use ObjectIdentifier comparison
+            return ObjectIdentifier(lhs as AnyObject) == ObjectIdentifier(rhs as AnyObject)
         }
 
         enum RestoreResult {

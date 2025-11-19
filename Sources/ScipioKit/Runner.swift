@@ -270,7 +270,7 @@ extension Runner {
             /// as valid caches, but does not saving to / restoring from any external locations.
             public static let project: Self = Self(
                 storage: .project,
-                actors: [.producer]
+                actors: [.producer, .consumer]
             )
 
             /// The cache policy for saving to and restoring from the system cache directory `~/Library/Caches/Scipio/ResolvedPackages`.

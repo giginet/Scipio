@@ -28,7 +28,7 @@ struct VariousModulePathsTests {
     func resolve(for packageURL: URL) async throws {
         let rootManifest = try await manifestLoader.loadManifest(for: packageURL)
 
-        let resolver = try await PackageResolver(
+        let resolver = await PackageResolver(
             packageLocator: PackageLocation(packageDirectory: packageURL),
             rootManifest: rootManifest,
             cachePolicies: [],

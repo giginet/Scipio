@@ -34,7 +34,7 @@ actor PackageResolver {
         cachePolicies: [Runner.Options.ResolvedPackagesCachePolicy],
         fileSystem: some FileSystem,
         executor: some Executor = ProcessExecutor(errorDecoder: StandardOutputDecoder())
-    ) async throws {
+    ) async {
         self.packageDirectory = packageLocator.packageDirectory
         self.rootManifest = rootManifest
         self.fileSystem = fileSystem
@@ -47,7 +47,7 @@ actor PackageResolver {
         )
         self.moduleTypeResolver = ModuleTypeResolver(fileSystem: fileSystem, rootPackageDirectory: packageDirectory)
 
-        setActualPackageKinds(for: rootManifest)
+        self.setActualPackageKinds(for: rootManifest)
     }
 
     /// Start resolving modules and products from the root manifest.
@@ -58,7 +58,15 @@ actor PackageResolver {
         self.pins = Dictionary(uniqueKeysWithValues: packageResolved?.pins.map { ($0.id, $0) } ?? [])
 
         // Try to restore resolved packages from cache
-        let restoredData = await restoreCache(for: packageResolved?.originHash)
+        async let restoreTask = restoreCache(for: packageResolved?.originHash)
+
+        // Run `swift package show-dependencies` and parse dependency tree
+        async let showDependenciesTask = ShowDependenciesParser(executor: executor).parse(packageDirectory: packageDirectory)
+
+        let (restoredData, parseResult) = try await (restoreTask, showDependenciesTask)
+
+        self.dependencyPackagesByID = parseResult.dependencyPackagesByID
+        self.dependencyPackagesByName = parseResult.dependencyPackagesByName
 
         if let (allPackages, allModules) = restoredData {
             self.allPackages = allPackages
@@ -67,18 +75,10 @@ actor PackageResolver {
 
         let isRestored = restoredData != nil
 
-        if !isRestored {
-            // Run `swift package show-dependencies` and parse dependency tree
-            let parseResult = try await ShowDependenciesParser(executor: executor).parse(packageDirectory: packageDirectory)
-
-            self.dependencyPackagesByID = parseResult.dependencyPackagesByID
-            self.dependencyPackagesByName = parseResult.dependencyPackagesByName
-        }
-
         let rootPackage = try await resolve(manifest: rootManifest)
 
         // Cache resolved packages to specified storages if restored
-        if let originHash = packageResolved?.originHash, isRestored {
+        if let originHash = packageResolved?.originHash, !isRestored {
             await cacheSystem.cacheResolvedPackages(Array(allPackages.values), for: originHash)
         }
 
@@ -89,9 +89,10 @@ actor PackageResolver {
         )
     }
 
-    private func restoreCache(
-        for originHash: String?
-    ) async -> (allPackages: [PackageID: ResolvedPackage], allModules: Set<ResolvedModule>)? {
+    private func restoreCache(for originHash: String?) async -> (
+        allPackages: [PackageID: ResolvedPackage],
+        allModules: Set<ResolvedModule>
+    )? {
         guard let originHash,
               case let .restored(packages) = await cacheSystem.restoreCacheIfPossible(for: originHash) else {
             return nil
