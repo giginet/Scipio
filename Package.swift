@@ -20,6 +20,9 @@ let package = Package(
         .library(
             name: "ScipioKit",
             targets: ["ScipioKit"]),
+        .library(
+            name: "ScipioCacheStorage",
+            targets: ["CacheStorage"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-log.git",
