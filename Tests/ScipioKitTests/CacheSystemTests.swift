@@ -1,5 +1,6 @@
 import Foundation
 @testable @_spi(Internals) import ScipioKit
+@testable import ScipioKitCore
 import XCTest
 
 private let fixturePath = URL(fileURLWithPath: #filePath)
@@ -153,7 +154,7 @@ final class CacheSystemTests: XCTestCase {
         XCTAssertNil(scipioTestingRemote.localPackageCanonicalLocation)
         XCTAssertEqual(
             scipioTestingLocal.localPackageCanonicalLocation,
-            ScipioKit.CanonicalPackageLocation(
+            CanonicalPackageLocation(
                 tempDir.appending(component: "scipio-testing")
                     .standardizedFileURL
                     .resolvingSymlinksInPath()

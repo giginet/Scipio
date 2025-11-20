@@ -1,4 +1,5 @@
 import Foundation
+import ScipioKitCore
 
 extension PackageResolver {
     /// Parses the output of `swift package show-dependencies`.

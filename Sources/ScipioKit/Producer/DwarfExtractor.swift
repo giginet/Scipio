@@ -1,4 +1,5 @@
 import Foundation
+import ScipioKitCore
 
 struct DwarfExtractor<E: Executor> {
     private let executor: E

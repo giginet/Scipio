@@ -1,4 +1,4 @@
-import ScipioStorage
+import CacheStorage
 
 extension CacheStorage {
     /// The display name of the cache storage used for logging purpose

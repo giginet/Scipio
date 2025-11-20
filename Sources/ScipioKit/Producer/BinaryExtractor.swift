@@ -1,4 +1,5 @@
 import Foundation
+import ScipioKitCore
 
 struct BinaryExtractor {
     var descriptionPackage: DescriptionPackage

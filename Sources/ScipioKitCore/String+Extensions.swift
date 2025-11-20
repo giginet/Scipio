@@ -1,6 +1,6 @@
 import Foundation
 
-extension String {
+package extension String {
     func packageNamed() -> String {
         // Xcode replaces any non-alphanumeric characters in the target with an underscore
         // https://developer.apple.com/documentation/swift/imported_c_and_objective-c_apis/importing_swift_into_objective-c
