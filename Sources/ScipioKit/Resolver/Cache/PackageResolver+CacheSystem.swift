@@ -4,6 +4,7 @@ import ScipioKitCore
 import CacheStorage
 
 extension PackageResolver {
+    /// Manages caching and restoration of resolved packages across multiple storage backends.
     struct CacheSystem {
         static let defaultParallelNumber: UInt = 4
         private let fileSystem: any FileSystem
@@ -20,6 +21,7 @@ extension PackageResolver {
             self.cachePolicies = cachePolicies
         }
 
+        /// Stores resolved packages to configured cache storages.
         func cacheResolvedPackages(
             _ resolvedPackages: [ResolvedPackage],
             for originHash: String
@@ -33,6 +35,7 @@ extension PackageResolver {
             }
         }
 
+        /// Attempts to restore resolved packages from cache storages.
         func restoreCacheIfPossible(
             for originHash: String,
         ) async -> RestoreResult {
@@ -84,6 +87,7 @@ extension PackageResolver {
             }
         }
 
+        /// Shares resolved packages to storages that don't have them cached yet.
         private func shareResolvedPackages(
             _ resolvedPackages: [ResolvedPackage],
             for originHash: String,
@@ -101,6 +105,7 @@ extension PackageResolver {
             }
         }
 
+        /// Attempts to restore resolved packages from a specific cache storage.
         private func restoreCacheIfPossible(for originHash: String, storage: some ResolvedPackagesCacheStorage) async throws -> [ResolvedPackage] {
             guard try await storage.existsValidCache(for: originHash) else {
                 logger.info("ℹ️ Cache not found for resolved packages (\(originHash)) from cache storage.", metadata: .color(.green))
@@ -111,6 +116,7 @@ extension PackageResolver {
             return restoredPackages
         }
 
+        /// Stores resolved packages to a specific cache storage.
         private func cacheResolvedPackages(
             _ resolvedPackages: [ResolvedPackage],
             for originHash: String,
@@ -121,18 +127,6 @@ extension PackageResolver {
             } catch {
                 logger.warning("⚠️ Can't create resolved package caches for \(originHash) to cache storage: \(storage.displayName)")
                 logger.error(error)
-            }
-        }
-
-        struct CombinedErrors: LocalizedError {
-            var errors: [any Error]
-
-            init(errors: [any Error]) {
-                self.errors = errors
-            }
-
-            var errorDescription: String? {
-                errors.compactMap(\.localizedDescription).joined(separator: "\n\n")
             }
         }
 
@@ -147,6 +141,18 @@ extension PackageResolver {
             return ObjectIdentifier(lhs as AnyObject) == ObjectIdentifier(rhs as AnyObject)
         }
 
+        struct CombinedErrors: LocalizedError {
+            var errors: [any Error]
+
+            init(errors: [any Error]) {
+                self.errors = errors
+            }
+
+            var errorDescription: String? {
+                errors.compactMap(\.localizedDescription).joined(separator: "\n\n")
+            }
+        }
+
         enum RestoreResult {
             case noCache
             case restored([ResolvedPackage])
@@ -156,6 +162,7 @@ extension PackageResolver {
 }
 
 extension [Runner.Options.ResolvedPackagesCachePolicy] {
+    /// Builds cache storages filtered by the specified actor kind.
     fileprivate func storages(
         for actor: Runner.Options.CacheActorKind,
         packageLocator: some PackageLocator,
