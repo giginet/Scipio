@@ -146,6 +146,7 @@ struct PackageResolverCacheSystemTests {
         }
     }
 
+    /// Represents a cache policy configuration with cleanup logic for testing.
     struct CachePolicyEntry: Sendable {
         let cachePolicy: Runner.Options.ResolvedPackagesCachePolicy
         let cleanup: @Sendable (any FileSystem) -> Void
@@ -185,10 +186,12 @@ struct PackageResolverCacheSystemTests {
 }
 
 extension [PackageResolverCacheSystemTests.CachePolicyEntry] {
+    /// Cleans up all cache entries.
     func cleanup(using fileSystem: some FileSystem) {
         forEach { $0.cleanup(fileSystem) }
     }
 
+    /// Returns true if all cache entries have valid cached data for the given origin hash.
     func allHaveValidCache(
         for originHash: String,
         packageLocator: some PackageLocator,
@@ -202,7 +205,7 @@ extension [PackageResolverCacheSystemTests.CachePolicyEntry] {
     }
 }
 
-/// Test trait that provides shared resolved packages
+/// Test trait that provides shared resolved packages.
 fileprivate struct SharedResolvedPackagesTrait: TestTrait, TestScoping {
     func provideScope(
         for test: Test,
@@ -237,6 +240,7 @@ fileprivate extension TestTrait where Self == SharedResolvedPackagesTrait {
     static var sharedResolvedPackagesTrait: Self { Self() }
 }
 
+/// In-memory implementation of resolved packages cache storage for testing.
 private actor InMemoryCacheStorage: ResolvedPackagesCacheStorage {
     var caches: [String: [ScipioKitCore.ResolvedPackage]] = [:]
 
