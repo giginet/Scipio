@@ -266,8 +266,7 @@ extension Runner {
                 self.actors = actors
             }
 
-            /// The cache policy which treats built frameworks under the project's output directory (e.g. `XCFrameworks`)
-            /// as valid caches, but does not saving to / restoring from any external locations.
+            /// The cache policy that treats resolved packages under the project’s output directory (e.g. .build/scipio/ResolvedPackages/) as valid caches.
             public static let project: Self = Self(
                 storage: .project,
                 actors: [.producer, .consumer]
