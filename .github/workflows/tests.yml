@@ -21,7 +21,7 @@ jobs:
     steps:
     - name: Get swift version
       run: swift --version
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Build
       run: |
         swift build
