@@ -1,4 +1,5 @@
 import Foundation
+import ScipioKitCore
 
 /// Holds the packageDirectory Scipio works on, and defines some path-related functionalities.
 protocol PackageLocator: Sendable {

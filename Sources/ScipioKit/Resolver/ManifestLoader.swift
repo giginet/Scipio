@@ -1,5 +1,6 @@
 import Foundation
 import PackageManifestKit
+import ScipioKitCore
 
 /// Loads the `Manifest` of a Swift package
 struct ManifestLoader: @unchecked Sendable {

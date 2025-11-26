@@ -1,5 +1,6 @@
 import Foundation
 import PIFKit
+import ScipioKitCore
 
 protocol Compiler {
     var descriptionPackage: DescriptionPackage { get }

@@ -26,18 +26,6 @@ struct CanonicalPackageLocation: Equatable, CustomStringConvertible {
     }
 }
 
-/// Similar to `CanonicalPackageLocation` but differentiates based on the scheme.
-struct CanonicalPackageURL: Equatable, CustomStringConvertible {
-    let description: String
-    let scheme: String?
-
-    init(_ string: String) {
-        let location = computeCanonicalLocation(string)
-        self.description = location.description
-        self.scheme = location.scheme
-    }
-}
-
 private func computeCanonicalLocation(_ string: String) -> (description: String, scheme: String?) {
     var description = string.precomposedStringWithCanonicalMapping.lowercased()
 

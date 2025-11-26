@@ -1,6 +1,7 @@
 import Foundation
 import Logging
 import Algorithms
+import ScipioKitCore
 
 struct XCBuildExecutor {
 

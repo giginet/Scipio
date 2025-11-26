@@ -1,5 +1,5 @@
 import Foundation
-import ScipioStorage
+import CacheStorage
 import Collections
 import PackageManifestKit
 

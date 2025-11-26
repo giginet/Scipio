@@ -1,5 +1,5 @@
 import Foundation
-import ScipioStorage
+import CacheStorage
 
 public typealias PlatformMatrix = [String: Set<SDK>]
 
