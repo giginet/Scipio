@@ -337,11 +337,13 @@ extension Runner {
             self.verbose = verbose
         }
 
+        // swiftlint:disable line_length
         @available(
             *,
             deprecated,
             message: "Use init(baseBuildOptions:buildOptionsMatrix:shouldOnlyUseVersionsFromResolvedFile:frameworkCachePolicies:resolvedPackagesCachePolicies:overwrite:verbose:) instead."
         )
+        // swiftlint:enable line_length
         @_disfavoredOverload
         public init(
             baseBuildOptions: BuildOptions = .init(),

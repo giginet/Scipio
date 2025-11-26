@@ -180,7 +180,7 @@ struct PackageResolverCacheSystemTests {
             [.project],
             [.localDisk],
             [.inMemory()],
-            [.project, .localDisk, .inMemory()]
+            [.project, .localDisk, .inMemory()],
         ]
     }
 }
@@ -206,7 +206,7 @@ extension [PackageResolverCacheSystemTests.CachePolicyEntry] {
 }
 
 /// Test trait that provides shared resolved packages.
-fileprivate struct SharedResolvedPackagesTrait: TestTrait, TestScoping {
+private struct SharedResolvedPackagesTrait: TestTrait, TestScoping {
     func provideScope(
         for test: Test,
         testCase: Test.Case?,

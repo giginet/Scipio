@@ -20,7 +20,11 @@ extension Scipio {
         var packageDirectory: URL = URL(fileURLWithPath: ".")
 
         @Option(name: [.customLong("cache-policy")],
-                help: "Specify how to reuse cache for both frameworks and resolved packages. Can be overridden by --framework-cache-policy or --resolved-packages-cache-policy. (\(CachePolicy.allCases.map(\.rawValue).joined(separator: " / ")))",
+                help: """
+                      Specify how to reuse cache for both frameworks and resolved packages.
+                      Can be overridden by --framework-cache-policy or --resolved-packages-cache-policy.
+                      (\(CachePolicy.allCases.map(\.rawValue).joined(separator: " / ")))
+                      """,
                 completion: .list(CachePolicy.allCases.map(\.rawValue)))
         var cachePolicy: CachePolicy = .project
 
