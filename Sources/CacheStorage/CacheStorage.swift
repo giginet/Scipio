@@ -8,11 +8,20 @@ private let jsonEncoder = {
     return encoder
 }()
 
-public protocol CacheStorage: Sendable {
+public protocol FrameworkCacheStorage: Sendable {
     func existsValidCache(for cacheKey: some CacheKey) async throws -> Bool
     func fetchArtifacts(for cacheKey: some CacheKey, to destinationDir: URL) async throws
     func cacheFramework(_ frameworkPath: URL, for cacheKey: some CacheKey) async throws
     var parallelNumber: Int? { get }
+}
+
+@available(*, deprecated, renamed: "FrameworkCacheStorage")
+public typealias CacheStorage = FrameworkCacheStorage
+
+public protocol ResolvedPackagesCacheStorage: Sendable {
+    func existsValidCache(for originHash: String) async throws -> Bool
+    func fetchResolvedPackages(for originHash: String) async throws -> [ResolvedPackage]
+    func cacheResolvedPackages(_ resolvedPackages: [ResolvedPackage], for originHash: String) async throws
 }
 
 public protocol CacheKey: Hashable, Codable, Equatable, Sendable {
@@ -34,7 +43,7 @@ extension CacheKey {
     }
 }
 
-extension CacheStorage {
+extension FrameworkCacheStorage {
     public var parallelNumber: Int? {
         nil
     }
