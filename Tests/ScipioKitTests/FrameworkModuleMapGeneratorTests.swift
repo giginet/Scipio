@@ -107,6 +107,7 @@ framework module ClangPackageWithRelativePublicHeadersPath {
         let descriptionPackage = try await DescriptionPackage(
             packageDirectory: packageDirectory,
             mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: false
         )
         let generatedModuleMapPath = try generator.generate(

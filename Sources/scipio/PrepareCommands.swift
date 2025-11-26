@@ -20,9 +20,23 @@ extension Scipio {
         var packageDirectory: URL = URL(fileURLWithPath: ".")
 
         @Option(name: [.customLong("cache-policy")],
-                help: "Specify how to reuse cache. (\(CachePolicy.allCases.map(\.rawValue).joined(separator: " / ")))",
+                help: """
+                      Specify how to reuse cache for both frameworks and resolved packages.
+                      Can be overridden by --framework-cache-policy or --resolved-packages-cache-policy.
+                      (\(CachePolicy.allCases.map(\.rawValue).joined(separator: " / ")))
+                      """,
                 completion: .list(CachePolicy.allCases.map(\.rawValue)))
         var cachePolicy: CachePolicy = .project
+
+        @Option(name: [.customLong("framework-cache-policy")],
+                help: "Specify how to reuse framework cache. (\(CachePolicy.allCases.map(\.rawValue).joined(separator: " / ")))",
+                completion: .list(CachePolicy.allCases.map(\.rawValue)))
+        var frameworkCachePolicy: CachePolicy?
+
+        @Option(name: [.customLong("resolved-packages-cache-policy")],
+                help: "Specify how to reuse resolved packages cache. (\(CachePolicy.allCases.map(\.rawValue).joined(separator: " / ")))",
+                completion: .list(CachePolicy.allCases.map(\.rawValue)))
+        var resolvedPackagesCachePolicy: CachePolicy?
 
         @OptionGroup var buildOptions: BuildOptionGroup
         @OptionGroup var globalOptions: GlobalOptionGroup
@@ -31,18 +45,34 @@ extension Scipio {
             let logLevel: Logger.Level = globalOptions.verbose ? .trace : .info
             LoggingSystem.bootstrap(logLevel: logLevel)
 
-            let runnerCachePolicies: [Runner.Options.CachePolicy]
-            switch cachePolicy {
+            // Determine effective framework cache policy
+            let effectiveFrameworkCachePolicy = frameworkCachePolicy ?? cachePolicy
+
+            // Determine effective resolved packages cache policy
+            let effectiveResolvedPackagesCachePolicy = resolvedPackagesCachePolicy ?? cachePolicy
+
+            let frameworkCachePolicies: [Runner.Options.FrameworkCachePolicy]
+            switch effectiveFrameworkCachePolicy {
             case .disabled:
-                runnerCachePolicies = .disabled
+                frameworkCachePolicies = .disabled
             case .project:
-                runnerCachePolicies = [.project]
+                frameworkCachePolicies = [.project]
             case .local:
-                runnerCachePolicies = [.localDisk]
+                frameworkCachePolicies = [.localDisk]
+            }
+
+            let resolvedPackagesCachePolicies: [Runner.Options.ResolvedPackagesCachePolicy]
+            switch effectiveResolvedPackagesCachePolicy {
+            case .disabled:
+                resolvedPackagesCachePolicies = .disabled
+            case .project:
+                resolvedPackagesCachePolicies = [.project]
+            case .local:
+                resolvedPackagesCachePolicies = [.localDisk]
             }
 
             let runner = Runner(
-                commandType: .prepare(cachePolicies: runnerCachePolicies),
+                commandType: .prepare(frameworkCachePolicies: frameworkCachePolicies, resolvedPackagesCachePolicies: resolvedPackagesCachePolicies),
                 buildOptions: buildOptions,
                 globalOptions: globalOptions
             )

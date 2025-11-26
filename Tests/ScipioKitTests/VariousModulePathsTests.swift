@@ -28,9 +28,10 @@ struct VariousModulePathsTests {
     func resolve(for packageURL: URL) async throws {
         let rootManifest = try await manifestLoader.loadManifest(for: packageURL)
 
-        let resolver = try await PackageResolver(
-            packageDirectory: packageURL,
+        let resolver = await PackageResolver(
+            packageLocator: PackageLocation(packageDirectory: packageURL),
             rootManifest: rootManifest,
+            cachePolicies: [],
             fileSystem: fileSystem
         )
         let modulesGraph = try await resolver.resolve()
@@ -38,5 +39,9 @@ struct VariousModulePathsTests {
         modulesGraph.allModules.forEach { module in
             #expect(module.name == packageURL.lastPathComponent)
         }
+    }
+
+    private struct PackageLocation: PackageLocator {
+        var packageDirectory: URL
     }
 }

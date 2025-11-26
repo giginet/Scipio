@@ -86,13 +86,13 @@ struct CacheSystem: Sendable {
         self.fileSystem = fileSystem
     }
 
-    func cacheFrameworks(_ targets: Set<CacheTarget>, to storages: [any CacheStorage]) async {
+    func cacheFrameworks(_ targets: Set<CacheTarget>, to storages: [any FrameworkCacheStorage]) async {
         for storage in storages {
             await cacheFrameworks(targets, to: storage)
         }
     }
 
-    private func cacheFrameworks(_ targets: Set<CacheTarget>, to storage: some CacheStorage) async {
+    private func cacheFrameworks(_ targets: Set<CacheTarget>, to storage: some FrameworkCacheStorage) async {
         let chunked = targets.chunks(ofCount: storage.parallelNumber ?? CacheSystem.defaultParallelNumber)
 
         let storageName = storage.displayName
@@ -118,7 +118,7 @@ struct CacheSystem: Sendable {
         }
     }
 
-    private func cacheFramework(_ target: CacheTarget, at frameworkPath: URL, to storage: any CacheStorage) async throws {
+    private func cacheFramework(_ target: CacheTarget, at frameworkPath: URL, to storage: any FrameworkCacheStorage) async throws {
         let cacheKey = try await calculateCacheKey(of: target)
 
         try await storage.cacheFramework(frameworkPath, for: cacheKey)
@@ -156,7 +156,7 @@ struct CacheSystem: Sendable {
         case noCache
     }
 
-    func restoreCacheIfPossible(target: CacheTarget, storage: some CacheStorage) async -> RestoreResult {
+    func restoreCacheIfPossible(target: CacheTarget, storage: some FrameworkCacheStorage) async -> RestoreResult {
         do {
             let cacheKey = try await calculateCacheKey(of: target)
             if try await storage.existsValidCache(for: cacheKey) {

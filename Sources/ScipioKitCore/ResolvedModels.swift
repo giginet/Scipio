@@ -55,7 +55,7 @@ public struct PackageID: Hashable, Codable, Sendable {
 }
 
 /// A fully resolved package. Contains resolved modules, products and dependencies of the package.
-public struct ResolvedPackage: Identifiable, Codable, Sendable {
+public struct ResolvedPackage: Identifiable, Codable, Sendable, Equatable {
     /// Unique identifier for the package.
     public var id: PackageID
 
