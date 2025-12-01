@@ -14,6 +14,10 @@ struct XCBuildExecutor {
         buildParametersPath: URL,
         target: ResolvedModule
     ) async throws {
+        // [workaround]
+        // Scipio on CLI passes a relative path,
+        // but Swift Build doesn't accept a relative path to DerivedData.
+        // FIXME: Remove `absoluteURL` after `swbuild build` supports a relative path.
         let executor = await BufferedXCBuildMessageExecutor([
             xcbuildPath.path(percentEncoded: false),
             "build",
@@ -21,7 +25,7 @@ struct XCBuildExecutor {
             "--configuration",
             configuration.settingsValue,
             "--derivedDataPath",
-            derivedDataPath.path(percentEncoded: false),
+            derivedDataPath.absoluteURL.path(percentEncoded: false),
             "--buildParametersFile",
             buildParametersPath.path(percentEncoded: false),
             "--target",
