@@ -59,6 +59,7 @@ public struct Runner {
             descriptionPackage = try await DescriptionPackage(
                 packageDirectory: packageDirectory,
                 mode: mode,
+                resolvedPackagesCachePolicies: options.resolvedPackagesCachePolicies,
                 onlyUseVersionsFromResolvedFile: options.shouldOnlyUseVersionsFromResolvedFile
             )
         } catch {
@@ -82,7 +83,7 @@ public struct Runner {
             descriptionPackage: descriptionPackage,
             buildOptions: buildOptions,
             buildOptionsMatrix: buildOptionsMatrix,
-            cachePolicies: options.cachePolicies,
+            cachePolicies: options.frameworkCachePolicies,
             overwrite: options.overwrite,
             outputDir: outputDir
         )
@@ -201,18 +202,11 @@ extension Runner {
             public var buildOptionsMatrix: [String: TargetBuildOptions]
         }
 
-        public struct CachePolicy: Sendable {
-            public enum CacheActorKind: Sendable {
-                // Save built product to cacheStorage
-                case producer
-                // Consume stored caches
-                case consumer
-            }
-
-            public let storage: any CacheStorage
+        public struct FrameworkCachePolicy: Sendable {
+            public let storage: any FrameworkCacheStorage
             public let actors: Set<CacheActorKind>
 
-            public init(storage: some CacheStorage, actors: Set<CacheActorKind>) {
+            public init(storage: some FrameworkCacheStorage, actors: Set<CacheActorKind>) {
                 self.storage = storage
                 self.actors = actors
             }
@@ -237,6 +231,66 @@ extension Runner {
             }
         }
 
+        @available(*, deprecated, renamed: "FrameworkCachePolicy")
+        public typealias CachePolicy = FrameworkCachePolicy
+
+        public struct ResolvedPackagesCachePolicy: Sendable {
+            public enum StorageType: Sendable {
+                case localDisk(baseURL: URL? = nil)
+                case project
+                case custom(any ResolvedPackagesCacheStorage)
+
+                func buildStorage(
+                    packageLocator: some PackageLocator,
+                    fileSystem: some FileSystem
+                ) -> any ResolvedPackagesCacheStorage {
+                    switch self {
+                    case .localDisk(let baseURL):
+                        PackageResolver.LocalDiskCacheStorage(baseURL: baseURL, fileSystem: fileSystem)
+                    case .project:
+                        PackageResolver.LocalDiskCacheStorage(
+                            baseURL: packageLocator.resolvedPackagesCacheDirectory,
+                            fileSystem: fileSystem
+                        )
+                    case .custom(let resolvedPackagesCacheStorage):
+                        resolvedPackagesCacheStorage
+                    }
+                }
+            }
+
+            public let storage: StorageType
+            public let actors: Set<CacheActorKind>
+
+            public init(storage: StorageType, actors: Set<CacheActorKind>) {
+                self.storage = storage
+                self.actors = actors
+            }
+
+            /// The cache policy that treats resolved packages under the project’s output directory (e.g. .build/scipio/ResolvedPackages/) as valid caches.
+            public static let project: Self = Self(
+                storage: .project,
+                actors: [.producer, .consumer]
+            )
+
+            /// The cache policy for saving to and restoring from the system cache directory `~/Library/Caches/Scipio/ResolvedPackages`.
+            public static let localDisk: Self = .localDisk(baseURL: nil)
+
+            /// The cache policy for saving to and restoring from the custom cache directory `baseURL.appendingPath("ResolvedPackages")`.
+            public static func localDisk(baseURL: URL?) -> Self {
+                Self(
+                    storage: .localDisk(baseURL: baseURL),
+                    actors: [.producer, .consumer]
+                )
+            }
+        }
+
+        public enum CacheActorKind: Sendable {
+            // Save built product to cacheStorage
+            case producer
+            // Consume stored caches
+            case consumer
+        }
+
         public enum PlatformSpecifier: Sendable, Equatable {
             case manifest
             case specific(Set<Platform>)
@@ -253,15 +307,22 @@ extension Runner {
 
         public var buildOptionsContainer: BuildOptionsContainer
         public var shouldOnlyUseVersionsFromResolvedFile: Bool
-        public var cachePolicies: [CachePolicy]
+        public var frameworkCachePolicies: [FrameworkCachePolicy]
+        public var resolvedPackagesCachePolicies: [ResolvedPackagesCachePolicy]
         public var overwrite: Bool
         public var verbose: Bool
+
+        @available(*, deprecated, message: "Use `frameworkCachePolicies` instead.")
+        public var cachePolicies: [FrameworkCachePolicy] {
+            frameworkCachePolicies
+        }
 
         public init(
             baseBuildOptions: BuildOptions = .init(),
             buildOptionsMatrix: [String: TargetBuildOptions] = [:],
             shouldOnlyUseVersionsFromResolvedFile: Bool = false,
-            cachePolicies: [CachePolicy] = [.project],
+            frameworkCachePolicies: [FrameworkCachePolicy] = [.project],
+            resolvedPackagesCachePolicies: [ResolvedPackagesCachePolicy] = [.project],
             overwrite: Bool = false,
             verbose: Bool = false
         ) {
@@ -270,9 +331,37 @@ extension Runner {
                 buildOptionsMatrix: buildOptionsMatrix
             )
             self.shouldOnlyUseVersionsFromResolvedFile = shouldOnlyUseVersionsFromResolvedFile
-            self.cachePolicies = cachePolicies
+            self.frameworkCachePolicies = frameworkCachePolicies
+            self.resolvedPackagesCachePolicies = resolvedPackagesCachePolicies
             self.overwrite = overwrite
             self.verbose = verbose
+        }
+
+        // swiftlint:disable line_length
+        @available(
+            *,
+            deprecated,
+            message: "Use init(baseBuildOptions:buildOptionsMatrix:shouldOnlyUseVersionsFromResolvedFile:frameworkCachePolicies:resolvedPackagesCachePolicies:overwrite:verbose:) instead."
+        )
+        // swiftlint:enable line_length
+        @_disfavoredOverload
+        public init(
+            baseBuildOptions: BuildOptions = .init(),
+            buildOptionsMatrix: [String: TargetBuildOptions] = [:],
+            shouldOnlyUseVersionsFromResolvedFile: Bool = false,
+            cachePolicies: [FrameworkCachePolicy] = [.project],
+            overwrite: Bool = false,
+            verbose: Bool = false
+        ) {
+            self.init(
+                baseBuildOptions: baseBuildOptions,
+                buildOptionsMatrix: buildOptionsMatrix,
+                shouldOnlyUseVersionsFromResolvedFile: shouldOnlyUseVersionsFromResolvedFile,
+                frameworkCachePolicies: cachePolicies,
+                resolvedPackagesCachePolicies: [.project],
+                overwrite: overwrite,
+                verbose: verbose
+            )
         }
     }
 }
@@ -393,6 +482,10 @@ extension Runner.Options.BuildOptionsContainer {
     }
 }
 
-extension [Runner.Options.CachePolicy] {
+extension [Runner.Options.FrameworkCachePolicy] {
+    public static let disabled: Self = []
+}
+
+extension [Runner.Options.ResolvedPackagesCachePolicy] {
     public static let disabled: Self = []
 }

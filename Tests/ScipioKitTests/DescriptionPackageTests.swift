@@ -13,6 +13,7 @@ final class DescriptionPackageTests: XCTestCase {
         let package = try await DescriptionPackage(
             packageDirectory: rootPath,
             mode: .prepareDependencies,
+            resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: false
         )
         XCTAssertEqual(package.name, "TestingPackage")
@@ -36,6 +37,7 @@ final class DescriptionPackageTests: XCTestCase {
         let package = try await DescriptionPackage(
             packageDirectory: rootPath,
             mode: .prepareDependencies,
+            resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: false
         )
         XCTAssertEqual(package.name, "IntegrationTestPackage")
@@ -72,6 +74,7 @@ final class DescriptionPackageTests: XCTestCase {
         let package = try await DescriptionPackage(
             packageDirectory: rootPath,
             mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: false
         )
         XCTAssertEqual(package.name, "TestingPackage")
@@ -93,6 +96,7 @@ final class DescriptionPackageTests: XCTestCase {
         let package = try await DescriptionPackage(
             packageDirectory: rootPath,
             mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: false
         )
         XCTAssertEqual(package.name, "BinaryPackage")

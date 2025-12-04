@@ -1,7 +1,7 @@
 import Foundation
 import CacheStorage
 
-struct LocalDiskCacheStorage: CacheStorage, Equatable {
+struct LocalDiskCacheStorage: FrameworkCacheStorage, Equatable {
     private let fileSystem: any FileSystem
 
     var parallelNumber: Int? { nil }

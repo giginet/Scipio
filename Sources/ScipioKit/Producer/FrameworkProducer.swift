@@ -7,7 +7,7 @@ struct FrameworkProducer {
     private let descriptionPackage: DescriptionPackage
     private let baseBuildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
-    private let cachePolicies: [Runner.Options.CachePolicy]
+    private let cachePolicies: [Runner.Options.FrameworkCachePolicy]
     private let overwrite: Bool
     private let outputDir: URL
     private let fileSystem: any FileSystem
@@ -29,7 +29,7 @@ struct FrameworkProducer {
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
-        cachePolicies: [Runner.Options.CachePolicy],
+        cachePolicies: [Runner.Options.FrameworkCachePolicy],
         overwrite: Bool,
         outputDir: URL,
         fileSystem: any FileSystem = LocalFileSystem.default
@@ -195,11 +195,11 @@ struct FrameworkProducer {
 
     private func restoreAllAvailableCachesIfNeeded(
         availableTargets: Set<CacheSystem.CacheTarget>,
-        to storages: [any CacheStorage],
+        to storages: [any FrameworkCacheStorage],
         cacheSystem: CacheSystem
-    ) async -> [Set<CacheSystem.CacheTarget>: any CacheStorage] {
+    ) async -> [Set<CacheSystem.CacheTarget>: any FrameworkCacheStorage] {
         var remainingTargets = availableTargets
-        var restoredSetsToSourceStorage: [Set<CacheSystem.CacheTarget>: any CacheStorage] = [:]
+        var restoredSetsToSourceStorage: [Set<CacheSystem.CacheTarget>: any FrameworkCacheStorage] = [:]
 
         for index in storages.indices {
             let storage = storages[index]
@@ -246,7 +246,7 @@ struct FrameworkProducer {
 
     private func restoreCaches(
         for targets: Set<CacheSystem.CacheTarget>,
-        from cacheStorage: any CacheStorage,
+        from cacheStorage: any FrameworkCacheStorage,
         cacheSystem: CacheSystem
     ) async -> Set<CacheSystem.CacheTarget> {
         let chunked = targets.chunks(ofCount: cacheStorage.parallelNumber ?? CacheSystem.defaultParallelNumber)
@@ -286,7 +286,7 @@ struct FrameworkProducer {
         func restore(
             target: CacheSystem.CacheTarget,
             cacheSystem: CacheSystem,
-            cacheStorage: any CacheStorage
+            cacheStorage: any FrameworkCacheStorage
         ) async throws -> Bool {
             let product = target.buildProduct
             let frameworkName = product.frameworkName
@@ -389,7 +389,7 @@ struct FrameworkProducer {
 
     private func shareRestoredCachesToProducers(
         _ allRestoredTargets: Set<CacheSystem.CacheTarget>,
-        restoredSetsToSourceStorage: [Set<CacheSystem.CacheTarget>: any CacheStorage],
+        restoredSetsToSourceStorage: [Set<CacheSystem.CacheTarget>: any FrameworkCacheStorage],
         cacheSystem: CacheSystem
     ) async {
         let storagesWithProducer = cachePolicies.storages(for: .producer)
@@ -417,7 +417,7 @@ struct FrameworkProducer {
         logger.info("⏹️ Sharing to other cache storages finished", metadata: .color(.green))
     }
 
-    private func areStoragesEqual(_ lhs: any CacheStorage, _ rhs: any CacheStorage) -> Bool {
+    private func areStoragesEqual(_ lhs: any FrameworkCacheStorage, _ rhs: any FrameworkCacheStorage) -> Bool {
         // ProjectCacheStorage instances are always considered the same
         if lhs is ProjectCacheStorage && rhs is ProjectCacheStorage {
             return true
@@ -435,7 +435,7 @@ struct FrameworkProducer {
 
     private func shareCachesToStorage(
         _ targets: Set<CacheSystem.CacheTarget>,
-        to storage: any CacheStorage,
+        to storage: any FrameworkCacheStorage,
         cacheSystem: CacheSystem
     ) async {
         let chunked = targets.chunks(ofCount: storage.parallelNumber ?? CacheSystem.defaultParallelNumber)
@@ -471,8 +471,8 @@ struct FrameworkProducer {
     }
 }
 
-extension [Runner.Options.CachePolicy] {
-    fileprivate func storages(for actor: Runner.Options.CachePolicy.CacheActorKind) -> [any CacheStorage] {
+extension [Runner.Options.FrameworkCachePolicy] {
+    fileprivate func storages(for actor: Runner.Options.CacheActorKind) -> [any FrameworkCacheStorage] {
         reduce(into: []) { result, cachePolicy in
             if cachePolicy.actors.contains(actor) {
                 result.append(cachePolicy.storage)
