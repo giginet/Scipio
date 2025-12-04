@@ -45,14 +45,8 @@ extension Scipio {
             let logLevel: Logger.Level = globalOptions.verbose ? .trace : .info
             LoggingSystem.bootstrap(logLevel: logLevel)
 
-            // Determine effective framework cache policy
-            let effectiveFrameworkCachePolicy = frameworkCachePolicy ?? cachePolicy
-
-            // Determine effective resolved packages cache policy
-            let effectiveResolvedPackagesCachePolicy = resolvedPackagesCachePolicy ?? cachePolicy
-
             let frameworkCachePolicies: [Runner.Options.FrameworkCachePolicy]
-            switch effectiveFrameworkCachePolicy {
+            switch frameworkCachePolicy ?? cachePolicy {
             case .disabled:
                 frameworkCachePolicies = .disabled
             case .project:
@@ -62,7 +56,7 @@ extension Scipio {
             }
 
             let resolvedPackagesCachePolicies: [Runner.Options.ResolvedPackagesCachePolicy]
-            switch effectiveResolvedPackagesCachePolicy {
+            switch resolvedPackagesCachePolicy ?? cachePolicy {
             case .disabled:
                 resolvedPackagesCachePolicies = .disabled
             case .project:
@@ -72,7 +66,10 @@ extension Scipio {
             }
 
             let runner = Runner(
-                commandType: .prepare(frameworkCachePolicies: frameworkCachePolicies, resolvedPackagesCachePolicies: resolvedPackagesCachePolicies),
+                commandType: .prepare(
+                    frameworkCachePolicies: frameworkCachePolicies,
+                    resolvedPackagesCachePolicies: resolvedPackagesCachePolicies
+                ),
                 buildOptions: buildOptions,
                 globalOptions: globalOptions
             )
