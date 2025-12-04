@@ -9,7 +9,7 @@ jobs:
   release:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       # Scipio can't be built with Xcode build mode, so it can't be a universal binary.
       - name: Build for arm64
         run: swift build --disable-sandbox -c release --arch arm64 
