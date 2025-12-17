@@ -21,12 +21,11 @@ extension Scipio {
 
         @Option(name: [.customLong("cache-policy")],
                 help: """
-                      Specify how to reuse cache for both frameworks and resolved packages.
-                      Can be overridden by --framework-cache-policy or --resolved-packages-cache-policy.
-                      (\(CachePolicy.allCases.map(\.rawValue).joined(separator: " / ")))
+                      [DEPRECATED] Use --framework-cache-policy instead.
+                      Specify how to reuse framework cache. (\(CachePolicy.allCases.map(\.rawValue).joined(separator: " / ")))
                       """,
                 completion: .list(CachePolicy.allCases.map(\.rawValue)))
-        var cachePolicy: CachePolicy = .project
+        var cachePolicy: CachePolicy?
 
         @Option(name: [.customLong("framework-cache-policy")],
                 help: "Specify how to reuse framework cache. (\(CachePolicy.allCases.map(\.rawValue).joined(separator: " / ")))",
@@ -45,6 +44,11 @@ extension Scipio {
             let logLevel: Logger.Level = globalOptions.verbose ? .trace : .info
             LoggingSystem.bootstrap(logLevel: logLevel)
 
+            // Show deprecation warning if cachePolicy is used
+            if let cachePolicy = cachePolicy {
+                logger.warning("--cache-policy is deprecated. Please use --framework-cache-policy instead.")
+            }
+
             let frameworkCachePolicies: [Runner.Options.FrameworkCachePolicy]
             switch frameworkCachePolicy ?? cachePolicy {
             case .disabled:
@@ -53,16 +57,20 @@ extension Scipio {
                 frameworkCachePolicies = [.project]
             case .local:
                 frameworkCachePolicies = [.localDisk]
+            case nil:
+                frameworkCachePolicies = [.project]
             }
 
             let resolvedPackagesCachePolicies: [Runner.Options.ResolvedPackagesCachePolicy]
-            switch resolvedPackagesCachePolicy ?? cachePolicy {
+            switch resolvedPackagesCachePolicy {
             case .disabled:
                 resolvedPackagesCachePolicies = .disabled
             case .project:
                 resolvedPackagesCachePolicies = [.project]
             case .local:
                 resolvedPackagesCachePolicies = [.localDisk]
+            case nil:
+                resolvedPackagesCachePolicies = [.project]
             }
 
             let runner = Runner(

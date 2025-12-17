@@ -2,7 +2,7 @@ import Foundation
 import Logging
 import Rainbow
 
-let logger = Logger(label: "me.giginet.Scipio")
+package let logger = Logger(label: "me.giginet.Scipio")
 
 extension Logger.MetadataValue {
     static func color(_ color: NamedColor) -> Self {
