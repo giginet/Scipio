@@ -45,7 +45,7 @@ extension Scipio {
             LoggingSystem.bootstrap(logLevel: logLevel)
 
             // Show deprecation warning if cachePolicy is used
-            if cachePolicy != nil  {
+            if cachePolicy != nil {
                 logger.warning("--cache-policy is deprecated. Please use --framework-cache-policy instead.")
             }
 
