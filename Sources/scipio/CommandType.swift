@@ -3,7 +3,10 @@ import ScipioKit
 
 enum CommandType {
     case create(platformSpecifier: Runner.Options.PlatformSpecifier)
-    case prepare(cachePolicies: [Runner.Options.CachePolicy])
+    case prepare(
+        frameworkCachePolicies: [Runner.Options.FrameworkCachePolicy],
+        resolvedPackagesCachePolicies: [Runner.Options.ResolvedPackagesCachePolicy]
+    )
 
     var mode: Runner.Mode {
         switch self {
@@ -23,11 +26,11 @@ enum CommandType {
         }
     }
 
-    var cachePolicies: [Runner.Options.CachePolicy] {
+    var frameworkCachePolicies: [Runner.Options.FrameworkCachePolicy] {
         switch self {
         case .create:
             return .disabled
-        case .prepare(let cachePolicies):
+        case .prepare(let cachePolicies, _):
             return cachePolicies
         }
     }
@@ -52,20 +55,29 @@ extension Runner {
         let runnerOptions = Runner.Options(
             baseBuildOptions: baseBuildOptions,
             shouldOnlyUseVersionsFromResolvedFile: buildOptions.shouldOnlyUseVersionsFromResolvedFile,
-            cachePolicies: Self.cachePolicies(from: commandType),
+            frameworkCachePolicies: Self.frameworkCachePolicies(from: commandType),
+            resolvedPackagesCachePolicies: Self.resolvedPackagesCachePolicies(from: commandType),
             overwrite: buildOptions.overwrite,
             verbose: globalOptions.verbose
         )
         self.init(mode: commandType.mode, options: runnerOptions)
     }
 
-    private static func cachePolicies(from commandType: CommandType) -> [Runner.Options.CachePolicy] {
+    private static func frameworkCachePolicies(from commandType: CommandType) -> [Runner.Options.FrameworkCachePolicy] {
         switch commandType {
         case .create:
             return .disabled
-        case .prepare(let cachePolicies):
+        case .prepare(let cachePolicies, _):
             return cachePolicies
         }
     }
 
+    private static func resolvedPackagesCachePolicies(from commandType: CommandType) -> [Runner.Options.ResolvedPackagesCachePolicy] {
+        switch commandType {
+        case .create:
+            return .disabled
+        case .prepare(_, let cachePolicies):
+            return cachePolicies
+        }
+    }
 }

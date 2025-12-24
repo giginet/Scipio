@@ -25,15 +25,15 @@ struct FrameworkProducerTests {
         let needsSharedCacheStorage = MockCacheStorage(name: "NeedsSharedCache")
 
         // Create cache policies
-        let restoreSourcePolicy = Runner.Options.CachePolicy(
+        let restoreSourcePolicy = Runner.Options.FrameworkCachePolicy(
             storage: restoreSourceStorage,
             actors: [.consumer, .producer]  // Will restore and should be excluded from sharing
         )
-        let alreadyHasCachePolicy = Runner.Options.CachePolicy(
+        let alreadyHasCachePolicy = Runner.Options.FrameworkCachePolicy(
             storage: alreadyHasCacheStorage,
             actors: [.producer]  // Already has cache, won't be shared
         )
-        let needsSharedCachePolicy = Runner.Options.CachePolicy(
+        let needsSharedCachePolicy = Runner.Options.FrameworkCachePolicy(
             storage: needsSharedCacheStorage,
             actors: [.producer]  // No cache, should receive share
         )
@@ -48,6 +48,7 @@ struct FrameworkProducerTests {
         let descriptionPackage = try await DescriptionPackage(
             packageDirectory: testPackagePath,
             mode: .prepareDependencies,
+            resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: false
         )
 
@@ -159,7 +160,7 @@ private struct MockCacheKey: CacheKey {
 
 // MARK: - Mock Cache Storage
 
-private actor MockCacheStorage: CacheStorage {
+private actor MockCacheStorage: FrameworkCacheStorage {
     let displayName: String
     let parallelNumber: Int? = 1
 

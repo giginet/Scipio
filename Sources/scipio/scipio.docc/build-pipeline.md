@@ -222,7 +222,7 @@ Otherwise, on your build script, you can use remote cache storage or your custom
 ```swift
 import ScipioS3Storage
 
-let s3Storage: some CacheStorage = ScipioS3Storage.S3Storage(config: ...)
+let s3Storage: some FrameworkCacheStorage = ScipioS3Storage.S3Storage(config: ...)
 let runner = Runner(
     mode: .prepareDependencies,
     options: .init(
@@ -242,13 +242,13 @@ Scipio provides `ScipioS3Storage` to use [Amazon S3](https://aws.amazon.com/jp/s
 
 See details in <doc:using-s3-storage>
 
-You can also implement your custom cache storage by implementing `CacheStorage` protocol.
+You can also implement your custom cache storage by implementing `FrameworkCacheStorage` protocol.
 
 #### Cache Actor
 
 There are two cache actors `consumer` and `producer`.
 
-You can specify it by `Runner.Options.CachePolicy.actors`.
+You can specify it by `Runner.Options.FrameworkCachePolicy.actors`.
 
 `consumer` is an actor who can fetch cache from the cache storage.
 
@@ -263,7 +263,7 @@ You can also use multiple cache policies, which accepts multiple cache storages 
 ```swift
 import ScipioS3Storage
 
-let s3Storage: some CacheStorage = ScipioS3Storage.S3Storage(config: ...)
+let s3Storage: some FrameworkCacheStorage = ScipioS3Storage.S3Storage(config: ...)
 let runner = Runner(
     mode: .prepareDependencies,
     options: .init(

@@ -274,6 +274,7 @@ final class RunnerTests: XCTestCase {
         let descriptionPackage = try await DescriptionPackage(
             packageDirectory: testPackagePath,
             mode: .prepareDependencies,
+            resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: false
         )
         let cacheSystem = CacheSystem(
@@ -306,7 +307,7 @@ final class RunnerTests: XCTestCase {
             options: .init(
                 baseBuildOptions: .init(enableLibraryEvolution: true),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cachePolicies: [.project]
+                frameworkCachePolicies: [.project]
             )
         )
         do {
@@ -336,7 +337,7 @@ final class RunnerTests: XCTestCase {
             mode: .prepareDependencies,
             options: .init(
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cachePolicies: [
+                frameworkCachePolicies: [
                     .init(storage: storage, actors: [.consumer, .producer]),
                 ]
             )
@@ -391,7 +392,7 @@ final class RunnerTests: XCTestCase {
             mode: .prepareDependencies,
             options: .init(
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cachePolicies: [
+                frameworkCachePolicies: [
                     .init(storage: storage1, actors: [.consumer, .producer]),
                     .init(storage: storage2, actors: [.consumer, .producer]),
                 ]
@@ -446,7 +447,7 @@ final class RunnerTests: XCTestCase {
                     frameworkType: .dynamic
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cachePolicies: [.project],
+                frameworkCachePolicies: [.project],
                 overwrite: false,
                 verbose: false)
         )
@@ -473,7 +474,7 @@ final class RunnerTests: XCTestCase {
                     frameworkType: .dynamic
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cachePolicies: [.project],
+                frameworkCachePolicies: [.project],
                 overwrite: false,
                 verbose: false)
         )
@@ -500,6 +501,7 @@ final class RunnerTests: XCTestCase {
         let descriptionPackage = try await DescriptionPackage(
             packageDirectory: usingBinaryPackagePath,
             mode: .prepareDependencies,
+            resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: false
         )
         let cacheSystem = CacheSystem(
@@ -542,7 +544,7 @@ final class RunnerTests: XCTestCase {
                     enableLibraryEvolution: true
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cachePolicies: [.project],
+                frameworkCachePolicies: [.project],
                 overwrite: false,
                 verbose: false)
         )
@@ -583,7 +585,7 @@ final class RunnerTests: XCTestCase {
                     ),
                 ],
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cachePolicies: [.project],
+                frameworkCachePolicies: [.project],
                 overwrite: false,
                 verbose: false)
         )
@@ -621,7 +623,7 @@ final class RunnerTests: XCTestCase {
                     isSimulatorSupported: true
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cachePolicies: .disabled
+                frameworkCachePolicies: .disabled
             )
         )
 
@@ -678,7 +680,7 @@ final class RunnerTests: XCTestCase {
                     frameworkType: .mergeable
                 ),
                 shouldOnlyUseVersionsFromResolvedFile: true,
-                cachePolicies: .disabled
+                frameworkCachePolicies: .disabled
             )
         )
 
