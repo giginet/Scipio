@@ -4,19 +4,11 @@ import Testing
 
 struct InfoPlistGeneratorTests {
     let fileSystem: LocalFileSystem = .default
-    let generator: InfoPlistGenerator
-    let temporaryPath: URL
 
-    init() {
-        generator = InfoPlistGenerator(fileSystem: fileSystem)
-        temporaryPath = fileSystem
-            .tempDirectory
-            .appending(components: "Info.plist")
-    }
-
-    @Test
+    @Test(.temporaryDirectory)
     func generateForBundle() throws {
-        defer { try? fileSystem.removeFileTree(temporaryPath) }
+        let generator = InfoPlistGenerator(fileSystem: fileSystem)
+        let temporaryPath = TemporaryDirectory.url.appending(component: "Info.plist")
 
         try generator.generateForResourceBundle(at: temporaryPath)
 
