@@ -1,9 +1,10 @@
 import Foundation
-import XCTest
+import Testing
 @testable import ScipioKit
 
-final class BuildOptionsTests: XCTestCase {
-    func testConcatenatingExtraFlags() {
+struct BuildOptionsTests {
+    @Test
+    func concatenatingExtraFlags() {
         let base = ExtraFlags(
             cFlags: ["a"],
             cxxFlags: ["a"],
@@ -20,21 +21,9 @@ final class BuildOptionsTests: XCTestCase {
 
         let overridden = base.concatenating(overriding)
 
-        XCTAssertEqual(
-            overridden.cFlags,
-            ["a", "b"]
-        )
-        XCTAssertEqual(
-            overridden.cxxFlags,
-            ["a"]
-        )
-        XCTAssertEqual(
-            overridden.swiftFlags,
-            ["b"]
-        )
-        XCTAssertEqual(
-            overridden.linkerFlags,
-            []
-        )
+        #expect(overridden.cFlags == ["a", "b"])
+        #expect(overridden.cxxFlags == ["a"])
+        #expect(overridden.swiftFlags == ["b"])
+        #expect(overridden.linkerFlags == [])
     }
 }
