@@ -1,14 +1,15 @@
 import Foundation
+import Testing
 @testable import ScipioKit
-import XCTest
 
 private let fixturePath = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
     .appendingPathComponent("Resources")
     .appendingPathComponent("Fixtures")
 
-final class DescriptionPackageTests: XCTestCase {
-    func testDescriptionPackage() async throws {
+struct DescriptionPackageTests {
+    @Test
+    func descriptionPackage() async throws {
         let rootPath = fixturePath.appendingPathComponent("TestingPackage")
         let package = try await DescriptionPackage(
             packageDirectory: rootPath,
@@ -16,23 +17,24 @@ final class DescriptionPackageTests: XCTestCase {
             resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: false
         )
-        XCTAssertEqual(package.name, "TestingPackage")
+        #expect(package.name == "TestingPackage")
 
         let packageNames = package.graph.allPackages.map(\.value.manifest.name)
-        XCTAssertEqual(packageNames.sorted(), ["TestingPackage", "swift-log"].sorted())
+        #expect(packageNames.sorted() == ["TestingPackage", "swift-log"].sorted())
 
-        XCTAssertEqual(
-            package.workspaceDirectory.path(percentEncoded: false),
+        #expect(
+            package.workspaceDirectory.path(percentEncoded: false) ==
             rootPath.appendingPathComponent(".build/scipio").path
         )
 
-        XCTAssertEqual(
-            package.derivedDataPath.path(percentEncoded: false),
+        #expect(
+            package.derivedDataPath.path(percentEncoded: false) ==
             rootPath.appendingPathComponent(".build/scipio/DerivedData").path
         )
     }
 
-    func testBuildProductsInPrepareMode() async throws {
+    @Test
+    func buildProductsInPrepareMode() async throws {
         let rootPath = fixturePath.appendingPathComponent("IntegrationTestPackage")
         let package = try await DescriptionPackage(
             packageDirectory: rootPath,
@@ -40,10 +42,10 @@ final class DescriptionPackageTests: XCTestCase {
             resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: false
         )
-        XCTAssertEqual(package.name, "IntegrationTestPackage")
+        #expect(package.name == "IntegrationTestPackage")
 
-        XCTAssertEqual(
-            try package.resolveBuildProductDependencyGraph().allNodes.map(\.value.target.name).sorted(),
+        #expect(
+            try package.resolveBuildProductDependencyGraph().allNodes.map(\.value.target.name).sorted() ==
             [
                 "Atomics",
                 "CNIOAtomics",
@@ -69,7 +71,8 @@ final class DescriptionPackageTests: XCTestCase {
         )
     }
 
-    func testBuildProductsInCreateMode() async throws {
+    @Test
+    func buildProductsInCreateMode() async throws {
         let rootPath = fixturePath.appendingPathComponent("TestingPackage")
         let package = try await DescriptionPackage(
             packageDirectory: rootPath,
@@ -77,21 +80,22 @@ final class DescriptionPackageTests: XCTestCase {
             resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: false
         )
-        XCTAssertEqual(package.name, "TestingPackage")
+        #expect(package.name == "TestingPackage")
 
         let graph = try package.resolveBuildProductDependencyGraph()
             .map { $0.target.name }
 
-        let myTargetNode = try XCTUnwrap(graph.rootNodes.first)
-        XCTAssertEqual(myTargetNode.value, "MyTarget")
+        let myTargetNode = try #require(graph.rootNodes.first)
+        #expect(myTargetNode.value == "MyTarget")
 
-        let loggingTargetNode = try XCTUnwrap(myTargetNode.children.first)
-        XCTAssertEqual(loggingTargetNode.value, "Logging")
+        let loggingTargetNode = try #require(myTargetNode.children.first)
+        #expect(loggingTargetNode.value == "Logging")
 
-        XCTAssertNil(loggingTargetNode.children.first)
+        #expect(loggingTargetNode.children.first == nil)
     }
 
-    func testBinaryBuildProductsInCreateMode() async throws {
+    @Test
+    func binaryBuildProductsInCreateMode() async throws {
         let rootPath = fixturePath.appendingPathComponent("BinaryPackage")
         let package = try await DescriptionPackage(
             packageDirectory: rootPath,
@@ -99,9 +103,9 @@ final class DescriptionPackageTests: XCTestCase {
             resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: false
         )
-        XCTAssertEqual(package.name, "BinaryPackage")
-        XCTAssertEqual(
-            Set(try package.resolveBuildProductDependencyGraph().allNodes.map(\.value.target.name)),
+        #expect(package.name == "BinaryPackage")
+        #expect(
+            Set(try package.resolveBuildProductDependencyGraph().allNodes.map(\.value.target.name)) ==
             ["SomeBinary"]
         )
     }
