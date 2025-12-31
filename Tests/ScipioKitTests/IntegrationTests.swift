@@ -226,7 +226,7 @@ struct IntegrationTests {
                     "\(xcFrameworkName) should contain a binary"
                 )
 
-                let actualFrameworkType = try await detectFrameworkType(of: binaryPath)
+                let actualFrameworkType = try await FrameworkTypeDetector.detect(of: binaryPath)
                 #expect(
                     actualFrameworkType == frameworkType,
                     "\(xcFrameworkName) must be a \(frameworkType.rawValue) framework"

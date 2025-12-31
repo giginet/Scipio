@@ -72,7 +72,7 @@ struct RunnerTests {
                 "Should exist a swiftinterface"
             )
 
-            let frameworkType = try await detectFrameworkType(of: deviceFramework.appending(component: library))
+            let frameworkType = try await FrameworkTypeDetector.detect(of: deviceFramework.appending(component: library))
             #expect(
                 frameworkType == .dynamic,
                 "Binary should be a dynamic library"
