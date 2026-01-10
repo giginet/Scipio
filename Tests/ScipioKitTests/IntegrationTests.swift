@@ -183,9 +183,11 @@ struct IntegrationTests {
                             .appending(components: "dSYMs", "\(frameworkName).framework.dSYM", "Contents", "Info.plist").path(percentEncoded: false)),
                         "\(xcFrameworkName) should contain a Info.plist file in dSYMs directory"
                     )
+                    let dwarfPath = sdkRoot
+                        .appending(components: "dSYMs", "\(frameworkName).framework.dSYM", "Contents", "Resources", "DWARF", frameworkName)
+                        .path(percentEncoded: false)
                     #expect(
-                        fileManager.fileExists(atPath: sdkRoot
-                            .appending(components: "dSYMs", "\(frameworkName).framework.dSYM", "Contents", "Resources", "DWARF", frameworkName).path(percentEncoded: false)),
+                        fileManager.fileExists(atPath: dwarfPath),
                         "\(xcFrameworkName) should contain a DWARF file in dSYMs directory"
                     )
                 } else {
@@ -199,18 +201,27 @@ struct IntegrationTests {
                     .appending(component: "\(frameworkName).framework")
 
                 if isClangFramework {
+                    let umbrellaHeaderPath = frameworkRoot
+                        .appending(components: "Headers", "\(frameworkName).h")
+                        .path(percentEncoded: false)
                     #expect(
-                        fileManager.fileExists(atPath: frameworkRoot.appending(components: "Headers", "\(frameworkName).h").path(percentEncoded: false)),
+                        fileManager.fileExists(atPath: umbrellaHeaderPath),
                         "\(xcFrameworkName) should contain an umbrella header"
                     )
                 } else {
+                    let bridgingHeaderPath = frameworkRoot
+                        .appending(components: "Headers", "\(frameworkName)-Swift.h")
+                        .path(percentEncoded: false)
                     #expect(
-                        fileManager.fileExists(atPath: frameworkRoot.appending(components: "Headers", "\(frameworkName)-Swift.h").path(percentEncoded: false)),
+                        fileManager.fileExists(atPath: bridgingHeaderPath),
                         "\(xcFrameworkName) should contain a bridging header"
                     )
 
+                    let swiftmodulePath = frameworkRoot
+                        .appending(components: "Modules", "\(frameworkName).swiftmodule")
+                        .path(percentEncoded: false)
                     #expect(
-                        fileManager.fileExists(atPath: frameworkRoot.appending(components: "Modules", "\(frameworkName).swiftmodule").path(percentEncoded: false)),
+                        fileManager.fileExists(atPath: swiftmodulePath),
                         "\(xcFrameworkName) should contain swiftmodules"
                     )
                 }
