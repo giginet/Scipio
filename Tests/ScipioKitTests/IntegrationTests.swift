@@ -1,28 +1,22 @@
 import Foundation
-import XCTest
+import Testing
 @testable import ScipioKit
 import Logging
 
-private let fixturePath = URL(fileURLWithPath: #filePath)
+private let fixturePath = URL(filePath: #filePath)
     .deletingLastPathComponent()
-    .appendingPathComponent("Resources")
-    .appendingPathComponent("Fixtures")
+    .appending(components: "Resources", "Fixtures")
 
-final class IntegrationTests: XCTestCase {
+private var integrationTestsEnabled: Bool {
+    if let value = ProcessInfo.processInfo.environment["ENABLE_INTEGRATION_TESTS"], !value.isEmpty {
+        return true
+    }
+    return false
+}
+
+@Suite(.serialized)
+struct IntegrationTests {
     private let fileManager: FileManager = .default
-
-    static var integrationTestsEnabled: Bool {
-        if let value = ProcessInfo.processInfo.environment["ENABLE_INTEGRATION_TESTS"], !value.isEmpty {
-            return true
-        }
-        return false
-    }
-
-    override func setUp() async throws {
-        try XCTSkipUnless(Self.integrationTestsEnabled)
-
-        try await super.setUp()
-    }
 
     private enum Destination: String {
         case iOS = "ios-arm64"
@@ -31,7 +25,8 @@ final class IntegrationTests: XCTestCase {
         case watchOS = "watchos-arm64_arm64_32_armv7k"
     }
 
-    func testMajorPackages() async throws {
+    @Test("builds major packages with various configurations", .enabled(if: integrationTestsEnabled))
+    func majorPackages() async throws {
         try await testBuildPackages(
             packageName: "IntegrationTestPackage",
             buildOptionsMatrix: [
@@ -66,7 +61,8 @@ final class IntegrationTests: XCTestCase {
         )
     }
 
-    func testMajorMacPackages() async throws {
+    @Test("builds major Mac packages", .enabled(if: integrationTestsEnabled))
+    func majorMacPackages() async throws {
         try await testBuildPackages(
             packageName: "IntegrationMacTestPackage",
             buildOptionsMatrix: [:],
@@ -95,7 +91,8 @@ final class IntegrationTests: XCTestCase {
         )
     }
 
-    func testDynamicFramework() async throws {
+    @Test("builds dynamic framework with OTHER_LDFLAGS", .enabled(if: integrationTestsEnabled))
+    func dynamicFramework() async throws {
         try await testBuildPackages(
             packageName: "DynamicFrameworkOtherLDFlagsTestPackage",
             buildOptionsMatrix: [
@@ -135,32 +132,30 @@ final class IntegrationTests: XCTestCase {
             )
         )
         let outputDir = fileManager.temporaryDirectory
-            .appendingPathComponent("Scipio")
-            .appendingPathComponent(packageName)
-        let packageDir = fixturePath.appendingPathComponent(packageName)
-        print("package directory: \(packageDir.path)")
-        print("output directory: \(outputDir.path)")
+            .appending(components: "Scipio", packageName)
+        let packageDir = fixturePath.appending(component: packageName)
+        print("package directory: \(packageDir.path(percentEncoded: false))")
+        print("output directory: \(outputDir.path(percentEncoded: false))")
 
         try await runner.run(
             packageDirectory: packageDir,
             frameworkOutputDir: .custom(outputDir)
         )
-        addTeardownBlock {
-            print("remove output directory: \(outputDir.path)")
-            try FileManager.default.removeItem(atPath: outputDir.path)
+        defer {
+            print("remove output directory: \(outputDir.path(percentEncoded: false))")
+            try? fileManager.removeItem(at: outputDir)
         }
 
-        let outputDirContents = try fileManager.contentsOfDirectory(atPath: outputDir.path)
+        let outputDirContents = try fileManager.contentsOfDirectory(atPath: outputDir.path(percentEncoded: false))
         let allExpectedFrameworkNames = testCases.map { "\($0.0).xcframework" }
-        XCTAssertEqual(
-            outputDirContents.sorted(),
-            allExpectedFrameworkNames.sorted(),
+        #expect(
+            outputDirContents.sorted() == allExpectedFrameworkNames.sorted(),
             "Expected frameworks should be generated"
         )
 
         for (frameworkName, frameworkType, platforms, isClangFramework) in testCases {
             let xcFrameworkName = "\(frameworkName).xcframework"
-            XCTAssertTrue(
+            #expect(
                 outputDirContents.contains(xcFrameworkName),
                 "\(xcFrameworkName) should be built"
             )
@@ -168,74 +163,83 @@ final class IntegrationTests: XCTestCase {
             let expectedDestinations = platforms.map(\.rawValue).sorted()
 
             let xcFrameworkPath = outputDir
-                .appendingPathComponent(xcFrameworkName)
+                .appending(component: xcFrameworkName)
 
-            XCTAssertEqual(
-                try fileManager.contentsOfDirectory(atPath: xcFrameworkPath.path)
-                    .filter { $0 != "Info.plist" }.sorted(),
-                expectedDestinations,
+            #expect(
+                try fileManager.contentsOfDirectory(atPath: xcFrameworkPath.path(percentEncoded: false))
+                    .filter { $0 != "Info.plist" }.sorted() == expectedDestinations,
                 "\(xcFrameworkName) must contain platforms that are equal to \(expectedDestinations.joined(separator: ", "))"
             )
 
             for destination in expectedDestinations {
                 let sdkRoot = xcFrameworkPath
-                    .appendingPathComponent(destination)
+                    .appending(component: destination)
 
                 if let buildOption = buildOptionsMatrix[frameworkName],
                    buildOption.isDebugSymbolsEmbedded == true,
                    buildOption.frameworkType == .dynamic {
-                    XCTAssertTrue(
+                    #expect(
                         fileManager.fileExists(atPath: sdkRoot
-                            .appendingPathComponent("dSYMs/\(frameworkName).framework.dSYM/Contents/Info.plist").path),
+                            .appending(components: "dSYMs", "\(frameworkName).framework.dSYM", "Contents", "Info.plist").path(percentEncoded: false)),
                         "\(xcFrameworkName) should contain a Info.plist file in dSYMs directory"
                     )
-                    XCTAssertTrue(
-                        fileManager.fileExists(atPath: sdkRoot
-                            .appendingPathComponent("dSYMs/\(frameworkName).framework.dSYM/Contents/Resources/DWARF/\(frameworkName)").path),
+                    let dwarfPath = sdkRoot
+                        .appending(components: "dSYMs", "\(frameworkName).framework.dSYM", "Contents", "Resources", "DWARF", frameworkName)
+                        .path(percentEncoded: false)
+                    #expect(
+                        fileManager.fileExists(atPath: dwarfPath),
                         "\(xcFrameworkName) should contain a DWARF file in dSYMs directory"
                     )
                 } else {
-                    XCTAssertFalse(
-                        fileManager.fileExists(atPath: sdkRoot.appendingPathComponent("dSYMs").path),
+                    #expect(
+                        !fileManager.fileExists(atPath: sdkRoot.appending(component: "dSYMs").path(percentEncoded: false)),
                         "\(xcFrameworkName) should not contain a dSYMs directory"
                     )
                 }
 
                 let frameworkRoot = sdkRoot
-                    .appendingPathComponent("\(frameworkName).framework")
+                    .appending(component: "\(frameworkName).framework")
 
                 if isClangFramework {
-                    XCTAssertTrue(
-                        fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Headers/\(frameworkName).h").path),
+                    let umbrellaHeaderPath = frameworkRoot
+                        .appending(components: "Headers", "\(frameworkName).h")
+                        .path(percentEncoded: false)
+                    #expect(
+                        fileManager.fileExists(atPath: umbrellaHeaderPath),
                         "\(xcFrameworkName) should contain an umbrella header"
                     )
                 } else {
-                    XCTAssertTrue(
-                        fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Headers/\(frameworkName)-Swift.h").path),
+                    let bridgingHeaderPath = frameworkRoot
+                        .appending(components: "Headers", "\(frameworkName)-Swift.h")
+                        .path(percentEncoded: false)
+                    #expect(
+                        fileManager.fileExists(atPath: bridgingHeaderPath),
                         "\(xcFrameworkName) should contain a bridging header"
                     )
 
-                    XCTAssertTrue(
-                        fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Modules/\(frameworkName).swiftmodule").path),
+                    let swiftmodulePath = frameworkRoot
+                        .appending(components: "Modules", "\(frameworkName).swiftmodule")
+                        .path(percentEncoded: false)
+                    #expect(
+                        fileManager.fileExists(atPath: swiftmodulePath),
                         "\(xcFrameworkName) should contain swiftmodules"
                     )
                 }
 
-                XCTAssertTrue(
-                    fileManager.fileExists(atPath: frameworkRoot.appendingPathComponent("Modules/module.modulemap").path),
+                #expect(
+                    fileManager.fileExists(atPath: frameworkRoot.appending(components: "Modules", "module.modulemap").path(percentEncoded: false)),
                     "\(xcFrameworkName) should contain a module map"
                 )
 
-                let binaryPath = frameworkRoot.appendingPathComponent(frameworkName)
-                XCTAssertTrue(
-                    fileManager.fileExists(atPath: binaryPath.path),
+                let binaryPath = frameworkRoot.appending(component: frameworkName)
+                #expect(
+                    fileManager.fileExists(atPath: binaryPath.path(percentEncoded: false)),
                     "\(xcFrameworkName) should contain a binary"
                 )
 
-                let actualFrameworkType = try await detectFrameworkType(of: binaryPath)
-                XCTAssertEqual(
-                    actualFrameworkType,
-                    frameworkType,
+                let actualFrameworkType = try await FrameworkTypeDetector.detect(of: binaryPath)
+                #expect(
+                    actualFrameworkType == frameworkType,
                     "\(xcFrameworkName) must be a \(frameworkType.rawValue) framework"
                 )
             }

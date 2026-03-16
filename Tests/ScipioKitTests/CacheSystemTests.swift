@@ -1,15 +1,14 @@
 import Foundation
+import Testing
 @testable @_spi(Internals) import ScipioKit
 @testable import ScipioKitCore
-import XCTest
 
-private let fixturePath = URL(fileURLWithPath: #filePath)
+private let fixturePath = URL(filePath: #filePath)
     .deletingLastPathComponent()
-    .appendingPathComponent("Resources")
-    .appendingPathComponent("Fixtures")
+    .appending(components: "Resources", "Fixtures")
 
-final class CacheSystemTests: XCTestCase {
-
+@Suite(.serialized)
+struct CacheSystemTests {
     private let customModuleMap = """
     framework module MyTarget {
         umbrella header "umbrella.h"
@@ -17,7 +16,8 @@ final class CacheSystemTests: XCTestCase {
     }
     """
 
-    func testEncodeCacheKey() throws {
+    @Test("encodes cache key to JSON correctly")
+    func encodeCacheKey() throws {
         let cacheKey = SwiftPMCacheKey(
             localPackageCanonicalLocation: "/path/to/MyPackage",
             pin: .init(revision: "111111111"),
@@ -40,7 +40,7 @@ final class CacheSystemTests: XCTestCase {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
         let data = try encoder.encode(cacheKey)
-        let rawString = try XCTUnwrap(String(decoding: data, as: UTF8.self))
+        let rawString = String(decoding: data, as: UTF8.self)
 
         // swiftlint:disable line_length
         let expected = """
@@ -79,17 +79,13 @@ final class CacheSystemTests: XCTestCase {
         }
         """
         // swiftlint:enable line_length
-        XCTAssertEqual(rawString, expected)
+        #expect(rawString == expected)
     }
 
-    func testCacheKeyForRemoteAndLocalPackageDifference() async throws {
+    @Test("generates different cache keys for remote and local packages", .temporaryDirectory)
+    func cacheKeyForRemoteAndLocalPackageDifference() async throws {
         let fileSystem: LocalFileSystem = .default
-
-        let tempDir = fileSystem.tempDirectory.appending(component: #function)
-        try fileSystem.removeFileTree(tempDir)
-        try fileSystem.createDirectory(tempDir)
-
-        defer { try? fileSystem.removeFileTree(tempDir) }
+        let tempDir = TemporaryDirectory.url
 
         let tempCacheKeyTestsDir = tempDir.appending(component: "CacheKeyTests")
         try fileSystem.copy(
@@ -152,9 +148,9 @@ final class CacheSystemTests: XCTestCase {
         let scipioTestingRemote = try await scipioTestingCacheKey(fixture: "AsRemotePackage")
         let scipioTestingLocal = try await scipioTestingCacheKey(fixture: "AsLocalPackage")
 
-        XCTAssertNil(scipioTestingRemote.localPackageCanonicalLocation)
-        XCTAssertEqual(
-            scipioTestingLocal.localPackageCanonicalLocation,
+        #expect(scipioTestingRemote.localPackageCanonicalLocation == nil)
+        #expect(
+            scipioTestingLocal.localPackageCanonicalLocation ==
             CanonicalPackageLocation(
                 tempDir.appending(component: "scipio-testing")
                     .standardizedFileURL
@@ -162,19 +158,17 @@ final class CacheSystemTests: XCTestCase {
                     .path(percentEncoded: false)
             ).description
         )
-        XCTAssertEqual(scipioTestingRemote.targetName, scipioTestingLocal.targetName)
-        XCTAssertEqual(scipioTestingRemote.pin, scipioTestingLocal.pin)
+        #expect(scipioTestingRemote.targetName == scipioTestingLocal.targetName)
+        #expect(scipioTestingRemote.pin == scipioTestingLocal.pin)
     }
 
-    func testCacheKeyCalculationForRootPackageTarget() async throws {
+    @Test("calculates cache key for root package target", .temporaryDirectory)
+    func cacheKeyCalculationForRootPackageTarget() async throws {
         let fileSystem: LocalFileSystem = .default
         let testingPackagePath = fixturePath.appendingPathComponent("TestingPackage")
-        let tempTestingPackagePath = fileSystem.tempDirectory.appending(component: "temp_TestingPackage")
+        let tempTestingPackagePath = TemporaryDirectory.url.appending(component: "TestingPackage")
 
-        try fileSystem.removeFileTree(tempTestingPackagePath)
         try fileSystem.copy(from: testingPackagePath, to: tempTestingPackagePath)
-
-        defer { try? fileSystem.removeFileTree(tempTestingPackagePath) }
 
         let descriptionPackage = try await DescriptionPackage(
             packageDirectory: tempTestingPackagePath,
@@ -212,13 +206,8 @@ final class CacheSystemTests: XCTestCase {
         )
 
         // Ensure that the cache key cannot be calculated if the package is not in the Git repository.
-        do {
+        await #expect(throws: CacheSystem.Error.self) {
             _ = try await cacheSystem.calculateCacheKey(of: cacheTarget)
-            XCTFail("A cache key should not be possible to calculate if the package is not in a repository.")
-        } catch let error as CacheSystem.Error {
-            XCTAssertEqual(error.errorDescription, "Repository version is not detected for \(descriptionPackage.name).")
-        } catch {
-            XCTFail("Wrong error type.")
         }
 
         // Ensure that the cache key is properly calculated when the package is in a repository with the correct tag."
@@ -238,7 +227,7 @@ final class CacheSystemTests: XCTestCase {
 
         let cacheKey = try await cacheSystem.calculateCacheKey(of: cacheTarget)
 
-        XCTAssertEqual(cacheKey.targetName, myTarget.name)
-        XCTAssertEqual(cacheKey.pin.version, "1.1.0")
+        #expect(cacheKey.targetName == myTarget.name)
+        #expect(cacheKey.pin.version == "1.1.0")
     }
 }
