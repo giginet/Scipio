@@ -1,6 +1,6 @@
 import Foundation
 import PackageManifestKit
-import OrderedCollections
+import Collections
 import AsyncOperations
 import ScipioKitCore
 

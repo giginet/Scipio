@@ -11,7 +11,7 @@
 // ===----------------------------------------------------------------------===//
 
 import Foundation
-import OrderedCollections
+import Collections
 
 func topologicalSort<T: Identifiable>(
     _ nodes: [T], successors: (T) throws -> [T]

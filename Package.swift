@@ -26,21 +26,21 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-log.git",
-                 from: "1.5.2"),
+                 from: "1.10.1"),
         .package(url: "https://github.com/apple/swift-collections",
-                 from: "1.0.4"),
+                 from: "1.4.0"),
         .package(url: "https://github.com/apple/swift-argument-parser.git",
-                 from: "1.1.0"),
+                 from: "1.7.0"),
         .package(url: "https://github.com/apple/swift-algorithms.git",
-                 from: "1.0.0"),
+                 from: "1.2.1"),
         .package(url: "https://github.com/onevcat/Rainbow",
-                 from: "4.0.1"),
+                 from: "4.2.1"),
         .package(url: "https://github.com/SwiftyJSON/SwiftyJSON.git",
-                 from: "5.0.0"),
+                 from: "5.0.2"),
         .package(url: "https://github.com/giginet/PackageManifestKit",
                  from: "0.2.0"),
         .package(url: "https://github.com/mtj0928/swift-async-operations.git",
-                 from: "0.4.0"),
+                 from: "0.5.0"),
     ],
     targets: [
         .executableTarget(
@@ -117,6 +117,6 @@ let isDevelopment = ProcessInfo.processInfo.environment["SCIPIO_DEVELOPMENT"] ==
 // swift-docs is not needed for package users
 if isDevelopment {
     package.dependencies += [
-        .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.3.0"),
+        .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.6"),
     ]
 }
