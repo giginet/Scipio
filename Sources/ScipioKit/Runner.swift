@@ -13,7 +13,7 @@ public struct Runner {
     }
 
     public enum Error: Swift.Error, LocalizedError {
-        case invalidPackage(URL)
+        case invalidPackage(URL, Swift.Error)
         case platformNotSpecified
         case compilerError(Swift.Error)
 
@@ -21,8 +21,8 @@ public struct Runner {
             switch self {
             case .platformNotSpecified:
                 return "Any platforms are not spcified in Package.swift"
-            case .invalidPackage(let path):
-                return "Invalid package. \(path.path)"
+            case .invalidPackage(let path, let underlyingError):
+                return "Invalid package. \(path.path)\n\(underlyingError.localizedDescription)"
             case .compilerError(let error):
                 return "\(error.localizedDescription)"
             }
@@ -63,7 +63,7 @@ public struct Runner {
                 onlyUseVersionsFromResolvedFile: options.shouldOnlyUseVersionsFromResolvedFile
             )
         } catch {
-            throw Error.invalidPackage(packageDirectory)
+            throw Error.invalidPackage(packageDirectory, error)
         }
 
         let buildOptions = try options.buildOptionsContainer.makeBuildOptions(descriptionPackage: descriptionPackage)
