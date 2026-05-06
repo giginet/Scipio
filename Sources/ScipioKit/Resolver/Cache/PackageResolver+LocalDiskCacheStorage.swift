@@ -10,6 +10,15 @@ extension PackageResolver {
         private let baseURL: URL?
         private let fileSystem: any FileSystem
 
+        var displayName: String {
+            let cacheURLDescription = (try? buildBaseURL().path(percentEncoded: false)) ?? "unavailable"
+            if let baseURL {
+                return "\(Self.self)(baseURL: \(baseURL.path(percentEncoded: false)), cacheURL: \(cacheURLDescription))"
+            } else {
+                return "\(Self.self)(systemCacheURL: \(cacheURLDescription))"
+            }
+        }
+
         /// - Parameters:
         ///   - baseURL: The base url for the local disk cache. When it is nil, the system cache directory (`~/Library/Caches`) will be used.
         init(
