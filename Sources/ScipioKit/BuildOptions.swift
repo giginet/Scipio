@@ -1,5 +1,5 @@
 import Foundation
-import Collections
+import OrderedCollections
 
 struct BuildOptions: Hashable, Codable, Sendable {
 
