@@ -1,0 +1,50 @@
+name: Swift Main Snapshot
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '*'
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Tests:
+    timeout-minutes: 30
+    continue-on-error: true
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.4.1.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Swift main snapshot
+        run: |
+          curl -O https://download.swift.org/swiftly/darwin/swiftly.pkg
+          installer -pkg swiftly.pkg -target CurrentUserHomeDirectory
+          ~/.swiftly/bin/swiftly init --quiet-shell-followup
+          . "${SWIFTLY_HOME_DIR:-$HOME/.swiftly}/env.sh"
+          swiftly install main-snapshot
+          swiftly use main-snapshot
+          swift --version
+          echo "SWIFTLY_HOME_DIR=${SWIFTLY_HOME_DIR:-$HOME/.swiftly}" >> "$GITHUB_ENV"
+          echo "${SWIFTLY_HOME_DIR:-$HOME/.swiftly}/bin" >> "$GITHUB_PATH"
+      - name: Build
+        run: |
+          . "${SWIFTLY_HOME_DIR:-$HOME/.swiftly}/env.sh"
+          swiftly use main-snapshot
+          swift build
+      - name: Run Tests
+        run: |
+          . "${SWIFTLY_HOME_DIR:-$HOME/.swiftly}/env.sh"
+          swiftly use main-snapshot
+          swift test --no-parallel
+        env:
+          ENABLE_INTEGRATION_TESTS: 1
+          IS_CI: 1
