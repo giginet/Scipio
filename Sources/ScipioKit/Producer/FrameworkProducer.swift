@@ -458,6 +458,9 @@ struct FrameworkProducer {
         logger.info("⏹️ Sharing to other cache storages finished", metadata: .color(.green))
     }
 
+}
+
+extension FrameworkProducer {
     private func areStoragesEqual(_ lhs: any FrameworkCacheStorage, _ rhs: any FrameworkCacheStorage) -> Bool {
         // ProjectCacheStorage instances are always considered the same
         if lhs is ProjectCacheStorage && rhs is ProjectCacheStorage {
