@@ -82,18 +82,22 @@ struct FrameworkProducer {
         let allTargets = targetGraph.allNodes.map(\.value)
 
         let cacheSystem = CacheSystem(outputDirectory: outputDir)
+        let cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
 
         let dependencyGraphToBuild: DependencyGraph<CacheSystem.CacheTarget>
         if cachePolicies.isEmpty {
             // no-op because cache is disabled
+            cacheKeys = [:]
             dependencyGraphToBuild = targetGraph
         } else {
+            cacheKeys = try await cacheSystem.calculateCacheKeys(for: targetGraph)
             let targets = Set(targetGraph.allNodes.map(\.value))
 
             // Validate the existing frameworks in `outputDir` before restoration
             let valid = await validateExistingFrameworks(
                 availableTargets: targets,
-                cacheSystem: cacheSystem
+                cacheSystem: cacheSystem,
+                cacheKeys: cacheKeys
             )
 
             let storagesWithConsumer = cachePolicies.storages(for: .consumer)
@@ -104,7 +108,8 @@ struct FrameworkProducer {
                 let restoredSetsToSourceStorage = await restoreAllAvailableCachesIfNeeded(
                     availableTargets: targets.subtracting(valid),
                     to: storagesWithConsumer,
-                    cacheSystem: cacheSystem
+                    cacheSystem: cacheSystem,
+                    cacheKeys: cacheKeys
                 )
 
                 let allRestoredTargets = restoredSetsToSourceStorage.keys.reduce(into: Set<CacheSystem.CacheTarget>()) { result, targetSet in
@@ -115,7 +120,8 @@ struct FrameworkProducer {
                     await shareRestoredCachesToProducers(
                         allRestoredTargets,
                         restoredSetsToSourceStorage: restoredSetsToSourceStorage,
-                        cacheSystem: cacheSystem
+                        cacheSystem: cacheSystem,
+                        cacheKeys: cacheKeys
                     )
                 }
 
@@ -133,12 +139,21 @@ struct FrameworkProducer {
                 builtTargets
             }
 
-        await cacheFrameworksIfNeeded(Set(builtTargets), cacheSystem: cacheSystem)
+        // Keep the historical "cache feature is fully off" behavior when no cache policy is provided:
+        // no restore, no cache save, and no version file generation.
+        guard !cachePolicies.isEmpty else {
+            if case .interrupted(_, let error) = targetBuildResult {
+                throw error
+            }
+            return
+        }
+
+        await cacheFrameworksIfNeeded(Set(builtTargets), cacheSystem: cacheSystem, cacheKeys: cacheKeys)
 
         if shouldGenerateVersionFile {
             // Versionfiles should be generate for all targets
             for target in allTargets {
-                await generateVersionFile(for: target, using: cacheSystem)
+                await generateVersionFile(for: target, using: cacheSystem, cacheKeys: cacheKeys)
             }
         }
 
@@ -149,7 +164,8 @@ struct FrameworkProducer {
 
     private func validateExistingFrameworks(
         availableTargets: Set<CacheSystem.CacheTarget>,
-        cacheSystem: CacheSystem
+        cacheSystem: CacheSystem,
+        cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
     ) async -> Set<CacheSystem.CacheTarget> {
         let chunked = availableTargets.chunks(ofCount: CacheSystem.defaultParallelNumber)
 
@@ -165,7 +181,7 @@ struct FrameworkProducer {
                             let exists = fileSystem.exists(outputPath)
                             guard exists else { return nil }
 
-                            let expectedCacheKey = try await cacheSystem.calculateCacheKey(of: target)
+                            guard let expectedCacheKey = cacheKeys[target] else { return nil }
                             let isValidCache = await cacheSystem.existsValidCache(cacheKey: expectedCacheKey)
                             guard isValidCache else {
                                 logger.warning("⚠️ Existing \(frameworkName) is outdated.", metadata: .color(.yellow))
@@ -197,7 +213,8 @@ struct FrameworkProducer {
     private func restoreAllAvailableCachesIfNeeded(
         availableTargets: Set<CacheSystem.CacheTarget>,
         to storages: [any FrameworkCacheStorage],
-        cacheSystem: CacheSystem
+        cacheSystem: CacheSystem,
+        cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
     ) async -> [Set<CacheSystem.CacheTarget>: any FrameworkCacheStorage] {
         var remainingTargets = availableTargets
         var restoredSetsToSourceStorage: [Set<CacheSystem.CacheTarget>: any FrameworkCacheStorage] = [:]
@@ -221,7 +238,8 @@ struct FrameworkProducer {
             let restoredPerStorage = await restoreCaches(
                 for: remainingTargets,
                 from: storage,
-                cacheSystem: cacheSystem
+                cacheSystem: cacheSystem,
+                cacheKeys: cacheKeys
             )
 
             // Record which storage restored which set of targets
@@ -248,7 +266,8 @@ struct FrameworkProducer {
     private func restoreCaches(
         for targets: Set<CacheSystem.CacheTarget>,
         from cacheStorage: any FrameworkCacheStorage,
-        cacheSystem: CacheSystem
+        cacheSystem: CacheSystem,
+        cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
     ) async -> Set<CacheSystem.CacheTarget> {
         let chunked = targets.chunks(ofCount: cacheStorage.parallelNumber ?? CacheSystem.defaultParallelNumber)
 
@@ -261,6 +280,7 @@ struct FrameworkProducer {
                         do {
                             let restored = try await restorer.restore(
                                 target: target,
+                                cacheKey: cacheKeys[target],
                                 cacheSystem: cacheSystem,
                                 cacheStorage: cacheStorage
                             )
@@ -286,16 +306,19 @@ struct FrameworkProducer {
         // Return true if pre-built artifact is available (already existing or restored from cache)
         func restore(
             target: CacheSystem.CacheTarget,
+            cacheKey: SwiftPMCacheKey?,
             cacheSystem: CacheSystem,
             cacheStorage: any FrameworkCacheStorage
         ) async throws -> Bool {
             let product = target.buildProduct
             let frameworkName = product.frameworkName
 
-            let expectedCacheKey = try await cacheSystem.calculateCacheKey(of: target)
+            guard let expectedCacheKey = cacheKey else {
+                return false
+            }
             let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
 
-            let restoreResult = await cacheSystem.restoreCacheIfPossible(target: target, storage: cacheStorage)
+            let restoreResult = await cacheSystem.restoreCacheIfPossible(cacheKey: expectedCacheKey, storage: cacheStorage)
             switch restoreResult {
             case .succeeded:
                 logger.info("✅ Restore \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
@@ -373,16 +396,25 @@ struct FrameworkProducer {
         return []
     }
 
-    private func cacheFrameworksIfNeeded(_ targets: Set<CacheSystem.CacheTarget>, cacheSystem: CacheSystem) async {
+    private func cacheFrameworksIfNeeded(
+        _ targets: Set<CacheSystem.CacheTarget>,
+        cacheSystem: CacheSystem,
+        cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
+    ) async {
         let storagesWithProducer = cachePolicies.storages(for: .producer)
         if !storagesWithProducer.isEmpty {
-            await cacheSystem.cacheFrameworks(targets, to: storagesWithProducer)
+            await cacheSystem.cacheFrameworks(targets, cacheKeys: cacheKeys, to: storagesWithProducer)
         }
     }
 
-    private func generateVersionFile(for target: CacheSystem.CacheTarget, using cacheSystem: CacheSystem) async {
+    private func generateVersionFile(
+        for target: CacheSystem.CacheTarget,
+        using cacheSystem: CacheSystem,
+        cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
+    ) async {
         do {
-            try await cacheSystem.generateVersionFile(for: target)
+            guard let cacheKey = cacheKeys[target] else { return }
+            try await cacheSystem.generateVersionFile(for: target, cacheKey: cacheKey)
         } catch {
             logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
         }
@@ -391,7 +423,8 @@ struct FrameworkProducer {
     private func shareRestoredCachesToProducers(
         _ allRestoredTargets: Set<CacheSystem.CacheTarget>,
         restoredSetsToSourceStorage: [Set<CacheSystem.CacheTarget>: any FrameworkCacheStorage],
-        cacheSystem: CacheSystem
+        cacheSystem: CacheSystem,
+        cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
     ) async {
         let storagesWithProducer = cachePolicies.storages(for: .producer)
         guard !storagesWithProducer.isEmpty else { return }
@@ -411,7 +444,7 @@ struct FrameworkProducer {
             }
 
             if !targetsToShare.isEmpty {
-                await shareCachesToStorage(targetsToShare, to: storage, cacheSystem: cacheSystem)
+                await shareCachesToStorage(targetsToShare, to: storage, cacheSystem: cacheSystem, cacheKeys: cacheKeys)
             }
         }
 
@@ -437,7 +470,8 @@ struct FrameworkProducer {
     private func shareCachesToStorage(
         _ targets: Set<CacheSystem.CacheTarget>,
         to storage: any FrameworkCacheStorage,
-        cacheSystem: CacheSystem
+        cacheSystem: CacheSystem,
+        cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
     ) async {
         let chunked = targets.chunks(ofCount: storage.parallelNumber ?? CacheSystem.defaultParallelNumber)
 
@@ -446,7 +480,7 @@ struct FrameworkProducer {
                 for target in chunk {
                     group.addTask {
                         do {
-                            let cacheKey = try await cacheSystem.calculateCacheKey(of: target)
+                            guard let cacheKey = cacheKeys[target] else { return }
                             let hasCache = try await storage.existsValidCache(for: cacheKey)
                             guard !hasCache else { return }
 
