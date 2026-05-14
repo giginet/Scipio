@@ -94,17 +94,7 @@ struct FrameworkProducer {
             cacheKeys = [:]
             dependencyGraphToBuild = targetGraph
         } else {
-            do {
-                cacheKeys = try await cacheSystem.calculateCacheKeys(for: targetGraph)
-            } catch {
-                // Fall back to "build without cache participation" for targets whose cache keys
-                // cannot be resolved (for example, missing local git metadata in fixtures).
-                logger.warning(
-                    "⚠️ Cache key precomputation failed. Continue build without cache restore/save for this run.",
-                    metadata: .color(.yellow)
-                )
-                cacheKeys = [:]
-            }
+            cacheKeys = await precomputeCacheKeysIfPossible(cacheSystem: cacheSystem, targetGraph: targetGraph)
             let targets = Set(targetGraph.allNodes.map(\.value))
 
             // Validate the existing frameworks in `outputDir` before restoration
@@ -173,6 +163,23 @@ struct FrameworkProducer {
 
         if case .interrupted(_, let error) = targetBuildResult {
             throw error
+        }
+    }
+
+    private func precomputeCacheKeysIfPossible(
+        cacheSystem: CacheSystem,
+        targetGraph: DependencyGraph<CacheSystem.CacheTarget>
+    ) async -> [CacheSystem.CacheTarget: SwiftPMCacheKey] {
+        do {
+            return try await cacheSystem.calculateCacheKeys(for: targetGraph)
+        } catch {
+            // Fall back to "build without cache participation" for targets whose cache keys
+            // cannot be resolved (for example, missing local git metadata in fixtures).
+            logger.warning(
+                "⚠️ Cache key precomputation failed. Continue build without cache restore/save for this run.",
+                metadata: .color(.yellow)
+            )
+            return [:]
         }
     }
 
