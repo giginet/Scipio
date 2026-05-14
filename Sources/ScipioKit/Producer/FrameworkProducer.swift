@@ -94,7 +94,17 @@ struct FrameworkProducer {
             cacheKeys = [:]
             dependencyGraphToBuild = targetGraph
         } else {
-            cacheKeys = try await cacheSystem.calculateCacheKeys(for: targetGraph)
+            do {
+                cacheKeys = try await cacheSystem.calculateCacheKeys(for: targetGraph)
+            } catch {
+                // Fall back to "build without cache participation" for targets whose cache keys
+                // cannot be resolved (for example, missing local git metadata in fixtures).
+                logger.warning(
+                    "⚠️ Cache key precomputation failed. Continue build without cache restore/save for this run.",
+                    metadata: .color(.yellow)
+                )
+                cacheKeys = [:]
+            }
             let targets = Set(targetGraph.allNodes.map(\.value))
 
             // Validate the existing frameworks in `outputDir` before restoration
