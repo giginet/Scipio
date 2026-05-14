@@ -128,9 +128,11 @@ final class CacheSystemTests: XCTestCase {
     }
 
     func testCacheKeysIncludeDirectDependencyChecksums() async throws {
-        let packagePath = fixturePath.appendingPathComponent("PartialCacheTestPackage")
+        let taggedFixture = try await makeTaggedPartialCacheTestPackagePath()
+        defer { try? LocalFileSystem.default.removeFileTree(taggedFixture.rootPath) }
+
         let descriptionPackage = try await DescriptionPackage(
-            packageDirectory: packagePath,
+            packageDirectory: taggedFixture.packagePath,
             mode: .createPackage,
             resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: true
@@ -162,9 +164,11 @@ final class CacheSystemTests: XCTestCase {
     }
 
     func testDependencyCacheKeyChangesDependentCacheKey() async throws {
-        let packagePath = fixturePath.appendingPathComponent("PartialCacheTestPackage")
+        let taggedFixture = try await makeTaggedPartialCacheTestPackagePath()
+        defer { try? LocalFileSystem.default.removeFileTree(taggedFixture.rootPath) }
+
         let descriptionPackage = try await DescriptionPackage(
-            packageDirectory: packagePath,
+            packageDirectory: taggedFixture.packagePath,
             mode: .createPackage,
             resolvedPackagesCachePolicies: [],
             onlyUseVersionsFromResolvedFile: true
@@ -378,5 +382,41 @@ final class CacheSystemTests: XCTestCase {
             customFrameworkModuleMapContents: nil,
             stripStaticDWARFSymbols: false
         )
+    }
+
+    private func makeTaggedPartialCacheTestPackagePath(
+        function: String = #function
+    ) async throws -> (rootPath: URL, packagePath: URL) {
+        let fileSystem: LocalFileSystem = .default
+        let rootPath = fileSystem.tempDirectory.appending(component: function)
+        let packagePath = rootPath.appending(component: "PartialCacheTestPackage")
+
+        try fileSystem.removeFileTree(rootPath)
+        try fileSystem.createDirectory(rootPath)
+        try fileSystem.copy(
+            from: fixturePath.appendingPathComponent("PartialCacheTestPackage"),
+            to: packagePath
+        )
+
+        let executor: Executor = ProcessExecutor()
+        let packagePathString = packagePath.path(percentEncoded: false)
+        try await executor.execute(["/usr/bin/xcrun", "git", "init", packagePathString])
+        try await executor.execute(["/usr/bin/xcrun", "git", "-C", packagePathString, "add", "."])
+        try await executor.execute([
+            "/usr/bin/xcrun",
+            "git",
+            "-C",
+            packagePathString,
+            "-c",
+            "user.name=Scipio Tests",
+            "-c",
+            "user.email=scipio@example.com",
+            "commit",
+            "-m",
+            "Initial commit",
+        ])
+        try await executor.execute(["/usr/bin/xcrun", "git", "-C", packagePathString, "tag", "v1.0.0"])
+
+        return (rootPath, packagePath)
     }
 }
