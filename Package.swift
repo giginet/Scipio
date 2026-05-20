@@ -58,6 +58,7 @@ let package = Package(
                 .target(name: "CacheStorage"),
                 .product(name: "Logging", package: "swift-log"),
                 .product(name: "Collections", package: "swift-collections"),
+                .product(name: "OrderedCollections", package: "swift-collections"),
                 .product(name: "Algorithms", package: "swift-algorithms"),
                 .product(name: "Rainbow", package: "Rainbow"),
                 .product(name: "PackageManifestKit", package: "PackageManifestKit"),

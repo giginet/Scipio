@@ -1,6 +1,7 @@
 import Foundation
 import CacheStorage
 import Collections
+import OrderedCollections
 import PackageManifestKit
 
 struct FrameworkProducer {
