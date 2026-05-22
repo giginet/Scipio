@@ -1,4 +1,5 @@
 import Foundation
+import AsyncOperations
 import CacheStorage
 import Algorithms
 import PackageManifestKit
@@ -142,6 +143,11 @@ struct CacheSystem: Sendable {
         var xcodeVersion: XcodeVersion
     }
 
+    private struct CacheKeyCalculationInput: Sendable {
+        var target: CacheTarget
+        var dependencyCacheKeyChecksums: [DependencyCacheKeyChecksum]
+    }
+
     enum Error: LocalizedError {
         case revisionNotDetected(String)
         case compilerVersionNotDetected
@@ -275,32 +281,51 @@ struct CacheSystem: Sendable {
     func calculateCacheKeys(for graph: DependencyGraph<CacheTarget>) async throws -> [CacheTarget: SwiftPMCacheKey] {
         let environment = try await cacheKeyEnvironment()
         var cacheKeys: [CacheTarget: SwiftPMCacheKey] = [:]
+        var remainingTargets = Set(graph.allNodes.map(\.value))
+        var layer = graph.leafs
 
-        func calculateCacheKeyRecursively(for node: DependencyGraph<CacheTarget>.Node) async throws {
-            if cacheKeys[node.value] != nil {
-                return
+        while !layer.isEmpty {
+            let nodes = layer.filter { remainingTargets.contains($0.value) }
+            if nodes.isEmpty {
+                break
             }
 
-            for child in node.children {
-                try await calculateCacheKeyRecursively(for: child)
-            }
-
-            let dependencyChecksums = try node.children.map { child in
-                let childCacheKey = cacheKeys[child.value]!
-                return DependencyCacheKeyChecksum(
-                    targetName: child.value.buildProduct.target.name,
-                    checksum: try childCacheKey.calculateChecksum()
+            let inputs = try nodes.map { node in
+                let dependencyChecksums = try node.children.map { child in
+                    let childCacheKey = cacheKeys[child.value]!
+                    return DependencyCacheKeyChecksum(
+                        targetName: child.value.buildProduct.target.name,
+                        checksum: try childCacheKey.calculateChecksum()
+                    )
+                }
+                return CacheKeyCalculationInput(
+                    target: node.value,
+                    dependencyCacheKeyChecksums: dependencyChecksums
                 )
             }
-            cacheKeys[node.value] = try await calculateCacheKey(
-                of: node.value,
-                dependencyCacheKeyChecksums: dependencyChecksums,
-                environment: environment
-            )
-        }
+            let layerCacheKeys = try await inputs.asyncMap(numberOfConcurrentTasks: UInt(inputs.count)) { input in
+                let cacheKey = try await calculateCacheKey(
+                    of: input.target,
+                    dependencyCacheKeyChecksums: input.dependencyCacheKeyChecksums,
+                    environment: environment
+                )
+                return (input.target, cacheKey)
+            }
 
-        for node in graph.allNodes {
-            try await calculateCacheKeyRecursively(for: node)
+            for (target, cacheKey) in layerCacheKeys {
+                cacheKeys[target] = cacheKey
+                remainingTargets.remove(target)
+            }
+
+            let parentNodes = nodes.flatMap { node in
+                node.parents.compactMap(\.reference)
+            }
+            var seenTargets: Set<CacheTarget> = []
+            layer = parentNodes.filter { node in
+                remainingTargets.contains(node.value)
+                    && seenTargets.insert(node.value).inserted
+                    && node.children.allSatisfy { cacheKeys[$0.value] != nil }
+            }
         }
 
         return cacheKeys
