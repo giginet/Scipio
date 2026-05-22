@@ -7,26 +7,26 @@ import CacheStorage
 package let packageURL = URL(filePath: #filePath)
     .deletingLastPathComponent()
     .appending(components: "Resources", "Fixtures", "TestingPackage")
-private let packageLocation = PackageLocation(packageDirectory: packageURL)
 private let fileSystem: LocalFileSystem = .default
 
 struct PackageResolverCacheSystemTests {
     @Test(
         "Caches resolved packages to cache storages",
         .sharedResolvedPackagesTrait,
-        arguments: CachePolicyEntry.allCases
+        arguments: CachePolicyKind.allCases
     )
-    func cacheResolvedPackages(entries: [CachePolicyEntry]) async throws {
+    func cacheResolvedPackages(kinds: [CachePolicyKind]) async throws {
+        let testContext = try #require(TestContext.shared)
+        let originHash = try #require(testContext.originHash)
+        let entries = CachePolicyEntry.entries(for: kinds, context: testContext)
+
         defer {
             entries.cleanup(using: fileSystem)
         }
 
-        let testContext = try #require(TestContext.shared)
-        let originHash = try #require(testContext.originHash)
-
         let cacheSystem = PackageResolver.CacheSystem(
             fileSystem: fileSystem,
-            packageLocator: packageLocation,
+            packageLocator: testContext.packageLocation,
             cachePolicies: entries.map(\.cachePolicy)
         )
 
@@ -35,7 +35,7 @@ struct PackageResolverCacheSystemTests {
         #expect(
             try await entries.allHaveValidCache(
                 for: originHash,
-                packageLocator: packageLocation,
+                packageLocator: testContext.packageLocation,
                 fileSystem: fileSystem
             )
         )
@@ -44,19 +44,20 @@ struct PackageResolverCacheSystemTests {
     @Test(
         "Returns noCache when no resolved packages cache exists",
         .sharedResolvedPackagesTrait,
-        arguments: CachePolicyEntry.allCases
+        arguments: CachePolicyKind.allCases
     )
-    func returnsNoCacheWhenCacheDoesNotExist(entries: [CachePolicyEntry]) async throws {
+    func returnsNoCacheWhenCacheDoesNotExist(kinds: [CachePolicyKind]) async throws {
+        let testContext = try #require(TestContext.shared)
+        let originHash = try #require(testContext.originHash)
+        let entries = CachePolicyEntry.entries(for: kinds, context: testContext)
+
         defer {
             entries.cleanup(using: fileSystem)
         }
 
-        let testContext = try #require(TestContext.shared)
-        let originHash = try #require(testContext.originHash)
-
         let cacheSystem = PackageResolver.CacheSystem(
             fileSystem: fileSystem,
-            packageLocator: packageLocation,
+            packageLocator: testContext.packageLocation,
             cachePolicies: entries.map(\.cachePolicy)
         )
 
@@ -72,19 +73,20 @@ struct PackageResolverCacheSystemTests {
     @Test(
         "Returns valid cache when a resolved packages cache exists",
         .sharedResolvedPackagesTrait,
-        arguments: CachePolicyEntry.allCases
+        arguments: CachePolicyKind.allCases
     )
-    func returnsValidCacheWhenCacheDoesExist(entries: [CachePolicyEntry]) async throws {
+    func returnsValidCacheWhenCacheDoesExist(kinds: [CachePolicyKind]) async throws {
+        let testContext = try #require(TestContext.shared)
+        let originHash = try #require(testContext.originHash)
+        let entries = CachePolicyEntry.entries(for: kinds, context: testContext)
+
         defer {
             entries.cleanup(using: fileSystem)
         }
 
-        let testContext = try #require(TestContext.shared)
-        let originHash = try #require(testContext.originHash)
-
         let cacheSystem = PackageResolver.CacheSystem(
             fileSystem: fileSystem,
-            packageLocator: packageLocation,
+            packageLocator: testContext.packageLocation,
             cachePolicies: entries.map(\.cachePolicy)
         )
 
@@ -106,8 +108,8 @@ struct PackageResolverCacheSystemTests {
         let testContext = try #require(TestContext.shared)
         let originHash = try #require(testContext.originHash)
 
-        let projectCacheEntry: CachePolicyEntry = .project
-        let localDiskCacheEntry: CachePolicyEntry = .localDisk
+        let projectCacheEntry = CachePolicyEntry.project(context: testContext)
+        let localDiskCacheEntry = CachePolicyEntry.localDisk(context: testContext)
 
         let entries: [CachePolicyEntry] = [projectCacheEntry, localDiskCacheEntry, .inMemory()]
 
@@ -117,7 +119,7 @@ struct PackageResolverCacheSystemTests {
 
         let cacheSystem = PackageResolver.CacheSystem(
             fileSystem: fileSystem,
-            packageLocator: packageLocation,
+            packageLocator: testContext.packageLocation,
             cachePolicies: entries.map(\.cachePolicy)
         )
 
@@ -131,7 +133,7 @@ struct PackageResolverCacheSystemTests {
         #expect(
             try await [projectCacheEntry, localDiskCacheEntry].allHaveValidCache(
                 for: originHash,
-                packageLocator: packageLocation,
+                packageLocator: testContext.packageLocation,
                 fileSystem: fileSystem
             )
         )
@@ -146,28 +148,54 @@ struct PackageResolverCacheSystemTests {
         }
     }
 
+    enum CachePolicyKind: Sendable {
+        case project
+        case localDisk
+        case inMemory
+
+        static let allCases: [[Self]] = [
+            [.project],
+            [.localDisk],
+            [.inMemory],
+            [.project, .localDisk, .inMemory],
+        ]
+    }
+
     /// Represents a cache policy configuration with cleanup logic for testing.
     struct CachePolicyEntry: Sendable {
         let cachePolicy: Runner.Options.ResolvedPackagesCachePolicy
         let cleanup: @Sendable (any FileSystem) -> Void
 
-        private static func localDisk(baseURL: URL) -> CachePolicyEntry {
+        fileprivate static func entries(for kinds: [CachePolicyKind], context: TestContext) -> [CachePolicyEntry] {
+            kinds.map { kind in
+                switch kind {
+                case .project:
+                    project(context: context)
+                case .localDisk:
+                    localDisk(context: context)
+                case .inMemory:
+                    inMemory()
+                }
+            }
+        }
+
+        fileprivate static func project(context: TestContext) -> CachePolicyEntry {
             CachePolicyEntry(
-                cachePolicy: .localDisk(baseURL: baseURL),
+                cachePolicy: .project,
                 cleanup: { fileSystem in
-                    try? fileSystem.removeFileTree(baseURL)
+                    try? fileSystem.removeFileTree(context.packageLocation.resolvedPackagesCacheDirectory)
                 }
             )
         }
 
-        static let project: CachePolicyEntry = CachePolicyEntry(
-            cachePolicy: .project,
-            cleanup: { fileSystem in
-                try? fileSystem.removeFileTree(packageLocation.resolvedPackagesCacheDirectory)
-            }
-        )
-
-        static let localDisk: CachePolicyEntry = .localDisk(baseURL: fileSystem.tempDirectory.appending(components: #fileID))
+        fileprivate static func localDisk(context: TestContext) -> CachePolicyEntry {
+            CachePolicyEntry(
+                cachePolicy: .localDisk(baseURL: context.localDiskCacheDirectory),
+                cleanup: { fileSystem in
+                    try? fileSystem.removeFileTree(context.localDiskCacheDirectory)
+                }
+            )
+        }
 
         static func inMemory() -> CachePolicyEntry {
             CachePolicyEntry(
@@ -175,13 +203,6 @@ struct PackageResolverCacheSystemTests {
                 cleanup: { _ in }
             )
         }
-
-        static let allCases: [[Self]] = [
-            [.project],
-            [.localDisk],
-            [.inMemory()],
-            [.project, .localDisk, .inMemory()],
-        ]
     }
 }
 
@@ -212,13 +233,25 @@ private struct SharedResolvedPackagesTrait: TestTrait, TestScoping {
         testCase: Test.Case?,
         performing function: () async throws -> Void
     ) async throws {
+        let temporaryDirectory = fileSystem.tempDirectory
+            .appending(components: "PackageResolverCacheSystemTests", UUID().uuidString)
+        let temporaryPackageURL = temporaryDirectory.appending(component: "TestingPackage")
+
+        try fileSystem.createDirectory(temporaryDirectory, recursive: true)
+        try fileSystem.copy(from: packageURL, to: temporaryPackageURL)
+
+        defer {
+            try? fileSystem.removeFileTree(temporaryDirectory)
+        }
+
         let executor = ProcessExecutor()
         let manifestLoader = ManifestLoader(executor: executor)
 
-        let rootManifest = try await manifestLoader.loadManifest(for: packageURL)
+        let rootManifest = try await manifestLoader.loadManifest(for: temporaryPackageURL)
 
+        let packageLocation = PackageLocation(packageDirectory: temporaryPackageURL)
         let packageResolver: PackageResolver = await PackageResolver(
-            packageLocator: PackageLocation(packageDirectory: packageURL),
+            packageLocator: packageLocation,
             rootManifest: rootManifest,
             cachePolicies: [],
             fileSystem: LocalFileSystem.default
@@ -227,7 +260,9 @@ private struct SharedResolvedPackagesTrait: TestTrait, TestScoping {
 
         let context = TestContext(
             resolvedPackages: Array(modulesGraph.allPackages.values),
-            originHash: UUID().uuidString
+            originHash: UUID().uuidString,
+            packageLocation: packageLocation,
+            localDiskCacheDirectory: temporaryDirectory.appending(component: "LocalDiskCache")
         )
 
         try await TestContext.$shared.withValue(context) {
@@ -271,6 +306,8 @@ private struct PackageLocation: PackageLocator {
 private struct TestContext: Sendable {
     let resolvedPackages: [ResolvedPackage]
     let originHash: String?
+    let packageLocation: PackageLocation
+    let localDiskCacheDirectory: URL
 
     @TaskLocal static var shared: Self?
 }
