@@ -137,6 +137,11 @@ struct CacheSystem: Sendable {
         var buildOptions: BuildOptions
     }
 
+    private struct CacheKeyEnvironment: Sendable {
+        var clangVersion: String
+        var xcodeVersion: XcodeVersion
+    }
+
     enum Error: LocalizedError {
         case revisionNotDetected(String)
         case compilerVersionNotDetected
@@ -259,10 +264,16 @@ struct CacheSystem: Sendable {
     }
 
     func calculateCacheKey(of target: CacheTarget) async throws -> SwiftPMCacheKey {
-        try await calculateCacheKey(of: target, dependencyCacheKeyChecksums: [])
+        let environment = try await cacheKeyEnvironment()
+        return try await calculateCacheKey(
+            of: target,
+            dependencyCacheKeyChecksums: [],
+            environment: environment
+        )
     }
 
     func calculateCacheKeys(for graph: DependencyGraph<CacheTarget>) async throws -> [CacheTarget: SwiftPMCacheKey] {
+        let environment = try await cacheKeyEnvironment()
         var cacheKeys: [CacheTarget: SwiftPMCacheKey] = [:]
 
         func calculateCacheKeyRecursively(for node: DependencyGraph<CacheTarget>.Node) async throws {
@@ -283,7 +294,8 @@ struct CacheSystem: Sendable {
             }
             cacheKeys[node.value] = try await calculateCacheKey(
                 of: node.value,
-                dependencyCacheKeyChecksums: dependencyChecksums
+                dependencyCacheKeyChecksums: dependencyChecksums,
+                environment: environment
             )
         }
 
@@ -296,7 +308,8 @@ struct CacheSystem: Sendable {
 
     private func calculateCacheKey(
         of target: CacheTarget,
-        dependencyCacheKeyChecksums: [DependencyCacheKeyChecksum]
+        dependencyCacheKeyChecksums: [DependencyCacheKeyChecksum],
+        environment: CacheKeyEnvironment
     ) async throws -> SwiftPMCacheKey {
         let package = target.buildProduct.package
 
@@ -311,21 +324,28 @@ struct CacheSystem: Sendable {
 
         let targetName = target.buildProduct.target.name
         let buildOptions = target.buildOptions
+        return SwiftPMCacheKey(
+            localPackageCanonicalLocation: localPackageCanonicalLocation,
+            pin: pinState,
+            targetName: targetName,
+            buildOptions: buildOptions,
+            clangVersion: environment.clangVersion,
+            xcodeVersion: environment.xcodeVersion,
+            scipioVersion: currentScipioVersion,
+            dependencyCacheKeyChecksums: dependencyCacheKeyChecksums
+        )
+    }
+
+    private func cacheKeyEnvironment() async throws -> CacheKeyEnvironment {
         guard let clangVersion = try await ClangChecker().fetchClangVersion() else {
             throw Error.compilerVersionNotDetected
         } // TODO DI
         guard let xcodeVersion = try await XcodeVersionFetcher().fetchXcodeVersion() else {
             throw Error.xcodeVersionNotDetected
         }
-        return SwiftPMCacheKey(
-            localPackageCanonicalLocation: localPackageCanonicalLocation,
-            pin: pinState,
-            targetName: targetName,
-            buildOptions: buildOptions,
+        return CacheKeyEnvironment(
             clangVersion: clangVersion,
-            xcodeVersion: xcodeVersion,
-            scipioVersion: currentScipioVersion,
-            dependencyCacheKeyChecksums: dependencyCacheKeyChecksums
+            xcodeVersion: xcodeVersion
         )
     }
 
