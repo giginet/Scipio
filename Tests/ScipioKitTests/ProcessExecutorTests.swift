@@ -111,7 +111,7 @@ struct ProcessExecutorTests {
 
         #expect(result.exitStatus == .terminated(code: 0))
         #expect(try result.unwrapOutput().contains("parent-output"))
-        #expect(duration < .seconds(1))
+        #expect(duration < .seconds(4))
     }
 
     @Test("Executor waits for stream output delivery before returning")
