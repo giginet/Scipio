@@ -101,26 +101,17 @@ struct ProcessExecutorTests {
     @Test("Executor completes when a descendant keeps stdout open")
     func completesWhenDescendantKeepsStdoutOpen() async throws {
         let executor = createExecutor()
-        let result = try await withThrowingTaskGroup(of: ExecutorResult.self) { group in
-            group.addTask {
-                try await executor.execute([
-                    "/bin/sh",
-                    "-c",
-                    "echo parent-output; (sleep 5) & exit 0",
-                ])
-            }
-            group.addTask {
-                try await Task.sleep(for: .seconds(1))
-                throw ProcessExecutorTestError.timedOut
-            }
-
-            let result = try #require(try await group.next())
-            group.cancelAll()
-            return result
-        }
+        let start = ContinuousClock.now
+        let result = try await executor.execute([
+            "/bin/sh",
+            "-c",
+            "echo parent-output; (sleep 5) & exit 0",
+        ])
+        let duration = start.duration(to: ContinuousClock.now)
 
         #expect(result.exitStatus == .terminated(code: 0))
         #expect(try result.unwrapOutput().contains("parent-output"))
+        #expect(duration < .seconds(1))
     }
 
     @Test("Executor waits for stream output delivery before returning")
@@ -334,10 +325,6 @@ private actor OutputDeliveryMarker {
     func collect(_ newBytes: [UInt8]) {
         bytes.append(contentsOf: newBytes)
     }
-}
-
-private enum ProcessExecutorTestError: Error {
-    case timedOut
 }
 
 private struct TestErrorDecoder: ErrorDecoder {
