@@ -63,6 +63,7 @@ struct ScipioLogHandler: LogHandler {
         } else {
             print(message.description)
         }
+        fflush(stdout)
     }
 }
 
