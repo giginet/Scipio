@@ -2,9 +2,17 @@ import Foundation
 import Darwin
 import os
 
-/// Buffer to collect process output bytes from Foundation callbacks.
-private final class ProcessOutputBuffer: Sendable {
+/// Reads currently available process output without waiting for EOF.
+///
+/// The file descriptor is non-blocking. `readabilityHandler` drains while the
+/// process is running, and `terminationHandler` drains once more to capture
+/// trailing bytes that Foundation has not delivered yet. This intentionally
+/// does not wait for pipe EOF because long-lived descendants may inherit the
+/// write end and keep it open after the immediate child exits.
+private final class ProcessOutputReader: Sendable {
     private let storage = OSAllocatedUnfairLock(initialState: [UInt8]())
+
+    // Serializes async stream callbacks in the same order as bytes were read.
     private let lastStreamOutputTask = OSAllocatedUnfairLock(initialState: Task<Void, Never> {})
     private let streamOutput: (@Sendable ([UInt8]) async -> Void)?
 
@@ -38,6 +46,8 @@ private final class ProcessOutputBuffer: Sendable {
         await task.value
     }
 
+    /// Reads all bytes currently available on a non-blocking file descriptor.
+    /// EAGAIN/EWOULDBLOCK means there is no more data ready right now.
     private static func drainAvailableBytes(from fileDescriptor: Int32) -> [[UInt8]] {
         var chunks: [[UInt8]] = []
         var buffer = [UInt8](repeating: 0, count: 4096)
@@ -197,8 +207,8 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
         let outputFileDescriptor = outputHandle.fileDescriptor
         let errorFileDescriptor = errorHandle.fileDescriptor
 
-        let outputBuffer = ProcessOutputBuffer(streamOutput: streamOutput)
-        let errorBuffer = ProcessOutputBuffer()
+        let outputReader = ProcessOutputReader(streamOutput: streamOutput)
+        let errorReader = ProcessOutputReader()
 
         let localDecoder = errorDecoder
 
@@ -206,11 +216,11 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
         Self.setNonBlocking(errorFileDescriptor)
 
         outputHandle.readabilityHandler = { _ in
-            outputBuffer.drain(from: outputFileDescriptor)
+            outputReader.drain(from: outputFileDescriptor)
         }
 
         errorHandle.readabilityHandler = { _ in
-            errorBuffer.drain(from: errorFileDescriptor)
+            errorReader.drain(from: errorFileDescriptor)
         }
 
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Error>) in
@@ -219,17 +229,17 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
                 errorHandle.readabilityHandler = nil
 
                 Task {
-                    outputBuffer.drain(from: outputFileDescriptor)
-                    errorBuffer.drain(from: errorFileDescriptor)
+                    outputReader.drain(from: outputFileDescriptor)
+                    errorReader.drain(from: errorFileDescriptor)
                     try? outputHandle.close()
                     try? errorHandle.close()
-                    await outputBuffer.finishStreaming()
+                    await outputReader.finishStreaming()
 
                     let result = FoundationProcessResult(
                         arguments: arguments,
                         exitStatus: exitStatus(of: process),
-                        output: .success(outputBuffer.snapshot),
-                        stderrOutput: .success(errorBuffer.snapshot)
+                        output: .success(outputReader.snapshot),
+                        stderrOutput: .success(errorReader.snapshot)
                     )
 
                     switch result.exitStatus {
