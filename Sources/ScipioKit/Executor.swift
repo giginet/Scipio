@@ -1,11 +1,64 @@
 import Foundation
+import Darwin
+import os
 
-/// Buffer to collect process output bytes.
-private actor ProcessOutputBuffer {
-    private(set) var bytes: [UInt8] = []
+/// Buffer to collect process output bytes from Foundation callbacks.
+private final class ProcessOutputBuffer: Sendable {
+    private let storage = OSAllocatedUnfairLock(initialState: [UInt8]())
+    private let lastStreamOutputTask = OSAllocatedUnfairLock(initialState: Task<Void, Never> {})
+    private let streamOutput: (@Sendable ([UInt8]) async -> Void)?
 
-    func append(_ newBytes: [UInt8]) {
-        bytes += newBytes
+    init(streamOutput: (@Sendable ([UInt8]) async -> Void)? = nil) {
+        self.streamOutput = streamOutput
+    }
+
+    func drain(from fileDescriptor: Int32) {
+        for bytes in Self.drainAvailableBytes(from: fileDescriptor) {
+            storage.withLock {
+                $0.append(contentsOf: bytes)
+            }
+            if let streamOutput {
+                lastStreamOutputTask.withLock {
+                    let previousTask = $0
+                    $0 = Task {
+                        await previousTask.value
+                        await streamOutput(bytes)
+                    }
+                }
+            }
+        }
+    }
+
+    var snapshot: [UInt8] {
+        storage.withLock { $0 }
+    }
+
+    func finishStreaming() async {
+        let task = lastStreamOutputTask.withLock { $0 }
+        await task.value
+    }
+
+    private static func drainAvailableBytes(from fileDescriptor: Int32) -> [[UInt8]] {
+        var chunks: [[UInt8]] = []
+        var buffer = [UInt8](repeating: 0, count: 4096)
+
+        while true {
+            let byteCount = buffer.withUnsafeMutableBytes {
+                Darwin.read(fileDescriptor, $0.baseAddress, $0.count)
+            }
+
+            switch byteCount {
+            case let byteCount where byteCount > 0:
+                chunks.append(Array(buffer.prefix(byteCount)))
+            case 0:
+                return chunks
+            default:
+                if errno == EINTR {
+                    continue
+                }
+                return chunks
+            }
+        }
     }
 }
 
@@ -141,79 +194,72 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
 
         let outputHandle = stdoutPipe.fileHandleForReading
         let errorHandle = stderrPipe.fileHandleForReading
+        let outputFileDescriptor = outputHandle.fileDescriptor
+        let errorFileDescriptor = errorHandle.fileDescriptor
 
-        let outputBuffer = ProcessOutputBuffer()
+        let outputBuffer = ProcessOutputBuffer(streamOutput: streamOutput)
         let errorBuffer = ProcessOutputBuffer()
 
-        let localStreamOutput = streamOutput
         let localDecoder = errorDecoder
 
-        let outputTask = Task {
-            // Workaround to avoid "Bad file descriptor" error when executing processes at high concurrency.
-            // Investigate this section if command output is missing
-            // ref: https://github.com/swiftlang/swift/issues/57827
-            defer { try? outputHandle.close() }
-            for try await data in outputHandle.byteStream() {
-                let bytes = [UInt8](data)
-                await localStreamOutput?(bytes)
-                await outputBuffer.append(bytes)
-            }
-            return await outputBuffer.bytes
+        Self.setNonBlocking(outputFileDescriptor)
+        Self.setNonBlocking(errorFileDescriptor)
+
+        outputHandle.readabilityHandler = { _ in
+            outputBuffer.drain(from: outputFileDescriptor)
         }
 
-        let errorOutputTask = Task {
-            // Workaround to avoid "Bad file descriptor" error when executing processes at high concurrency.
-            // Investigate this section if command output is missing
-            // ref: https://github.com/swiftlang/swift/issues/57827
-            defer { try? errorHandle.close() }
-            for try await data in errorHandle.byteStream() {
-                let bytes = [UInt8](data)
-                await errorBuffer.append(bytes)
-            }
-            return await errorBuffer.bytes
+        errorHandle.readabilityHandler = { _ in
+            errorBuffer.drain(from: errorFileDescriptor)
         }
 
-        do {
-            try process.run()
-        } catch {
-            throw ProcessExecutorError.unknownError(error)
-        }
-
-        process.waitUntilExit()
-
-        let finalOutput = try await outputTask.value
-        let finalErrorOutput = try await errorOutputTask.value
-
-        // Wait for process to complete
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Error>) in
             process.terminationHandler = { process in
                 outputHandle.readabilityHandler = nil
                 errorHandle.readabilityHandler = nil
 
-                let exitStatus = exitStatus(of: process)
+                Task {
+                    outputBuffer.drain(from: outputFileDescriptor)
+                    errorBuffer.drain(from: errorFileDescriptor)
+                    try? outputHandle.close()
+                    try? errorHandle.close()
+                    await outputBuffer.finishStreaming()
 
-                let result = FoundationProcessResult(
-                    arguments: arguments,
-                    exitStatus: exitStatus,
-                    output: .success(finalOutput),
-                    stderrOutput: .success(finalErrorOutput)
-                )
+                    let result = FoundationProcessResult(
+                        arguments: arguments,
+                        exitStatus: exitStatus(of: process),
+                        output: .success(outputBuffer.snapshot),
+                        stderrOutput: .success(errorBuffer.snapshot)
+                    )
 
-                switch exitStatus {
-                case .terminated(let code) where code == 0:
-                    continuation.resume(returning: result)
-                case .terminated:
-                    do {
-                        let errorOutput = try localDecoder.decode(result)
+                    switch result.exitStatus {
+                    case .terminated(let code) where code == 0:
+                        continuation.resume(returning: result)
+                    case .terminated:
+                        let errorOutput = try? localDecoder.decode(result)
                         continuation.resume(throwing: ProcessExecutorError.terminated(errorOutput: errorOutput))
-                    } catch {
-                        continuation.resume(throwing: ProcessExecutorError.terminated(errorOutput: nil))
+                    case .signalled(let signal):
+                        continuation.resume(throwing: ProcessExecutorError.signalled(signal))
                     }
-                case .signalled(let signal):
-                    continuation.resume(throwing: ProcessExecutorError.signalled(signal))
                 }
             }
+
+            do {
+                try process.run()
+            } catch {
+                outputHandle.readabilityHandler = nil
+                errorHandle.readabilityHandler = nil
+                try? outputHandle.close()
+                try? errorHandle.close()
+                continuation.resume(throwing: ProcessExecutorError.unknownError(error))
+            }
         }
+    }
+
+    private static func setNonBlocking(_ fileDescriptor: Int32) {
+        let flags = fcntl(fileDescriptor, F_GETFL)
+        guard flags != -1 else { return }
+        _ = fcntl(fileDescriptor, F_SETFL, flags | O_NONBLOCK)
     }
 
     /// Determines the exit status of the process based on its termination reason.
@@ -261,25 +307,5 @@ public struct StandardOutputDecoder: ErrorDecoder, Sendable {
 
     public func decode(_ result: ExecutorResult) throws -> String? {
         try result.unwrapOutput()
-    }
-}
-
-extension FileHandle {
-    fileprivate func byteStream() -> AsyncThrowingStream<Data, Error> {
-        AsyncThrowingStream { continuation in
-            self.readabilityHandler = { handle in
-                let data = handle.availableData
-                if data.isEmpty {
-                    continuation.finish()
-                    handle.readabilityHandler = nil
-                } else {
-                    continuation.yield(data)
-                }
-            }
-
-            continuation.onTermination = { @Sendable _ in
-                self.readabilityHandler = nil
-            }
-        }
     }
 }
