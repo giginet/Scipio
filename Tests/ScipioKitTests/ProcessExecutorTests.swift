@@ -98,6 +98,37 @@ struct ProcessExecutorTests {
         #expect(streamedString.contains(testCase.expectedOutputContains))
     }
 
+    @Test("Executor completes when a descendant keeps stdout open")
+    func completesWhenDescendantKeepsStdoutOpen() async throws {
+        let executor = createExecutor()
+        let start = ContinuousClock.now
+        let result = try await executor.execute([
+            "/bin/sh",
+            "-c",
+            "echo parent-output; (sleep 5) & exit 0",
+        ])
+        let duration = start.duration(to: ContinuousClock.now)
+
+        #expect(result.exitStatus == .terminated(code: 0))
+        #expect(try result.unwrapOutput().contains("parent-output"))
+        #expect(duration < .seconds(4))
+    }
+
+    @Test("Executor waits for stream output delivery before returning")
+    func waitsForStreamOutputDeliveryBeforeReturning() async throws {
+        let marker = OutputDeliveryMarker()
+        var executor = createExecutor()
+        executor.streamOutput = { bytes in
+            try? await Task.sleep(for: .milliseconds(100))
+            await marker.collect(bytes)
+        }
+
+        let result = try await executor.execute(["/bin/echo", "delivered-output"])
+
+        #expect(result.exitStatus == .terminated(code: 0))
+        #expect(await marker.outputString.contains("delivered-output"))
+    }
+
     // MARK: - Error Cases
 
     @Test("Executable not found error cases", arguments: [
@@ -281,6 +312,18 @@ private final class OutputCollector: @unchecked Sendable {
         lock.withLock {
             _collectedOutput.append(bytes)
         }
+    }
+}
+
+private actor OutputDeliveryMarker {
+    private var bytes: [UInt8] = []
+
+    var outputString: String {
+        String(decoding: bytes, as: UTF8.self)
+    }
+
+    func collect(_ newBytes: [UInt8]) {
+        bytes.append(contentsOf: newBytes)
     }
 }
 
