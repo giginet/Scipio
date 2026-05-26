@@ -1,4 +1,5 @@
 import Foundation
+import AsyncOperations
 import CacheStorage
 import Algorithms
 import PackageManifestKit
@@ -37,6 +38,27 @@ struct ClangChecker<E: Executor> {
     }
 }
 
+public struct DependencyCacheKeyChecksum: Codable, Hashable, Sendable {
+    public var targetName: String
+    public var checksum: String
+
+    public init(targetName: String, checksum: String) {
+        self.targetName = targetName
+        self.checksum = checksum
+    }
+}
+
+private func sortDependencyCacheKeyChecksums(
+    _ checksums: [DependencyCacheKeyChecksum]
+) -> [DependencyCacheKeyChecksum] {
+    checksums.sorted {
+        if $0.targetName == $1.targetName {
+            return $0.checksum < $1.checksum
+        }
+        return $0.targetName < $1.targetName
+    }
+}
+
 public struct SwiftPMCacheKey: CacheKey {
     /// The canonical repository URL the manifest was loaded from, for local packages only.
     public var localPackageCanonicalLocation: String?
@@ -46,6 +68,64 @@ public struct SwiftPMCacheKey: CacheKey {
     public var clangVersion: String
     public var xcodeVersion: XcodeVersion
     public var scipioVersion: String?
+    public var dependencyCacheKeyChecksums: [DependencyCacheKeyChecksum]
+
+    init(
+        localPackageCanonicalLocation: String?,
+        pin: Pin.State,
+        targetName: String,
+        buildOptions: BuildOptions,
+        clangVersion: String,
+        xcodeVersion: XcodeVersion,
+        scipioVersion: String? = nil,
+        dependencyCacheKeyChecksums: [DependencyCacheKeyChecksum] = []
+    ) {
+        self.localPackageCanonicalLocation = localPackageCanonicalLocation
+        self.pin = pin
+        self.targetName = targetName
+        self.buildOptions = buildOptions
+        self.clangVersion = clangVersion
+        self.xcodeVersion = xcodeVersion
+        self.scipioVersion = scipioVersion
+        self.dependencyCacheKeyChecksums = sortDependencyCacheKeyChecksums(dependencyCacheKeyChecksums)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case localPackageCanonicalLocation
+        case pin
+        case targetName
+        case buildOptions
+        case clangVersion
+        case xcodeVersion
+        case scipioVersion
+        case dependencyCacheKeyChecksums
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.localPackageCanonicalLocation = try container.decodeIfPresent(String.self, forKey: .localPackageCanonicalLocation)
+        self.pin = try container.decode(Pin.State.self, forKey: .pin)
+        self.targetName = try container.decode(String.self, forKey: .targetName)
+        self.buildOptions = try container.decode(BuildOptions.self, forKey: .buildOptions)
+        self.clangVersion = try container.decode(String.self, forKey: .clangVersion)
+        self.xcodeVersion = try container.decode(XcodeVersion.self, forKey: .xcodeVersion)
+        self.scipioVersion = try container.decodeIfPresent(String.self, forKey: .scipioVersion)
+        self.dependencyCacheKeyChecksums = sortDependencyCacheKeyChecksums(try container
+            .decodeIfPresent([DependencyCacheKeyChecksum].self, forKey: .dependencyCacheKeyChecksums)
+            ?? [])
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(localPackageCanonicalLocation, forKey: .localPackageCanonicalLocation)
+        try container.encode(pin, forKey: .pin)
+        try container.encode(targetName, forKey: .targetName)
+        try container.encode(buildOptions, forKey: .buildOptions)
+        try container.encode(clangVersion, forKey: .clangVersion)
+        try container.encode(xcodeVersion, forKey: .xcodeVersion)
+        try container.encodeIfPresent(scipioVersion, forKey: .scipioVersion)
+        try container.encode(sortDependencyCacheKeyChecksums(dependencyCacheKeyChecksums), forKey: .dependencyCacheKeyChecksums)
+    }
 }
 
 struct CacheSystem: Sendable {
@@ -56,6 +136,16 @@ struct CacheSystem: Sendable {
     struct CacheTarget: Hashable, Sendable {
         var buildProduct: BuildProduct
         var buildOptions: BuildOptions
+    }
+
+    private struct CacheKeyEnvironment: Sendable {
+        var clangVersion: String
+        var xcodeVersion: XcodeVersion
+    }
+
+    private struct CacheKeyCalculationInput: Sendable {
+        var target: CacheTarget
+        var dependencyCacheKeyChecksums: [DependencyCacheKeyChecksum]
     }
 
     enum Error: LocalizedError {
@@ -86,13 +176,21 @@ struct CacheSystem: Sendable {
         self.fileSystem = fileSystem
     }
 
-    func cacheFrameworks(_ targets: Set<CacheTarget>, to storages: [any FrameworkCacheStorage]) async {
+    func cacheFrameworks(
+        _ targets: Set<CacheTarget>,
+        cacheKeys: [CacheTarget: SwiftPMCacheKey],
+        to storages: [any FrameworkCacheStorage]
+    ) async {
         for storage in storages {
-            await cacheFrameworks(targets, to: storage)
+            await cacheFrameworks(targets, cacheKeys: cacheKeys, to: storage)
         }
     }
 
-    private func cacheFrameworks(_ targets: Set<CacheTarget>, to storage: some FrameworkCacheStorage) async {
+    private func cacheFrameworks(
+        _ targets: Set<CacheTarget>,
+        cacheKeys: [CacheTarget: SwiftPMCacheKey],
+        to storage: some FrameworkCacheStorage
+    ) async {
         let chunked = targets.chunks(ofCount: storage.parallelNumber ?? CacheSystem.defaultParallelNumber)
 
         let storageName = storage.displayName
@@ -107,7 +205,8 @@ struct CacheSystem: Sendable {
                                 "🚀 Cache \(frameworkName) to cache storage: \(storageName)",
                                 metadata: .color(.green)
                             )
-                            try await cacheFramework(target, at: frameworkPath, to: storage)
+                            guard let cacheKey = cacheKeys[target] else { return }
+                            try await cacheFramework(at: frameworkPath, for: cacheKey, to: storage)
                         } catch {
                             logger.warning("⚠️ Can't create caches for \(frameworkPath.path)")
                         }
@@ -118,21 +217,22 @@ struct CacheSystem: Sendable {
         }
     }
 
-    private func cacheFramework(_ target: CacheTarget, at frameworkPath: URL, to storage: any FrameworkCacheStorage) async throws {
-        let cacheKey = try await calculateCacheKey(of: target)
-
+    private func cacheFramework(at frameworkPath: URL, for cacheKey: SwiftPMCacheKey, to storage: any FrameworkCacheStorage) async throws {
         try await storage.cacheFramework(frameworkPath, for: cacheKey)
     }
 
-    func generateVersionFile(for target: CacheTarget) async throws {
-        let cacheKey = try await calculateCacheKey(of: target)
-
+    func generateVersionFile(for target: CacheTarget, cacheKey: SwiftPMCacheKey) async throws {
         let data = try jsonEncoder.encode(cacheKey)
         let versionFilePath = outputDirectory.appendingPathComponent(versionFileName(for: target.buildProduct.target.name))
         try fileSystem.writeFileContents(
             versionFilePath,
             data: data
         )
+    }
+
+    func generateVersionFile(for target: CacheTarget) async throws {
+        let cacheKey = try await calculateCacheKey(of: target)
+        try await generateVersionFile(for: target, cacheKey: cacheKey)
     }
 
     func existsValidCache(cacheKey: SwiftPMCacheKey) async -> Bool {
@@ -156,9 +256,8 @@ struct CacheSystem: Sendable {
         case noCache
     }
 
-    func restoreCacheIfPossible(target: CacheTarget, storage: some FrameworkCacheStorage) async -> RestoreResult {
+    func restoreCacheIfPossible(cacheKey: SwiftPMCacheKey, storage: some FrameworkCacheStorage) async -> RestoreResult {
         do {
-            let cacheKey = try await calculateCacheKey(of: target)
             if try await storage.existsValidCache(for: cacheKey) {
                 try await storage.fetchArtifacts(for: cacheKey, to: outputDirectory)
                 return .succeeded
@@ -171,6 +270,72 @@ struct CacheSystem: Sendable {
     }
 
     func calculateCacheKey(of target: CacheTarget) async throws -> SwiftPMCacheKey {
+        let environment = try await cacheKeyEnvironment()
+        return try await calculateCacheKey(
+            of: target,
+            dependencyCacheKeyChecksums: [],
+            environment: environment
+        )
+    }
+
+    func calculateCacheKeys(for graph: DependencyGraph<CacheTarget>) async throws -> [CacheTarget: SwiftPMCacheKey] {
+        let environment = try await cacheKeyEnvironment()
+        var cacheKeys: [CacheTarget: SwiftPMCacheKey] = [:]
+        var remainingTargets = Set(graph.allNodes.map(\.value))
+        var layer = graph.leafs
+
+        while !layer.isEmpty {
+            let nodes = layer.filter { remainingTargets.contains($0.value) }
+            if nodes.isEmpty {
+                break
+            }
+
+            let inputs = try nodes.map { node in
+                let dependencyChecksums = try node.children.map { child in
+                    let childCacheKey = cacheKeys[child.value]!
+                    return DependencyCacheKeyChecksum(
+                        targetName: child.value.buildProduct.target.name,
+                        checksum: try childCacheKey.calculateChecksum()
+                    )
+                }
+                return CacheKeyCalculationInput(
+                    target: node.value,
+                    dependencyCacheKeyChecksums: dependencyChecksums
+                )
+            }
+            let layerCacheKeys = try await inputs.asyncMap(numberOfConcurrentTasks: UInt(inputs.count)) { input in
+                let cacheKey = try await calculateCacheKey(
+                    of: input.target,
+                    dependencyCacheKeyChecksums: input.dependencyCacheKeyChecksums,
+                    environment: environment
+                )
+                return (input.target, cacheKey)
+            }
+
+            for (target, cacheKey) in layerCacheKeys {
+                cacheKeys[target] = cacheKey
+                remainingTargets.remove(target)
+            }
+
+            let parentNodes = nodes.flatMap { node in
+                node.parents.compactMap(\.reference)
+            }
+            var seenTargets: Set<CacheTarget> = []
+            layer = parentNodes.filter { node in
+                remainingTargets.contains(node.value)
+                    && seenTargets.insert(node.value).inserted
+                    && node.children.allSatisfy { cacheKeys[$0.value] != nil }
+            }
+        }
+
+        return cacheKeys
+    }
+
+    private func calculateCacheKey(
+        of target: CacheTarget,
+        dependencyCacheKeyChecksums: [DependencyCacheKeyChecksum],
+        environment: CacheKeyEnvironment
+    ) async throws -> SwiftPMCacheKey {
         let package = target.buildProduct.package
 
         let localPackageCanonicalLocation: String? = switch package.resolvedPackageKind {
@@ -184,20 +349,28 @@ struct CacheSystem: Sendable {
 
         let targetName = target.buildProduct.target.name
         let buildOptions = target.buildOptions
+        return SwiftPMCacheKey(
+            localPackageCanonicalLocation: localPackageCanonicalLocation,
+            pin: pinState,
+            targetName: targetName,
+            buildOptions: buildOptions,
+            clangVersion: environment.clangVersion,
+            xcodeVersion: environment.xcodeVersion,
+            scipioVersion: currentScipioVersion,
+            dependencyCacheKeyChecksums: dependencyCacheKeyChecksums
+        )
+    }
+
+    private func cacheKeyEnvironment() async throws -> CacheKeyEnvironment {
         guard let clangVersion = try await ClangChecker().fetchClangVersion() else {
             throw Error.compilerVersionNotDetected
         } // TODO DI
         guard let xcodeVersion = try await XcodeVersionFetcher().fetchXcodeVersion() else {
             throw Error.xcodeVersionNotDetected
         }
-        return SwiftPMCacheKey(
-            localPackageCanonicalLocation: localPackageCanonicalLocation,
-            pin: pinState,
-            targetName: targetName,
-            buildOptions: buildOptions,
+        return CacheKeyEnvironment(
             clangVersion: clangVersion,
-            xcodeVersion: xcodeVersion,
-            scipioVersion: currentScipioVersion
+            xcodeVersion: xcodeVersion
         )
     }
 

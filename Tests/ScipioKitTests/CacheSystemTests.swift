@@ -35,7 +35,11 @@ final class CacheSystemTests: XCTestCase {
                 stripStaticDWARFSymbols: false
             ),
             clangVersion: "clang-1400.0.29.102",
-            xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d")
+            xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d"),
+            dependencyCacheKeyChecksums: [
+                .init(targetName: "Zebra", checksum: "222222"),
+                .init(targetName: "Base", checksum: "111111"),
+            ]
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
@@ -67,6 +71,16 @@ final class CacheSystemTests: XCTestCase {
             "stripStaticDWARFSymbols" : false
           },
           "clangVersion" : "clang-1400.0.29.102",
+          "dependencyCacheKeyChecksums" : [
+            {
+              "checksum" : "111111",
+              "targetName" : "Base"
+            },
+            {
+              "checksum" : "222222",
+              "targetName" : "Zebra"
+            }
+          ],
           "localPackageCanonicalLocation" : "\\/path\\/to\\/MyPackage",
           "pin" : {
             "revision" : "111111111"
@@ -80,6 +94,119 @@ final class CacheSystemTests: XCTestCase {
         """
         // swiftlint:enable line_length
         XCTAssertEqual(rawString, expected)
+    }
+
+    func testDecodeCacheKeyWithoutDependencyCacheKeyChecksums() throws {
+        let rawString = """
+        {
+          "buildOptions" : {
+            "buildConfiguration" : "release",
+            "enableLibraryEvolution" : false,
+            "frameworkType" : "dynamic",
+            "isDebugSymbolsEmbedded" : false,
+            "keepPublicHeadersStructure" : false,
+            "sdks" : [
+              "iOS"
+            ],
+            "stripStaticDWARFSymbols" : false
+          },
+          "clangVersion" : "clang-1400.0.29.102",
+          "pin" : {
+            "revision" : "111111111"
+          },
+          "targetName" : "MyTarget",
+          "xcodeVersion" : {
+            "xcodeBuildVersion" : "15F31d",
+            "xcodeVersion" : "15.4"
+          }
+        }
+        """
+
+        let cacheKey = try JSONDecoder().decode(SwiftPMCacheKey.self, from: Data(rawString.utf8))
+
+        XCTAssertEqual(cacheKey.dependencyCacheKeyChecksums, [])
+    }
+
+    func testCacheKeysIncludeDirectDependencyChecksums() async throws {
+        let taggedFixture = try await makeTaggedPartialCacheTestPackagePath()
+        defer { try? LocalFileSystem.default.removeFileTree(taggedFixture.rootPath) }
+
+        let descriptionPackage = try await DescriptionPackage(
+            packageDirectory: taggedFixture.packagePath,
+            mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
+            onlyUseVersionsFromResolvedFile: true
+        )
+        let buildOptions = defaultBuildOptions()
+        let targetGraph = try descriptionPackage.resolveBuildProductDependencyGraph().map { buildProduct in
+            CacheSystem.CacheTarget(buildProduct: buildProduct, buildOptions: buildOptions)
+        }
+        let cacheSystem = CacheSystem(
+            outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks")
+        )
+
+        let cacheKeys = try await cacheSystem.calculateCacheKeys(for: targetGraph)
+        let baseTarget = try XCTUnwrap(targetGraph.allNodes.map(\.value).first { $0.buildProduct.target.name == "Base" })
+        let badTarget = try XCTUnwrap(targetGraph.allNodes.map(\.value).first { $0.buildProduct.target.name == "Bad" })
+        let baseCacheKey = try XCTUnwrap(cacheKeys[baseTarget])
+        let badCacheKey = try XCTUnwrap(cacheKeys[badTarget])
+
+        XCTAssertEqual(baseCacheKey.dependencyCacheKeyChecksums, [])
+        XCTAssertEqual(
+            badCacheKey.dependencyCacheKeyChecksums,
+            [
+                DependencyCacheKeyChecksum(
+                    targetName: "Base",
+                    checksum: try baseCacheKey.calculateChecksum()
+                ),
+            ]
+        )
+    }
+
+    func testDependencyCacheKeyChangesDependentCacheKey() async throws {
+        let taggedFixture = try await makeTaggedPartialCacheTestPackagePath()
+        defer { try? LocalFileSystem.default.removeFileTree(taggedFixture.rootPath) }
+
+        let descriptionPackage = try await DescriptionPackage(
+            packageDirectory: taggedFixture.packagePath,
+            mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
+            onlyUseVersionsFromResolvedFile: true
+        )
+        let dynamicBuildOptions = defaultBuildOptions(frameworkType: .dynamic)
+        let staticBuildOptions = defaultBuildOptions(frameworkType: .static)
+        let dynamicTargetGraph = try descriptionPackage.resolveBuildProductDependencyGraph().map { buildProduct in
+            CacheSystem.CacheTarget(buildProduct: buildProduct, buildOptions: dynamicBuildOptions)
+        }
+        let changedDependencyTargetGraph = try descriptionPackage.resolveBuildProductDependencyGraph().map { buildProduct in
+            CacheSystem.CacheTarget(
+                buildProduct: buildProduct,
+                buildOptions: buildProduct.target.name == "Base" ? staticBuildOptions : dynamicBuildOptions
+            )
+        }
+        let cacheSystem = CacheSystem(
+            outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks")
+        )
+
+        let dynamicCacheKeys = try await cacheSystem.calculateCacheKeys(for: dynamicTargetGraph)
+        let changedDependencyCacheKeys = try await cacheSystem.calculateCacheKeys(for: changedDependencyTargetGraph)
+        let dynamicBaseTarget = try XCTUnwrap(dynamicTargetGraph.allNodes.map(\.value).first { $0.buildProduct.target.name == "Base" })
+        let dynamicBadTarget = try XCTUnwrap(dynamicTargetGraph.allNodes.map(\.value).first { $0.buildProduct.target.name == "Bad" })
+        let changedBaseTarget = try XCTUnwrap(
+            changedDependencyTargetGraph.allNodes.map(\.value).first { $0.buildProduct.target.name == "Base" }
+        )
+        let changedBadTarget = try XCTUnwrap(
+            changedDependencyTargetGraph.allNodes.map(\.value).first { $0.buildProduct.target.name == "Bad" }
+        )
+
+        XCTAssertNotEqual(
+            try dynamicCacheKeys[dynamicBaseTarget]?.calculateChecksum(),
+            try changedDependencyCacheKeys[changedBaseTarget]?.calculateChecksum()
+        )
+        XCTAssertNotEqual(
+            try dynamicCacheKeys[dynamicBadTarget]?.calculateChecksum(),
+            try changedDependencyCacheKeys[changedBadTarget]?.calculateChecksum()
+        )
     }
 
     func testCacheKeyForRemoteAndLocalPackageDifference() async throws {
@@ -240,5 +367,56 @@ final class CacheSystemTests: XCTestCase {
 
         XCTAssertEqual(cacheKey.targetName, myTarget.name)
         XCTAssertEqual(cacheKey.pin.version, "1.1.0")
+    }
+
+    private func defaultBuildOptions(frameworkType: FrameworkType = .dynamic) -> BuildOptions {
+        BuildOptions(
+            buildConfiguration: .release,
+            isDebugSymbolsEmbedded: false,
+            frameworkType: frameworkType,
+            sdks: [.iOS, .iOSSimulator],
+            extraFlags: nil,
+            extraBuildParameters: nil,
+            enableLibraryEvolution: false,
+            keepPublicHeadersStructure: false,
+            customFrameworkModuleMapContents: nil,
+            stripStaticDWARFSymbols: false
+        )
+    }
+
+    private func makeTaggedPartialCacheTestPackagePath(
+        function: String = #function
+    ) async throws -> (rootPath: URL, packagePath: URL) {
+        let fileSystem: LocalFileSystem = .default
+        let rootPath = fileSystem.tempDirectory.appending(component: function)
+        let packagePath = rootPath.appending(component: "PartialCacheTestPackage")
+
+        try fileSystem.removeFileTree(rootPath)
+        try fileSystem.createDirectory(rootPath)
+        try fileSystem.copy(
+            from: fixturePath.appendingPathComponent("PartialCacheTestPackage"),
+            to: packagePath
+        )
+
+        let executor: Executor = ProcessExecutor()
+        let packagePathString = packagePath.path(percentEncoded: false)
+        try await executor.execute(["/usr/bin/xcrun", "git", "init", packagePathString])
+        try await executor.execute(["/usr/bin/xcrun", "git", "-C", packagePathString, "add", "."])
+        try await executor.execute([
+            "/usr/bin/xcrun",
+            "git",
+            "-C",
+            packagePathString,
+            "-c",
+            "user.name=Scipio Tests",
+            "-c",
+            "user.email=scipio@example.com",
+            "commit",
+            "-m",
+            "Initial commit",
+        ])
+        try await executor.execute(["/usr/bin/xcrun", "git", "-C", packagePathString, "tag", "v1.0.0"])
+
+        return (rootPath, packagePath)
     }
 }
