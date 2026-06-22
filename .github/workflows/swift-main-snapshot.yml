@@ -23,7 +23,7 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.4.1.app/Contents/Developer
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install Swift main snapshot
         run: |
           curl -O https://download.swift.org/swiftly/darwin/swiftly.pkg
