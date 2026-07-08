@@ -7,6 +7,14 @@ import PackageManifestKit
 /// `PackageManifestKit` types don't provide public memberwise initializers,
 /// so the manifest-side values are constructed by decoding minimal JSON.
 enum ResolvedGraphFixtures {
+    /// The encoder configuration `LocalDiskCacheStorage` uses, for comparing
+    /// snapshots byte-wise in tests.
+    static func makeCanonicalJSONEncoder() -> JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return encoder
+    }
+
     static func packageURLString(_ identity: String) -> String {
         "https://github.com/example/\(identity).git"
     }

@@ -325,8 +325,11 @@ extension ResolvedModule {
     /// - `PackageResolver` materializes each package manifest and each of its
     ///   targets exactly once (the results are memoized), and target names are
     ///   unique within a manifest.
+    /// - `ResolvedPackagesSnapshot.restoreResolvedPackages()` materializes each
+    ///   stored module exactly once and rejects snapshots containing duplicated
+    ///   identities.
     /// - Initializers are `package`-level: normal construction is limited to
-    ///   the path above.
+    ///   the two paths above.
     ///
     /// The synthesized (structural) implementations would walk `dependencies`
     /// recursively instead. Every module embeds its whole dependency subtree by
