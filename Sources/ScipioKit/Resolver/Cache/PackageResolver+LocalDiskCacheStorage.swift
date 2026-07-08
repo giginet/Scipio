@@ -6,7 +6,12 @@ import struct UniformTypeIdentifiers.UTType
 extension PackageResolver {
     struct LocalDiskCacheStorage: ResolvedPackagesCacheStorage {
         private let jsonDecoder = JSONDecoder()
-        private let jsonEncoder = JSONEncoder()
+        private let jsonEncoder: JSONEncoder = {
+            let encoder = JSONEncoder()
+            // Sorted keys give identical bytes for identical input.
+            encoder.outputFormatting = [.sortedKeys]
+            return encoder
+        }()
         private let baseURL: URL?
         private let fileSystem: any FileSystem
 
@@ -42,12 +47,31 @@ extension PackageResolver {
             }
 
             let data = try fileSystem.readFileContents(cacheFileURL)
-            return try jsonDecoder.decode([ResolvedPackage].self, from: data)
+            do {
+                let snapshot = try jsonDecoder.decode(ResolvedPackagesSnapshot.self, from: data)
+                return try snapshot.restoreResolvedPackages()
+            } catch {
+                // An older or corrupted format: discard the file and treat it as a miss.
+                let cacheFilePath = cacheFileURL.path(percentEncoded: false)
+                logger.warning(
+                    "⚠️ Discarding a resolved packages cache in an unsupported format at \(cacheFilePath): \(error)",
+                    metadata: .color(.yellow)
+                )
+                do {
+                    try fileSystem.removeFileTree(cacheFileURL)
+                } catch {
+                    logger.warning(
+                        "⚠️ Failed to remove the unsupported cache file at \(cacheFilePath): \(error)",
+                        metadata: .color(.yellow)
+                    )
+                }
+                return []
+            }
         }
 
         func cacheResolvedPackages(_ resolvedPackages: [ResolvedPackage], for originHash: String) async throws {
             let cacheFileURL = try resolveCacheFile(from: originHash)
-            let data = try jsonEncoder.encode(resolvedPackages)
+            let data = try jsonEncoder.encode(ResolvedPackagesSnapshot(resolvedPackages: resolvedPackages))
             try fileSystem.writeFileContents(cacheFileURL, data: data)
         }
 
