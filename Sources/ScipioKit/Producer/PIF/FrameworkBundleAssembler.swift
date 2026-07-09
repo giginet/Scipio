@@ -7,6 +7,7 @@ struct FrameworkBundleAssembler {
     private let keepPublicHeadersStructure: Bool
     private let outputDirectory: URL
     private let fileSystem: any FileSystem
+    private let headerIncludeRewriter: CHeaderIncludeRewriter?
 
     private var frameworkBundlePath: URL {
         outputDirectory.appending(component: "\(frameworkComponents.frameworkName).framework")
@@ -16,12 +17,14 @@ struct FrameworkBundleAssembler {
         frameworkComponents: FrameworkComponents,
         keepPublicHeadersStructure: Bool,
         outputDirectory: URL,
-        fileSystem: some FileSystem
+        fileSystem: some FileSystem,
+        headerIncludeRewriter: CHeaderIncludeRewriter? = nil
     ) {
         self.frameworkComponents = frameworkComponents
         self.keepPublicHeadersStructure = keepPublicHeadersStructure
         self.outputDirectory = outputDirectory
         self.fileSystem = fileSystem
+        self.headerIncludeRewriter = headerIncludeRewriter
     }
 
     @discardableResult
@@ -80,46 +83,65 @@ struct FrameworkBundleAssembler {
         try fileSystem.createDirectory(headerDir)
 
         for header in headers {
-            if keepPublicHeadersStructure, let includeDir = frameworkComponents.includeDir {
-                try copyHeaderKeepingStructure(
-                    header: header,
-                    includeDir: includeDir,
-                    into: headerDir
-                )
-            } else {
-                try fileSystem.copy(
-                    from: header,
-                    to: headerDir.appending(component: header.lastPathComponent)
+            let destinationComponents = Self.headerDestinationComponents(
+                header: header,
+                includeDir: frameworkComponents.includeDir,
+                keepPublicHeadersStructure: keepPublicHeadersStructure
+            )
+            let destination = headerDir.appending(components: destinationComponents)
+            if destinationComponents.count > 1 {
+                try fileSystem.createDirectory(
+                    destination.deletingLastPathComponent(),
+                    recursive: true
                 )
             }
+            try copyHeader(from: header, to: destination)
         }
     }
 
-    private func copyHeaderKeepingStructure(
+    /// Path components below `Headers/`; shared with `CHeaderIncludeRewriter`.
+    static func headerDestinationComponents(
         header: URL,
-        includeDir: URL,
-        into headerDir: URL
-    ) throws {
-        let subdirectoryComponents: [String] = if header.dirname.hasPrefix(includeDir.path(percentEncoded: false)) {
-            header.dirname.dropFirst(includeDir.path(percentEncoded: false).count)
-                .split(separator: "/")
-                .map(String.init)
-        } else {
-            []
+        includeDir: URL?,
+        keepPublicHeadersStructure: Bool
+    ) -> [String] {
+        guard keepPublicHeadersStructure, let includeDir else {
+            return [header.lastPathComponent]
+        }
+        var base = includeDir.standardizedFileURL.path(percentEncoded: false)
+        if base.hasSuffix("/") && base != "/" {
+            base.removeLast()
+        }
+        let parent = header.dirname
+        guard parent == base || parent.hasPrefix(base + "/") else {
+            return [header.lastPathComponent]
+        }
+        let subdirectoryComponents = parent.dropFirst(base.count)
+            .split(separator: "/")
+            .map(String.init)
+        return subdirectoryComponents + [header.lastPathComponent]
+    }
+
+    /// Copies a public header, rewriting textual headers when a rewriter is configured.
+    private func copyHeader(from source: URL, to destination: URL) throws {
+        // `fileSystem.copy` refuses to overwrite, but `writeFileContents` does not: check upfront so
+        // headers flattened to a colliding name keep failing loudly on either path.
+        guard !fileSystem.exists(destination) else {
+            throw FileSystemError.alreadyExistsAtDestination(path: destination)
         }
 
-        if !subdirectoryComponents.isEmpty {
-            try fileSystem.createDirectory(
-                headerDir.appending(components: subdirectoryComponents),
-                recursive: true
-            )
+        guard let headerIncludeRewriter, !headerIncludeRewriter.isEmpty else {
+            try fileSystem.copy(from: source, to: destination)
+            return
         }
-        try fileSystem.copy(
-            from: header,
-            to: headerDir
-                .appending(components: subdirectoryComponents)
-                .appending(component: header.lastPathComponent)
-        )
+
+        let rawData = try fileSystem.readFileContents(source)
+        guard let contents = String(bytes: rawData, encoding: .utf8) else {
+            try fileSystem.copy(from: source, to: destination)
+            return
+        }
+
+        try fileSystem.writeFileContents(destination, string: headerIncludeRewriter.rewrite(contents))
     }
 
     private func copyModules() throws {
