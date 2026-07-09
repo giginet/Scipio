@@ -44,8 +44,24 @@ struct ManifestLoader: @unchecked Sendable {
             throw Error.utf8EncodingFailed
         }
 
-        let manifest = try jsonDecoder.decode(Manifest.self, from: manifestData)
-        return manifest
+        return try decodeManifest(from: manifestData)
+    }
+
+    // PackageManifestKit 0.2.0 expects Manifest.traits as [String]?, but SwiftPM 6.1+
+    // dump-package emits trait objects. Since Scipio does not read top-level traits,
+    // decode directly and, only on failure, drop the field and retry. Remove once
+    // PackageManifestKit models Manifest.traits as [TraitDescription]?.
+    private func decodeManifest(from data: Data) throws -> Manifest {
+        do {
+            return try jsonDecoder.decode(Manifest.self, from: data)
+        } catch {
+            guard var object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  object["traits"] != nil else {
+                throw error
+            }
+            object["traits"] = nil
+            return try jsonDecoder.decode(Manifest.self, from: JSONSerialization.data(withJSONObject: object))
+        }
     }
 
     enum Error: LocalizedError {
