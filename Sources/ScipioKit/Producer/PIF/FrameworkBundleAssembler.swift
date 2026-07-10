@@ -141,7 +141,17 @@ struct FrameworkBundleAssembler {
             return
         }
 
-        try fileSystem.writeFileContents(destination, string: headerIncludeRewriter.rewrite(contents))
+        try fileSystem.writeFileContents(
+            destination,
+            string: headerIncludeRewriter.rewrite(
+                contents,
+                includer: .init(
+                    sourceFile: source,
+                    includeDir: frameworkComponents.includeDir,
+                    keepsPublicHeadersStructure: keepPublicHeadersStructure
+                )
+            )
+        )
     }
 
     private func copyModules() throws {

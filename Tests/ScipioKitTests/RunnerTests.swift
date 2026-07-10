@@ -233,6 +233,13 @@ final class RunnerTests: XCTestCase {
             "Include of the inline-implementation file should be rewritten, got:\n\(coreHeaderContents)"
         )
 
+        // A quoted include that only the injected search paths could resolve is rewritten like
+        // an angle include; quoted lookup has no includer-relative candidate for it here.
+        XCTAssertTrue(
+            coreHeaderContents.contains("#include <CoreLib/core/core_quoted.h>"),
+            "Search-path style quoted include should be rewritten, got:\n\(coreHeaderContents)"
+        )
+
         // Prove a consumer can compile against the produced frameworks using only framework search
         // (`-F`), with none of the `-I` paths SwiftPM would otherwise inject.
         let sdkPath = try runProcess("/usr/bin/xcrun", ["--sdk", "iphoneos", "--show-sdk-path"])

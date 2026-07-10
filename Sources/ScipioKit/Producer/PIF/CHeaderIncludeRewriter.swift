@@ -18,16 +18,18 @@ import ScipioKitCore
 struct CHeaderIncludeRewriter {
     /// Source include path to framework include path, e.g. `"core/core.h" -> "CoreLib/core/core.h"`.
     private let replacementsByHeaderPath: [String: String]
+    private let fileSystem: any FileSystem
 
-    init(replacementsByHeaderPath: [String: String]) {
+    init(replacementsByHeaderPath: [String: String], fileSystem: some FileSystem = LocalFileSystem.default) {
         self.replacementsByHeaderPath = replacementsByHeaderPath
+        self.fileSystem = fileSystem
     }
 
     /// Builds the table from a target and its visible dependency closure.
     init(
         modules: some Sequence<ResolvedModule>,
         keepPublicHeadersStructure: (ResolvedModule) -> Bool,
-        fileSystem: any FileSystem = LocalFileSystem.default
+        fileSystem: some FileSystem = LocalFileSystem.default
     ) {
         var table: [String: String] = [:]
         var ambiguousPaths: Set<String> = []
@@ -75,37 +77,165 @@ struct CHeaderIncludeRewriter {
             table[path] = nil
         }
         self.replacementsByHeaderPath = table
+        self.fileSystem = fileSystem
     }
 
     var isEmpty: Bool { replacementsByHeaderPath.isEmpty }
 
-    // Angle includes only; quoted includes keep their source-relative semantics.
+    /// Where the header being rewritten comes from and how it lands inside the framework,
+    /// so quoted includes can be checked against the copied layout.
+    struct IncluderContext {
+        var sourceFile: URL
+        var includeDir: URL?
+        var keepsPublicHeadersStructure: Bool
+    }
+
+    private enum CaptureGroup {
+        static let directive = "directive"
+        static let anglePath = "anglePath"
+        static let quotedPath = "quotedPath"
+    }
+
     private static let includeRegex = try! NSRegularExpression(
-        pattern: #"^(\s*#\s*(?:include|import)\s*)<([^>]+)>"#
+        pattern: #"^(?<\#(CaptureGroup.directive)>\s*#\s*(?:include|import)\s*)"#
+            + #"(?:<(?<\#(CaptureGroup.anglePath)>[^>]+)>|"(?<\#(CaptureGroup.quotedPath)>[^"]+)")"#
     )
 
     /// Leaves system, ambiguous, and out-of-closure includes unchanged.
-    func rewrite(_ contents: String) -> String {
+    ///
+    /// Quoted includes mirror the compiler's lookup order: a file reachable relative to the
+    /// including header wins, but only as long as the copy into the framework preserves that
+    /// relation; flattened layouts break subdirectory relations, so such includes are rewritten
+    /// to the framework form like an angle include, looked up by the candidate's canonical
+    /// include-dir-relative path so `./` and `../` spellings rewrite too.
+    func rewrite(_ contents: String, includer: IncluderContext? = nil) -> String {
         guard !replacementsByHeaderPath.isEmpty else { return contents }
 
         let lines = contents.components(separatedBy: "\n")
         let rewritten = lines.map { line -> String in
             let range = NSRange(line.startIndex..<line.endIndex, in: line)
             guard let match = Self.includeRegex.firstMatch(in: line, range: range),
-                  let directiveRange = Range(match.range(at: 1), in: line),
-                  let pathRange = Range(match.range(at: 2), in: line) else {
+                  let directiveRange = Range(match.range(withName: CaptureGroup.directive), in: line) else {
+                return line
+            }
+
+            let pathRange: Range<String.Index>
+            let isQuoted: Bool
+            if let angleRange = Range(match.range(withName: CaptureGroup.anglePath), in: line) {
+                pathRange = angleRange
+                isQuoted = false
+            } else if let quotedRange = Range(match.range(withName: CaptureGroup.quotedPath), in: line) {
+                pathRange = quotedRange
+                isQuoted = true
+            } else {
                 return line
             }
 
             let path = String(line[pathRange])
-            guard let replacement = replacementsByHeaderPath[path] else {
+            let replacement: String?
+            if isQuoted, let includer {
+                replacement = quotedIncludeReplacement(for: path, from: includer)
+            } else {
+                replacement = searchPathReplacement(for: path)
+            }
+            guard let replacement else {
                 return line
             }
 
             let directive = line[directiveRange]
-            let trailing = line[pathRange.upperBound...] // includes the closing `>` and any comment
-            return "\(directive)<\(replacement)\(trailing)"
+            // Skip the original closing `>` or `"`; both are a single character.
+            let trailing = line[line.index(after: pathRange.upperBound)...]
+            return "\(directive)<\(replacement)>\(trailing)"
         }
         return rewritten.joined(separator: "\n")
+    }
+
+    /// Decides the framework path a quoted include is rewritten to; nil keeps the line.
+    ///
+    /// A candidate reachable relative to the including header wins the compiler's quoted lookup:
+    /// it stays untouched while the copy preserves that relation, and is otherwise rewritten via
+    /// the candidate's canonical include-dir-relative path, which also covers `./` and `../`
+    /// spellings. An include with no relative candidate could only have resolved through the
+    /// search paths, so it is looked up as written.
+    private func quotedIncludeReplacement(for path: String, from includer: IncluderContext) -> String? {
+        let candidate = includer.sourceFile.deletingLastPathComponent()
+            .appending(path: path)
+            .standardizedFileURL
+        guard fileSystem.exists(candidate) else {
+            return searchPathReplacement(for: path)
+        }
+
+        // A candidate outside the include dir is never copied; rewriting to some other module's
+        // same-named header would silently change which contents get included.
+        guard let base = includer.includeDir.map(Self.trimmedBasePath(of:)),
+              candidate.path(percentEncoded: false).hasPrefix(base + "/") else {
+            return nil
+        }
+
+        if quotedIncludeResolvesAfterCopy(path, candidate: candidate, from: includer) {
+            return nil
+        }
+
+        let canonicalKey = String(candidate.path(percentEncoded: false).dropFirst(base.count + 1))
+        return replacementsByHeaderPath[canonicalKey]
+    }
+
+    /// Whether a quoted include keeps resolving relative to its includer after both land in the
+    /// framework: the candidate must land at the offset the include names, with `.` and `..`
+    /// segments folded; escaping the framework's header root can never resolve.
+    private func quotedIncludeResolvesAfterCopy(_ path: String, candidate: URL, from includer: IncluderContext) -> Bool {
+        let includerDestination = FrameworkBundleAssembler.headerDestinationComponents(
+            header: includer.sourceFile,
+            includeDir: includer.includeDir,
+            keepPublicHeadersStructure: includer.keepsPublicHeadersStructure
+        )
+        // Includes use the symlink path; copied headers land at the resolved path, and symlinks
+        // duplicating a real header are not copied at all, so their landed path never matches.
+        let landedCandidate = fileSystem.isSymlink(candidate) ? candidate.resolvingSymlinksInPath() : candidate
+        let candidateDestination = FrameworkBundleAssembler.headerDestinationComponents(
+            header: landedCandidate,
+            includeDir: includer.includeDir,
+            keepPublicHeadersStructure: includer.keepsPublicHeadersStructure
+        )
+        let named = includerDestination.dropLast() + path.split(separator: "/").map(String.init)
+        guard let resolved = Self.foldingDotSegments(named) else {
+            return false
+        }
+        return resolved == candidateDestination
+    }
+
+    /// Table lookup for an include that resolves through the search paths: each root interprets
+    /// the path relative to itself, so the canonical table key has `.`/`..` segments folded.
+    /// Absolute paths never resolve through the table.
+    private func searchPathReplacement(for path: String) -> String? {
+        guard !path.hasPrefix("/") else { return nil }
+        guard let key = Self.foldingDotSegments(path.split(separator: "/").map(String.init)) else {
+            return nil
+        }
+        return replacementsByHeaderPath[key.joined(separator: "/")]
+    }
+
+    private static func trimmedBasePath(of directory: URL) -> String {
+        var base = directory.standardizedFileURL.path(percentEncoded: false)
+        if base.hasSuffix("/") && base != "/" {
+            base.removeLast()
+        }
+        return base
+    }
+
+    /// Folds `.` and `..` path components; nil when `..` escapes the root.
+    private static func foldingDotSegments(_ components: some Sequence<String>) -> [String]? {
+        var result: [String] = []
+        for component in components {
+            switch component {
+            case ".":
+                continue
+            case "..":
+                guard result.popLast() != nil else { return nil }
+            default:
+                result.append(component)
+            }
+        }
+        return result
     }
 }
