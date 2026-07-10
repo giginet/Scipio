@@ -176,12 +176,10 @@ struct FrameworkModuleMapGenerator {
         guard let contents = String(bytes: rawData, encoding: .utf8) else {
             throw Error.unableToLoadCustomModuleMap(customModuleMap)
         }
-        // TODO: Use modern regex
-        let regex = try NSRegularExpression(pattern: "^module", options: [])
-        let replaced = regex.stringByReplacingMatches(in: contents,
-                                                      range: NSRange(location: 0, length: contents.utf16.count),
-                                                      withTemplate: "framework module")
-        return replaced
+        // Line-anchored so declarations below leading comment lines convert too; nested
+        // submodules are indented and stay untouched.
+        let moduleDeclaration = /^module/.anchorsMatchLineEndings()
+        return contents.replacing(moduleDeclaration, with: "framework module")
     }
 }
 
