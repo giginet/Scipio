@@ -38,6 +38,30 @@ struct ResolvedPackagesSnapshotTests {
         #expect(restoredRoot.dependencies == originalRoot.dependencies)
     }
 
+    @Test("A system-library module type round-trips through the snapshot")
+    func roundTripPreservesSystemModuleType() throws {
+        let moduleDirectory = URL(filePath: "/tmp/example-package/Sources/SysShim")
+        let systemModuleType = ResolvedModuleType.system(
+            includeDir: moduleDirectory,
+            publicHeaders: [moduleDirectory.appending(component: "shim.h")],
+            moduleMapPath: moduleDirectory.appending(component: "module.modulemap")
+        )
+        let systemModule = try ResolvedGraphFixtures.resolvedModule(
+            name: "SysShim",
+            targetType: "system",
+            resolvedModuleType: systemModuleType
+        )
+        let original = [try ResolvedGraphFixtures.package(targets: [systemModule])]
+
+        let data = try jsonEncoder.encode(ResolvedPackagesSnapshot(resolvedPackages: original))
+        let restored = try jsonDecoder.decode(ResolvedPackagesSnapshot.self, from: data).restoreResolvedPackages()
+
+        let restoredModule = try #require(restored.first?.targets.first)
+        #expect(restoredModule.resolvedModuleType == systemModuleType)
+        // A restored system module must pass the staleness gate that guards cache reuse.
+        #expect(!PackageResolver.containsStaleSystemModule(in: [restoredModule]))
+    }
+
     @Test("Restoring produces one value per identity")
     func restoreProducesOneValuePerIdentity() throws {
         let original = [try ResolvedGraphFixtures.diamondChainPackage(depth: 12)]

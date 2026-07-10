@@ -26,7 +26,7 @@ enum ResolvedGraphFixtures {
         )
     }
 
-    static func target(name: String) throws -> Target {
+    static func target(name: String, type: String = "regular") throws -> Target {
         try decode(
             Target.self,
             fromObject: [
@@ -36,7 +36,7 @@ enum ResolvedGraphFixtures {
                 "exclude": [Any](),
                 "dependencies": [Any](),
                 "settings": [Any](),
-                "type": "regular",
+                "type": type,
             ]
         )
     }
@@ -68,12 +68,13 @@ enum ResolvedGraphFixtures {
 
     static func resolvedModule(
         name: String,
+        targetType: String = "regular",
         packageID: PackageID? = nil,
         dependencies: [ResolvedModule.Dependency] = [],
         resolvedModuleType: ResolvedModuleType = .swift
     ) throws -> ResolvedModule {
         ResolvedModule(
-            underlying: try target(name: name),
+            underlying: try target(name: name, type: targetType),
             dependencies: dependencies,
             localPackageURL: URL(filePath: "/tmp/example-package"),
             packageID: packageID ?? Self.packageID(),

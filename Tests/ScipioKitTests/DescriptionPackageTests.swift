@@ -1,5 +1,7 @@
 import Foundation
 import Testing
+import PackageManifestKit
+import ScipioKitCore
 @testable import ScipioKit
 
 private let fixturePath = URL(fileURLWithPath: #filePath)
@@ -108,5 +110,60 @@ struct DescriptionPackageTests {
             Set(try package.resolveBuildProductDependencyGraph().allNodes.map(\.value.target.name)) ==
             ["SomeBinary"]
         )
+    }
+
+    @Test
+    func systemLibraryBuildProductsInCreateMode() async throws {
+        let rootPath = fixturePath.appendingPathComponent("PackageWithSystemLibraryTarget")
+        let package = try await DescriptionPackage(
+            packageDirectory: rootPath,
+            mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
+            onlyUseVersionsFromResolvedFile: false
+        )
+
+        let graph = try package.resolveBuildProductDependencyGraph()
+        #expect(graph.allNodes.map(\.value.target.name).sorted() == ["CoreLib", "MainLib", "SysShim"])
+
+        let sysShim = try #require(graph.allNodes.map(\.value.target).first { $0.name == "SysShim" })
+        guard case let .system(includeDir, publicHeaders, moduleMapPath) = sysShim.resolvedModuleType else {
+            Issue.record("SysShim should be resolved as a system module, got \(sysShim.resolvedModuleType)")
+            return
+        }
+        let expectedModuleDirectory = rootPath.appending(components: "Sources", "SysShim").standardizedFileURL
+        #expect(includeDir.path(percentEncoded: false) == expectedModuleDirectory.path(percentEncoded: false))
+        #expect(publicHeaders.map(\.lastPathComponent) == ["shim.h"])
+        #expect(moduleMapPath.path(percentEncoded: false) ==
+                expectedModuleDirectory.appending(component: "module.modulemap").path(percentEncoded: false))
+    }
+
+    @Test
+    func frameworkProducibleTargetKinds() {
+        #expect(Target.TargetKind.regular.isFrameworkProducible)
+        #expect(Target.TargetKind.binary.isFrameworkProducible)
+        #expect(Target.TargetKind.system.isFrameworkProducible)
+        #expect(!Target.TargetKind.executable.isFrameworkProducible)
+        #expect(!Target.TargetKind.test.isFrameworkProducible)
+        #expect(!Target.TargetKind.plugin.isFrameworkProducible)
+        #expect(!Target.TargetKind.macro.isFrameworkProducible)
+    }
+
+    @Test
+    func staleSystemModuleDetection() async throws {
+        let rootPath = fixturePath.appendingPathComponent("PackageWithSystemLibraryTarget")
+        let package = try await DescriptionPackage(
+            packageDirectory: rootPath,
+            mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
+            onlyUseVersionsFromResolvedFile: false
+        )
+
+        let modules = package.graph.allModules
+        #expect(!PackageResolver.containsStaleSystemModule(in: modules))
+
+        // A cache written without system-library support carries the old clang fallback type.
+        var staleModule = try #require(modules.first { $0.name == "SysShim" })
+        staleModule.resolvedModuleType = .clang(includeDir: staleModule.localPackageURL, publicHeaders: [])
+        #expect(PackageResolver.containsStaleSystemModule(in: [staleModule]))
     }
 }

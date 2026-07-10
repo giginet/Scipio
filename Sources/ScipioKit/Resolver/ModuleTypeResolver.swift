@@ -23,6 +23,11 @@ extension PackageResolver {
                     target,
                     dependencyPackage: dependencyPackage
                 )
+            case .system:
+                resolveModuleTypeForSystemLibraryTarget(
+                    target,
+                    dependencyPackage: dependencyPackage
+                )
             default:
                 resolveModuleTypeForLibraryTarget(
                     target,
@@ -52,6 +57,32 @@ extension PackageResolver {
             }()
 
             return .binary(artifactType)
+        }
+
+        private func resolveModuleTypeForSystemLibraryTarget(
+            _ target: Target,
+            dependencyPackage: DependencyPackage
+        ) -> ResolvedModuleType {
+            assert(target.type == .system)
+
+            // SwiftPM expects module.modulemap at the module root and resolves its header paths
+            // against it, so the module directory itself is the include root.
+            let moduleFullPath = resolveTargetFullPath(of: target, dependencyPackage: dependencyPackage)
+                .standardizedFileURL
+            // Sorted because the enumeration order is unspecified: keeps the resolution
+            // result, and thus the serialized snapshot, deterministic.
+            let publicHeaders = FileManager.default
+                .enumerator(at: moduleFullPath, includingPropertiesForKeys: nil)?
+                .compactMap { $0 as? URL }
+                .filter { headerExtensions.contains($0.pathExtension) }
+                .sorted { $0.path(percentEncoded: false) < $1.path(percentEncoded: false) } ?? []
+
+            // Module map existence is validated at packaging time, with a proper error.
+            return .system(
+                includeDir: moduleFullPath,
+                publicHeaders: publicHeaders,
+                moduleMapPath: moduleFullPath.appending(component: "module.modulemap")
+            )
         }
 
         private func resolveModuleTypeForLibraryTarget(

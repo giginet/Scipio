@@ -72,6 +72,18 @@ extension DescriptionPackage {
     }
 }
 
+extension PackageManifestKit.Target.TargetKind {
+    /// Whether Scipio can produce an XCFramework for this target kind.
+    var isFrameworkProducible: Bool {
+        switch self {
+        case .regular, .binary, .system:
+            true
+        case .executable, .test, .plugin, .macro:
+            false
+        }
+    }
+}
+
 struct BuildProduct: Hashable, Sendable {
     var package: ResolvedPackage
     var target: ResolvedModule

@@ -107,7 +107,25 @@ actor PackageResolver {
             }
         )
 
+        if Self.containsStaleSystemModule(in: allModules) {
+            logger.warning(
+                "⚠️ Discarding a resolved packages cache written without system-library support",
+                metadata: .color(.yellow)
+            )
+            return nil
+        }
+
         return (allPackages: allPackages, allModules: allModules)
+    }
+
+    /// Caches written before system-library support carry a wrong module type for system
+    /// modules; packaging from them would produce empty frameworks.
+    static func containsStaleSystemModule(in modules: some Collection<ResolvedModule>) -> Bool {
+        modules.contains { module in
+            guard module.underlying.type == .system else { return false }
+            if case .system = module.resolvedModuleType { return false }
+            return true
+        }
     }
 
     /// Resolve a manifest into a concrete ResolvedPackage with modules and products.
