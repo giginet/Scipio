@@ -217,6 +217,22 @@ final class RunnerTests: XCTestCase {
             "Same-module include should be rewritten to framework form, got:\n\(coreHeaderContents)"
         )
 
+        // Inline-implementation files are textual headers: they must ship with the framework
+        // and includes pointing at them must be rewritten like any other header.
+        XCTAssertTrue(
+            fileManager.fileExists(
+                atPath: coreLibSlice
+                    .appendingPathComponent("CoreLib.framework")
+                    .appendingPathComponent("Headers/core/core_inline.inl")
+                    .path
+            ),
+            "Inline-implementation file should be shipped with the framework"
+        )
+        XCTAssertTrue(
+            coreHeaderContents.contains("#include <CoreLib/core/core_inline.inl>"),
+            "Include of the inline-implementation file should be rewritten, got:\n\(coreHeaderContents)"
+        )
+
         // Prove a consumer can compile against the produced frameworks using only framework search
         // (`-F`), with none of the `-I` paths SwiftPM would otherwise inject.
         let sdkPath = try runProcess("/usr/bin/xcrun", ["--sdk", "iphoneos", "--show-sdk-path"])

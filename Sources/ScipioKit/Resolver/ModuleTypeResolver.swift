@@ -8,7 +8,7 @@ extension PackageResolver {
         let rootPackageDirectory: URL
 
         let clangFileTypes = ["c", "m", "mm", "cc", "cpp", "cxx"]
-        let headerExtensions = ["h", "hh", "hpp", "h++", "hp", "hxx", "H", "ipp", "def"]
+        let headerExtensions = ["h", "hh", "hpp", "h++", "hp", "hxx", "H", "ipp", "def", "inl"]
         let asmFileTypes = ["s", "S"]
         let swiftFileType = "swift"
 
