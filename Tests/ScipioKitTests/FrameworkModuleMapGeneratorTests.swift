@@ -8,6 +8,7 @@ private let fixturesPath = URL(fileURLWithPath: #filePath)
     .appendingPathComponent("Fixtures")
 private let clangPackageWithUmbrellaDirectoryPath = fixturesPath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
 private let clangPackageWithRelativePublicHeadersPath = fixturesPath.appendingPathComponent("ClangPackageWithRelativePublicHeadersPath")
+private let packageWithSystemLibraryTargetPath = fixturesPath.appendingPathComponent("PackageWithSystemLibraryTarget")
 
 private struct PackageLocatorMock: PackageLocator {
     let packageDirectory: URL
@@ -86,6 +87,29 @@ framework module MyTarget {
         let expectedModuleMapContents = """
 framework module ClangPackageWithRelativePublicHeadersPath {
     header "ClangPackageWithRelativePublicHeadersPath/add.h"
+    export *
+}
+"""
+        #expect(generatedModuleMapContents == expectedModuleMapContents)
+    }
+
+    @Test
+    func generate_systemLibraryTarget() async throws {
+        let outputDirectory = temporaryDirectory.appending(component: #function)
+        defer { try? fileSystem.removeFileTree(outputDirectory) }
+
+        let generatedModuleMapContents = try await generateModuleMap(
+            for: packageWithSystemLibraryTargetPath,
+            moduleName: "SysShim",
+            keepPublicHeadersStructure: true,
+            outputDirectory: outputDirectory
+        )
+        // The shipped module map is converted to a framework module; the declaration is found
+        // even below leading comment lines, which stay in place.
+        let expectedModuleMapContents = """
+// A leading comment: the framework conversion must still find the declaration below.
+framework module SysShim {
+    header "shim.h"
     export *
 }
 """

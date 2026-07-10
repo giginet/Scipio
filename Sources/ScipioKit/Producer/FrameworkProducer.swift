@@ -339,7 +339,7 @@ struct FrameworkProducer {
     }
 
     private enum TargetBuildResult {
-        case interrupted(builtTargets: OrderedSet<CacheSystem.CacheTarget>, error: any Error)
+        case interrupted(builtTargets: OrderedSet<CacheSystem.CacheTarget>, error: any Swift.Error)
         case completed(builtTargets: OrderedSet<CacheSystem.CacheTarget>)
     }
 
@@ -373,8 +373,14 @@ struct FrameworkProducer {
             )
             try binaryExtractor.extract(of: product.target, overwrite: overwrite)
             logger.info("✅ Copy \(product.target.c99name).xcframework", metadata: .color(.green))
+        case .system:
+            try await packageSystemLibrary(product, buildOptions: buildOptions, outputDir: outputDir)
         default:
-            fatalError("Unexpected target type \(product.target.underlying.type)")
+            // Unreachable while the build-product graph only carries producible kinds.
+            throw Error.unsupportedTargetType(
+                targetName: product.target.name,
+                type: product.target.underlying.type
+            )
         }
 
         return []
@@ -476,6 +482,37 @@ struct FrameworkProducer {
                 await group.waitForAll()
             }
         }
+    }
+}
+
+extension FrameworkProducer {
+    enum Error: LocalizedError {
+        case unsupportedTargetType(targetName: String, type: Target.TargetKind)
+
+        var errorDescription: String? {
+            switch self {
+            case .unsupportedTargetType(let targetName, let type):
+                return "Cannot produce an XCFramework for \(targetName): unsupported target type \(type.rawValue)"
+            }
+        }
+    }
+
+    fileprivate func packageSystemLibrary(
+        _ product: BuildProduct,
+        buildOptions: BuildOptions,
+        outputDir: URL
+    ) async throws {
+        let packager = SystemLibraryPackager(
+            descriptionPackage: descriptionPackage,
+            buildOptions: buildOptions,
+            keepPublicHeadersStructure: { [baseBuildOptions, buildOptionsMatrix] targetName in
+                (buildOptionsMatrix[targetName] ?? baseBuildOptions).keepPublicHeadersStructure
+            },
+            fileSystem: fileSystem
+        )
+        try await packager.createXCFramework(buildProduct: product,
+                                             outputDirectory: outputDir,
+                                             overwrite: overwrite)
     }
 }
 

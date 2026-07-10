@@ -128,11 +128,14 @@ private final class BuildProductsResolver {
         let targetsToBuild = try targetsToBuild()
         let products = try targetsToBuild.flatMap(resolveBuildProduct(from:))
 
-        return try DependencyGraph<BuildProduct>.resolve(
+        // Resolve the full set first so every child ID stays resolvable; `filter` reconnects
+        // parents to children, preserving the build order of the remaining products.
+        let graph = try DependencyGraph<BuildProduct>.resolve(
             Set(products),
             id: \.target.name,
             childIDs: { $0.target.dependencies.flatMap(\.moduleNames) }
         )
+        return graph.filter { $0.target.underlying.type.isFrameworkProducible }
     }
 
     private func targetsToBuild() throws -> [ResolvedModule] {

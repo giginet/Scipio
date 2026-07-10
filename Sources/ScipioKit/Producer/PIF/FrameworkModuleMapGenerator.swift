@@ -56,6 +56,11 @@ struct FrameworkModuleMapGenerator {
             case .none:
                 return nil
             }
+        } else if case let .system(_, _, moduleMapPath) = resolvedTarget.resolvedModuleType {
+            // A system-library module ships its own module map; only the framework conversion applies.
+            let path = try constructGeneratedModuleMapPath(context: context)
+            try generateModuleMapFile(context: context, moduleMapType: .custom(moduleMapPath), outputPath: path)
+            return path
         } else {
             let path = try constructGeneratedModuleMapPath(context: context)
             try generateModuleMapFile(context: context, moduleMapType: nil, outputPath: path)

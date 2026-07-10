@@ -176,6 +176,10 @@ struct PIFGenerator {
             guard case .module(let module, let conditions) = dependency else {
                 return
             }
+            // System-library modules build no product, so there is no framework to link.
+            guard module.underlying.type != .system else {
+                return
+            }
             if conditions.isEmpty {
                 partialResult[nil, default: []].append(module)
                 return
