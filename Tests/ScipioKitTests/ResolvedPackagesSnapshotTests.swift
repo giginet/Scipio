@@ -8,6 +8,10 @@ struct ResolvedPackagesSnapshotTests {
     private let jsonEncoder = ResolvedGraphFixtures.makeCanonicalJSONEncoder()
     private let jsonDecoder = JSONDecoder()
 
+    private static let formatFixtureURL = URL(filePath: #filePath)
+        .deletingLastPathComponent()
+        .appending(components: "Resources", "Fixtures", "ResolvedPackagesSnapshotTests", "ResolvedPackagesSnapshot_v1.json")
+
     // MARK: Round trip
 
     @Test("A resolved graph round-trips through encoding and restoring")
@@ -59,6 +63,31 @@ struct ResolvedPackagesSnapshotTests {
 
         #expect(deep < shallow * 3)
         #expect(deep < 200_000)
+    }
+
+    // MARK: Format stability
+
+    /// Pins the version 1 bytes so an unversioned format change fails here.
+    /// On mismatch, writes the current output as `.actual`; to adopt it,
+    /// bump the version and replace the fixture with that file.
+    @Test("The stored format matches the checked-in version 1 fixture")
+    func formatVersion1MatchesFixture() throws {
+        let original = [try ResolvedGraphFixtures.diamondChainPackage(depth: 3)]
+        let encoded = try jsonEncoder.encode(ResolvedPackagesSnapshot(resolvedPackages: original))
+
+        let fixtureData = try Data(contentsOf: Self.formatFixtureURL)
+        if encoded != fixtureData {
+            try encoded.write(to: Self.formatFixtureURL.appendingPathExtension("actual"))
+        }
+        #expect(
+            encoded == fixtureData,
+            "The stored format changed: bump `currentFormatVersion` and adopt the recorded .actual file as the new fixture."
+        )
+
+        // Files written in the version 1 format must keep restoring for as
+        // long as `currentFormatVersion` stays 1.
+        let restored = try jsonDecoder.decode(ResolvedPackagesSnapshot.self, from: fixtureData).restoreResolvedPackages()
+        #expect(restored == original)
     }
 
     // MARK: Validation of untrusted snapshots

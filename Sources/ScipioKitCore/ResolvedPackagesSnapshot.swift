@@ -11,6 +11,8 @@ import PackageManifestKit
 package struct ResolvedPackagesSnapshot: Codable, Sendable, Equatable {
     /// Bump this when the stored representation changes; a snapshot with a
     /// different version fails to restore, which storages treat as a miss.
+    /// `ResolvedPackagesSnapshotTests` pins the encoded bytes of the current
+    /// version with a fixture, so an unnoticed format change fails there.
     package static let currentFormatVersion = 1
 
     /// Deeper snapshots are rejected: consumers traverse the restored graph
