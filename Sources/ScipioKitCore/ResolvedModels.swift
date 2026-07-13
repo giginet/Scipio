@@ -319,23 +319,22 @@ extension ResolvedModule {
 
     /// Identity-based equality.
     ///
-    /// Two values are considered equal when they identify the same module of the
-    /// same package. This is an equivalence because at most one `ResolvedModule`
-    /// value exists per identity in a resolution session:
-    /// - `PackageResolver` materializes each package manifest and each of its
-    ///   targets exactly once (the results are memoized), and target names are
-    ///   unique within a manifest.
-    /// - `ResolvedPackagesSnapshot.restoreResolvedPackages()` materializes each
-    ///   stored module exactly once and rejects snapshots containing duplicated
-    ///   identities.
-    /// - Initializers are `package`-level: normal construction is limited to
-    ///   the two paths above.
+    /// Structural equality would walk `dependencies` recursively; every module
+    /// embeds its whole subtree by value, so the walk expands the shared
+    /// dependency DAG into a tree: exponential in graph depth.
     ///
-    /// The synthesized (structural) implementations would walk `dependencies`
-    /// recursively instead. Every module embeds its whole dependency subtree by
-    /// value, so such a walk expands the shared dependency DAG into a fully
-    /// expanded tree: exponential in graph depth. See also `BuildProduct`,
-    /// which follows the same convention as SwiftPM's resolved graph nodes.
+    /// Identity equality is an equivalence because at most one value exists
+    /// per identity:
+    /// - `PackageResolver` materializes each package manifest and each of its
+    ///   targets exactly once, and target names are unique within a manifest.
+    /// - `ResolvedPackagesSnapshot.restoreResolvedPackages()` rejects
+    ///   snapshots containing duplicated identities.
+    /// - Initializers are `package`-level: construction is limited to the two
+    ///   paths above.
+    ///
+    /// Values decoded directly or mutated through the public properties are
+    /// outside that invariant: they may compare equal despite structural
+    /// differences.
     public static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.identity == rhs.identity
     }
