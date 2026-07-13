@@ -66,7 +66,7 @@ enum ResolvedGraphFixtures {
         )
     }
 
-    static func module(
+    static func resolvedModule(
         name: String,
         packageID: PackageID? = nil,
         dependencies: [ResolvedModule.Dependency] = [],
@@ -119,7 +119,7 @@ enum ResolvedGraphFixtures {
     /// stays linear: the worst-case shape for structural hashing/encoding.
     static func diamondChainPackage(depth: Int) throws -> ResolvedPackage {
         let packageID = packageID()
-        var current = try module(name: "Module0", packageID: packageID)
+        var current = try resolvedModule(name: "Module0", packageID: packageID)
         var modules = [current]
         var products: [ResolvedProduct] = []
 
@@ -129,7 +129,7 @@ enum ResolvedGraphFixtures {
                 modules: [current],
                 packageID: packageID
             )
-            current = try module(
+            current = try resolvedModule(
                 name: "Module\(level)",
                 packageID: packageID,
                 dependencies: [

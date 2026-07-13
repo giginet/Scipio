@@ -142,8 +142,8 @@ extension ResolvedPackagesSnapshot {
                 resolvedPackageKind: package.resolvedPackageKind,
                 path: package.path,
                 pinState: package.pinState,
-                targetIndices: package.targets.map { registerIndex(of: $0) },
-                productIndices: package.products.map { registerIndex(of: $0) }
+                targetIndices: package.targets.map { register($0) },
+                productIndices: package.products.map { register($0) }
             )
         }
 
@@ -157,22 +157,22 @@ extension ResolvedPackagesSnapshot {
                     modules[index].dependencies = module.dependencies.map { dependency in
                         switch dependency {
                         case .module(let module, let conditions):
-                            DependencyRecord(kind: .module, index: registerIndex(of: module), conditions: conditions)
+                            DependencyRecord(kind: .module, index: register(module), conditions: conditions)
                         case .product(let product, let conditions):
-                            DependencyRecord(kind: .product, index: registerIndex(of: product), conditions: conditions)
+                            DependencyRecord(kind: .product, index: register(product), conditions: conditions)
                         }
                     }
                 } else {
                     let (product, index) = pendingProducts[nextProduct]
                     nextProduct += 1
-                    products[index].moduleIndices = product.modules.map { registerIndex(of: $0) }
+                    products[index].moduleIndices = product.modules.map { register($0) }
                 }
             }
         }
 
-        /// Returns the module's table index, registering it on first visit so
-        /// that shared modules are stored only once.
-        private mutating func registerIndex(of module: ResolvedModule) -> Int {
+        /// Registers the module on first visit so that shared modules are
+        /// stored only once, and returns its table index.
+        private mutating func register(_ module: ResolvedModule) -> Int {
             let identity = module.identity
             if let index = moduleIndicesByIdentity[identity] {
                 return index
@@ -193,7 +193,7 @@ extension ResolvedPackagesSnapshot {
             return index
         }
 
-        private mutating func registerIndex(of product: ResolvedProduct) -> Int {
+        private mutating func register(_ product: ResolvedProduct) -> Int {
             let identity = product.identity
             if let index = productIndicesByIdentity[identity] {
                 return index
@@ -362,11 +362,11 @@ extension ResolvedPackagesSnapshot {
                 let dependencyNodes: [Int]
                 if node < moduleCount {
                     dependencyNodes = snapshot.modules[node].dependencies.map { nodeIndex(of: $0) }
-                    builtModules[node] = try buildModule(at: node, from: builtModules, and: builtProducts)
+                    builtModules[node] = try buildModule(at: node, modules: builtModules, products: builtProducts)
                 } else {
                     let productIndex = node - moduleCount
                     dependencyNodes = snapshot.products[productIndex].moduleIndices
-                    builtProducts[productIndex] = try buildProduct(at: productIndex, from: builtModules)
+                    builtProducts[productIndex] = try buildProduct(at: productIndex, modules: builtModules)
                 }
 
                 let depth = 1 + (dependencyNodes.map { depths[$0] }.max() ?? 0)
@@ -400,8 +400,8 @@ extension ResolvedPackagesSnapshot {
 
         private func buildModule(
             at index: Int,
-            from builtModules: [ResolvedModule?],
-            and builtProducts: [ResolvedProduct?]
+            modules builtModules: [ResolvedModule?],
+            products builtProducts: [ResolvedProduct?]
         ) throws -> ResolvedModule {
             let record = snapshot.modules[index]
             let dependencies: [ResolvedModule.Dependency] = try record.dependencies.map { dependency in
@@ -428,7 +428,7 @@ extension ResolvedPackagesSnapshot {
             )
         }
 
-        private func buildProduct(at index: Int, from builtModules: [ResolvedModule?]) throws -> ResolvedProduct {
+        private func buildProduct(at index: Int, modules builtModules: [ResolvedModule?]) throws -> ResolvedProduct {
             let record = snapshot.products[index]
             let modules: [ResolvedModule] = try record.moduleIndices.map { moduleIndex in
                 guard let module = builtModules[moduleIndex] else {

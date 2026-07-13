@@ -22,6 +22,9 @@ struct LocalDiskCacheStorageFormatTests {
         let originalBytes = try encoder.encode(ResolvedPackagesSnapshot(resolvedPackages: original))
         let fetchedBytes = try encoder.encode(ResolvedPackagesSnapshot(resolvedPackages: fetched))
         #expect(fetchedBytes == originalBytes)
+        // The storage must write the canonical bytes the format fixture pins;
+        // an encoder configuration drift would silently miss on every old file.
+        #expect(try fileSystem.readFileContents(cacheFileURL(in: baseURL)) == originalBytes)
     }
 
     @Test("A cache file in the legacy format is treated as a miss and deleted")

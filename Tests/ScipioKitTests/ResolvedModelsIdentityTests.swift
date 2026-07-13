@@ -6,14 +6,14 @@ import Testing
 struct ResolvedModelsIdentityTests {
     @Test("Module equality and hashing are identity-based")
     func moduleEqualityIsIdentityBased() throws {
-        let plain = try ResolvedGraphFixtures.module(name: "MyModule")
-        let dependency = try ResolvedGraphFixtures.module(name: "Dependency")
-        let richer = try ResolvedGraphFixtures.module(
+        let plain = try ResolvedGraphFixtures.resolvedModule(name: "MyModule")
+        let dependency = try ResolvedGraphFixtures.resolvedModule(name: "Dependency")
+        let richer = try ResolvedGraphFixtures.resolvedModule(
             name: "MyModule",
             dependencies: [.module(dependency, conditions: [])],
             resolvedModuleType: .clang(includeDir: URL(filePath: "/tmp/include"), publicHeaders: [])
         )
-        let otherPackage = try ResolvedGraphFixtures.module(
+        let otherPackage = try ResolvedGraphFixtures.resolvedModule(
             name: "MyModule",
             packageID: ResolvedGraphFixtures.packageID("other-package")
         )
@@ -26,7 +26,7 @@ struct ResolvedModelsIdentityTests {
 
     @Test("Product equality and hashing are identity-based")
     func productEqualityIsIdentityBased() throws {
-        let module = try ResolvedGraphFixtures.module(name: "MyModule")
+        let module = try ResolvedGraphFixtures.resolvedModule(name: "MyModule")
         let empty = try ResolvedGraphFixtures.resolvedProduct(name: "MyProduct", modules: [])
         let richer = try ResolvedGraphFixtures.resolvedProduct(name: "MyProduct", modules: [module])
         let differentName = try ResolvedGraphFixtures.resolvedProduct(name: "OtherProduct", modules: [])
@@ -44,7 +44,7 @@ struct ResolvedModelsIdentityTests {
 
     @Test("Module dependencies still distinguish their conditions")
     func dependencyEqualityDistinguishesConditions() throws {
-        let module = try ResolvedGraphFixtures.module(name: "MyModule")
+        let module = try ResolvedGraphFixtures.resolvedModule(name: "MyModule")
         let unconditional = ResolvedModule.Dependency.module(module, conditions: [])
         let conditional = ResolvedModule.Dependency.module(
             module,
