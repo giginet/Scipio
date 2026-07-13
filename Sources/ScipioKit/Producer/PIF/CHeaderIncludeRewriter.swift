@@ -91,17 +91,6 @@ struct CHeaderIncludeRewriter {
         var keepsPublicHeadersStructure: Bool
     }
 
-    private enum CaptureGroup {
-        static let directive = "directive"
-        static let anglePath = "anglePath"
-        static let quotedPath = "quotedPath"
-    }
-
-    private static let includeRegex = try! NSRegularExpression(
-        pattern: #"^(?<\#(CaptureGroup.directive)>\s*#\s*(?:include|import)\s*)"#
-            + #"(?:<(?<\#(CaptureGroup.anglePath)>[^>]+)>|"(?<\#(CaptureGroup.quotedPath)>[^"]+)")"#
-    )
-
     /// Leaves system, ambiguous, and out-of-closure includes unchanged.
     ///
     /// Quoted includes mirror the compiler's lookup order: a file reachable relative to the
@@ -112,27 +101,27 @@ struct CHeaderIncludeRewriter {
     func rewrite(_ contents: String, includer: IncluderContext? = nil) -> String {
         guard !replacementsByHeaderPath.isEmpty else { return contents }
 
+        let regex = /^(?<directive>\s*#\s*(?:include|import)\s*)(?:<(?<anglePath>[^>]+)>|"(?<quotedPath>[^"]+)")/
+
         let lines = contents.components(separatedBy: "\n")
         let rewritten = lines.map { line -> String in
-            let range = NSRange(line.startIndex..<line.endIndex, in: line)
-            guard let match = Self.includeRegex.firstMatch(in: line, range: range),
-                  let directiveRange = Range(match.range(withName: CaptureGroup.directive), in: line) else {
+            guard let match = line.firstMatch(of: regex) else {
                 return line
             }
 
-            let pathRange: Range<String.Index>
+            let pathSubstring: Substring
             let isQuoted: Bool
-            if let angleRange = Range(match.range(withName: CaptureGroup.anglePath), in: line) {
-                pathRange = angleRange
+            if let anglePath = match.output.anglePath {
+                pathSubstring = anglePath
                 isQuoted = false
-            } else if let quotedRange = Range(match.range(withName: CaptureGroup.quotedPath), in: line) {
-                pathRange = quotedRange
+            } else if let quotedPath = match.output.quotedPath {
+                pathSubstring = quotedPath
                 isQuoted = true
             } else {
                 return line
             }
 
-            let path = String(line[pathRange])
+            let path = String(pathSubstring)
             let replacement: String?
             if isQuoted, let includer {
                 replacement = quotedIncludeReplacement(for: path, from: includer)
@@ -143,10 +132,9 @@ struct CHeaderIncludeRewriter {
                 return line
             }
 
-            let directive = line[directiveRange]
             // Skip the original closing `>` or `"`; both are a single character.
-            let trailing = line[line.index(after: pathRange.upperBound)...]
-            return "\(directive)<\(replacement)>\(trailing)"
+            let trailing = line[line.index(after: pathSubstring.endIndex)...]
+            return "\(match.output.directive)<\(replacement)>\(trailing)"
         }
         return rewritten.joined(separator: "\n")
     }
