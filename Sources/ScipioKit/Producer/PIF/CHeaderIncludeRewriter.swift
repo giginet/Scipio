@@ -65,7 +65,8 @@ struct CHeaderIncludeRewriter {
                     // Do not guess when two modules provide the same include path.
                     ambiguousPaths.insert(sourceRelativePath)
                     logger.warning(
-                        "Public header \(sourceRelativePath) is provided by multiple modules; leaving its includes unrewritten"
+                        "⚠️ Public header \(sourceRelativePath) is provided by multiple modules; leaving its includes unrewritten",
+                        metadata: .color(.yellow)
                     )
                 } else {
                     table[sourceRelativePath] = replacement
