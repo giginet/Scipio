@@ -2,53 +2,126 @@ import Foundation
 import Darwin
 import os
 
-/// Reads currently available process output without waiting for EOF.
+/// Collects process output from a single non-blocking file handle.
 ///
-/// The file descriptor is non-blocking. `readabilityHandler` drains while the
-/// process is running, and `terminationHandler` drains once more to capture
-/// trailing bytes that Foundation has not delivered yet. This intentionally
-/// does not wait for pipe EOF because long-lived descendants may inherit the
-/// write end and keep it open after the immediate child exits.
-private final class ProcessOutputReader: Sendable {
-    private let storage = OSAllocatedUnfairLock(initialState: [UInt8]())
+/// The reader owns the handle's readability notifications and closes the handle
+/// when collection finishes. `readabilityHandler` drains while the process is
+/// running, and `terminationHandler` drains once more to capture trailing bytes
+/// that Foundation has not delivered yet. The final drain reads only immediately
+/// available bytes instead of waiting for pipe EOF because long-lived descendants
+/// may inherit the write end and keep it open after the immediate child exits.
+final class ProcessOutputReader: Sendable {
+    enum DrainResult: Equatable {
+        /// The owned handle remains open and has not reached EOF.
+        case continueReading
 
-    // Serializes async stream callbacks in the same order as bytes were read.
-    private let lastStreamOutputTask = OSAllocatedUnfairLock(initialState: Task<Void, Never> {})
+        /// Observation can stop because the reader is closed or has reached EOF.
+        case finished
+    }
+
+    private struct State {
+        var closed = false
+        var reachedEndOfFile = false
+        var bytes: [UInt8] = []
+        var lastStreamOutputTask = Task<Void, Never> {}
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: State())
+
+    private let fileHandle: FileHandle
     private let streamOutput: (@Sendable ([UInt8]) async -> Void)?
 
-    init(streamOutput: (@Sendable ([UInt8]) async -> Void)? = nil) {
+    /// Creates a reader that manages the supplied file handle until ``close()``.
+    ///
+    /// The handle must be configured for non-blocking reads before calling
+    /// ``startReading()`` or ``drain()``.
+    init(fileHandle: FileHandle, streamOutput: (@Sendable ([UInt8]) async -> Void)? = nil) {
+        self.fileHandle = fileHandle
         self.streamOutput = streamOutput
     }
 
-    func drain(from fileDescriptor: Int32) {
-        for bytes in Self.drainAvailableBytes(from: fileDescriptor) {
-            storage.withLock {
-                $0.append(contentsOf: bytes)
+    /// Starts draining whenever the file handle reports readable data.
+    func startReading() {
+        fileHandle.readabilityHandler = { [weak self] handle in
+            guard let self else {
+                handle.readabilityHandler = nil
+                return
             }
-            if let streamOutput {
-                lastStreamOutputTask.withLock {
-                    let previousTask = $0
-                    $0 = Task {
+
+            if case .finished = drain() {
+                handle.readabilityHandler = nil
+            }
+        }
+    }
+
+    /// Stops receiving readability notifications without closing the handle.
+    func stopReading() {
+        fileHandle.readabilityHandler = nil
+    }
+
+    /// Appends all bytes currently available from the owned file handle.
+    ///
+    /// Draining is serialized with ``close()`` so the handle cannot be
+    /// closed while a read is in progress.
+    ///
+    /// - Returns: ``DrainResult/finished`` after EOF or closure; otherwise,
+    ///   ``DrainResult/continueReading`` so observation can continue.
+    @discardableResult
+    func drain() -> DrainResult {
+        state.withLock { state in
+            guard !state.closed else { return .finished }
+            guard !state.reachedEndOfFile else { return .finished }
+
+            let result = Self.drainAvailableBytes(from: fileHandle.fileDescriptor)
+            for bytes in result.bytes {
+                state.bytes.append(contentsOf: bytes)
+                if let streamOutput {
+                    // Serialize callbacks in the same order as bytes were read.
+                    let previousTask = state.lastStreamOutputTask
+                    state.lastStreamOutputTask = Task {
                         await previousTask.value
                         await streamOutput(bytes)
                     }
                 }
             }
+
+            if result.reachedEndOfFile {
+                state.reachedEndOfFile = true
+                return .finished
+            }
+
+            return .continueReading
         }
     }
 
     var snapshot: [UInt8] {
-        storage.withLock { $0 }
+        state.withLock { $0.bytes }
     }
 
+    /// Waits for all stream output callbacks scheduled before this call.
     func finishStreaming() async {
-        let task = lastStreamOutputTask.withLock { $0 }
+        let task = state.withLock { $0.lastStreamOutputTask }
         await task.value
     }
 
+    /// Stops readability notifications and closes the owned handle once.
+    ///
+    /// Closing is serialized with any in-progress drain so no drain can access
+    /// the descriptor concurrently or after this method returns.
+    func close() {
+        stopReading()
+        state.withLock { state in
+            guard !state.closed else { return }
+            state.closed = true
+            try? fileHandle.close()
+        }
+    }
+
     /// Reads all bytes currently available on a non-blocking file descriptor.
-    /// EAGAIN/EWOULDBLOCK means there is no more data ready right now.
-    private static func drainAvailableBytes(from fileDescriptor: Int32) -> [[UInt8]] {
+    ///
+    /// `EINTR` retries the read. Any other read error ends the current drain
+    /// without treating it as EOF.
+    private static func drainAvailableBytes(from fileDescriptor: Int32) -> (bytes: [[UInt8]], reachedEndOfFile: Bool) {
         var chunks: [[UInt8]] = []
         var buffer = [UInt8](repeating: 0, count: 4096)
 
@@ -61,12 +134,12 @@ private final class ProcessOutputReader: Sendable {
             case let byteCount where byteCount > 0:
                 chunks.append(Array(buffer.prefix(byteCount)))
             case 0:
-                return chunks
+                return (chunks, true)
             default:
                 if errno == EINTR {
                     continue
                 }
-                return chunks
+                return (chunks, false)
             }
         }
     }
@@ -204,35 +277,33 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
 
         let outputHandle = stdoutPipe.fileHandleForReading
         let errorHandle = stderrPipe.fileHandleForReading
-        let outputFileDescriptor = outputHandle.fileDescriptor
-        let errorFileDescriptor = errorHandle.fileDescriptor
-
-        let outputReader = ProcessOutputReader(streamOutput: streamOutput)
-        let errorReader = ProcessOutputReader()
+        let outputReader = ProcessOutputReader(fileHandle: outputHandle, streamOutput: streamOutput)
+        let errorReader = ProcessOutputReader(fileHandle: errorHandle)
 
         let localDecoder = errorDecoder
 
-        Self.setNonBlocking(outputFileDescriptor)
-        Self.setNonBlocking(errorFileDescriptor)
-
-        outputHandle.readabilityHandler = { _ in
-            outputReader.drain(from: outputFileDescriptor)
+        do {
+            try Self.setNonBlocking(outputHandle.fileDescriptor)
+            try Self.setNonBlocking(errorHandle.fileDescriptor)
+        } catch {
+            outputReader.close()
+            errorReader.close()
+            throw ProcessExecutorError.unknownError(error)
         }
 
-        errorHandle.readabilityHandler = { _ in
-            errorReader.drain(from: errorFileDescriptor)
-        }
+        outputReader.startReading()
+        errorReader.startReading()
 
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Error>) in
             process.terminationHandler = { process in
-                outputHandle.readabilityHandler = nil
-                errorHandle.readabilityHandler = nil
+                outputReader.stopReading()
+                errorReader.stopReading()
 
                 Task {
-                    outputReader.drain(from: outputFileDescriptor)
-                    errorReader.drain(from: errorFileDescriptor)
-                    try? outputHandle.close()
-                    try? errorHandle.close()
+                    outputReader.drain()
+                    errorReader.drain()
+                    outputReader.close()
+                    errorReader.close()
                     await outputReader.finishStreaming()
 
                     let result = FoundationProcessResult(
@@ -257,19 +328,31 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
             do {
                 try process.run()
             } catch {
-                outputHandle.readabilityHandler = nil
-                errorHandle.readabilityHandler = nil
-                try? outputHandle.close()
-                try? errorHandle.close()
+                outputReader.close()
+                errorReader.close()
                 continuation.resume(throwing: ProcessExecutorError.unknownError(error))
             }
         }
     }
 
-    private static func setNonBlocking(_ fileDescriptor: Int32) {
-        let flags = fcntl(fileDescriptor, F_GETFL)
-        guard flags != -1 else { return }
-        _ = fcntl(fileDescriptor, F_SETFL, flags | O_NONBLOCK)
+    private static func setNonBlocking(_ fileDescriptor: Int32) throws {
+        let flags: Int32
+        while true {
+            let result = fcntl(fileDescriptor, F_GETFL)
+            if result != -1 {
+                flags = result
+                break
+            }
+            guard errno == EINTR else {
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
+        }
+
+        while fcntl(fileDescriptor, F_SETFL, flags | O_NONBLOCK) == -1 {
+            guard errno == EINTR else {
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
+        }
     }
 
     /// Determines the exit status of the process based on its termination reason.
