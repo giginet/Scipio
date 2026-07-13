@@ -38,7 +38,6 @@ struct CHeaderIncludeRewriterTests {
 
     @Test("Quoted includes rewrite unless the copied layout still resolves them")
     func rewritesQuotedIncludesAgainstCopiedLayout() throws {
-        // Without an includer the search-path fallback is the only possible resolution.
         #expect(rewriter.rewrite("#include \"dep/foo.h\"") == "#include <DepModule/dep/foo.h>")
         #expect(rewriter.rewrite("#import \"dep/foo.h\" // keep me") == "#import <DepModule/dep/foo.h> // keep me")
 
@@ -56,7 +55,6 @@ struct CHeaderIncludeRewriterTests {
             try Data().write(to: file)
         }
 
-        // With the structure kept, the relative relation survives the copy and the include stays.
         let keepingStructure = CHeaderIncludeRewriter.IncluderContext(
             sourceFile: includer,
             includeDir: includeDir,
@@ -67,8 +65,6 @@ struct CHeaderIncludeRewriterTests {
             "#include \"dep/foo.h\""
         )
 
-        // Flattening moves the candidate next to the includer, breaking the subdirectory
-        // relation: the include must be rewritten to the framework form.
         let flattening = CHeaderIncludeRewriter.IncluderContext(
             sourceFile: includer,
             includeDir: includeDir,
@@ -79,7 +75,6 @@ struct CHeaderIncludeRewriterTests {
             "#include <DepModule/dep/foo.h>"
         )
 
-        // A bare sibling stays next to the includer in both layouts and survives flattening.
         let siblingRewriter = CHeaderIncludeRewriter(
             replacementsByHeaderPath: ["sibling.h": "DepModule/sibling.h"]
         )
@@ -88,7 +83,6 @@ struct CHeaderIncludeRewriterTests {
             "#include \"sibling.h\""
         )
 
-        // With no relative candidate on disk, only the search paths could have resolved it.
         let outside = CHeaderIncludeRewriter.IncluderContext(
             sourceFile: includeDir.appending(components: "dep", "other.h"),
             includeDir: includeDir,
@@ -99,8 +93,6 @@ struct CHeaderIncludeRewriterTests {
             "#include <DepModule/dep/foo.h>"
         )
 
-        // A symlinked candidate lands at its resolved path (or, duplicating a real header, is
-        // not copied at all), so the include must be rewritten to the table's landed path.
         let linkedCandidate = includeDir.appending(component: "link.h")
         try FileManager.default.createSymbolicLink(at: linkedCandidate, withDestinationURL: sibling)
         let symlinkRewriter = CHeaderIncludeRewriter(
@@ -132,7 +124,6 @@ struct CHeaderIncludeRewriterTests {
             replacementsByHeaderPath: ["foo.h": "DepModule/foo.h"]
         )
 
-        // Flattening breaks the `..` relation; the canonical key "foo.h" finds the landed path.
         let flattening = CHeaderIncludeRewriter.IncluderContext(
             sourceFile: includer,
             includeDir: includeDir,
@@ -143,7 +134,6 @@ struct CHeaderIncludeRewriterTests {
             "#include <DepModule/foo.h>"
         )
 
-        // With the structure kept, `../foo.h` still resolves inside Headers/ and stays.
         let keepingStructure = CHeaderIncludeRewriter.IncluderContext(
             sourceFile: includer,
             includeDir: includeDir,
@@ -154,14 +144,11 @@ struct CHeaderIncludeRewriterTests {
             "#include \"../foo.h\""
         )
 
-        // A candidate escaping the include dir is never copied: rewriting cannot help.
         #expect(
             dotRewriter.rewrite("#include \"../../escape.h\"", includer: keepingStructure) ==
             "#include \"../../escape.h\""
         )
 
-        // No includer-relative candidate: the search paths fold dot segments while resolving,
-        // so the canonical key must be used for the table lookup as well.
         #expect(
             dotRewriter.rewrite("#include \"./foo.h\"", includer: keepingStructure) ==
             "#include <DepModule/foo.h>"
@@ -169,7 +156,6 @@ struct CHeaderIncludeRewriterTests {
         #expect(rewriter.rewrite("#include \"./dep/foo.h\"") == "#include <DepModule/dep/foo.h>")
         #expect(rewriter.rewrite("#include <./dep/foo.h>") == "#include <DepModule/dep/foo.h>")
 
-        // Absolute includes never resolve through the search paths' relative roots.
         #expect(rewriter.rewrite("#include \"/dep/foo.h\"") == "#include \"/dep/foo.h\"")
     }
 
@@ -238,7 +224,6 @@ struct CHeaderIncludeRewriterTests {
 
         let rewriter = CHeaderIncludeRewriter(modules: [someLib], keepPublicHeadersStructure: { _ in true })
 
-        // The collector deduplicates this symlink against its real header.
         #expect(rewriter.rewrite("#include <some_lib_dupe.h>") == "#include <some_lib/some_lib.h>")
         #expect(rewriter.rewrite("#include <a.h>") == "#include <some_lib/a.h>")
         #expect(rewriter.rewrite("#include <some_lib.h>") == "#include <some_lib/some_lib.h>")

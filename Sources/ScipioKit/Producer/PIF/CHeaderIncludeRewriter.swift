@@ -1,20 +1,13 @@
 import Foundation
 import ScipioKitCore
 
-/// Rewrites angle-bracket C header includes into framework-relative form.
+/// Rewrites C header includes resolved through SwiftPM header search paths into framework form.
 ///
-/// C packages address their own and their dependencies' public headers relative to the include
-/// directory, e.g. `#include <core/core.h>`, and SwiftPM builds resolve that form through the
-/// `-I` / `HEADER_SEARCH_PATHS` entries they inject. Consumers of the prebuilt XCFrameworks only
-/// get `-F` (framework search), which answers `<ModuleName/...>`, so such includes no longer
-/// resolve. While copying a module's public headers into its framework, we rewrite includes that
-/// point at that module or one of its visible dependencies from `<core/core.h>` to
-/// `<CoreLib/core/core.h>`. Consumers then need no extra wiring.
+/// SwiftPM packages commonly include public headers as `<core/core.h>` and rely on injected
+/// `-I` / `HEADER_SEARCH_PATHS`. Prebuilt framework consumers only get `-F`, which resolves
+/// `<ModuleName/...>`, so copied headers need framework-relative includes.
 ///
-/// The rewrite target is the header's path **as it actually lands inside the owning framework**,
-/// which depends on that module's `keepPublicHeadersStructure`: with it on, the nested layout
-/// (`core/core.h`) is preserved; with it off, headers are flattened to their file name (`core.h`).
-/// The replacement therefore encodes that final path, not the original source-relative path.
+/// Replacement paths match where headers land in their framework, including flattened layouts.
 struct CHeaderIncludeRewriter {
     /// Source include path to framework include path, e.g. `"core/core.h" -> "CoreLib/core/core.h"`.
     private let replacementsByHeaderPath: [String: String]
@@ -83,8 +76,7 @@ struct CHeaderIncludeRewriter {
 
     var isEmpty: Bool { replacementsByHeaderPath.isEmpty }
 
-    /// Where the header being rewritten comes from and how it lands inside the framework,
-    /// so quoted includes can be checked against the copied layout.
+    /// Source and copy-layout context for quoted include resolution.
     struct IncluderContext {
         var sourceFile: URL
         var includeDir: URL?
@@ -92,12 +84,6 @@ struct CHeaderIncludeRewriter {
     }
 
     /// Leaves system, ambiguous, and out-of-closure includes unchanged.
-    ///
-    /// Quoted includes mirror the compiler's lookup order: a file reachable relative to the
-    /// including header wins, but only as long as the copy into the framework preserves that
-    /// relation; flattened layouts break subdirectory relations, so such includes are rewritten
-    /// to the framework form like an angle include, looked up by the candidate's canonical
-    /// include-dir-relative path so `./` and `../` spellings rewrite too.
     func rewrite(_ contents: String, includer: IncluderContext? = nil) -> String {
         guard !replacementsByHeaderPath.isEmpty else { return contents }
 
@@ -132,20 +118,17 @@ struct CHeaderIncludeRewriter {
                 return line
             }
 
-            // Skip the original closing `>` or `"`; both are a single character.
             let trailing = line[line.index(after: pathSubstring.endIndex)...]
             return "\(match.output.directive)<\(replacement)>\(trailing)"
         }
         return rewritten.joined(separator: "\n")
     }
 
-    /// Decides the framework path a quoted include is rewritten to; nil keeps the line.
+    /// Returns the framework include path for a quoted include, or nil when it should stay quoted.
     ///
-    /// A candidate reachable relative to the including header wins the compiler's quoted lookup:
-    /// it stays untouched while the copy preserves that relation, and is otherwise rewritten via
-    /// the candidate's canonical include-dir-relative path, which also covers `./` and `../`
-    /// spellings. An include with no relative candidate could only have resolved through the
-    /// search paths, so it is looked up as written.
+    /// Quoted includes first try the includer's directory. They stay quoted only if that same
+    /// relation still exists after the headers are copied into the framework; otherwise they are
+    /// rewritten through the candidate's canonical include-dir-relative path.
     private func quotedIncludeReplacement(for path: String, from includer: IncluderContext) -> String? {
         let candidate = includer.sourceFile.deletingLastPathComponent()
             .appending(path: path)
@@ -154,8 +137,7 @@ struct CHeaderIncludeRewriter {
             return searchPathReplacement(for: path)
         }
 
-        // A candidate outside the include dir is never copied; rewriting to some other module's
-        // same-named header would silently change which contents get included.
+        // Do not replace a private relative include with a public header that merely shares a name.
         guard let base = includer.includeDir.map(Self.trimmedBasePath(of:)),
               candidate.path(percentEncoded: false).hasPrefix(base + "/") else {
             return nil
@@ -169,17 +151,14 @@ struct CHeaderIncludeRewriter {
         return replacementsByHeaderPath[canonicalKey]
     }
 
-    /// Whether a quoted include keeps resolving relative to its includer after both land in the
-    /// framework: the candidate must land at the offset the include names, with `.` and `..`
-    /// segments folded; escaping the framework's header root can never resolve.
+    /// Whether the quoted path still reaches the same candidate in the copied framework layout.
     private func quotedIncludeResolvesAfterCopy(_ path: String, candidate: URL, from includer: IncluderContext) -> Bool {
         let includerDestination = FrameworkBundleAssembler.headerDestinationComponents(
             header: includer.sourceFile,
             includeDir: includer.includeDir,
             keepPublicHeadersStructure: includer.keepsPublicHeadersStructure
         )
-        // Includes use the symlink path; copied headers land at the resolved path, and symlinks
-        // duplicating a real header are not copied at all, so their landed path never matches.
+        // Copied headers land at resolved symlink paths.
         let landedCandidate = fileSystem.isSymlink(candidate) ? candidate.resolvingSymlinksInPath() : candidate
         let candidateDestination = FrameworkBundleAssembler.headerDestinationComponents(
             header: landedCandidate,
@@ -193,9 +172,7 @@ struct CHeaderIncludeRewriter {
         return resolved == candidateDestination
     }
 
-    /// Table lookup for an include that resolves through the search paths: each root interprets
-    /// the path relative to itself, so the canonical table key has `.`/`..` segments folded.
-    /// Absolute paths never resolve through the table.
+    /// Table lookup for an include resolved relative to a header search path root.
     private func searchPathReplacement(for path: String) -> String? {
         guard !path.hasPrefix("/") else { return nil }
         guard let key = Self.foldingDotSegments(path.split(separator: "/").map(String.init)) else {
