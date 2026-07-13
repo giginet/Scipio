@@ -34,8 +34,15 @@ extension PackageResolver {
             self.fileSystem = fileSystem
         }
 
+        /// Restorability is part of validity: the share step in `CacheSystem`
+        /// skips storages reporting a valid cache, so a legacy or corrupted
+        /// file must answer false here to get overwritten.
         func existsValidCache(for originHash: String) async throws -> Bool {
-            try fileSystem.exists(resolveCacheFile(from: originHash))
+            let cacheFileURL = try resolveCacheFile(from: originHash)
+            guard fileSystem.exists(cacheFileURL) else {
+                return false
+            }
+            return try loadRestorablePackages(from: cacheFileURL) != nil
         }
 
         func fetchResolvedPackages(for originHash: String) async throws -> [ResolvedPackage] {
@@ -46,12 +53,16 @@ extension PackageResolver {
                 return []
             }
 
+            return try loadRestorablePackages(from: cacheFileURL) ?? []
+        }
+
+        /// Returns restored packages, or discards an unsupported/corrupted cache and returns nil.
+        private func loadRestorablePackages(from cacheFileURL: URL) throws -> [ResolvedPackage]? {
             let data = try fileSystem.readFileContents(cacheFileURL)
             do {
                 let snapshot = try jsonDecoder.decode(ResolvedPackagesSnapshot.self, from: data)
                 return try snapshot.restoreResolvedPackages()
             } catch {
-                // An older or corrupted format: discard the file and treat it as a miss.
                 let cacheFilePath = cacheFileURL.path(percentEncoded: false)
                 logger.warning(
                     "⚠️ Discarding a resolved packages cache in an unsupported format at \(cacheFilePath): \(error)",
@@ -65,7 +76,7 @@ extension PackageResolver {
                         metadata: .color(.yellow)
                     )
                 }
-                return []
+                return nil
             }
         }
 

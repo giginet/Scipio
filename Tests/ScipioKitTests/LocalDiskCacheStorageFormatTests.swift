@@ -56,6 +56,23 @@ struct LocalDiskCacheStorageFormatTests {
         #expect(!fileSystem.exists(fileURL))
     }
 
+    @Test("existsValidCache is true only for a restorable cache file")
+    func existsValidCacheRequiresRestorability() async throws {
+        let (storage, baseURL) = makeStorage()
+        defer { try? fileSystem.removeFileTree(baseURL) }
+        let fileURL = cacheFileURL(in: baseURL)
+
+        #expect(try await !storage.existsValidCache(for: originHash))
+
+        try await storage.cacheResolvedPackages([try ResolvedGraphFixtures.diamondChainPackage(depth: 3)], for: originHash)
+        #expect(try await storage.existsValidCache(for: originHash))
+        #expect(fileSystem.exists(fileURL))
+
+        try fileSystem.writeFileContents(fileURL, data: Data("broken".utf8))
+        #expect(try await !storage.existsValidCache(for: originHash))
+        #expect(!fileSystem.exists(fileURL))
+    }
+
     @Test("I/O errors propagate as failures instead of being treated as misses")
     func ioErrorsPropagate() async throws {
         let baseURL = fileSystem.tempDirectory.appending(components: "LocalDiskCacheStorageFormatTests", UUID().uuidString)
@@ -63,6 +80,9 @@ struct LocalDiskCacheStorageFormatTests {
 
         await #expect(throws: FailingReadFileSystem.StubError.self) {
             _ = try await storage.fetchResolvedPackages(for: originHash)
+        }
+        await #expect(throws: FailingReadFileSystem.StubError.self) {
+            _ = try await storage.existsValidCache(for: originHash)
         }
     }
 
