@@ -140,8 +140,8 @@ extension ResolvedPackagesSnapshot {
                 resolvedPackageKind: package.resolvedPackageKind,
                 path: package.path,
                 pinState: package.pinState,
-                targetIndices: package.targets.map { index(of: $0) },
-                productIndices: package.products.map { index(of: $0) }
+                targetIndices: package.targets.map { registerIndex(of: $0) },
+                productIndices: package.products.map { registerIndex(of: $0) }
             )
         }
 
@@ -155,22 +155,22 @@ extension ResolvedPackagesSnapshot {
                     modules[index].dependencies = module.dependencies.map { dependency in
                         switch dependency {
                         case .module(let module, let conditions):
-                            DependencyRecord(kind: .module, index: self.index(of: module), conditions: conditions)
+                            DependencyRecord(kind: .module, index: registerIndex(of: module), conditions: conditions)
                         case .product(let product, let conditions):
-                            DependencyRecord(kind: .product, index: self.index(of: product), conditions: conditions)
+                            DependencyRecord(kind: .product, index: registerIndex(of: product), conditions: conditions)
                         }
                     }
                 } else {
                     let (product, index) = pendingProducts[nextProduct]
                     nextProduct += 1
-                    products[index].moduleIndices = product.modules.map { self.index(of: $0) }
+                    products[index].moduleIndices = product.modules.map { registerIndex(of: $0) }
                 }
             }
         }
 
         /// Returns the module's table index, registering it on first visit so
         /// that shared modules are stored only once.
-        private mutating func index(of module: ResolvedModule) -> Int {
+        private mutating func registerIndex(of module: ResolvedModule) -> Int {
             let identity = module.identity
             if let index = moduleIndicesByIdentity[identity] {
                 return index
@@ -191,7 +191,7 @@ extension ResolvedPackagesSnapshot {
             return index
         }
 
-        private mutating func index(of product: ResolvedProduct) -> Int {
+        private mutating func registerIndex(of product: ResolvedProduct) -> Int {
             let identity = product.identity
             if let index = productIndicesByIdentity[identity] {
                 return index

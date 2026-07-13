@@ -73,35 +73,55 @@ struct ResolvedPackagesSnapshotTests {
         }
     }
 
-    @Test("Restoring rejects dangling references")
-    func rejectsDanglingReferences() throws {
-        var tamperedEdge = try makeSnapshot()
-        let index = try #require(tamperedEdge.modules.firstIndex { !$0.dependencies.isEmpty })
-        tamperedEdge.modules[index].dependencies[0].index = 9_999
-        #expect(throws: ResolvedPackagesSnapshot.RestoreError.invalidModuleReference(index: 9_999)) {
-            try tamperedEdge.restoreResolvedPackages()
-        }
-
-        var tamperedPackage = try makeSnapshot()
-        tamperedPackage.packages[0].productIndices = [9_999]
-        #expect(throws: ResolvedPackagesSnapshot.RestoreError.invalidProductReference(index: 9_999)) {
-            try tamperedPackage.restoreResolvedPackages()
-        }
+    /// A way to corrupt an otherwise valid snapshot; restoring must reject
+    /// every case with the matching `RestoreError`.
+    enum Tampering: CaseIterable {
+        case moduleReferenceInModuleDependencies
+        case productReferenceInModuleDependencies
+        case moduleReferenceInProductModules
+        case moduleReferenceInPackageTargets
+        case productReferenceInPackageProducts
+        case duplicatedModuleIdentity
+        case duplicatedProductIdentity
+        case duplicatedPackageIdentity
     }
 
-    @Test("Restoring rejects duplicated identities instead of trapping")
-    func rejectsDuplicatedIdentities() throws {
-        var duplicatedModule = try makeSnapshot()
-        duplicatedModule.modules.append(duplicatedModule.modules[0])
-        #expect(throws: ResolvedPackagesSnapshot.RestoreError.duplicateModuleIdentity(duplicatedModule.modules[0].identity)) {
-            try duplicatedModule.restoreResolvedPackages()
+    @Test("Restoring rejects a tampered snapshot", arguments: Tampering.allCases)
+    func rejectsTamperedSnapshot(_ tampering: Tampering) throws {
+        var snapshot = try makeSnapshot()
+        let expectedError: ResolvedPackagesSnapshot.RestoreError
+
+        switch tampering {
+        case .moduleReferenceInModuleDependencies:
+            let edge = try #require(edgeIndex(in: snapshot, kind: .module))
+            snapshot.modules[edge.module].dependencies[edge.dependency].index = 9_999
+            expectedError = .invalidModuleReference(index: 9_999)
+        case .productReferenceInModuleDependencies:
+            let edge = try #require(edgeIndex(in: snapshot, kind: .product))
+            snapshot.modules[edge.module].dependencies[edge.dependency].index = 9_999
+            expectedError = .invalidProductReference(index: 9_999)
+        case .moduleReferenceInProductModules:
+            snapshot.products[0].moduleIndices = [9_999]
+            expectedError = .invalidModuleReference(index: 9_999)
+        case .moduleReferenceInPackageTargets:
+            snapshot.packages[0].targetIndices = [9_999]
+            expectedError = .invalidModuleReference(index: 9_999)
+        case .productReferenceInPackageProducts:
+            snapshot.packages[0].productIndices = [9_999]
+            expectedError = .invalidProductReference(index: 9_999)
+        case .duplicatedModuleIdentity:
+            snapshot.modules.append(snapshot.modules[0])
+            expectedError = .duplicateModuleIdentity(snapshot.modules[0].identity)
+        case .duplicatedProductIdentity:
+            snapshot.products.append(snapshot.products[0])
+            expectedError = .duplicateProductIdentity(snapshot.products[0].identity)
+        case .duplicatedPackageIdentity:
+            snapshot.packages.append(snapshot.packages[0])
+            expectedError = .duplicatePackageIdentity(snapshot.packages[0].packageIdentity)
         }
 
-        var duplicatedPackage = try makeSnapshot()
-        duplicatedPackage.packages.append(duplicatedPackage.packages[0])
-        let identity = duplicatedPackage.packages[0].packageIdentity
-        #expect(throws: ResolvedPackagesSnapshot.RestoreError.duplicatePackageIdentity(identity)) {
-            try duplicatedPackage.restoreResolvedPackages()
+        #expect(throws: expectedError) {
+            try snapshot.restoreResolvedPackages()
         }
     }
 
@@ -139,6 +159,19 @@ struct ResolvedPackagesSnapshotTests {
 
     private func makeSnapshot(depth: Int = 4) throws -> ResolvedPackagesSnapshot {
         ResolvedPackagesSnapshot(resolvedPackages: [try ResolvedGraphFixtures.diamondChainPackage(depth: depth)])
+    }
+
+    /// The position of the first dependency edge of the given kind.
+    private func edgeIndex(
+        in snapshot: ResolvedPackagesSnapshot,
+        kind: ResolvedPackagesSnapshot.DependencyRecord.Kind
+    ) -> (module: Int, dependency: Int)? {
+        for (moduleIndex, module) in snapshot.modules.enumerated() {
+            if let dependencyIndex = module.dependencies.firstIndex(where: { $0.kind == kind }) {
+                return (moduleIndex, dependencyIndex)
+            }
+        }
+        return nil
     }
 
     private func encodedSize(depth: Int) throws -> Int {
