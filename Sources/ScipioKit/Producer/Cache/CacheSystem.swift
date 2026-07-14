@@ -206,11 +206,11 @@ struct CacheSystem: Sendable {
                     group.addTask {
                         let frameworkPath = outputDirectory.appendingPathComponent(frameworkName)
                         do {
+                            guard let cacheKey = cacheKeys[target] else { return }
                             logger.info(
                                 "🚀 Cache \(frameworkName) to cache storage: \(storageName)",
                                 metadata: .color(.green)
                             )
-                            guard let cacheKey = cacheKeys[target] else { return }
                             try await cacheFramework(at: frameworkPath, for: cacheKey, to: storage)
                         } catch {
                             logger.warning("⚠️ Can't create caches for \(frameworkPath.path)")
