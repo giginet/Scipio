@@ -163,6 +163,37 @@ final class CacheSystemTests: XCTestCase {
         )
     }
 
+    func testCacheKeysRemainAvailableWhenDependentRevisionIsNotDetected() async throws {
+        let taggedFixture = try await makeTaggedPartialCacheTestPackagePath()
+        defer { try? LocalFileSystem.default.removeFileTree(taggedFixture.rootPath) }
+
+        let descriptionPackage = try await DescriptionPackage(
+            packageDirectory: taggedFixture.packagePath,
+            mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
+            onlyUseVersionsFromResolvedFile: true
+        )
+        let buildOptions = defaultBuildOptions()
+        let targetGraph = try descriptionPackage.resolveBuildProductDependencyGraph().map { buildProduct in
+            var package = buildProduct.package
+            if buildProduct.target.name == "Bad" {
+                package.path = "/path/to/a/missing/package"
+            }
+            let buildProduct = BuildProduct(package: package, target: buildProduct.target)
+            return CacheSystem.CacheTarget(buildProduct: buildProduct, buildOptions: buildOptions)
+        }
+        let cacheSystem = CacheSystem(
+            outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks")
+        )
+
+        let cacheKeys = try await cacheSystem.calculateCacheKeys(for: targetGraph)
+        let baseTarget = try XCTUnwrap(targetGraph.allNodes.map(\.value).first { $0.buildProduct.target.name == "Base" })
+        let badTarget = try XCTUnwrap(targetGraph.allNodes.map(\.value).first { $0.buildProduct.target.name == "Bad" })
+
+        XCTAssertNotNil(cacheKeys[baseTarget])
+        XCTAssertNil(cacheKeys[badTarget])
+    }
+
     func testDependencyCacheKeyChangesDependentCacheKey() async throws {
         let taggedFixture = try await makeTaggedPartialCacheTestPackagePath()
         defer { try? LocalFileSystem.default.removeFileTree(taggedFixture.rootPath) }

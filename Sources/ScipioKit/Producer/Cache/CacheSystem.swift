@@ -148,6 +148,11 @@ struct CacheSystem: Sendable {
         var dependencyCacheKeyChecksums: [DependencyCacheKeyChecksum]
     }
 
+    private enum CacheKeyCalculationResult: Sendable {
+        case calculated(CacheTarget, SwiftPMCacheKey)
+        case revisionNotDetected(CacheTarget, String)
+    }
+
     enum Error: LocalizedError {
         case revisionNotDetected(String)
         case compilerVersionNotDetected
@@ -281,6 +286,8 @@ struct CacheSystem: Sendable {
     func calculateCacheKeys(for graph: DependencyGraph<CacheTarget>) async throws -> [CacheTarget: SwiftPMCacheKey] {
         let environment = try await cacheKeyEnvironment()
         var cacheKeys: [CacheTarget: SwiftPMCacheKey] = [:]
+        var unavailableTargets: Set<CacheTarget> = []
+        var reportedUnavailablePackages: Set<String> = []
         var remainingTargets = Set(graph.allNodes.map(\.value))
         var layer = graph.leafs
 
@@ -290,7 +297,19 @@ struct CacheSystem: Sendable {
                 break
             }
 
-            let inputs = try nodes.map { node in
+            var inputs: [CacheKeyCalculationInput] = []
+            var unavailablePackages: Set<String> = []
+            for node in nodes {
+                if node.children.contains(where: { unavailableTargets.contains($0.value) }) {
+                    unavailableTargets.insert(node.value)
+                    remainingTargets.remove(node.value)
+                    continue
+                }
+
+                guard node.children.allSatisfy({ cacheKeys[$0.value] != nil }) else {
+                    continue
+                }
+
                 let dependencyChecksums = try node.children.map { child in
                     let childCacheKey = cacheKeys[child.value]!
                     return DependencyCacheKeyChecksum(
@@ -298,24 +317,51 @@ struct CacheSystem: Sendable {
                         checksum: try childCacheKey.calculateChecksum()
                     )
                 }
-                return CacheKeyCalculationInput(
-                    target: node.value,
-                    dependencyCacheKeyChecksums: dependencyChecksums
+                inputs.append(
+                    CacheKeyCalculationInput(
+                        target: node.value,
+                        dependencyCacheKeyChecksums: dependencyChecksums
+                    )
                 )
-            }
-            let layerCacheKeys = try await inputs.asyncMap(numberOfConcurrentTasks: UInt(inputs.count)) { input in
-                let cacheKey = try await calculateCacheKey(
-                    of: input.target,
-                    dependencyCacheKeyChecksums: input.dependencyCacheKeyChecksums,
-                    environment: environment
-                )
-                return (input.target, cacheKey)
             }
 
-            for (target, cacheKey) in layerCacheKeys {
-                cacheKeys[target] = cacheKey
-                remainingTargets.remove(target)
+            let layerResults: [CacheKeyCalculationResult] = if inputs.isEmpty {
+                []
+            } else {
+                try await inputs.asyncMap(numberOfConcurrentTasks: UInt(inputs.count)) { input in
+                    do {
+                        let cacheKey = try await calculateCacheKey(
+                            of: input.target,
+                            dependencyCacheKeyChecksums: input.dependencyCacheKeyChecksums,
+                            environment: environment
+                        )
+                        return CacheKeyCalculationResult.calculated(input.target, cacheKey)
+                    } catch Error.revisionNotDetected(let packageName) {
+                        return CacheKeyCalculationResult.revisionNotDetected(input.target, packageName)
+                    }
+                }
             }
+
+            for result in layerResults {
+                switch result {
+                case .calculated(let target, let cacheKey):
+                    cacheKeys[target] = cacheKey
+                    remainingTargets.remove(target)
+                case .revisionNotDetected(let target, let packageName):
+                    unavailableTargets.insert(target)
+                    remainingTargets.remove(target)
+                    unavailablePackages.insert(packageName)
+                }
+            }
+
+            for packageName in unavailablePackages.subtracting(reportedUnavailablePackages).sorted() {
+                logger.warning(
+                    // swiftlint:disable:next line_length
+                    "⚠️ Cache key is unavailable because \(packageName) has no revision. Skip cache participation for this package and its dependents.",
+                    metadata: .color(.yellow)
+                )
+            }
+            reportedUnavailablePackages.formUnion(unavailablePackages)
 
             let parentNodes = nodes.flatMap { node in
                 node.parents.compactMap(\.reference)
@@ -324,7 +370,10 @@ struct CacheSystem: Sendable {
             layer = parentNodes.filter { node in
                 remainingTargets.contains(node.value)
                     && seenTargets.insert(node.value).inserted
-                    && node.children.allSatisfy { cacheKeys[$0.value] != nil }
+                    && (
+                        node.children.contains(where: { unavailableTargets.contains($0.value) })
+                            || node.children.allSatisfy { cacheKeys[$0.value] != nil }
+                    )
             }
         }
 

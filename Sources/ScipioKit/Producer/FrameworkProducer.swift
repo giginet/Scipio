@@ -173,8 +173,7 @@ struct FrameworkProducer {
         do {
             return try await cacheSystem.calculateCacheKeys(for: targetGraph)
         } catch CacheSystem.Error.revisionNotDetected(let packageName) {
-            // Fall back to "build without cache participation" for targets whose cache keys
-            // cannot be resolved (for example, missing local git metadata in fixtures).
+            // Keep a full fallback for revision errors raised before target-level calculation.
             logger.warning(
                 "⚠️ Cache key precomputation failed because \(packageName) has no revision. Continue build without cache restore/save for this run.",
                 metadata: .color(.yellow)
