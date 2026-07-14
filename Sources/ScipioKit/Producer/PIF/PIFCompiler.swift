@@ -3,6 +3,9 @@ import Foundation
 struct PIFCompiler: Compiler {
     let descriptionPackage: DescriptionPackage
     private let buildOptions: BuildOptions
+    /// Resolves whether a target keeps its public-header directory structure in the produced
+    /// framework; the caller owns the per-target override rules.
+    private let keepPublicHeadersStructure: @Sendable (_ targetName: String) -> Bool
     private let fileSystem: any FileSystem
     private let executor: any Executor
     private let buildOptionsMatrix: [String: BuildOptions]
@@ -13,12 +16,14 @@ struct PIFCompiler: Compiler {
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
+        keepPublicHeadersStructure: @escaping @Sendable (_ targetName: String) -> Bool,
         fileSystem: any FileSystem = LocalFileSystem.default,
         executor: any Executor = ProcessExecutor()
     ) {
         self.descriptionPackage = descriptionPackage
         self.buildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
+        self.keepPublicHeadersStructure = keepPublicHeadersStructure
         self.fileSystem = fileSystem
         self.executor = executor
         self.buildParametersGenerator = .init(buildOptions: buildOptions, fileSystem: fileSystem, executor: executor)
@@ -45,11 +50,20 @@ struct PIFCompiler: Compiler {
         // Build frameworks for each SDK
         logger.info("📦 Building \(target.name) for \(sdkNames)")
 
+        // Scope the include rewrite to this target and its visible dependency closure so headers of
+        // unrelated packages can never match (e.g. a generic `config.h`).
+        let rewriterModules = try [buildProduct.target] + buildProduct.target.recursiveModuleDependencies()
+        let headerIncludeRewriter = CHeaderIncludeRewriter(
+            modules: rewriterModules,
+            keepPublicHeadersStructure: { keepPublicHeadersStructure($0.name) }
+        )
+
         let xcBuildClient: XCBuildClient = .init(
             buildProduct: buildProduct,
             buildOptions: buildOptions,
             configuration: buildOptions.buildConfiguration,
-            packageLocator: descriptionPackage
+            packageLocator: descriptionPackage,
+            headerIncludeRewriter: headerIncludeRewriter
         )
 
         let debugSymbolStripper = DWARFSymbolStripper(executor: executor)

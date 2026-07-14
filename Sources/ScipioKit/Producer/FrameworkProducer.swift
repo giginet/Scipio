@@ -53,7 +53,11 @@ struct FrameworkProducer {
     }
 
     private func overriddenBuildOption(for buildProduct: BuildProduct) -> BuildOptions {
-        buildOptionsMatrix[buildProduct.target.name] ?? baseBuildOptions
+        overriddenBuildOption(forTargetNamed: buildProduct.target.name)
+    }
+
+    private func overriddenBuildOption(forTargetNamed targetName: String) -> BuildOptions {
+        buildOptionsMatrix[targetName] ?? baseBuildOptions
     }
 
     func clean() async throws {
@@ -353,7 +357,10 @@ struct FrameworkProducer {
             let compiler = PIFCompiler(
                 descriptionPackage: descriptionPackage,
                 buildOptions: buildOptions,
-                buildOptionsMatrix: buildOptionsMatrix
+                buildOptionsMatrix: buildOptionsMatrix,
+                keepPublicHeadersStructure: { [baseBuildOptions, buildOptionsMatrix] targetName in
+                    (buildOptionsMatrix[targetName] ?? baseBuildOptions).keepPublicHeadersStructure
+                }
             )
             try await compiler.createXCFramework(buildProduct: product,
                                                  outputDirectory: outputDir,

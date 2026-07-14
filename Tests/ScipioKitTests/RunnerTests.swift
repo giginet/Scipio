@@ -15,6 +15,7 @@ private let clangPackagePath = fixturePath.appendingPathComponent("ClangPackage"
 private let clangPackageWithSymbolicLinkHeadersPath = fixturePath.appendingPathComponent("ClangPackageWithSymbolicLinkHeaders")
 private let clangPackageWithCustomModuleMapPath = fixturePath.appendingPathComponent("ClangPackageWithCustomModuleMap")
 private let clangPackageWithUmbrellaDirectoryPath = fixturePath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
+private let clangPackageWithInterdependentHeadersPath = fixturePath.appendingPathComponent("ClangPackageWithInterdependentHeaders")
 
 private struct InfoPlist: Decodable {
     var bundleVersion: String
@@ -156,6 +157,125 @@ final class RunnerTests: XCTestCase {
             XCTAssertFalse(fileManager.fileExists(atPath: versionFile.path),
                            "Should not create .\(library).version in create mode")
         }
+    }
+
+    func testBuildClangPackageRewritesInterdependentHeaderIncludes() async throws {
+        // Use keepPublicHeadersStructure so the nested `core/core.h` layout survives into the framework.
+        let runner = Runner(
+            mode: .createPackage,
+            options: .init(
+                baseBuildOptions: .init(isSimulatorSupported: false, keepPublicHeadersStructure: true),
+                shouldOnlyUseVersionsFromResolvedFile: true
+            )
+        )
+        do {
+            try await runner.run(packageDirectory: clangPackageWithInterdependentHeadersPath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+        }
+
+        let featureSlice = frameworkOutputDir
+            .appendingPathComponent("Feature.xcframework")
+            .appendingPathComponent("ios-arm64")
+        let coreLibSlice = frameworkOutputDir
+            .appendingPathComponent("CoreLib.xcframework")
+            .appendingPathComponent("ios-arm64")
+
+        // `Feature`'s public header does `#include <core/core.h>`. In the prebuilt framework it must
+        // be rewritten to the framework-relative `<CoreLib/core/core.h>` so consumers resolve it via
+        // `-F` instead of a `-I` that only SwiftPM would inject.
+        let featureHeaderPath = featureSlice
+            .appendingPathComponent("Feature.framework")
+            .appendingPathComponent("Headers/feature.h")
+            .path
+        let headerContents = try XCTUnwrap(
+            fileManager.contents(atPath: featureHeaderPath).flatMap { String(decoding: $0, as: UTF8.self) }
+        )
+        XCTAssertTrue(
+            headerContents.contains("#include <CoreLib/core/core.h>"),
+            "Angle-bracket include should be rewritten to framework form, got:\n\(headerContents)"
+        )
+        XCTAssertFalse(
+            headerContents.contains("#include <core/core.h>"),
+            "Original non-framework include should be gone"
+        )
+
+        // The rewritten path must actually exist in the dependency framework, otherwise the include
+        // is still unresolvable under `-F`. Its same-module include of a sibling public header must
+        // be rewritten as well.
+        let coreHeaderPath = coreLibSlice
+            .appendingPathComponent("CoreLib.framework")
+            .appendingPathComponent("Headers/core/core.h")
+            .path
+        let coreHeaderContents = try XCTUnwrap(
+            fileManager.contents(atPath: coreHeaderPath).flatMap { String(decoding: $0, as: UTF8.self) },
+            "CoreLib framework should expose the header at the rewritten path"
+        )
+        XCTAssertTrue(
+            coreHeaderContents.contains("#include <CoreLib/core/core_types.h>"),
+            "Same-module include should be rewritten to framework form, got:\n\(coreHeaderContents)"
+        )
+
+        // Inline-implementation files are textual headers: they must ship with the framework
+        // and includes pointing at them must be rewritten like any other header.
+        XCTAssertTrue(
+            fileManager.fileExists(
+                atPath: coreLibSlice
+                    .appendingPathComponent("CoreLib.framework")
+                    .appendingPathComponent("Headers/core/core_inline.inl")
+                    .path
+            ),
+            "Inline-implementation file should be shipped with the framework"
+        )
+        XCTAssertTrue(
+            coreHeaderContents.contains("#include <CoreLib/core/core_inline.inl>"),
+            "Include of the inline-implementation file should be rewritten, got:\n\(coreHeaderContents)"
+        )
+
+        // A quoted include that only the injected search paths could resolve is rewritten like
+        // an angle include; quoted lookup has no includer-relative candidate for it here.
+        XCTAssertTrue(
+            coreHeaderContents.contains("#include <CoreLib/core/core_quoted.h>"),
+            "Search-path style quoted include should be rewritten, got:\n\(coreHeaderContents)"
+        )
+
+        // Prove a consumer can compile against the produced frameworks using only framework search
+        // (`-F`), with none of the `-I` paths SwiftPM would otherwise inject.
+        let sdkPath = try runProcess("/usr/bin/xcrun", ["--sdk", "iphoneos", "--show-sdk-path"])
+        XCTAssertEqual(sdkPath.status, 0, "Should resolve the iphoneos SDK path")
+
+        let consumerSource = tempDir.appendingPathComponent("header_rewrite_consumer.c")
+        try "#include <Feature/feature.h>\n".write(to: consumerSource, atomically: true, encoding: .utf8)
+        defer { try? fileManager.removeItem(at: consumerSource) }
+
+        let compile = try runProcess("/usr/bin/xcrun", [
+            "--sdk", "iphoneos", "clang",
+            "-target", "arm64-apple-ios12.0",
+            "-isysroot", sdkPath.output.trimmingCharacters(in: .whitespacesAndNewlines),
+            "-F", featureSlice.path,
+            "-F", coreLibSlice.path,
+            "-fsyntax-only",
+            "-x", "c", consumerSource.path,
+        ])
+        XCTAssertEqual(
+            compile.status, 0,
+            "Consumer should compile using only -F (framework search). Output:\n\(compile.output)"
+        )
+    }
+
+    private func runProcess(_ launchPath: String, _ arguments: [String]) throws -> (status: Int32, output: String) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: launchPath)
+        process.arguments = arguments
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        try process.run()
+        // Drain the pipe before waiting: waiting first deadlocks once output exceeds the pipe buffer.
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return (process.terminationStatus, String(decoding: data, as: UTF8.self))
     }
 
     func testBuildClangPackageWithSymbolicLinkHeaders() async throws {

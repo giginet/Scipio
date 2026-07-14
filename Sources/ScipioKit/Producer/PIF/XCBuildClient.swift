@@ -20,6 +20,7 @@ struct XCBuildClient {
     private let packageLocator: any PackageLocator
     private let fileSystem: any FileSystem
     private let executor: any Executor
+    private let headerIncludeRewriter: CHeaderIncludeRewriter?
 
     init(
         buildProduct: BuildProduct,
@@ -27,7 +28,8 @@ struct XCBuildClient {
         configuration: BuildConfiguration,
         packageLocator: some PackageLocator,
         fileSystem: any FileSystem = LocalFileSystem.default,
-        executor: some Executor = ProcessExecutor(errorDecoder: StandardOutputDecoder())
+        executor: some Executor = ProcessExecutor(errorDecoder: StandardOutputDecoder()),
+        headerIncludeRewriter: CHeaderIncludeRewriter? = nil
     ) {
         self.buildProduct = buildProduct
         self.buildOptions = buildOptions
@@ -35,6 +37,7 @@ struct XCBuildClient {
         self.packageLocator = packageLocator
         self.fileSystem = fileSystem
         self.executor = executor
+        self.headerIncludeRewriter = headerIncludeRewriter
     }
 
     private func fetchXCBuildPath() async throws -> URL {
@@ -115,7 +118,8 @@ struct XCBuildClient {
             frameworkComponents: components,
             keepPublicHeadersStructure: buildOptions.keepPublicHeadersStructure,
             outputDirectory: frameworkOutputDir,
-            fileSystem: fileSystem
+            fileSystem: fileSystem,
+            headerIncludeRewriter: headerIncludeRewriter
         )
 
         return try assembler.assemble()
