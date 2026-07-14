@@ -297,3 +297,64 @@ public struct DependencyPackage: Decodable, Identifiable, Hashable, Sendable {
         self.path = path
     }
 }
+
+// MARK: - Identity-based Hashable/Equatable
+
+/// The identity of a resolved module or product within a dependency graph:
+/// the owning package plus the declared name.
+package struct ResolvedIdentity: Hashable, Sendable {
+    package var packageID: PackageID
+    package var name: String
+
+    package init(packageID: PackageID, name: String) {
+        self.packageID = packageID
+        self.name = name
+    }
+}
+
+extension ResolvedModule {
+    package var identity: ResolvedIdentity {
+        ResolvedIdentity(packageID: packageID, name: underlying.name)
+    }
+
+    /// Identity-based equality.
+    ///
+    /// Structural equality would walk `dependencies` recursively; every module
+    /// embeds its whole subtree by value, so the walk expands the shared
+    /// dependency DAG into a tree: exponential in graph depth.
+    ///
+    /// Identity equality is an equivalence because at most one value exists
+    /// per identity:
+    /// - `PackageResolver` materializes each package manifest and each of its
+    ///   targets exactly once, and target names are unique within a manifest.
+    /// - `ResolvedPackagesSnapshot.restoreResolvedPackages()` rejects
+    ///   snapshots containing duplicated identities.
+    /// - Initializers are `package`-level: construction is limited to the two
+    ///   paths above.
+    ///
+    /// Values decoded directly or mutated through the public properties are
+    /// outside that invariant: they may compare equal despite structural
+    /// differences.
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.identity == rhs.identity
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(identity)
+    }
+}
+
+extension ResolvedProduct {
+    package var identity: ResolvedIdentity {
+        ResolvedIdentity(packageID: packageID, name: underlying.name)
+    }
+
+    /// Identity-based equality. See `ResolvedModule.==` for the rationale.
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.identity == rhs.identity
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(identity)
+    }
+}
