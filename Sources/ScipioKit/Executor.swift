@@ -1,11 +1,147 @@
 import Foundation
+import Darwin
+import os
 
-/// Buffer to collect process output bytes.
-private actor ProcessOutputBuffer {
-    private(set) var bytes: [UInt8] = []
+/// Collects process output from a single non-blocking file handle.
+///
+/// The reader owns the handle's readability notifications and closes the handle
+/// when collection finishes. `readabilityHandler` drains while the process is
+/// running, and `terminationHandler` drains once more to capture trailing bytes
+/// that Foundation has not delivered yet. The final drain reads only immediately
+/// available bytes instead of waiting for pipe EOF because long-lived descendants
+/// may inherit the write end and keep it open after the immediate child exits.
+final class ProcessOutputReader: Sendable {
+    enum DrainResult: Equatable {
+        /// The owned handle remains open and has not reached EOF.
+        case continueReading
 
-    func append(_ newBytes: [UInt8]) {
-        bytes += newBytes
+        /// Observation can stop because the reader is closed or has reached EOF.
+        case finished
+    }
+
+    private struct State {
+        var closed = false
+        var reachedEndOfFile = false
+        var bytes: [UInt8] = []
+        var lastStreamOutputTask = Task<Void, Never> {}
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: State())
+
+    private let fileHandle: FileHandle
+    private let streamOutput: (@Sendable ([UInt8]) async -> Void)?
+
+    /// Creates a reader that manages the supplied file handle until ``close()``.
+    ///
+    /// The handle must be configured for non-blocking reads before calling
+    /// ``startReading()`` or ``drain()``.
+    init(fileHandle: FileHandle, streamOutput: (@Sendable ([UInt8]) async -> Void)? = nil) {
+        self.fileHandle = fileHandle
+        self.streamOutput = streamOutput
+    }
+
+    /// Starts draining whenever the file handle reports readable data.
+    func startReading() {
+        fileHandle.readabilityHandler = { [weak self] handle in
+            guard let self else {
+                handle.readabilityHandler = nil
+                return
+            }
+
+            if case .finished = drain() {
+                handle.readabilityHandler = nil
+            }
+        }
+    }
+
+    /// Stops receiving readability notifications without closing the handle.
+    func stopReading() {
+        fileHandle.readabilityHandler = nil
+    }
+
+    /// Appends all bytes currently available from the owned file handle.
+    ///
+    /// Draining is serialized with ``close()`` so the handle cannot be
+    /// closed while a read is in progress.
+    ///
+    /// - Returns: ``DrainResult/finished`` after EOF or closure; otherwise,
+    ///   ``DrainResult/continueReading`` so observation can continue.
+    @discardableResult
+    func drain() -> DrainResult {
+        state.withLock { state in
+            guard !state.closed else { return .finished }
+            guard !state.reachedEndOfFile else { return .finished }
+
+            let result = Self.drainAvailableBytes(from: fileHandle.fileDescriptor)
+            for bytes in result.bytes {
+                state.bytes.append(contentsOf: bytes)
+                if let streamOutput {
+                    // Serialize callbacks in the same order as bytes were read.
+                    let previousTask = state.lastStreamOutputTask
+                    state.lastStreamOutputTask = Task {
+                        await previousTask.value
+                        await streamOutput(bytes)
+                    }
+                }
+            }
+
+            if result.reachedEndOfFile {
+                state.reachedEndOfFile = true
+                return .finished
+            }
+
+            return .continueReading
+        }
+    }
+
+    var snapshot: [UInt8] {
+        state.withLock { $0.bytes }
+    }
+
+    /// Waits for all stream output callbacks scheduled before this call.
+    func finishStreaming() async {
+        let task = state.withLock { $0.lastStreamOutputTask }
+        await task.value
+    }
+
+    /// Stops readability notifications and closes the owned handle once.
+    ///
+    /// Closing is serialized with any in-progress drain so no drain can access
+    /// the descriptor concurrently or after this method returns.
+    func close() {
+        stopReading()
+        state.withLock { state in
+            guard !state.closed else { return }
+            state.closed = true
+            try? fileHandle.close()
+        }
+    }
+
+    /// Reads all bytes currently available on a non-blocking file descriptor.
+    ///
+    /// `EINTR` retries the read. Any other read error ends the current drain
+    /// without treating it as EOF.
+    private static func drainAvailableBytes(from fileDescriptor: Int32) -> (bytes: [[UInt8]], reachedEndOfFile: Bool) {
+        var chunks: [[UInt8]] = []
+        var buffer = [UInt8](repeating: 0, count: 4096)
+
+        while true {
+            let byteCount = buffer.withUnsafeMutableBytes {
+                Darwin.read(fileDescriptor, $0.baseAddress, $0.count)
+            }
+
+            switch byteCount {
+            case let byteCount where byteCount > 0:
+                chunks.append(Array(buffer.prefix(byteCount)))
+            case 0:
+                return (chunks, true)
+            default:
+                if errno == EINTR {
+                    continue
+                }
+                return (chunks, false)
+            }
+        }
     }
 }
 
@@ -141,77 +277,80 @@ public struct ProcessExecutor<Decoder: ErrorDecoder>: Executor, Sendable {
 
         let outputHandle = stdoutPipe.fileHandleForReading
         let errorHandle = stderrPipe.fileHandleForReading
+        let outputReader = ProcessOutputReader(fileHandle: outputHandle, streamOutput: streamOutput)
+        let errorReader = ProcessOutputReader(fileHandle: errorHandle)
 
-        let outputBuffer = ProcessOutputBuffer()
-        let errorBuffer = ProcessOutputBuffer()
-
-        let localStreamOutput = streamOutput
         let localDecoder = errorDecoder
 
-        let outputTask = Task {
-            // Workaround to avoid "Bad file descriptor" error when executing processes at high concurrency.
-            // Investigate this section if command output is missing
-            // ref: https://github.com/swiftlang/swift/issues/57827
-            defer { try? outputHandle.close() }
-            for try await data in outputHandle.byteStream() {
-                let bytes = [UInt8](data)
-                await localStreamOutput?(bytes)
-                await outputBuffer.append(bytes)
-            }
-            return await outputBuffer.bytes
-        }
-
-        let errorOutputTask = Task {
-            // Workaround to avoid "Bad file descriptor" error when executing processes at high concurrency.
-            // Investigate this section if command output is missing
-            // ref: https://github.com/swiftlang/swift/issues/57827
-            defer { try? errorHandle.close() }
-            for try await data in errorHandle.byteStream() {
-                let bytes = [UInt8](data)
-                await errorBuffer.append(bytes)
-            }
-            return await errorBuffer.bytes
-        }
-
         do {
-            try process.run()
+            try Self.setNonBlocking(outputHandle.fileDescriptor)
+            try Self.setNonBlocking(errorHandle.fileDescriptor)
         } catch {
+            outputReader.close()
+            errorReader.close()
             throw ProcessExecutorError.unknownError(error)
         }
 
-        process.waitUntilExit()
+        outputReader.startReading()
+        errorReader.startReading()
 
-        let finalOutput = try await outputTask.value
-        let finalErrorOutput = try await errorOutputTask.value
-
-        // Wait for process to complete
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<ExecutorResult, Error>) in
             process.terminationHandler = { process in
-                outputHandle.readabilityHandler = nil
-                errorHandle.readabilityHandler = nil
+                outputReader.stopReading()
+                errorReader.stopReading()
 
-                let exitStatus = exitStatus(of: process)
+                Task {
+                    outputReader.drain()
+                    errorReader.drain()
+                    outputReader.close()
+                    errorReader.close()
+                    await outputReader.finishStreaming()
 
-                let result = FoundationProcessResult(
-                    arguments: arguments,
-                    exitStatus: exitStatus,
-                    output: .success(finalOutput),
-                    stderrOutput: .success(finalErrorOutput)
-                )
+                    let result = FoundationProcessResult(
+                        arguments: arguments,
+                        exitStatus: exitStatus(of: process),
+                        output: .success(outputReader.snapshot),
+                        stderrOutput: .success(errorReader.snapshot)
+                    )
 
-                switch exitStatus {
-                case .terminated(let code) where code == 0:
-                    continuation.resume(returning: result)
-                case .terminated:
-                    do {
-                        let errorOutput = try localDecoder.decode(result)
+                    switch result.exitStatus {
+                    case .terminated(let code) where code == 0:
+                        continuation.resume(returning: result)
+                    case .terminated:
+                        let errorOutput = try? localDecoder.decode(result)
                         continuation.resume(throwing: ProcessExecutorError.terminated(errorOutput: errorOutput))
-                    } catch {
-                        continuation.resume(throwing: ProcessExecutorError.terminated(errorOutput: nil))
+                    case .signalled(let signal):
+                        continuation.resume(throwing: ProcessExecutorError.signalled(signal))
                     }
-                case .signalled(let signal):
-                    continuation.resume(throwing: ProcessExecutorError.signalled(signal))
                 }
+            }
+
+            do {
+                try process.run()
+            } catch {
+                outputReader.close()
+                errorReader.close()
+                continuation.resume(throwing: ProcessExecutorError.unknownError(error))
+            }
+        }
+    }
+
+    private static func setNonBlocking(_ fileDescriptor: Int32) throws {
+        let flags: Int32
+        while true {
+            let result = fcntl(fileDescriptor, F_GETFL)
+            if result != -1 {
+                flags = result
+                break
+            }
+            guard errno == EINTR else {
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
+        }
+
+        while fcntl(fileDescriptor, F_SETFL, flags | O_NONBLOCK) == -1 {
+            guard errno == EINTR else {
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
             }
         }
     }
@@ -261,25 +400,5 @@ public struct StandardOutputDecoder: ErrorDecoder, Sendable {
 
     public func decode(_ result: ExecutorResult) throws -> String? {
         try result.unwrapOutput()
-    }
-}
-
-extension FileHandle {
-    fileprivate func byteStream() -> AsyncThrowingStream<Data, Error> {
-        AsyncThrowingStream { continuation in
-            self.readabilityHandler = { handle in
-                let data = handle.availableData
-                if data.isEmpty {
-                    continuation.finish()
-                    handle.readabilityHandler = nil
-                } else {
-                    continuation.yield(data)
-                }
-            }
-
-            continuation.onTermination = { @Sendable _ in
-                self.readabilityHandler = nil
-            }
-        }
     }
 }
