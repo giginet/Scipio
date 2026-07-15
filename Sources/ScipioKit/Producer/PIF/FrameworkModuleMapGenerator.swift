@@ -183,7 +183,7 @@ struct FrameworkModuleMapGenerator {
         }
         // Line-anchored so declarations below leading comment lines convert too; nested
         // submodules are indented and stay untouched.
-        let moduleDeclaration = /^module/.anchorsMatchLineEndings()
+        let moduleDeclaration = /^module\b/.anchorsMatchLineEndings()
         return contents.replacing(moduleDeclaration, with: "framework module")
     }
 }
