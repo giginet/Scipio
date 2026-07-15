@@ -132,7 +132,11 @@ struct DescriptionPackageTests {
         }
         let expectedModuleDirectory = rootPath.appending(components: "Sources", "SysShim").standardizedFileURL
         #expect(includeDir.path(percentEncoded: false) == expectedModuleDirectory.path(percentEncoded: false))
-        #expect(publicHeaders.map(\.lastPathComponent) == ["shim.h"])
+        // Recursive discovery in path-sorted order: the nested header comes first.
+        #expect(publicHeaders.map { $0.path(percentEncoded: false) } == [
+            expectedModuleDirectory.appending(components: "nested", "extra.h").path(percentEncoded: false),
+            expectedModuleDirectory.appending(component: "shim.h").path(percentEncoded: false),
+        ])
         #expect(moduleMapPath.path(percentEncoded: false) ==
                 expectedModuleDirectory.appending(component: "module.modulemap").path(percentEncoded: false))
     }
