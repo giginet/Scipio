@@ -400,19 +400,15 @@ final class RunnerTests: XCTestCase {
         let cacheSystem = CacheSystem(
             outputDirectory: frameworkOutputDir
         )
-        let packages = descriptionPackage.graph.allPackages.values
-            .filter { $0.manifest.name != descriptionPackage.manifest.name }
-
-        let allTargets = packages
-            .flatMap { package in
-                package.targets.map { BuildProduct(package: package, target: $0) }
-            }
-            .map {
-                CacheSystem.CacheTarget(buildProduct: $0, buildOptions: .default)
-            }
+        let targetGraph = try descriptionPackage.resolveBuildProductDependencyGraph().map { buildProduct in
+            CacheSystem.CacheTarget(buildProduct: buildProduct, buildOptions: .default)
+        }
+        let cacheKeys = try await cacheSystem.calculateCacheKeys(for: targetGraph)
+        let allTargets = targetGraph.allNodes.map(\.value)
 
         for product in allTargets {
-            try await cacheSystem.generateVersionFile(for: product)
+            let cacheKey = try XCTUnwrap(cacheKeys[product])
+            try await cacheSystem.generateVersionFile(for: product, cacheKey: cacheKey)
             // generate dummy directory
             try fileManager.createDirectory(
                 at: frameworkOutputDir.appendingPathComponent(product.buildProduct.frameworkName),
@@ -627,19 +623,15 @@ final class RunnerTests: XCTestCase {
         let cacheSystem = CacheSystem(
             outputDirectory: frameworkOutputDir
         )
-        let packages = descriptionPackage.graph.allPackages.values
-            .filter { $0.manifest.name != descriptionPackage.manifest.name }
-
-        let allTargets = packages
-            .flatMap { package in
-                package.targets.map { BuildProduct(package: package, target: $0) }
-            }
-            .map {
-                CacheSystem.CacheTarget(buildProduct: $0, buildOptions: .default)
-            }
+        let targetGraph = try descriptionPackage.resolveBuildProductDependencyGraph().map { buildProduct in
+            CacheSystem.CacheTarget(buildProduct: buildProduct, buildOptions: .default)
+        }
+        let cacheKeys = try await cacheSystem.calculateCacheKeys(for: targetGraph)
+        let allTargets = targetGraph.allNodes.map(\.value)
 
         for product in allTargets {
-            try await cacheSystem.generateVersionFile(for: product)
+            let cacheKey = try XCTUnwrap(cacheKeys[product])
+            try await cacheSystem.generateVersionFile(for: product, cacheKey: cacheKey)
             // generate dummy directory
             try fileManager.createDirectory(
                 at: frameworkOutputDir.appendingPathComponent(product.buildProduct.frameworkName),

@@ -100,7 +100,13 @@ struct FrameworkProducerTests {
             )
         )
 
-        let mockCacheKey = try await cacheSystem.calculateCacheKey(of: mockTarget)
+        let targetGraph = try DependencyGraph.resolve(
+            Set([mockTarget]),
+            id: \.buildProduct.target.name,
+            childIDs: { _ in [] }
+        )
+        let cacheKeys = try await cacheSystem.calculateCacheKeys(for: targetGraph)
+        let mockCacheKey = try #require(cacheKeys[mockTarget])
 
         // Setup initial state: 
         // - RestoreSource: has cache and will be the restore source (should be excluded from sharing)
