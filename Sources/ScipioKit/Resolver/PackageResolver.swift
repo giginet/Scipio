@@ -118,8 +118,8 @@ actor PackageResolver {
         return (allPackages: allPackages, allModules: allModules)
     }
 
-    /// Caches written before system-library support carry a wrong module type for system
-    /// modules; packaging from them would produce empty frameworks.
+    // Whether any system module was resolved without system-library support: caches written
+    // before it carry a wrong module type, and packaging from them would produce empty frameworks.
     static func containsStaleSystemModule(in modules: some Collection<ResolvedModule>) -> Bool {
         modules.contains { module in
             guard module.underlying.type == .system else { return false }

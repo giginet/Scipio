@@ -157,8 +157,8 @@ struct SystemLibraryPackager: Compiler {
         try assembler.assemble()
     }
 
-    /// The dependency closure of every module that transitively depends on this one: exactly
-    /// the compile contexts SwiftPM would have compiled these headers in.
+    // The dependency closure of every module that transitively depends on this one: exactly
+    // the compile contexts SwiftPM would have compiled these headers in.
     private func modulesVisibleToImporters(of target: ResolvedModule) throws -> [ResolvedModule] {
         // Keyed by name to avoid hashing whole module value trees.
         var visibleModulesByName: [String: ResolvedModule] = [target.name: target]
