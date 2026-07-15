@@ -326,24 +326,7 @@ struct CacheSystem: Sendable {
                 )
             }
 
-            let layerResults: [CacheKeyCalculationResult] = if inputs.isEmpty {
-                []
-            } else {
-                try await inputs.asyncMap(
-                    numberOfConcurrentTasks: UInt(min(inputs.count, CacheSystem.defaultParallelNumber))
-                ) { input in
-                    do {
-                        let cacheKey = try await calculateCacheKey(
-                            of: input.target,
-                            dependencyCacheKeyChecksums: input.dependencyCacheKeyChecksums,
-                            environment: environment
-                        )
-                        return CacheKeyCalculationResult.calculated(input.target, cacheKey)
-                    } catch Error.revisionNotDetected(let packageName) {
-                        return CacheKeyCalculationResult.revisionNotDetected(input.target, packageName)
-                    }
-                }
-            }
+            let layerResults = try await calculateCacheKeyResults(for: inputs, environment: environment)
 
             for result in layerResults {
                 switch result {
@@ -381,6 +364,28 @@ struct CacheSystem: Sendable {
         }
 
         return cacheKeys
+    }
+
+    private func calculateCacheKeyResults(
+        for inputs: [CacheKeyCalculationInput],
+        environment: CacheKeyEnvironment
+    ) async throws -> [CacheKeyCalculationResult] {
+        guard !inputs.isEmpty else { return [] }
+
+        return try await inputs.asyncMap(
+            numberOfConcurrentTasks: UInt(min(inputs.count, CacheSystem.defaultParallelNumber))
+        ) { input in
+            do {
+                let cacheKey = try await calculateCacheKey(
+                    of: input.target,
+                    dependencyCacheKeyChecksums: input.dependencyCacheKeyChecksums,
+                    environment: environment
+                )
+                return CacheKeyCalculationResult.calculated(input.target, cacheKey)
+            } catch Error.revisionNotDetected(let packageName) {
+                return CacheKeyCalculationResult.revisionNotDetected(input.target, packageName)
+            }
+        }
     }
 
     private func calculateCacheKey(
