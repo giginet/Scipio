@@ -196,14 +196,18 @@ struct SystemLibraryPackager: Compiler {
         var objectPaths: [URL] = []
         for architecture in sdk.stubBinaryArchitectures {
             let objectPath = workingDirectory.appending(component: "stub_\(architecture).o")
-            try await executor.execute([
-                "/usr/bin/xcrun",
-                "--sdk", sdk.settingValue,
-                "clang",
-                "-arch", architecture,
-                "-c", sourcePath.path(percentEncoded: false),
-                "-o", objectPath.path(percentEncoded: false),
-            ])
+            try await executor.execute(
+                [
+                    "/usr/bin/xcrun",
+                    "--sdk", sdk.stubBinarySDKName,
+                    "clang",
+                ]
+                + sdk.stubBinaryPlatformArguments(architecture: architecture)
+                + [
+                    "-c", sourcePath.path(percentEncoded: false),
+                    "-o", objectPath.path(percentEncoded: false),
+                ]
+            )
             objectPaths.append(objectPath)
         }
 
@@ -211,7 +215,7 @@ struct SystemLibraryPackager: Compiler {
         try await executor.execute(
             [
                 "/usr/bin/xcrun",
-                "--sdk", sdk.settingValue,
+                "--sdk", sdk.stubBinarySDKName,
                 "libtool",
                 "-static",
             ]
@@ -250,6 +254,27 @@ extension SDK {
             ["arm64", "x86_64"]
         case .watchOS:
             ["arm64", "arm64_32", "armv7k"]
+        }
+    }
+
+    // Mac Catalyst has no SDK of its own: the stub compiles against the macOS SDK there.
+    fileprivate var stubBinarySDKName: String {
+        switch self {
+        case .macCatalyst:
+            SDK.macOS.settingValue
+        default:
+            settingValue
+        }
+    }
+
+    // For Mac Catalyst the platform cannot be inferred from the SDK, so the full target
+    // triple marks the slice; XCFramework creation reads the platform from the binary.
+    fileprivate func stubBinaryPlatformArguments(architecture: String) -> [String] {
+        switch self {
+        case .macCatalyst:
+            ["-target", "\(architecture)-apple-ios-macabi"]
+        default:
+            ["-arch", architecture]
         }
     }
 }
