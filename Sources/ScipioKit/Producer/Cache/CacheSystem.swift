@@ -323,7 +323,9 @@ struct CacheSystem: Sendable {
             let layerResults: [CacheKeyCalculationResult] = if inputs.isEmpty {
                 []
             } else {
-                try await inputs.asyncMap(numberOfConcurrentTasks: UInt(inputs.count)) { input in
+                try await inputs.asyncMap(
+                    numberOfConcurrentTasks: UInt(min(inputs.count, CacheSystem.defaultParallelNumber))
+                ) { input in
                     do {
                         let cacheKey = try await calculateCacheKey(
                             of: input.target,
