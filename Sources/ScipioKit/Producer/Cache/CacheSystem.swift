@@ -235,11 +235,6 @@ struct CacheSystem: Sendable {
         )
     }
 
-    func generateVersionFile(for target: CacheTarget) async throws {
-        let cacheKey = try await calculateCacheKey(of: target)
-        try await generateVersionFile(for: target, cacheKey: cacheKey)
-    }
-
     func existsValidCache(cacheKey: SwiftPMCacheKey) async -> Bool {
         do {
             let versionFilePath = versionFilePath(for: cacheKey.targetName)
