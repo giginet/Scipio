@@ -419,15 +419,22 @@ struct FrameworkProducer {
         using cacheSystem: CacheSystem,
         cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
     ) async {
+        let frameworkName = target.buildProduct.frameworkName
         guard let cacheKey = cacheKeys[target] else {
-            logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
+            logger.warning(
+                "⚠️ Could not create VersionFile for \(frameworkName). This framework will not be cached.",
+                metadata: .color(.yellow)
+            )
             return
         }
 
         do {
             try await cacheSystem.generateVersionFile(for: target, cacheKey: cacheKey)
         } catch {
-            logger.warning("⚠️ Could not create VersionFile. This framework will not be cached.", metadata: .color(.yellow))
+            logger.warning(
+                "⚠️ Could not create VersionFile for \(frameworkName). This framework will not be cached.",
+                metadata: .color(.yellow)
+            )
         }
     }
 
