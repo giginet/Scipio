@@ -275,15 +275,6 @@ struct CacheSystem: Sendable {
         }
     }
 
-    func calculateCacheKey(of target: CacheTarget) async throws -> SwiftPMCacheKey {
-        let environment = try await cacheKeyEnvironment()
-        return try await calculateCacheKey(
-            of: target,
-            dependencyCacheKeyChecksums: [],
-            environment: environment
-        )
-    }
-
     func calculateCacheKeys(for graph: DependencyGraph<CacheTarget>) async throws -> [CacheTarget: SwiftPMCacheKey] {
         let environment = try await cacheKeyEnvironment()
         var cacheKeys: [CacheTarget: SwiftPMCacheKey] = [:]

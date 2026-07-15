@@ -308,7 +308,8 @@ final class CacheSystemTests: XCTestCase {
             let cacheSystem = CacheSystem(
                 outputDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("XCFrameworks")
             )
-            return try await cacheSystem.calculateCacheKey(of: cacheTarget)
+            let cacheKeys = try await calculateCacheKeys(for: cacheTarget, using: cacheSystem)
+            return try XCTUnwrap(cacheKeys[cacheTarget])
         }
 
         let scipioTestingRemote = try await scipioTestingCacheKey(fixture: "AsRemotePackage")
@@ -373,15 +374,9 @@ final class CacheSystemTests: XCTestCase {
             )
         )
 
-        // Ensure that the cache key cannot be calculated if the package is not in the Git repository.
-        do {
-            _ = try await cacheSystem.calculateCacheKey(of: cacheTarget)
-            XCTFail("A cache key should not be possible to calculate if the package is not in a repository.")
-        } catch let error as CacheSystem.Error {
-            XCTAssertEqual(error.errorDescription, "Repository version is not detected for \(descriptionPackage.name).")
-        } catch {
-            XCTFail("Wrong error type.")
-        }
+        // Graph-based calculation excludes targets whose package revision cannot be detected.
+        let unavailableCacheKeys = try await calculateCacheKeys(for: cacheTarget, using: cacheSystem)
+        XCTAssertNil(unavailableCacheKeys[cacheTarget])
 
         // Ensure that the cache key is properly calculated when the package is in a repository with the correct tag."
         let processExecutor: Executor = ProcessExecutor()
@@ -398,10 +393,23 @@ final class CacheSystemTests: XCTestCase {
         try await processExecutor.execute(["/usr/bin/xcrun", "git", "-C", tempTestingPackagePathString, "commit", "-m", "Initial commit"])
         try await processExecutor.execute(["/usr/bin/xcrun", "git", "-C", tempTestingPackagePathString, "tag", "v1.1"])
 
-        let cacheKey = try await cacheSystem.calculateCacheKey(of: cacheTarget)
+        let cacheKeys = try await calculateCacheKeys(for: cacheTarget, using: cacheSystem)
+        let cacheKey = try XCTUnwrap(cacheKeys[cacheTarget])
 
         XCTAssertEqual(cacheKey.targetName, myTarget.name)
         XCTAssertEqual(cacheKey.pin.version, "1.1.0")
+    }
+
+    private func calculateCacheKeys(
+        for target: CacheSystem.CacheTarget,
+        using cacheSystem: CacheSystem
+    ) async throws -> [CacheSystem.CacheTarget: SwiftPMCacheKey] {
+        let graph = try DependencyGraph.resolve(
+            Set([target]),
+            id: \.buildProduct.target.name,
+            childIDs: { _ in [] }
+        )
+        return try await cacheSystem.calculateCacheKeys(for: graph)
     }
 
     private func defaultBuildOptions(frameworkType: FrameworkType = .dynamic) -> BuildOptions {
