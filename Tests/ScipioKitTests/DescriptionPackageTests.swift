@@ -142,6 +142,26 @@ struct DescriptionPackageTests {
     }
 
     @Test
+    func executableTargetIsExcludedFromBuildProducts() async throws {
+        let rootPath = fixturePath.appendingPathComponent("PackageWithExecutableTargetDependency")
+        let package = try await DescriptionPackage(
+            packageDirectory: rootPath,
+            mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
+            onlyUseVersionsFromResolvedFile: false
+        )
+
+        let graph = try package.resolveBuildProductDependencyGraph()
+            .map { $0.target.name }
+
+        // HelperTool is dropped, and MyLib is reconnected to its transitive
+        // library dependency so the build order survives the removal.
+        #expect(graph.allNodes.map(\.value).sorted() == ["MyLib", "ToolSupport"])
+        let myLibNode = try #require(graph.rootNodes.first { $0.value == "MyLib" })
+        #expect(myLibNode.children.map(\.value) == ["ToolSupport"])
+    }
+
+    @Test
     func frameworkProducibleTargetKinds() {
         #expect(Target.TargetKind.regular.isFrameworkProducible)
         #expect(Target.TargetKind.binary.isFrameworkProducible)
