@@ -25,7 +25,8 @@ struct SystemLibraryPackagerTests {
 
     private func makePackager(
         packageDirectory: URL,
-        sdks: Set<SDK>
+        sdks: Set<SDK>,
+        customFrameworkModuleMapContents: Data? = nil
     ) async throws -> (packager: SystemLibraryPackager, buildProducts: [String: BuildProduct]) {
         let descriptionPackage = try await DescriptionPackage(
             packageDirectory: packageDirectory,
@@ -42,7 +43,7 @@ struct SystemLibraryPackagerTests {
             extraBuildParameters: nil,
             enableLibraryEvolution: false,
             keepPublicHeadersStructure: false,
-            customFrameworkModuleMapContents: nil,
+            customFrameworkModuleMapContents: customFrameworkModuleMapContents,
             stripStaticDWARFSymbols: false
         )
         let packager = SystemLibraryPackager(
@@ -80,6 +81,39 @@ struct SystemLibraryPackagerTests {
         )
         #expect(fileManager.fileExists(atPath: catalystFramework.appendingPathComponent("SysShim").path))
         #expect(fileManager.fileExists(atPath: catalystFramework.appendingPathComponent("Modules/module.modulemap").path))
+    }
+
+    @Test
+    func honorsCustomFrameworkModuleMapContents() async throws {
+        let packageDirectory = try makeTemporaryFixture(named: "PackageWithSystemLibraryTarget")
+        defer { try? fileManager.removeItem(at: packageDirectory.deletingLastPathComponent()) }
+        let customContents = """
+        framework module SysShim {
+            header "shim.h"
+            export *
+        }
+        """
+        let (packager, buildProducts) = try await makePackager(
+            packageDirectory: packageDirectory,
+            sdks: [.iOS],
+            customFrameworkModuleMapContents: Data(customContents.utf8)
+        )
+        let sysShim = try #require(buildProducts["SysShim"])
+
+        let outputDirectory = packageDirectory.appendingPathComponent("XCFrameworks")
+        try await packager.createXCFramework(
+            buildProduct: sysShim,
+            outputDirectory: outputDirectory,
+            overwrite: false
+        )
+
+        let moduleMapPath = outputDirectory.appendingPathComponent(
+            "SysShim.xcframework/ios-arm64/SysShim.framework/Modules/module.modulemap"
+        )
+        let shippedContents = try #require(
+            fileManager.contents(atPath: moduleMapPath.path).map { String(decoding: $0, as: UTF8.self) }
+        )
+        #expect(shippedContents == customContents)
     }
 
     @Test

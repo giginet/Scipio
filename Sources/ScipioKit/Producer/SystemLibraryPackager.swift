@@ -117,15 +117,7 @@ struct SystemLibraryPackager: Compiler {
     ) async throws {
         let stubBinaryPath = try await buildStubBinary(for: target, sdk: sdk)
         let infoPlistPath = try generateInfoPlist(for: target, sdk: sdk)
-        let frameworkModuleMapGenerator = FrameworkModuleMapGenerator(
-            packageLocator: descriptionPackage,
-            fileSystem: fileSystem
-        )
-        let frameworkModuleMapPath = try frameworkModuleMapGenerator.generate(
-            resolvedTarget: target,
-            sdk: sdk,
-            keepPublicHeadersStructure: true
-        )
+        let frameworkModuleMapPath = try generateFrameworkModuleMap(for: target, sdk: sdk)
 
         let frameworkOutputDir = descriptionPackage.assembledFrameworksDirectory(
             buildConfiguration: buildOptions.buildConfiguration,
@@ -225,6 +217,27 @@ struct SystemLibraryPackager: Compiler {
             ]
         )
         return binaryPath
+    }
+
+    /// Custom module map contents take precedence over the shipped module map,
+    /// matching the compiled-target path.
+    private func generateFrameworkModuleMap(for target: ResolvedModule, sdk: SDK) throws -> URL? {
+        if let customModuleMapContents = buildOptions.customFrameworkModuleMapContents {
+            logger.info("📝 Using custom modulemap for \(target.name)(\(sdk.displayName))")
+            let moduleMapPath = try descriptionPackage.generatedModuleMapPath(of: target, sdk: sdk)
+            try fileSystem.createDirectory(moduleMapPath.parentDirectory, recursive: true)
+            try fileSystem.writeFileContents(moduleMapPath, data: customModuleMapContents)
+            return moduleMapPath
+        }
+        let generator = FrameworkModuleMapGenerator(
+            packageLocator: descriptionPackage,
+            fileSystem: fileSystem
+        )
+        return try generator.generate(
+            resolvedTarget: target,
+            sdk: sdk,
+            keepPublicHeadersStructure: true
+        )
     }
 
     /// There is no build step to fill in Info.plist variables, so the file is generated with
