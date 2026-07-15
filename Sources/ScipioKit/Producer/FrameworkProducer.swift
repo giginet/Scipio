@@ -94,7 +94,7 @@ struct FrameworkProducer {
             cacheKeys = [:]
             dependencyGraphToBuild = targetGraph
         } else {
-            cacheKeys = try await precomputeCacheKeysIfPossible(cacheSystem: cacheSystem, targetGraph: targetGraph)
+            cacheKeys = try await cacheSystem.calculateCacheKeys(for: targetGraph)
             let targets = Set(targetGraph.allNodes.map(\.value))
 
             // Validate the existing frameworks in `outputDir` before restoration
@@ -162,24 +162,6 @@ struct FrameworkProducer {
         }
 
         if case .interrupted(_, let error) = targetBuildResult {
-            throw error
-        }
-    }
-
-    private func precomputeCacheKeysIfPossible(
-        cacheSystem: CacheSystem,
-        targetGraph: DependencyGraph<CacheSystem.CacheTarget>
-    ) async throws -> [CacheSystem.CacheTarget: SwiftPMCacheKey] {
-        do {
-            return try await cacheSystem.calculateCacheKeys(for: targetGraph)
-        } catch CacheSystem.Error.revisionNotDetected(let packageName) {
-            // Keep a full fallback for revision errors raised before target-level calculation.
-            logger.warning(
-                "⚠️ Cache key precomputation failed because \(packageName) has no revision. Continue build without cache restore/save for this run.",
-                metadata: .color(.yellow)
-            )
-            return [:]
-        } catch {
             throw error
         }
     }
