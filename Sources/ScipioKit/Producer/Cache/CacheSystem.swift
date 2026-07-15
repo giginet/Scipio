@@ -124,7 +124,13 @@ public struct SwiftPMCacheKey: CacheKey {
         try container.encode(clangVersion, forKey: .clangVersion)
         try container.encode(xcodeVersion, forKey: .xcodeVersion)
         try container.encodeIfPresent(scipioVersion, forKey: .scipioVersion)
-        try container.encode(sortDependencyCacheKeyChecksums(dependencyCacheKeyChecksums), forKey: .dependencyCacheKeyChecksums)
+        // Preserve the serialized form, and therefore the checksum, of dependency-free legacy keys.
+        if !dependencyCacheKeyChecksums.isEmpty {
+            try container.encode(
+                sortDependencyCacheKeyChecksums(dependencyCacheKeyChecksums),
+                forKey: .dependencyCacheKeyChecksums
+            )
+        }
     }
 }
 

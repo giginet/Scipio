@@ -96,7 +96,7 @@ final class CacheSystemTests: XCTestCase {
         XCTAssertEqual(rawString, expected)
     }
 
-    func testDecodeCacheKeyWithoutDependencyCacheKeyChecksums() throws {
+    func testDecodeAndEncodeCacheKeyWithoutDependencyCacheKeyChecksums() throws {
         let rawString = """
         {
           "buildOptions" : {
@@ -125,6 +125,10 @@ final class CacheSystemTests: XCTestCase {
         let cacheKey = try JSONDecoder().decode(SwiftPMCacheKey.self, from: Data(rawString.utf8))
 
         XCTAssertEqual(cacheKey.dependencyCacheKeyChecksums, [])
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
+        XCTAssertEqual(try encoder.encode(cacheKey), Data(rawString.utf8))
     }
 
     func testCacheKeysIncludeDirectDependencyChecksums() async throws {
