@@ -151,8 +151,9 @@ struct FrameworkModuleMapGenerator {
 
     private func generateLinkSection(context: Context) -> [String] {
         context.resolvedTarget.dependencies
-            .compactMap(\.module?.c99name)
-            .map { "    link framework \"\($0)\"" }
+            .compactMap(\.module)
+            .filter { $0.underlying.type.isFrameworkLinkable }
+            .map { "    link framework \"\($0.c99name)\"" }
     }
 
     private func generateModuleMapFile(

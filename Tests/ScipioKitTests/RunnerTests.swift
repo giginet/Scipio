@@ -17,6 +17,7 @@ private let clangPackageWithCustomModuleMapPath = fixturePath.appendingPathCompo
 private let clangPackageWithUmbrellaDirectoryPath = fixturePath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
 private let clangPackageWithInterdependentHeadersPath = fixturePath.appendingPathComponent("ClangPackageWithInterdependentHeaders")
 private let packageWithSystemLibraryTargetPath = fixturePath.appendingPathComponent("PackageWithSystemLibraryTarget")
+private let packageWithStandaloneExecutableTargetPath = fixturePath.appendingPathComponent("PackageWithStandaloneExecutableTarget")
 
 private struct InfoPlist: Decodable {
     var bundleVersion: String
@@ -373,6 +374,33 @@ final class RunnerTests: XCTestCase {
         XCTAssertEqual(
             compile.status, 0,
             "Consumer should compile using only -F (framework search). Output:\n\(compile.output)"
+        )
+    }
+
+    func testBuildPackageWithStandaloneExecutableTarget() async throws {
+        let runner = Runner(
+            mode: .createPackage,
+            options: .init(
+                // Dynamic linking so a stray -framework flag for the pruned executable
+                // dependency fails this test at link time.
+                baseBuildOptions: .init(frameworkType: .dynamic),
+                shouldOnlyUseVersionsFromResolvedFile: true
+            )
+        )
+        do {
+            try await runner.run(packageDirectory: packageWithStandaloneExecutableTargetPath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+        }
+
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: frameworkOutputDir.appendingPathComponent("MyLib.xcframework").path),
+            "MyLib.xcframework should be produced"
+        )
+        XCTAssertFalse(
+            fileManager.fileExists(atPath: frameworkOutputDir.appendingPathComponent("HelperTool.xcframework").path),
+            "HelperTool.xcframework should not be produced for a pruned executable target"
         )
     }
 

@@ -162,6 +162,39 @@ struct DescriptionPackageTests {
     }
 
     @Test
+    func frameworkLinkableDependencies() async throws {
+        let rootPath = fixturePath.appendingPathComponent("PackageWithExecutableTargetDependency")
+        let package = try await DescriptionPackage(
+            packageDirectory: rootPath,
+            mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
+            onlyUseVersionsFromResolvedFile: false
+        )
+
+        let myLib = try #require(package.graph.rootPackage.targets.first { $0.name == "MyLib" })
+
+        // The executable and everything reachable only through it build no
+        // framework, so nothing is linkable.
+        #expect(myLib.recursiveFrameworkLinkableDependencies().isEmpty)
+    }
+
+    @Test
+    func frameworkLinkableDependenciesSkipSystemModules() async throws {
+        let rootPath = fixturePath.appendingPathComponent("PackageWithSystemLibraryTarget")
+        let package = try await DescriptionPackage(
+            packageDirectory: rootPath,
+            mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
+            onlyUseVersionsFromResolvedFile: false
+        )
+
+        let mainLib = try #require(package.graph.rootPackage.targets.first { $0.name == "MainLib" })
+
+        // The system-library module is packaged but resolves through the SDK.
+        #expect(mainLib.recursiveFrameworkLinkableDependencies().flatMap(\.moduleNames) == ["CoreLib"])
+    }
+
+    @Test
     func frameworkProducibleTargetKinds() {
         #expect(Target.TargetKind.regular.isFrameworkProducible)
         #expect(Target.TargetKind.binary.isFrameworkProducible)
@@ -170,6 +203,12 @@ struct DescriptionPackageTests {
         #expect(!Target.TargetKind.test.isFrameworkProducible)
         #expect(!Target.TargetKind.plugin.isFrameworkProducible)
         #expect(!Target.TargetKind.macro.isFrameworkProducible)
+
+        // Producible but header-only: nothing to link.
+        #expect(Target.TargetKind.regular.isFrameworkLinkable)
+        #expect(Target.TargetKind.binary.isFrameworkLinkable)
+        #expect(!Target.TargetKind.system.isFrameworkLinkable)
+        #expect(!Target.TargetKind.executable.isFrameworkLinkable)
     }
 
     @Test

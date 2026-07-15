@@ -136,12 +136,13 @@ struct PIFGenerator {
                 .append("-Wl,-make_mergeable")
             fallthrough
         case .dynamic:
-            guard let resolvedTarget = allModules.first(where: { $0.c99name == target.c99Name }),
-                  let recursiveDependencies = try? resolvedTarget.recursiveDependencies() else {
+            guard let resolvedTarget = allModules.first(where: { $0.c99name == target.c99Name }) else {
                 break
             }
 
-            let moduleDependenciesPerPlatforms = categorizeModuleDependenciesByPlatform(recursiveDependencies)
+            let moduleDependenciesPerPlatforms = categorizeModuleDependenciesByPlatform(
+                resolvedTarget.recursiveFrameworkLinkableDependencies()
+            )
 
             for (platforms, dependencies) in moduleDependenciesPerPlatforms {
                 let flags = dependencies.flatMap {
@@ -174,10 +175,6 @@ struct PIFGenerator {
     ) -> [[PIFKit.Platform]?: [ResolvedModule]] {
         dependencies.reduce(into: [:]) { partialResult, dependency in
             guard case .module(let module, let conditions) = dependency else {
-                return
-            }
-            // System-library modules build no product, so there is no framework to link.
-            guard module.underlying.type != .system else {
                 return
             }
             if conditions.isEmpty {

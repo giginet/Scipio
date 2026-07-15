@@ -83,6 +83,11 @@ extension PackageManifestKit.Target.TargetKind {
         }
     }
 
+    /// Whether the produced framework is linkable: a system-library framework
+    /// is header-only and resolves through the SDK instead.
+    var isFrameworkLinkable: Bool {
+        isFrameworkProducible && self != .system
+    }
 }
 
 struct BuildProduct: Hashable, Sendable {

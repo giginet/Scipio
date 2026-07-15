@@ -37,6 +37,32 @@ extension ResolvedModule {
         try topologicalSort(self.dependencies) { $0.dependencies }
     }
 
+    /// The dependencies to link as frameworks. The walk mirrors the build-product
+    /// pruning: modules reachable only through non-producible targets build no
+    /// framework, and system-library modules are packaged but resolve through the SDK.
+    func recursiveFrameworkLinkableDependencies() -> [Dependency] {
+        var visitedModuleNames = Set<String>()
+        var linkable: [Dependency] = []
+
+        func visit(_ dependencies: [Dependency]) {
+            for dependency in dependencies {
+                switch dependency {
+                case .product:
+                    visit(dependency.dependencies)
+                case .module(let module, _):
+                    guard visitedModuleNames.insert(module.name).inserted else { continue }
+                    guard module.underlying.type.isFrameworkProducible else { continue }
+                    if module.underlying.type.isFrameworkLinkable {
+                        linkable.append(dependency)
+                    }
+                    visit(module.dependencies)
+                }
+            }
+        }
+
+        visit(dependencies)
+        return linkable
+    }
 }
 
 extension ResolvedModule.Dependency {
