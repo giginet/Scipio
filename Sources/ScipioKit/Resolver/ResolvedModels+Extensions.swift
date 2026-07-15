@@ -36,6 +36,7 @@ extension ResolvedModule {
     func recursiveDependencies() throws -> [Dependency] {
         try topologicalSort(self.dependencies) { $0.dependencies }
     }
+
 }
 
 extension ResolvedModule.Dependency {
@@ -62,12 +63,15 @@ extension ResolvedModule.Dependency {
         }
     }
 
-    var moduleNames: [String] {
-        let moduleNames = switch self {
-        case .module(let module, _): [module.name]
-        case .product(let product, _): product.modules.map(\.name)
+    var modules: [ResolvedModule] {
+        switch self {
+        case .module(let module, _): [module]
+        case .product(let product, _): product.modules
         }
-        return moduleNames
+    }
+
+    var moduleNames: [String] {
+        modules.map(\.name)
     }
 }
 

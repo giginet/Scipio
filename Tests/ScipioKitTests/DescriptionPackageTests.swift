@@ -154,11 +154,11 @@ struct DescriptionPackageTests {
         let graph = try package.resolveBuildProductDependencyGraph()
             .map { $0.target.name }
 
-        // HelperTool is dropped, and MyLib is reconnected to its transitive
-        // library dependency so the build order survives the removal.
-        #expect(graph.allNodes.map(\.value).sorted() == ["MyLib", "ToolSupport"])
+        // HelperTool produces no framework, so it is pruned together with
+        // ToolSupport, which is reachable only through it.
+        #expect(graph.allNodes.map(\.value) == ["MyLib"])
         let myLibNode = try #require(graph.rootNodes.first { $0.value == "MyLib" })
-        #expect(myLibNode.children.map(\.value) == ["ToolSupport"])
+        #expect(myLibNode.children.isEmpty)
     }
 
     @Test
