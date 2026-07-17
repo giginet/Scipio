@@ -1,5 +1,6 @@
 import Foundation
 @testable import ScipioKit
+@testable import ScipioKitCore
 import Testing
 
 private let fixturesPath = URL(fileURLWithPath: #filePath)
@@ -8,6 +9,7 @@ private let fixturesPath = URL(fileURLWithPath: #filePath)
     .appendingPathComponent("Fixtures")
 private let clangPackageWithUmbrellaDirectoryPath = fixturesPath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
 private let clangPackageWithRelativePublicHeadersPath = fixturesPath.appendingPathComponent("ClangPackageWithRelativePublicHeadersPath")
+private let packageWithSystemLibraryTargetPath = fixturesPath.appendingPathComponent("PackageWithSystemLibraryTarget")
 
 private struct PackageLocatorMock: PackageLocator {
     let packageDirectory: URL
@@ -92,11 +94,65 @@ framework module ClangPackageWithRelativePublicHeadersPath {
         #expect(generatedModuleMapContents == expectedModuleMapContents)
     }
 
+    @Test
+    func generate_systemLibraryTarget() async throws {
+        let outputDirectory = temporaryDirectory.appending(component: #function)
+        defer { try? fileSystem.removeFileTree(outputDirectory) }
+
+        let generatedModuleMapContents = try await generateModuleMap(
+            for: packageWithSystemLibraryTargetPath,
+            moduleName: "SysShim",
+            keepPublicHeadersStructure: true,
+            outputDirectory: outputDirectory
+        )
+        // The shipped module map is converted to a framework module; the declaration is found
+        // even below leading comment lines, which stay in place.
+        let expectedModuleMapContents = """
+// A leading comment: the framework conversion must still find the declaration below.
+framework module SysShim {
+    header "shim.h"
+    export *
+}
+"""
+        #expect(generatedModuleMapContents == expectedModuleMapContents)
+    }
+
+    @Test
+    func generate_skipsNonFrameworkDependenciesInLinkSection() async throws {
+        let outputDirectory = temporaryDirectory.appending(component: #function)
+        defer { try? fileSystem.removeFileTree(outputDirectory) }
+
+        let executable = try ResolvedGraphFixtures.resolvedModule(
+            name: "HelperTool",
+            targetType: "executable"
+        )
+        let library = try ResolvedGraphFixtures.resolvedModule(name: "RealLib")
+        let target = try ResolvedGraphFixtures.resolvedModule(
+            name: "MyTarget",
+            dependencies: [
+                .module(executable, conditions: []),
+                .module(library, conditions: []),
+            ]
+        )
+
+        let generatedModuleMapContents = try await generateModuleMap(
+            for: clangPackageWithUmbrellaDirectoryPath,
+            moduleName: "MyTarget",
+            keepPublicHeadersStructure: false,
+            outputDirectory: outputDirectory,
+            resolvedTarget: target
+        )
+
+        #expect(generatedModuleMapContents.contains("link framework \"RealLib\""))
+        #expect(!generatedModuleMapContents.contains("link framework \"HelperTool\""))
+    }
+
     private func generateModuleMap(
         for packageDirectory: URL,
         moduleName: String,
         keepPublicHeadersStructure: Bool,
-        outputDirectory: URL
+        outputDirectory: URL,
+        resolvedTarget overrideResolvedTarget: ResolvedModule? = nil
     ) async throws -> String {
         let packageLocator = PackageLocatorMock(packageDirectory: outputDirectory)
         let generator = FrameworkModuleMapGenerator(
@@ -104,14 +160,20 @@ framework module ClangPackageWithRelativePublicHeadersPath {
             fileSystem: fileSystem
         )
 
-        let descriptionPackage = try await DescriptionPackage(
-            packageDirectory: packageDirectory,
-            mode: .createPackage,
-            resolvedPackagesCachePolicies: [],
-            onlyUseVersionsFromResolvedFile: false
-        )
+        let resolvedTarget: ResolvedModule
+        if let overrideResolvedTarget {
+            resolvedTarget = overrideResolvedTarget
+        } else {
+            let descriptionPackage = try await DescriptionPackage(
+                packageDirectory: packageDirectory,
+                mode: .createPackage,
+                resolvedPackagesCachePolicies: [],
+                onlyUseVersionsFromResolvedFile: false
+            )
+            resolvedTarget = try #require(descriptionPackage.graph.module(for: moduleName))
+        }
         let generatedModuleMapPath = try generator.generate(
-            resolvedTarget: #require(descriptionPackage.graph.module(for: moduleName)),
+            resolvedTarget: resolvedTarget,
             sdk: SDK.macOS,
             keepPublicHeadersStructure: keepPublicHeadersStructure
         )

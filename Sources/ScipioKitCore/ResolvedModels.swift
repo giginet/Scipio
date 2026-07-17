@@ -188,6 +188,10 @@ public enum ResolvedModuleType: Hashable, Codable, Sendable {
     /// A Swift module (compiled from Swift source).
     case swift
 
+    /// A system-library module: a module map with optional headers, nothing to compile.
+    /// `includeDir` is the module directory itself; the module map addresses headers relative to it.
+    case system(includeDir: URL, publicHeaders: [URL], moduleMapPath: URL)
+
     /// Returns the include directory for Clang modules, or `nil` for other module types.
     public var includeDir: URL? {
         switch self {

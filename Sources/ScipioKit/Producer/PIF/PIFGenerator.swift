@@ -136,12 +136,13 @@ struct PIFGenerator {
                 .append("-Wl,-make_mergeable")
             fallthrough
         case .dynamic:
-            guard let resolvedTarget = allModules.first(where: { $0.c99name == target.c99Name }),
-                  let recursiveDependencies = try? resolvedTarget.recursiveDependencies() else {
+            guard let resolvedTarget = allModules.first(where: { $0.c99name == target.c99Name }) else {
                 break
             }
 
-            let moduleDependenciesPerPlatforms = categorizeModuleDependenciesByPlatform(recursiveDependencies)
+            let moduleDependenciesPerPlatforms = categorizeModuleDependenciesByPlatform(
+                resolvedTarget.recursiveFrameworkLinkableDependencies()
+            )
 
             for (platforms, dependencies) in moduleDependenciesPerPlatforms {
                 let flags = dependencies.flatMap {

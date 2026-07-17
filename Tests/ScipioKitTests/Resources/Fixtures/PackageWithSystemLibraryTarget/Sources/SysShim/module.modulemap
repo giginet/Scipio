@@ -1,0 +1,5 @@
+// A leading comment: the framework conversion must still find the declaration below.
+module SysShim {
+    header "shim.h"
+    export *
+}

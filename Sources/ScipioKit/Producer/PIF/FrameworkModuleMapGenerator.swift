@@ -56,6 +56,11 @@ struct FrameworkModuleMapGenerator {
             case .none:
                 return nil
             }
+        } else if case let .system(_, _, moduleMapPath) = resolvedTarget.resolvedModuleType {
+            // A system-library module ships its own module map; only the framework conversion applies.
+            let path = try constructGeneratedModuleMapPath(context: context)
+            try generateModuleMapFile(context: context, moduleMapType: .custom(moduleMapPath), outputPath: path)
+            return path
         } else {
             let path = try constructGeneratedModuleMapPath(context: context)
             try generateModuleMapFile(context: context, moduleMapType: nil, outputPath: path)
@@ -146,8 +151,9 @@ struct FrameworkModuleMapGenerator {
 
     private func generateLinkSection(context: Context) -> [String] {
         context.resolvedTarget.dependencies
-            .compactMap(\.module?.c99name)
-            .map { "    link framework \"\($0)\"" }
+            .compactMap(\.module)
+            .filter { $0.underlying.type.isFrameworkLinkable }
+            .map { "    link framework \"\($0.c99name)\"" }
     }
 
     private func generateModuleMapFile(
@@ -176,12 +182,10 @@ struct FrameworkModuleMapGenerator {
         guard let contents = String(bytes: rawData, encoding: .utf8) else {
             throw Error.unableToLoadCustomModuleMap(customModuleMap)
         }
-        // TODO: Use modern regex
-        let regex = try NSRegularExpression(pattern: "^module", options: [])
-        let replaced = regex.stringByReplacingMatches(in: contents,
-                                                      range: NSRange(location: 0, length: contents.utf16.count),
-                                                      withTemplate: "framework module")
-        return replaced
+        // Line-anchored so declarations below leading comment lines convert too; nested
+        // submodules are indented and stay untouched.
+        let moduleDeclaration = /^module\b/.anchorsMatchLineEndings()
+        return contents.replacing(moduleDeclaration, with: "framework module")
     }
 }
 

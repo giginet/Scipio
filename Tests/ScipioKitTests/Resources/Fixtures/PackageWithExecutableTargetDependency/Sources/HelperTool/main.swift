@@ -1,0 +1,3 @@
+import ToolSupport
+
+_ = toolSupportValue()

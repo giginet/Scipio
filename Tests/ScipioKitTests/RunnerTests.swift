@@ -16,6 +16,8 @@ private let clangPackageWithSymbolicLinkHeadersPath = fixturePath.appendingPathC
 private let clangPackageWithCustomModuleMapPath = fixturePath.appendingPathComponent("ClangPackageWithCustomModuleMap")
 private let clangPackageWithUmbrellaDirectoryPath = fixturePath.appendingPathComponent("ClangPackageWithUmbrellaDirectory")
 private let clangPackageWithInterdependentHeadersPath = fixturePath.appendingPathComponent("ClangPackageWithInterdependentHeaders")
+private let packageWithSystemLibraryTargetPath = fixturePath.appendingPathComponent("PackageWithSystemLibraryTarget")
+private let packageWithStandaloneExecutableTargetPath = fixturePath.appendingPathComponent("PackageWithStandaloneExecutableTarget")
 
 private struct InfoPlist: Decodable {
     var bundleVersion: String
@@ -261,6 +263,144 @@ final class RunnerTests: XCTestCase {
         XCTAssertEqual(
             compile.status, 0,
             "Consumer should compile using only -F (framework search). Output:\n\(compile.output)"
+        )
+    }
+
+    func testBuildPackageWithSystemLibraryTarget() async throws {
+        let runner = Runner(
+            mode: .createPackage,
+            options: .init(
+                // Dynamic linking (explicitly, not by default) so a missing system-module skip in
+                // PIFGenerator's linker-flag injection fails this test with `framework not found`.
+                baseBuildOptions: .init(
+                    isSimulatorSupported: true,
+                    frameworkType: .dynamic,
+                    keepPublicHeadersStructure: true
+                ),
+                shouldOnlyUseVersionsFromResolvedFile: true
+            )
+        )
+        do {
+            try await runner.run(packageDirectory: packageWithSystemLibraryTargetPath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+        }
+
+        for xcFrameworkName in ["MainLib.xcframework", "CoreLib.xcframework", "SysShim.xcframework"] {
+            XCTAssertTrue(
+                fileManager.fileExists(atPath: frameworkOutputDir.appendingPathComponent(xcFrameworkName).path),
+                "\(xcFrameworkName) should be produced"
+            )
+        }
+
+        let sysShimFramework = frameworkOutputDir
+            .appendingPathComponent("SysShim.xcframework")
+            .appendingPathComponent("ios-arm64")
+            .appendingPathComponent("SysShim.framework")
+
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: sysShimFramework.appendingPathComponent("SysShim").path),
+            "The framework should contain the stub binary"
+        )
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: sysShimFramework.appendingPathComponent("Info.plist").path),
+            "The framework should contain a generated Info.plist"
+        )
+
+        // The simulator stub merges one object per architecture into a single archive.
+        let simulatorStubPath = frameworkOutputDir
+            .appendingPathComponent("SysShim.xcframework")
+            .appendingPathComponent("ios-arm64_x86_64-simulator")
+            .appendingPathComponent("SysShim.framework/SysShim")
+            .path
+        let lipoInfo = try runProcess("/usr/bin/xcrun", ["lipo", "-info", simulatorStubPath])
+        XCTAssertEqual(lipoInfo.status, 0, "The simulator slice should contain a stub binary")
+        XCTAssertTrue(
+            lipoInfo.output.contains("x86_64") && lipoInfo.output.contains("arm64"),
+            "The simulator stub should cover both architectures, got:\n\(lipoInfo.output)"
+        )
+
+        let moduleMapPath = sysShimFramework.appendingPathComponent("Modules/module.modulemap").path
+        let moduleMapContents = try XCTUnwrap(
+            fileManager.contents(atPath: moduleMapPath).flatMap { String(decoding: $0, as: UTF8.self) }
+        )
+        XCTAssertTrue(
+            moduleMapContents.contains("framework module SysShim"),
+            "The module map should declare a framework module, got:\n\(moduleMapContents)"
+        )
+
+        let shimHeaderPath = sysShimFramework.appendingPathComponent("Headers/shim.h").path
+        let shimHeaderContents = try XCTUnwrap(
+            fileManager.contents(atPath: shimHeaderPath).flatMap { String(decoding: $0, as: UTF8.self) }
+        )
+        XCTAssertTrue(
+            shimHeaderContents.contains("#include <CoreLib/core/core.h>"),
+            "Angle-bracket include should be rewritten to framework form, got:\n\(shimHeaderContents)"
+        )
+        XCTAssertFalse(
+            shimHeaderContents.contains("#include <core/core.h>"),
+            "Original non-framework include should be gone"
+        )
+
+        // Importing the Swift module that itself imports the system-library module must resolve
+        // with only -F: the consumer-side `missing required module` failure this PR removes.
+        let sdkPath = try runProcess("/usr/bin/xcrun", ["--sdk", "iphoneos", "--show-sdk-path"])
+        XCTAssertEqual(sdkPath.status, 0, "Should resolve the iphoneos SDK path")
+
+        let consumerSource = tempDir.appendingPathComponent("system_library_consumer.swift")
+        try """
+        import MainLib
+        import SysShim
+
+        func consumerValue() -> sys_shim_value_t {
+            mainLibValue()
+        }
+
+        """.write(to: consumerSource, atomically: true, encoding: .utf8)
+        defer { try? fileManager.removeItem(at: consumerSource) }
+
+        let frameworkSearchPaths = ["MainLib", "CoreLib", "SysShim"].flatMap { name in
+            ["-F", frameworkOutputDir.appendingPathComponent("\(name).xcframework/ios-arm64").path]
+        }
+        let compile = try runProcess("/usr/bin/xcrun", [
+            "--sdk", "iphoneos", "swiftc",
+            "-typecheck",
+            "-target", "arm64-apple-ios12.0",
+            "-sdk", sdkPath.output.trimmingCharacters(in: .whitespacesAndNewlines),
+        ] + frameworkSearchPaths + [
+            consumerSource.path,
+        ])
+        XCTAssertEqual(
+            compile.status, 0,
+            "Consumer should compile using only -F (framework search). Output:\n\(compile.output)"
+        )
+    }
+
+    func testBuildPackageWithStandaloneExecutableTarget() async throws {
+        let runner = Runner(
+            mode: .createPackage,
+            options: .init(
+                // Dynamic linking so a stray -framework flag for the pruned executable
+                // dependency fails this test at link time.
+                baseBuildOptions: .init(frameworkType: .dynamic),
+                shouldOnlyUseVersionsFromResolvedFile: true
+            )
+        )
+        do {
+            try await runner.run(packageDirectory: packageWithStandaloneExecutableTargetPath,
+                                 frameworkOutputDir: .custom(frameworkOutputDir))
+        } catch {
+            XCTFail("Build should be succeeded. \(error.localizedDescription)")
+        }
+
+        XCTAssertTrue(
+            fileManager.fileExists(atPath: frameworkOutputDir.appendingPathComponent("MyLib.xcframework").path),
+            "MyLib.xcframework should be produced"
+        )
+        XCTAssertFalse(
+            fileManager.fileExists(atPath: frameworkOutputDir.appendingPathComponent("HelperTool.xcframework").path),
+            "HelperTool.xcframework should not be produced for a pruned executable target"
         )
     }
 

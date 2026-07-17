@@ -36,6 +36,33 @@ extension ResolvedModule {
     func recursiveDependencies() throws -> [Dependency] {
         try topologicalSort(self.dependencies) { $0.dependencies }
     }
+
+    /// The dependencies to link as frameworks. The walk mirrors the build-product
+    /// pruning: modules reachable only through non-producible targets build no
+    /// framework, and system-library modules are packaged but resolve through the SDK.
+    func recursiveFrameworkLinkableDependencies() -> [Dependency] {
+        var visitedModuleNames = Set<String>()
+        var linkable: [Dependency] = []
+
+        func visit(_ dependencies: [Dependency]) {
+            for dependency in dependencies {
+                switch dependency {
+                case .product:
+                    visit(dependency.dependencies)
+                case .module(let module, _):
+                    guard visitedModuleNames.insert(module.name).inserted else { continue }
+                    guard module.underlying.type.isFrameworkProducible else { continue }
+                    if module.underlying.type.isFrameworkLinkable {
+                        linkable.append(dependency)
+                    }
+                    visit(module.dependencies)
+                }
+            }
+        }
+
+        visit(dependencies)
+        return linkable
+    }
 }
 
 extension ResolvedModule.Dependency {
@@ -62,12 +89,15 @@ extension ResolvedModule.Dependency {
         }
     }
 
-    var moduleNames: [String] {
-        let moduleNames = switch self {
-        case .module(let module, _): [module.name]
-        case .product(let product, _): product.modules.map(\.name)
+    var modules: [ResolvedModule] {
+        switch self {
+        case .module(let module, _): [module]
+        case .product(let product, _): product.modules
         }
-        return moduleNames
+    }
+
+    var moduleNames: [String] {
+        modules.map(\.name)
     }
 }
 

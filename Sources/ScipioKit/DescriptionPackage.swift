@@ -72,6 +72,24 @@ extension DescriptionPackage {
     }
 }
 
+extension PackageManifestKit.Target.TargetKind {
+    /// Whether Scipio can produce an XCFramework for this target kind.
+    var isFrameworkProducible: Bool {
+        switch self {
+        case .regular, .binary, .system:
+            true
+        case .executable, .test, .plugin, .macro:
+            false
+        }
+    }
+
+    /// Whether the produced framework is linkable: a system-library framework
+    /// is header-only and resolves through the SDK instead.
+    var isFrameworkLinkable: Bool {
+        isFrameworkProducible && self != .system
+    }
+}
+
 struct BuildProduct: Hashable, Sendable {
     var package: ResolvedPackage
     var target: ResolvedModule
@@ -114,12 +132,15 @@ private final class BuildProductsResolver {
 
     func resolveBuildProductDependencyGraph() throws -> DependencyGraph<BuildProduct> {
         let targetsToBuild = try targetsToBuild()
-        let products = try targetsToBuild.flatMap(resolveBuildProduct(from:))
+        let products = try Set(targetsToBuild.flatMap(resolveBuildProduct(from:)))
 
+        // Non-producible targets are pruned from the resolution with their subtrees,
+        // so edges into them are dropped here as well.
+        let productNames = Set(products.map(\.target.name))
         return try DependencyGraph<BuildProduct>.resolve(
-            Set(products),
+            products,
             id: \.target.name,
-            childIDs: { $0.target.dependencies.flatMap(\.moduleNames) }
+            childIDs: { $0.target.dependencies.flatMap(\.moduleNames).filter(productNames.contains) }
         )
     }
 
@@ -140,21 +161,22 @@ private final class BuildProductsResolver {
     }
 
     private func resolveBuildProduct(from rootTarget: ResolvedModule) throws -> Set<BuildProduct> {
-        let dependencyProducts = Set(try rootTarget.recursiveModuleDependencies()
-            .flatMap(buildProducts(from:)))
-
         switch descriptionPackage.mode {
         case .createPackage:
             // In create mode, rootTarget should be built
-            let rootTargetProducts = try buildProducts(from: rootTarget)
-            return rootTargetProducts.union(dependencyProducts)
+            return try buildProducts(from: rootTarget)
         case .prepareDependencies:
             // In prepare mode, rootTarget is just a container. So it should be skipped.
-            return dependencyProducts
+            return Set(try rootTarget.dependencies.flatMap(\.modules).flatMap(buildProducts(from:)))
         }
     }
 
     private func buildProducts(from target: ResolvedModule) throws -> Set<BuildProduct> {
+        // A target that produces no framework is pruned with its whole subtree:
+        // its dependencies serve no product a consumer can link.
+        guard target.underlying.type.isFrameworkProducible else {
+            return []
+        }
         guard let package = descriptionPackage.graph.package(for: target) else {
             return []
         }
@@ -165,7 +187,7 @@ private final class BuildProductsResolver {
             return buildProducts
         }
 
-        let dependencyProducts = try target.recursiveDependencies().compactMap(\.module).flatMap(buildProducts(from:))
+        let dependencyProducts = try target.dependencies.flatMap(\.modules).flatMap(buildProducts(from:))
 
         let buildProducts = Set([rootTargetProduct] + dependencyProducts)
         buildProductsCache.updateValue(buildProducts, forKey: rootTargetProduct)

@@ -28,12 +28,24 @@ struct CHeaderIncludeRewriter {
         var ambiguousPaths: Set<String> = []
 
         for module in modules {
-            guard case let .clang(includeDir, publicHeaders) = module.resolvedModuleType else {
+            let includeDir: URL
+            let publicHeaders: [URL]
+            let keepsStructure: Bool
+            switch module.resolvedModuleType {
+            case .clang(let clangIncludeDir, let clangPublicHeaders):
+                includeDir = clangIncludeDir
+                publicHeaders = clangPublicHeaders
+                keepsStructure = keepPublicHeadersStructure(module)
+            case .system(let moduleDir, let systemHeaders, _):
+                // System-library headers always land with their module-map-relative layout preserved.
+                includeDir = moduleDir
+                publicHeaders = systemHeaders
+                keepsStructure = true
+            default:
                 continue
             }
             // `-F` resolves the framework bundle name, not the C99 modulemap name.
             let moduleName = module.name.packageNamed()
-            let keepsStructure = keepPublicHeadersStructure(module)
             var base = includeDir.standardizedFileURL.path(percentEncoded: false)
             if base.hasSuffix("/") && base != "/" {
                 base.removeLast()
