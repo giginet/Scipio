@@ -427,6 +427,8 @@ struct CacheSystem: Sendable {
             return pinState
         }
 
+        // TODO: Once package registry is supported, skip makePinStateFromRevision() only for registry packages,
+        // which have no git repository.
         guard let pinState = await package.makePinStateFromRevision() else {
             throw Error.revisionNotDetected(package.manifest.name)
         }
@@ -469,7 +471,7 @@ extension ResolvedPackage {
 
         // TODO: Even though the version requirement already covers the vast majority of cases,
         // supporting `branch` and `revision` requirements should, in theory, also be possible.
-        return Pin.State(
+        return .sourceControl(
             revision: revision,
             version: version.description
         )

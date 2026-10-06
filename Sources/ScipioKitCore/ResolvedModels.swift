@@ -249,24 +249,118 @@ public struct Pin: Sendable, Codable, Identifiable, Hashable {
     /// The pinned state (revision, version, or branch).
     public var state: State
 
+    /// The keys of a pin in Package.resolved.
+    private enum CodingKeys: String, CodingKey {
+        /// The unique identity string of the package.
+        case identity
+        /// The kind of the package, as defined by SwiftPM's `PackageReference.Kind`.
+        ///
+        /// - SeeAlso:
+        ///   https://github.com/swiftlang/swift-package-manager/blob/main/Sources/PackageModel/PackageReference.swift
+        case kind
+        /// The location of the package.
+        case location
+        /// The state in the Package.resolved form, which `PackageResolvedState` represents.
+        case state
+    }
+
+    /// The `state` object in Package.resolved.
+    private struct PackageResolvedState: Codable {
+        var revision: String
+        var version: String?
+        var branch: String?
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.identity = try container.decode(String.self, forKey: .identity)
+        self.kind = try container.decode(String.self, forKey: .kind)
+        self.location = try container.decode(String.self, forKey: .location)
+        let packageResolvedState = try container.decode(PackageResolvedState.self, forKey: .state)
+        self.state = .sourceControl(
+            revision: packageResolvedState.revision,
+            version: packageResolvedState.version,
+            branch: packageResolvedState.branch
+        )
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(identity, forKey: .identity)
+        try container.encode(kind, forKey: .kind)
+        try container.encode(location, forKey: .location)
+        switch state {
+        case .sourceControl(let revision, let version, let branch):
+            try container.encode(PackageResolvedState(revision: revision, version: version, branch: branch), forKey: .state)
+        }
+    }
+}
+
+extension Pin {
     /// Represents the exact state of a pinned package.
-    ///
-    /// The state contains the revision and optionally either a semantic version
-    /// or a branch name, depending on how the package was pinned.
-    public struct State: Sendable, Codable, Hashable {
-        /// Git commit revision (SHA) of the pinned package.
-        public var revision: String
+    public enum State: Sendable, Codable, Hashable {
+        /// The state contains the revision and optionally either a semantic version
+        /// or a branch name, depending on how the package was pinned.
+        ///
+        /// - Parameters:
+        ///   - revision: Git commit revision (SHA) of the pinned package.
+        ///   - version: Semantic version string.
+        ///   - branch: Branch name.
+        case sourceControl(revision: String, version: String? = nil, branch: String? = nil)
 
-        /// Semantic version string.
-        public var version: String?
+        /// The semantic version the package is pinned to, if any.
+        public var version: String? {
+            switch self {
+            case .sourceControl(_, let version, _):
+                version
+            }
+        }
 
-        /// Branch name.
-        public var branch: String?
+        private enum CodingKeys: String, CodingKey {
+            /// The kind of the state, such as source control, which determines the case to decode.
+            case kind
 
-        package init(revision: String, version: String? = nil, branch: String? = nil) {
-            self.revision = revision
-            self.version = version
-            self.branch = branch
+            /// Git commit revision (SHA) of the pinned package.
+            case revision
+            /// Semantic version string.
+            case version
+            /// Branch name.
+            case branch
+        }
+
+        /// The kind of the state as stored in JSON.
+        private enum Kind: String, Codable {
+            case sourceControl
+        }
+
+        private var kind: Kind {
+            switch self {
+            case .sourceControl:
+                .sourceControl
+            }
+        }
+
+        public init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            switch try container.decode(Kind.self, forKey: .kind) {
+            case .sourceControl:
+                self = .sourceControl(
+                    revision: try container.decode(String.self, forKey: .revision),
+                    version: try container.decodeIfPresent(String.self, forKey: .version),
+                    branch: try container.decodeIfPresent(String.self, forKey: .branch)
+                )
+            }
+        }
+
+        public func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(kind, forKey: .kind)
+            switch self {
+            case .sourceControl(let revision, let version, let branch):
+                try container.encode(revision, forKey: .revision)
+                try container.encodeIfPresent(version, forKey: .version)
+                try container.encodeIfPresent(branch, forKey: .branch)
+            }
         }
     }
 }
