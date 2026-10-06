@@ -20,7 +20,7 @@ final class CacheSystemTests: XCTestCase {
     func testEncodeCacheKey() throws {
         let cacheKey = SwiftPMCacheKey(
             localPackageCanonicalLocation: "/path/to/MyPackage",
-            pin: .init(revision: "111111111"),
+            pin: .sourceControl(revision: "111111111"),
             targetName: "MyTarget",
             buildOptions: .init(
                 buildConfiguration: .release,
@@ -83,6 +83,7 @@ final class CacheSystemTests: XCTestCase {
           ],
           "localPackageCanonicalLocation" : "\\/path\\/to\\/MyPackage",
           "pin" : {
+            "kind" : "sourceControl",
             "revision" : "111111111"
           },
           "targetName" : "MyTarget",
@@ -94,6 +95,38 @@ final class CacheSystemTests: XCTestCase {
         """
         // swiftlint:enable line_length
         XCTAssertEqual(rawString, expected)
+    }
+
+    func testDecodingEncodedCacheKeyRestoresOriginal() throws {
+        let revision = "111111111"
+        let version = "1.2.3"
+        let branch = "main"
+
+        let cacheKey = SwiftPMCacheKey(
+            localPackageCanonicalLocation: nil,
+            pin: .sourceControl(revision: revision, version: version, branch: branch),
+            targetName: "MyTarget",
+            buildOptions: .init(
+                buildConfiguration: .release,
+                isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
+                sdks: [.iOS],
+                extraFlags: nil,
+                extraBuildParameters: nil,
+                enableLibraryEvolution: false,
+                keepPublicHeadersStructure: false,
+                customFrameworkModuleMapContents: nil,
+                stripStaticDWARFSymbols: false
+            ),
+            clangVersion: "clang-1400.0.29.102",
+            xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d")
+        )
+
+        let data = try JSONEncoder().encode(cacheKey)
+        let decoded = try JSONDecoder().decode(SwiftPMCacheKey.self, from: data)
+
+        XCTAssertEqual(decoded, cacheKey)
+        XCTAssertEqual(decoded.pin, .sourceControl(revision: revision, version: version, branch: branch))
     }
 
     func testDecodeAndEncodeCacheKeyWithoutDependencyCacheKeyChecksums() throws {
@@ -112,6 +145,7 @@ final class CacheSystemTests: XCTestCase {
           },
           "clangVersion" : "clang-1400.0.29.102",
           "pin" : {
+            "kind" : "sourceControl",
             "revision" : "111111111"
           },
           "targetName" : "MyTarget",
@@ -129,6 +163,46 @@ final class CacheSystemTests: XCTestCase {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .prettyPrinted]
         XCTAssertEqual(try encoder.encode(cacheKey), Data(rawString.utf8))
+    }
+
+    func testExistsValidCacheIsFalseForVersionFileWithoutPinKind() async throws {
+        let outputDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: outputDirectory) }
+        let cacheKey = SwiftPMCacheKey(
+            localPackageCanonicalLocation: nil,
+            pin: .sourceControl(revision: "111111111"),
+            targetName: "MyTarget",
+            buildOptions: .init(
+                buildConfiguration: .release,
+                isDebugSymbolsEmbedded: false,
+                frameworkType: .dynamic,
+                sdks: [.iOS],
+                extraFlags: nil,
+                extraBuildParameters: nil,
+                enableLibraryEvolution: false,
+                keepPublicHeadersStructure: false,
+                customFrameworkModuleMapContents: nil,
+                stripStaticDWARFSymbols: false
+            ),
+            clangVersion: "clang-1400.0.29.102",
+            xcodeVersion: .init(xcodeVersion: "15.4", xcodeBuildVersion: "15F31d")
+        )
+        let versionFile = outputDirectory.appendingPathComponent(".MyTarget.version")
+        let cacheSystem = CacheSystem(outputDirectory: outputDirectory)
+
+        let data = try JSONEncoder().encode(cacheKey)
+        try data.write(to: versionFile)
+        let existsForCurrentFormat = await cacheSystem.existsValidCache(cacheKey: cacheKey)
+        XCTAssertTrue(existsForCurrentFormat)
+
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        var pin = try XCTUnwrap(object["pin"] as? [String: Any])
+        pin["kind"] = nil
+        object["pin"] = pin
+        try JSONSerialization.data(withJSONObject: object).write(to: versionFile)
+        let existsForPreviousFormat = await cacheSystem.existsValidCache(cacheKey: cacheKey)
+        XCTAssertFalse(existsForPreviousFormat)
     }
 
     func testCacheKeysIncludeDirectDependencyChecksums() async throws {
