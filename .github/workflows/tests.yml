@@ -13,15 +13,15 @@ jobs:
     strategy:
       matrix:
         include:
-          - xcode_version: "16.4" # Swift 6.1.2
-            macos_version: macos-15
           - xcode_version: "26.0.1" # Swift 6.2
-            macos_version: macos-15
-          - xcode_version: "26.4" # Swift 6.3
-            macos_version: macos-26
+            runner: macos-15
+          - xcode_version: "26.4.1" # Swift 6.3
+            runner: macos-26
+          - xcode_version: "27.0" # Swift 6.4
+            runner: xcode-27
     env:
       DEVELOPER_DIR: "/Applications/Xcode_${{ matrix.xcode_version }}.app/Contents/Developer"
-    runs-on: ${{ matrix.macos_version }}
+    runs-on: ${{ matrix.runner }}
     steps:
     - name: Get swift version
       run: swift --version
