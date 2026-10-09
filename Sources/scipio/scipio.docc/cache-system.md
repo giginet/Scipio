@@ -90,6 +90,10 @@ Each writer first copies the framework to a unique temporary path beside the cac
 
 Existing entries from older versions are not checked for complete framework contents. An interrupted copy from an older version can leave an incomplete entry at the final cache path. Remove that entry before you run Scipio again.
 
+Scipio saves each completed target to local disk storages with the `producer` role before it starts the next target. Other producer storages receive built artifacts after the build loop ends.
+
+Scipio checks the configured cache storages before it starts to build targets. When a local disk cache has the `consumer` role, Scipio checks it again immediately before each remaining target is built. This lets another process supply a matching artifact during the same run. A target that is already building continues to build. The additional check applies only to the built-in local disk storage. Scipio does not repeat the remote or custom storage restoration scan before each target.
+
 Use `local` for CLI.
 
 ### Remote Disk Cache
