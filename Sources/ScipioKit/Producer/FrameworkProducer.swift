@@ -127,7 +127,11 @@ struct FrameworkProducer {
             dependencyGraphToBuild = targetGraph
         }
 
-        let targetBuildResult = await buildTargets(dependencyGraphToBuild)
+        let targetBuildResult = await buildTargets(
+            dependencyGraphToBuild,
+            cacheSystem: cacheSystem,
+            cacheKeys: cacheKeys
+        )
 
         // Keep the historical "cache feature is fully off" behavior when no cache policy is provided:
         // no restore, no cache save, and no version file generation.
@@ -138,7 +142,16 @@ struct FrameworkProducer {
             return
         }
 
-        await cacheFrameworksIfNeeded(Set(targetBuildResult.builtTargets), cacheSystem: cacheSystem, cacheKeys: cacheKeys)
+        await shareRestoredCachesToProducers(
+            restoredSetsToSourceStorage: targetBuildResult.restoredSetsToSourceStorage,
+            cacheSystem: cacheSystem,
+            cacheKeys: cacheKeys
+        )
+
+        let deferredProducers = cachePolicies.storages(for: .producer).filter { !($0 is LocalDiskCacheStorage) }
+        await cacheSystem.cacheFrameworks(
+            Set(targetBuildResult.builtTargets), cacheKeys: cacheKeys, to: deferredProducers
+        )
 
         if shouldGenerateVersionFile {
             // Versionfiles should be generate for all targets
@@ -292,7 +305,8 @@ struct FrameworkProducer {
             target: CacheSystem.CacheTarget,
             cacheKey: SwiftPMCacheKey?,
             cacheSystem: CacheSystem,
-            cacheStorage: any FrameworkCacheStorage
+            cacheStorage: any FrameworkCacheStorage,
+            logCacheMiss: Bool = true
         ) async throws -> Bool {
             let product = target.buildProduct
             let frameworkName = product.frameworkName
@@ -314,25 +328,44 @@ struct FrameworkProducer {
                 }
                 return false
             case .noCache:
-                logger.info("ℹ️ Cache not found for \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
+                if logCacheMiss {
+                    logger.info("ℹ️ Cache not found for \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
+                }
                 return false
             }
         }
     }
 
-    private func buildTargets(_ targets: DependencyGraph<CacheSystem.CacheTarget>) async -> TargetBuildResult {
+    private func buildTargets(
+        _ targets: DependencyGraph<CacheSystem.CacheTarget>,
+        cacheSystem: CacheSystem,
+        cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
+    ) async -> TargetBuildResult {
         var result = TargetBuildResult()
+        let localStorages = cachePolicies.storages(for: .consumer).compactMap { $0 as? LocalDiskCacheStorage }
+        let localProducers = cachePolicies.storages(for: .producer).filter { $0 is LocalDiskCacheStorage }
 
         do {
             var targets = targets
             while let leafNode = targets.leafs.first {
                 let buildTarget = leafNode.value
-                try await buildXCFrameworks(
-                    buildTarget,
-                    outputDir: outputDir,
-                    buildOptionsMatrix: buildOptionsMatrix
+                let sourceStorage = await restoreLocalCache(
+                    for: buildTarget,
+                    from: localStorages,
+                    cacheSystem: cacheSystem,
+                    cacheKey: cacheKeys[buildTarget]
                 )
-                result.builtTargets.append(buildTarget)
+                if let sourceStorage {
+                    result.restoredSetsToSourceStorage[[buildTarget]] = sourceStorage
+                } else {
+                    try await buildXCFrameworks(
+                        buildTarget,
+                        outputDir: outputDir,
+                        buildOptionsMatrix: buildOptionsMatrix
+                    )
+                    result.builtTargets.append(buildTarget)
+                    await cacheSystem.cacheFrameworks([buildTarget], cacheKeys: cacheKeys, to: localProducers)
+                }
                 targets.remove(buildTarget)
             }
         } catch {
@@ -341,8 +374,27 @@ struct FrameworkProducer {
         return result
     }
 
+    private func restoreLocalCache(
+        for target: CacheSystem.CacheTarget,
+        from storages: [LocalDiskCacheStorage],
+        cacheSystem: CacheSystem,
+        cacheKey: SwiftPMCacheKey?
+    ) async -> LocalDiskCacheStorage? {
+        for storage in storages where (try? await Restorer.restore(
+            target: target,
+            cacheKey: cacheKey,
+            cacheSystem: cacheSystem,
+            cacheStorage: storage,
+            logCacheMiss: false
+        )) == true {
+            return storage
+        }
+        return nil
+    }
+
     private struct TargetBuildResult {
         var builtTargets: OrderedSet<CacheSystem.CacheTarget> = []
+        var restoredSetsToSourceStorage: [Set<CacheSystem.CacheTarget>: any FrameworkCacheStorage] = [:]
         var error: (any Swift.Error)?
     }
 
@@ -387,17 +439,6 @@ struct FrameworkProducer {
         }
 
         return []
-    }
-
-    private func cacheFrameworksIfNeeded(
-        _ targets: Set<CacheSystem.CacheTarget>,
-        cacheSystem: CacheSystem,
-        cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
-    ) async {
-        let storagesWithProducer = cachePolicies.storages(for: .producer)
-        if !storagesWithProducer.isEmpty {
-            await cacheSystem.cacheFrameworks(targets, cacheKeys: cacheKeys, to: storagesWithProducer)
-        }
     }
 
     private func generateVersionFile(
