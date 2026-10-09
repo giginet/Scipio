@@ -1,8 +1,8 @@
 # Scipio
 
 ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/giginet/Scipio/tests.yml?style=flat-square&logo=github)
-![Swift 6.0](https://img.shields.io/badge/Swift-6.0-FA7343?logo=swift&style=flat-square)
-[![Xcode 16.2](https://img.shields.io/badge/Xcode-16.2-16C5032a?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)](https://developer.apple.com/xcode/)
+![Swift 6.2](https://img.shields.io/badge/Swift-6.2-FA7343?logo=swift&style=flat-square)
+[![Xcode 26.0.1](https://img.shields.io/badge/Xcode-26.0.1-147EFB?style=flat-square&logo=xcode&link=https%3A%2F%2Fdeveloper.apple.com%2Fxcode%2F)](https://developer.apple.com/xcode/)
 [![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-green?logo=swift&style=flat-square)](https://swift.org/package-manager/) 
 [![Documentation](https://img.shields.io/badge/Documentation-available-green?style=flat-square)](https://giginet.github.io/Scipio/documentation/scipio/)
 ![Platforms](https://img.shields.io/badge/Platform-iOS%7CmacOS%7CwatchOS%7CtvOS%7CvisionOS-lightgray?logo=apple&style=flat-square)
@@ -140,11 +140,15 @@ See [Convert Single Swift Package to XCFramework](https://giginet.github.io/Scip
 
 ## Supported Xcode and Swift version
 
-Currently, we support Swift 6.0.
+We support Xcode 26 and later, with Swift 6.2 or later. Xcode 16.4 is deprecated and is no longer tested in CI.
+
+The following versions are tested in CI:
 
 |    | Xcode      | Swift |
 |----|------------|-------|
-| ✅ | 16.2       | 6.0  |
+| ✅ | 26.0.1     | 6.2   |
+| ✅ | 26.4.1     | 6.3   |
+| ✅ | 27.0       | 6.4   |
 
 ## Reliability
 
