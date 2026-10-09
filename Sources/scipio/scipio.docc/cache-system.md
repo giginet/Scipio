@@ -84,9 +84,15 @@ Use `project` for CLI.
 
 ### Local Disk Cache
 
-Copy every build artifacts to `~/Library/Caches/Scipio`. If there are same binaries are exists in cache directory, skip re-building and copy them to the output directory.
+Scipio stores build artifacts in `~/Library/Caches/Scipio`. It uses the cache key to select an artifact. If a matching artifact is available, Scipio copies it to the output directory and skips the build.
 
-Thanks to this strategy, you can reuse built artifacts in past.
+Each writer first copies the framework to a unique temporary path beside the cache entry. It moves the copy to the cache entry only after the copy is complete. This keeps publication on one file system and prevents other processes from reading a partial copy. On a copy or move error, Scipio tries to remove that writer's temporary path. If the process exits before cleanup, temporary paths can remain. Cache lookups ignore these paths. Scipio does not remove staging paths left by an earlier process.
+
+Existing entries from older versions are not checked for complete framework contents. An interrupted copy from an older version can leave an incomplete entry at the final cache path. Remove that entry before you run Scipio again.
+
+Scipio saves each completed target to local disk storages with the `producer` role before it starts the next target. Other producer storages receive built artifacts after the build loop ends.
+
+Scipio checks the configured cache storages before it starts to build targets. When a local disk cache has the `consumer` role, Scipio checks it again immediately before each remaining target is built. This lets another process supply a matching artifact during the same run. A target that is already building continues to build. The additional check applies only to the built-in local disk storage. Scipio does not repeat the remote or custom storage restoration scan before each target.
 
 Use `local` for CLI.
 

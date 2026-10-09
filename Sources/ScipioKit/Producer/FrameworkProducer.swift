@@ -116,43 +116,42 @@ struct FrameworkProducer {
                     cacheKeys: cacheKeys
                 )
 
-                let allRestoredTargets = restoredSetsToSourceStorage.keys.reduce(into: Set<CacheSystem.CacheTarget>()) { result, targetSet in
-                    result.formUnion(targetSet)
-                }
-
-                if !allRestoredTargets.isEmpty {
-                    await shareRestoredCachesToProducers(
-                        allRestoredTargets,
-                        restoredSetsToSourceStorage: restoredSetsToSourceStorage,
-                        cacheSystem: cacheSystem,
-                        cacheKeys: cacheKeys
-                    )
-                }
-
-                let skipTargets = valid.union(allRestoredTargets)
-                targetGraph.remove(skipTargets)
+                let allRestoredTargets = Set(restoredSetsToSourceStorage.keys.joined())
+                await shareRestoredCachesToProducers(
+                    restoredSetsToSourceStorage: restoredSetsToSourceStorage,
+                    cacheSystem: cacheSystem,
+                    cacheKeys: cacheKeys
+                )
+                targetGraph.remove(valid.union(allRestoredTargets))
             }
             dependencyGraphToBuild = targetGraph
         }
 
-        let targetBuildResult = await buildTargets(dependencyGraphToBuild)
-
-        let builtTargets: OrderedSet<CacheSystem.CacheTarget> = switch targetBuildResult {
-            case .completed(let builtTargets),
-                 .interrupted(let builtTargets, _):
-                builtTargets
-            }
+        let targetBuildResult = await buildTargets(
+            dependencyGraphToBuild,
+            cacheSystem: cacheSystem,
+            cacheKeys: cacheKeys
+        )
 
         // Keep the historical "cache feature is fully off" behavior when no cache policy is provided:
         // no restore, no cache save, and no version file generation.
         guard !cachePolicies.isEmpty else {
-            if case .interrupted(_, let error) = targetBuildResult {
+            if let error = targetBuildResult.error {
                 throw error
             }
             return
         }
 
-        await cacheFrameworksIfNeeded(Set(builtTargets), cacheSystem: cacheSystem, cacheKeys: cacheKeys)
+        await shareRestoredCachesToProducers(
+            restoredSetsToSourceStorage: targetBuildResult.restoredSetsToSourceStorage,
+            cacheSystem: cacheSystem,
+            cacheKeys: cacheKeys
+        )
+
+        let deferredProducers = cachePolicies.storages(for: .producer).filter { !($0 is LocalDiskCacheStorage) }
+        await cacheSystem.cacheFrameworks(
+            Set(targetBuildResult.builtTargets), cacheKeys: cacheKeys, to: deferredProducers
+        )
 
         if shouldGenerateVersionFile {
             // Versionfiles should be generate for all targets
@@ -161,7 +160,7 @@ struct FrameworkProducer {
             }
         }
 
-        if case .interrupted(_, let error) = targetBuildResult {
+        if let error = targetBuildResult.error {
             throw error
         }
     }
@@ -277,12 +276,11 @@ struct FrameworkProducer {
 
         var restored: Set<CacheSystem.CacheTarget> = []
         for chunk in chunked {
-            let restorer = Restorer(outputDir: outputDir, fileSystem: fileSystem)
             await withTaskGroup(of: CacheSystem.CacheTarget?.self) { group in
                 for target in chunk {
                     group.addTask {
                         do {
-                            let restored = try await restorer.restore(
+                            let restored = try await Restorer.restore(
                                 target: target,
                                 cacheKey: cacheKeys[target],
                                 cacheSystem: cacheSystem,
@@ -302,17 +300,13 @@ struct FrameworkProducer {
         return restored
     }
 
-    /// Sendable interface to provide restore caches
-    private struct Restorer: Sendable {
-        let outputDir: URL
-        let fileSystem: any FileSystem
-
-        // Return true if pre-built artifact is available (already existing or restored from cache)
-        func restore(
+    private enum Restorer {
+        static func restore(
             target: CacheSystem.CacheTarget,
             cacheKey: SwiftPMCacheKey?,
             cacheSystem: CacheSystem,
-            cacheStorage: any FrameworkCacheStorage
+            cacheStorage: any FrameworkCacheStorage,
+            logCacheMiss: Bool = true
         ) async throws -> Bool {
             let product = target.buildProduct
             let frameworkName = product.frameworkName
@@ -334,36 +328,74 @@ struct FrameworkProducer {
                 }
                 return false
             case .noCache:
-                logger.info("ℹ️ Cache not found for \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
+                if logCacheMiss {
+                    logger.info("ℹ️ Cache not found for \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
+                }
                 return false
             }
         }
     }
 
-    private func buildTargets(_ targets: DependencyGraph<CacheSystem.CacheTarget>) async -> TargetBuildResult {
-        var builtTargets = OrderedSet<CacheSystem.CacheTarget>()
+    private func buildTargets(
+        _ targets: DependencyGraph<CacheSystem.CacheTarget>,
+        cacheSystem: CacheSystem,
+        cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
+    ) async -> TargetBuildResult {
+        var result = TargetBuildResult()
+        let localStorages = cachePolicies.storages(for: .consumer).compactMap { $0 as? LocalDiskCacheStorage }
+        let localProducers = cachePolicies.storages(for: .producer).filter { $0 is LocalDiskCacheStorage }
 
         do {
             var targets = targets
             while let leafNode = targets.leafs.first {
                 let buildTarget = leafNode.value
-                try await buildXCFrameworks(
-                    buildTarget,
-                    outputDir: outputDir,
-                    buildOptionsMatrix: buildOptionsMatrix
+                let sourceStorage = await restoreLocalCache(
+                    for: buildTarget,
+                    from: localStorages,
+                    cacheSystem: cacheSystem,
+                    cacheKey: cacheKeys[buildTarget]
                 )
-                builtTargets.append(buildTarget)
+                if let sourceStorage {
+                    result.restoredSetsToSourceStorage[[buildTarget]] = sourceStorage
+                } else {
+                    try await buildXCFrameworks(
+                        buildTarget,
+                        outputDir: outputDir,
+                        buildOptionsMatrix: buildOptionsMatrix
+                    )
+                    result.builtTargets.append(buildTarget)
+                    await cacheSystem.cacheFrameworks([buildTarget], cacheKeys: cacheKeys, to: localProducers)
+                }
                 targets.remove(buildTarget)
             }
-            return .completed(builtTargets: builtTargets)
         } catch {
-            return .interrupted(builtTargets: builtTargets, error: error)
+            result.error = error
         }
+        return result
     }
 
-    private enum TargetBuildResult {
-        case interrupted(builtTargets: OrderedSet<CacheSystem.CacheTarget>, error: any Swift.Error)
-        case completed(builtTargets: OrderedSet<CacheSystem.CacheTarget>)
+    private func restoreLocalCache(
+        for target: CacheSystem.CacheTarget,
+        from storages: [LocalDiskCacheStorage],
+        cacheSystem: CacheSystem,
+        cacheKey: SwiftPMCacheKey?
+    ) async -> LocalDiskCacheStorage? {
+        for storage in storages where (try? await Restorer.restore(
+            target: target,
+            cacheKey: cacheKey,
+            cacheSystem: cacheSystem,
+            cacheStorage: storage,
+            logCacheMiss: false
+        )) == true {
+            return storage
+        }
+        return nil
+    }
+
+    private struct TargetBuildResult {
+        var builtTargets: OrderedSet<CacheSystem.CacheTarget> = []
+        var restoredSetsToSourceStorage: [Set<CacheSystem.CacheTarget>: any FrameworkCacheStorage] = [:]
+        var error: (any Swift.Error)?
     }
 
     @discardableResult
@@ -409,17 +441,6 @@ struct FrameworkProducer {
         return []
     }
 
-    private func cacheFrameworksIfNeeded(
-        _ targets: Set<CacheSystem.CacheTarget>,
-        cacheSystem: CacheSystem,
-        cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
-    ) async {
-        let storagesWithProducer = cachePolicies.storages(for: .producer)
-        if !storagesWithProducer.isEmpty {
-            await cacheSystem.cacheFrameworks(targets, cacheKeys: cacheKeys, to: storagesWithProducer)
-        }
-    }
-
     private func generateVersionFile(
         for target: CacheSystem.CacheTarget,
         using cacheSystem: CacheSystem,
@@ -444,14 +465,17 @@ struct FrameworkProducer {
         }
     }
 
+}
+
+extension FrameworkProducer {
     private func shareRestoredCachesToProducers(
-        _ allRestoredTargets: Set<CacheSystem.CacheTarget>,
         restoredSetsToSourceStorage: [Set<CacheSystem.CacheTarget>: any FrameworkCacheStorage],
         cacheSystem: CacheSystem,
         cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
     ) async {
+        let allRestoredTargets = Set(restoredSetsToSourceStorage.keys.joined())
         let storagesWithProducer = cachePolicies.storages(for: .producer)
-        guard !storagesWithProducer.isEmpty else { return }
+        guard !allRestoredTargets.isEmpty, !storagesWithProducer.isEmpty else { return }
 
         logger.info(
             "🔄 Sharing \(allRestoredTargets.count) restored framework(s) to other cache storages",
@@ -475,9 +499,6 @@ struct FrameworkProducer {
         logger.info("⏹️ Sharing to other cache storages finished", metadata: .color(.green))
     }
 
-}
-
-extension FrameworkProducer {
     private func areStoragesEqual(_ lhs: any FrameworkCacheStorage, _ rhs: any FrameworkCacheStorage) -> Bool {
         // ProjectCacheStorage instances are always considered the same
         if lhs is ProjectCacheStorage && rhs is ProjectCacheStorage {
