@@ -84,9 +84,11 @@ Use `project` for CLI.
 
 ### Local Disk Cache
 
-Copy every build artifacts to `~/Library/Caches/Scipio`. If there are same binaries are exists in cache directory, skip re-building and copy them to the output directory.
+Scipio stores build artifacts in `~/Library/Caches/Scipio`. It uses the cache key to select an artifact. If a matching artifact is available, Scipio copies it to the output directory and skips the build.
 
-Thanks to this strategy, you can reuse built artifacts in past.
+Each writer first copies the framework to a unique temporary path beside the cache entry. It moves the copy to the cache entry only after the copy is complete. This keeps publication on one file system and prevents other processes from reading a partial copy. On a copy or move error, Scipio tries to remove that writer's temporary path. If the process exits before cleanup, temporary paths can remain. Cache lookups ignore these paths. Scipio does not remove staging paths left by an earlier process.
+
+Existing entries from older versions are not checked for complete framework contents. An interrupted copy from an older version can leave an incomplete entry at the final cache path. Remove that entry before you run Scipio again.
 
 Use `local` for CLI.
 
