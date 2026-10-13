@@ -13,7 +13,7 @@ package struct ResolvedPackagesSnapshot: Codable, Sendable, Equatable {
     /// different version fails to restore, which storages treat as a miss.
     /// `ResolvedPackagesSnapshotTests` pins the encoded bytes of the current
     /// version with a fixture, so an unnoticed format change fails there.
-    package static let currentFormatVersion = 1
+    package static let currentFormatVersion = 2
 
     /// Deeper snapshots are rejected: consumers traverse the restored graph
     /// recursively, so a crafted, extremely deep snapshot could overflow the

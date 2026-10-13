@@ -10,7 +10,7 @@ struct ResolvedPackagesSnapshotTests {
 
     private static let formatFixtureURL = URL(filePath: #filePath)
         .deletingLastPathComponent()
-        .appending(components: "Resources", "Fixtures", "ResolvedPackagesSnapshotTests", "ResolvedPackagesSnapshot_v1.json")
+        .appending(components: "Resources", "Fixtures", "ResolvedPackagesSnapshotTests", "ResolvedPackagesSnapshot_v2.json")
 
     // MARK: Round trip
 
@@ -91,11 +91,11 @@ struct ResolvedPackagesSnapshotTests {
 
     // MARK: Format stability
 
-    /// Pins the version 1 bytes so an unversioned format change fails here.
+    /// Pins the encoded JSON of version 2 with a fixture so an unversioned format change fails here.
     /// On mismatch, writes the current output as `.actual`; to adopt it,
     /// bump the version and replace the fixture with that file.
-    @Test("The stored format matches the checked-in version 1 fixture")
-    func formatVersion1MatchesFixture() throws {
+    @Test("The stored format matches the checked-in version 2 fixture")
+    func formatVersion2MatchesFixture() throws {
         let original = [try ResolvedGraphFixtures.diamondChainPackage(depth: 3)]
         let encoded = try jsonEncoder.encode(ResolvedPackagesSnapshot(resolvedPackages: original))
 
@@ -108,20 +108,36 @@ struct ResolvedPackagesSnapshotTests {
             "The stored format changed: bump `currentFormatVersion` and adopt the recorded .actual file as the new fixture."
         )
 
-        // Files written in the version 1 format must keep restoring for as
-        // long as `currentFormatVersion` stays 1.
+        // Files written in the version 2 format must keep restoring for as
+        // long as `currentFormatVersion` stays 2.
         let restored = try jsonDecoder.decode(ResolvedPackagesSnapshot.self, from: fixtureData).restoreResolvedPackages()
         #expect(restored == original)
     }
 
+    @Test("A snapshot whose pin state has no kind fails to decode as a missing key")
+    func rejectsPinStateWithoutKind() throws {
+        let fixture = try String(contentsOf: Self.formatFixtureURL, encoding: .utf8)
+        let withoutKind = fixture.replacingOccurrences(of: #""kind":"sourceControl","#, with: "")
+        #expect(withoutKind != fixture)
+
+        #expect {
+            try jsonDecoder.decode(ResolvedPackagesSnapshot.self, from: Data(withoutKind.utf8))
+        } throws: { error in
+            guard case .keyNotFound(let key, _) = error as? DecodingError else {
+                return false
+            }
+            return key.stringValue == "kind"
+        }
+    }
+
     // MARK: Validation of untrusted snapshots
 
-    @Test("Restoring rejects an unsupported format version")
-    func rejectsUnsupportedFormatVersion() throws {
+    @Test("Restoring rejects an unsupported format version", arguments: [1, 99])
+    func rejectsUnsupportedFormatVersion(version: Int) throws {
         var snapshot = try makeSnapshot()
-        snapshot.formatVersion = 99
+        snapshot.formatVersion = version
 
-        #expect(throws: ResolvedPackagesSnapshot.RestoreError.unsupportedFormatVersion(found: 99, supported: 1)) {
+        #expect(throws: ResolvedPackagesSnapshot.RestoreError.unsupportedFormatVersion(found: version, supported: 2)) {
             try snapshot.restoreResolvedPackages()
         }
     }

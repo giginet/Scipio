@@ -145,7 +145,7 @@ enum ResolvedGraphFixtures {
         return try package(
             targets: modules,
             products: products,
-            pinState: Pin.State(revision: "0123456789abcdef", version: "1.0.0")
+            pinState: .sourceControl(revision: "0123456789abcdef", version: "1.0.0")
         )
     }
 
