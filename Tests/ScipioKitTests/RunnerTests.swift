@@ -366,7 +366,7 @@ final class RunnerTests: XCTestCase {
         let compile = try runProcess("/usr/bin/xcrun", [
             "--sdk", "iphoneos", "swiftc",
             "-typecheck",
-            "-target", "arm64-apple-ios12.0",
+            "-target", "arm64-apple-ios15.0",
             "-sdk", sdkPath.output.trimmingCharacters(in: .whitespacesAndNewlines),
         ] + frameworkSearchPaths + [
             consumerSource.path,
@@ -853,11 +853,21 @@ final class RunnerTests: XCTestCase {
                           "Should create \(library).xcramework")
             XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
                           "Should create .\(library).version")
+            // SwiftPM 6.4 raises the minimum supported watchOS deployment target from 4.0 to 9.0.
+            // The build system excludes armv7k at watchOS 9.0 and later, so it disappears from the XCFramework identifier.
+            // This compiler check assumes the tests and `swift package dump-pif` use matching toolchains.
+            // https://github.com/swiftlang/swift-package-manager/commit/2d2978c5047ade7cd7d428ab72ea73c8f28ea84d
+            // https://github.com/swiftlang/swift-build/blob/1e7a7034fb380a23eeb865c93b74e85b3f46d8d8/Sources/SWBApplePlatform/Specs/watchOSDevice.xcspec#L45-L52
+#if compiler(>=6.4)
+            let watchOSIdentifier = "watchos-arm64_arm64_32"
+#else
+            let watchOSIdentifier = "watchos-arm64_arm64_32_armv7k"
+#endif
             XCTAssertEqual(
                 Set(contentsOfXCFramework),
                 [
                     "Info.plist",
-                    "watchos-arm64_arm64_32_armv7k",
+                    watchOSIdentifier,
                     "ios-arm64_x86_64-simulator",
                     "watchos-arm64_x86_64-simulator",
                     "ios-arm64",
