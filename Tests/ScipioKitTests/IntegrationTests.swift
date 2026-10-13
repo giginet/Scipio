@@ -28,7 +28,11 @@ final class IntegrationTests: XCTestCase {
         case iOS = "ios-arm64"
         case iOSSimulator = "ios-arm64_x86_64-simulator"
         case macOS = "macos-arm64_x86_64"
+#if compiler(>=6.4)
+        case watchOS = "watchos-arm64_arm64_32"
+#else
         case watchOS = "watchos-arm64_arm64_32_armv7k"
+#endif
     }
 
     func testMajorPackages() async throws {

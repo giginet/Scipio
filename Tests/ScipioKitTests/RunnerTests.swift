@@ -366,7 +366,7 @@ final class RunnerTests: XCTestCase {
         let compile = try runProcess("/usr/bin/xcrun", [
             "--sdk", "iphoneos", "swiftc",
             "-typecheck",
-            "-target", "arm64-apple-ios12.0",
+            "-target", "arm64-apple-ios15.0",
             "-sdk", sdkPath.output.trimmingCharacters(in: .whitespacesAndNewlines),
         ] + frameworkSearchPaths + [
             consumerSource.path,
@@ -853,11 +853,16 @@ final class RunnerTests: XCTestCase {
                           "Should create \(library).xcramework")
             XCTAssertTrue(fileManager.fileExists(atPath: versionFile.path),
                           "Should create .\(library).version")
+#if compiler(>=6.4)
+            let watchOSIdentifier = "watchos-arm64_arm64_32"
+#else
+            let watchOSIdentifier = "watchos-arm64_arm64_32_armv7k"
+#endif
             XCTAssertEqual(
                 Set(contentsOfXCFramework),
                 [
                     "Info.plist",
-                    "watchos-arm64_arm64_32_armv7k",
+                    watchOSIdentifier,
                     "ios-arm64_x86_64-simulator",
                     "watchos-arm64_x86_64-simulator",
                     "ios-arm64",
