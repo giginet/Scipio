@@ -393,7 +393,12 @@ struct CacheSystem: Sendable {
             nil
         }
 
-        let pinState = try await retrievePinState(package: package)
+        let pinState: Pin.State
+        if let resolvedPinState = package.pinState {
+            pinState = resolvedPinState
+        } else {
+            pinState = try await retrievePinStateFromSourceControlRevision(package: package)
+        }
 
         let targetName = target.buildProduct.target.name
         let buildOptions = target.buildOptions
@@ -422,13 +427,17 @@ struct CacheSystem: Sendable {
         )
     }
 
-    private func retrievePinState(package: ResolvedPackage) async throws -> Pin.State {
-        if let pinState = package.pinState {
-            return pinState
+    private func retrievePinStateFromSourceControlRevision(package: ResolvedPackage) async throws -> Pin.State {
+        let supportsSourceControlRevision: Bool = switch package.resolvedPackageKind {
+        case .root, .fileSystem, .localSourceControl, .remoteSourceControl:
+            true
+        case .registry:
+            false
+        }
+        guard supportsSourceControlRevision else {
+            throw Error.revisionNotDetected(package.manifest.name)
         }
 
-        // TODO: Once package registry is supported, skip makePinStateFromRevision() only for registry packages,
-        // which have no git repository.
         guard let pinState = await package.makePinStateFromRevision() else {
             throw Error.revisionNotDetected(package.manifest.name)
         }
