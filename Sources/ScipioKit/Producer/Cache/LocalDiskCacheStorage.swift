@@ -72,9 +72,13 @@ struct LocalDiskCacheStorage: FrameworkCacheStorage, Equatable {
         do {
             let destination = try cacheFrameworkPath(for: cacheKey)
             let directoryPath = destination.deletingLastPathComponent()
+            // Keep staging beside the destination to use the same file system for publication.
+            let stagingPath = directoryPath.appendingPathComponent(".\(UUID().uuidString)-\(destination.lastPathComponent)")
 
             try fileSystem.createDirectory(directoryPath, recursive: true)
-            try fileSystem.copy(from: frameworkPath, to: destination)
+            defer { try? fileSystem.removeFileTree(stagingPath) }
+            try fileSystem.copy(from: frameworkPath, to: stagingPath)
+            try fileSystem.move(from: stagingPath, to: destination)
         } catch {
             // ignore error
         }
