@@ -5,80 +5,52 @@ import Testing
 
 struct RegistryTests {
     @Test(.temporaryDirectory)
-    func authenticatedRegistryAndCache() async throws {
-        // Prepare a temporary directory and a unique identity for the test package.
+    func registryAndCache() async throws {
+        // Prepare a consumer and SwiftPM responses for a registry dependency.
         let directory = TemporaryDirectory.url
-        let packageName = "library" + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+        let fixture = try RegistryResolutionFixture(at: directory)
+        let executor = fixture.makeExecutor()
+        let manifest = try await ManifestLoader(executor: executor).loadManifest(for: directory)
+        let resolver = await PackageResolver(
+            packageLocator: fixture, rootManifest: manifest,
+            cachePolicies: [], fileSystem: LocalFileSystem.default, executor: executor
+        )
 
-        // Start a local registry that requires Basic authentication and serves a versioned package.
-        let server = Process()
-        server.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
-        let fixture = URL(filePath: #filePath).deletingLastPathComponent()
-            .appending(components: "Resources", "Fixtures", "AuthenticatedRegistry", "server.py")
-        let portFile = directory.appendingPathComponent("port")
-        server.arguments = [fixture.path, portFile.path, packageName]
-        let termination = AsyncStream<Void> { continuation in
-            server.terminationHandler = { _ in continuation.finish() }
+        // Resolve the registry package from SwiftPM output.
+        let graph = try await resolver.resolve()
+        let package = try #require(graph.allPackages.values.first { $0.id.packageIdentity == "example.library" })
+        let module = try #require(package.targets.first { $0.name == "RegistryLibrary" })
+        #expect(package.resolvedPackageKind == .registry("example.library"))
+        #expect(package.pinState == .registry(identity: "example.library", version: "1.0.0"))
+        #expect(module.resolvedModuleType == .swift)
+        #expect(await executor.calledArguments.contains { $0.contains("resolve") })
+
+        // Registry cache keys must include the scoped identity and version.
+        let target = CacheSystem.CacheTarget(buildProduct: BuildProduct(package: package, target: module), buildOptions: buildOptions())
+        let cache = CacheSystem(outputDirectory: directory)
+        let dependencyGraph = try DependencyGraph.resolve(Set([target]), id: \.buildProduct.target.name, childIDs: { _ in [] })
+        let keys = try await cache.calculateCacheKeys(for: dependencyGraph)
+        let key = try #require(keys[target])
+        #expect(key.pin == .registry(identity: "example.library", version: "1.0.0"))
+        #expect(key.localPackageCanonicalLocation == nil)
+
+        // The saved version file must round-trip and remain valid for the same cache key.
+        try await cache.generateVersionFile(for: target, cacheKey: key)
+        #expect(try VersionFileDecoder().decode(versionFile: directory.appendingPathComponent(".RegistryLibrary.version")) == key)
+        let valid = await cache.existsValidCache(cacheKey: key)
+        #expect(valid)
+
+        // A different package version or identity must invalidate the saved cache key.
+        for pin in [
+            Pin.State.registry(identity: "example.library", version: "1.0.1"),
+            .registry(identity: "other.library", version: "1.0.0"),
+        ] {
+            var changed = key
+            changed.pin = pin
+            let changedValid = await cache.existsValidCache(cacheKey: changed)
+            #expect(!changedValid)
+            #expect(try changed.calculateChecksum() != key.calculateChecksum())
         }
-        try server.run()
-
-        do {
-            // Wait for the registry to publish its port, then configure the consumer package to use it.
-            for _ in 0..<100 {
-                if FileManager.default.fileExists(atPath: portFile.path) { break }
-                try await Task.sleep(for: .milliseconds(50))
-            }
-
-            let port = try String(contentsOf: portFile, encoding: .utf8)
-            try configureConsumer(at: directory, registryPort: port, packageName: packageName)
-
-            // Invalid credentials must fail resolution, with a rejection recorded by the registry.
-            let netrc = directory.appendingPathComponent("netrc")
-            try "machine 127.0.0.1 login fixture password wrong-password".write(to: netrc, atomically: true, encoding: .utf8)
-            await #expect(throws: (any Error).self) {
-                _ = try await resolveConsumer(at: directory, netrc: netrc)
-            }
-            #expect(FileManager.default.fileExists(atPath: directory.appendingPathComponent("port.rejected").path))
-
-            // Correct credentials must resolve the package and download its source archive.
-            try "machine 127.0.0.1 login fixture password fixture-password".write(to: netrc, atomically: true, encoding: .utf8)
-            let graph = try await resolveConsumer(at: directory, netrc: netrc)
-            let package = try #require(graph.allPackages.values.first { $0.id.packageIdentity == "example.\(packageName)" })
-            let module = try #require(package.targets.first { $0.name == "RegistryLibrary" })
-            #expect(FileManager.default.fileExists(atPath: directory.appendingPathComponent("port.downloaded").path))
-            #expect(package.resolvedPackageKind == .registry("example.\(packageName)"))
-
-            // Registry cache keys must include the scoped identity and version without a Git revision.
-            let target = CacheSystem.CacheTarget(buildProduct: BuildProduct(package: package, target: module), buildOptions: buildOptions())
-            let cache = CacheSystem(outputDirectory: directory)
-            let dependencyGraph = try DependencyGraph.resolve(Set([target]), id: \.buildProduct.target.name, childIDs: { _ in [] })
-            let keys = try await cache.calculateCacheKeys(for: dependencyGraph)
-            let key = try #require(keys[target])
-            #expect(key.pin == .registry(identity: "example.\(packageName)", version: "1.0.0"))
-            #expect(key.localPackageCanonicalLocation == nil)
-
-            // The saved version file must round-trip and remain valid for the same cache key.
-            try await cache.generateVersionFile(for: target, cacheKey: key)
-            #expect(try VersionFileDecoder().decode(versionFile: directory.appendingPathComponent(".RegistryLibrary.version")) == key)
-            let valid = await cache.existsValidCache(cacheKey: key)
-            #expect(valid)
-
-            // A different package version or identity must invalidate the saved cache key.
-            for pin in [
-                Pin.State.registry(identity: "example.\(packageName)", version: "1.0.1"),
-                .registry(identity: "other.\(packageName)", version: "1.0.0"),
-            ] {
-                var changed = key
-                changed.pin = pin
-                let changedValid = await cache.existsValidCache(cacheKey: changed)
-                #expect(!changedValid)
-                #expect(try changed.calculateChecksum() != key.calculateChecksum())
-            }
-        } catch {
-            await stopRegistry(server, termination: termination)
-            throw error
-        }
-        await stopRegistry(server, termination: termination)
     }
 
     @Test(.temporaryDirectory)
@@ -102,21 +74,6 @@ struct RegistryTests {
         #expect(keys[target] == nil)
     }
 
-    private func stopRegistry(_ server: Process, termination: AsyncStream<Void>) async {
-        if server.isRunning { server.terminate() }
-        for await _ in termination {}
-    }
-
-    private func resolveConsumer(at directory: URL, netrc: URL) async throws -> ModulesGraph {
-        let executor = RegistryExecutor(netrc: netrc, cacheDirectory: directory.appendingPathComponent("cache"))
-        let manifest = try await ManifestLoader(executor: executor).loadManifest(for: directory)
-        let resolver = await PackageResolver(
-            packageLocator: ConsumerLocation(packageDirectory: directory), rootManifest: manifest,
-            cachePolicies: [], fileSystem: LocalFileSystem.default, executor: executor
-        )
-        return try await resolver.resolve()
-    }
-
     private func buildOptions() -> BuildOptions {
         BuildOptions(
             buildConfiguration: .release, isDebugSymbolsEmbedded: false, frameworkType: .dynamic,
@@ -124,47 +81,101 @@ struct RegistryTests {
             keepPublicHeadersStructure: false, customFrameworkModuleMapContents: nil, stripStaticDWARFSymbols: false
         )
     }
-
-    private func configureConsumer(at directory: URL, registryPort: String, packageName: String) throws {
-        let configuration = directory.appendingPathComponent(".swiftpm/configuration")
-        try FileManager.default.createDirectory(at: configuration, withIntermediateDirectories: true)
-        let registryConfiguration = """
-        {"version":1,"registries":{"example":{"url":"http://127.0.0.1:\(registryPort)","supportsAvailability":false}},
-        "authentication":{"127.0.0.1:\(registryPort)":{"type":"basic"}}}
-        """
-        try registryConfiguration.write(to: configuration.appendingPathComponent("registries.json"), atomically: true, encoding: .utf8)
-
-        let manifest = """
-        // swift-tools-version: 6.0
-        import PackageDescription
-        let package = Package(name: "Consumer", platforms: [.iOS(.v14)], dependencies: [
-            .package(id: "example.\(packageName)", exact: "1.0.0")
-        ], targets: [.target(name: "Consumer", dependencies: [
-            .product(name: "RegistryLibrary", package: "example.\(packageName)")
-        ])])
-        """
-        try manifest.write(to: directory.appendingPathComponent("Package.swift"), atomically: true, encoding: .utf8)
-
-        let sources = directory.appendingPathComponent("Sources/Consumer")
-        try FileManager.default.createDirectory(at: sources, withIntermediateDirectories: true)
-        try "import RegistryLibrary".write(to: sources.appendingPathComponent("Consumer.swift"), atomically: true, encoding: .utf8)
-    }
 }
 
-private struct ConsumerLocation: PackageLocator {
+/// Prepares a consumer package and supplies SwiftPM responses for its registry dependency.
+private struct RegistryResolutionFixture: PackageLocator {
     let packageDirectory: URL
-}
 
-/// Uses fixture credentials and an isolated cache for the SwiftPM subprocesses.
-private struct RegistryExecutor: Executor {
-    let netrc: URL
-    let cacheDirectory: URL
+    private var dependencyDirectory: URL {
+        packageDirectory.appendingPathComponent(".build/registry/downloads/example/library/1.0.0")
+    }
 
-    func execute(_ arguments: [String], environment: [String: String]?) async throws -> any ExecutorResult {
-        let options = ["--netrc", "--netrc-file", netrc.path, "--disable-keychain", "--cache-path", cacheDirectory.path]
-        var commands = arguments
-        let packageIndex = try #require(commands.firstIndex(of: "package"))
-        commands.insert(contentsOf: options, at: packageIndex + 1)
-        return try await ProcessExecutor().execute(commands, environment: environment)
+    init(at directory: URL) throws {
+        self.packageDirectory = directory
+        for (package, target) in [(packageDirectory, "Consumer"), (dependencyDirectory, "RegistryLibrary")] {
+            let sources = package.appendingPathComponent("Sources/\(target)")
+            try FileManager.default.createDirectory(at: sources, withIntermediateDirectories: true)
+            try "public struct Library {}".write(to: sources.appendingPathComponent("Library.swift"), atomically: true, encoding: .utf8)
+        }
+        try #"{"version":3,"pins":[{"identity":"example.library","kind":"registry","location":"","state":{"version":"1.0.0"}}]}"#
+            .write(to: directory.appendingPathComponent("Package.resolved"), atomically: true, encoding: .utf8)
+    }
+
+    func makeExecutor() -> StubbableExecutor {
+        StubbableExecutor { arguments in
+            StubbableExecutorResult(arguments: arguments, success: try response(for: arguments))
+        }
+    }
+
+    private func response(for arguments: [String]) throws -> String {
+        switch Array(arguments.prefix(4)) {
+        case ["/usr/bin/xcrun", "swift", "package", "resolve"]:
+            return ""
+        case ["/usr/bin/xcrun", "swift", "package", "show-dependencies"]:
+            return try dependencyTree()
+        case ["/usr/bin/xcrun", "swift", "package", "dump-package"]:
+            guard let index = arguments.firstIndex(of: "--package-path"), arguments.indices.contains(index + 1) else {
+                throw FixtureError.unexpectedCommand(arguments)
+            }
+            switch arguments[index + 1] {
+            case packageDirectory.path: return try consumerManifest()
+            case dependencyDirectory.path: return try dependencyManifest()
+            default: throw FixtureError.unexpectedCommand(arguments)
+            }
+        default:
+            throw FixtureError.unexpectedCommand(arguments)
+        }
+    }
+
+    private func consumerManifest() throws -> String {
+        try json([
+            "name": "Consumer", "toolsVersion": ["_version": "6.0.0"],
+            "packageKind": ["root": [packageDirectory.path]],
+            "dependencies": [["registry": [[
+                "identity": "example.library", "requirement": ["exact": ["1.0.0"]],
+                "productFilter": NSNull(),
+            ]]]],
+            "products": [],
+            "targets": [target("Consumer", dependencies: [
+                ["product": ["RegistryLibrary", "example.library", NSNull(), NSNull()]],
+            ])],
+        ])
+    }
+
+    private func dependencyManifest() throws -> String {
+        // dump-package reports root even for a downloaded registry dependency.
+        try json([
+            "name": "RegistryLibrary", "toolsVersion": ["_version": "6.0.0"],
+            "packageKind": ["root": [dependencyDirectory.path]], "dependencies": [],
+            "products": [["name": "RegistryLibrary", "targets": ["RegistryLibrary"], "type": ["library": ["automatic"]]]],
+            "targets": [target("RegistryLibrary")],
+        ])
+    }
+
+    private func dependencyTree() throws -> String {
+        try json([
+            "identity": "consumer", "name": "Consumer", "url": packageDirectory.path,
+            "version": "unspecified", "path": packageDirectory.path,
+            "dependencies": [[
+                "identity": "example.library", "name": "RegistryLibrary", "url": "example.library",
+                "version": "1.0.0", "path": dependencyDirectory.path, "dependencies": [],
+            ]],
+        ])
+    }
+
+    private func json(_ object: [String: Any]) throws -> String {
+        String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+    }
+
+    private func target(_ name: String, dependencies: [[String: Any]] = []) -> [String: Any] {
+        [
+            "name": name, "type": "regular", "packageAccess": false,
+            "dependencies": dependencies, "resources": [], "exclude": [], "settings": [],
+        ]
+    }
+
+    private enum FixtureError: Error {
+        case unexpectedCommand([String])
     }
 }

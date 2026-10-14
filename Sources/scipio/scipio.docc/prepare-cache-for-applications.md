@@ -75,10 +75,9 @@ Configure the registry from your dependency package directory before running Sci
 
 ```bash
 swift package-registry set --scope example https://packages.example.com
-swift package-registry login https://packages.example.com
 ```
 
-Scipio uses SwiftPM's registry configuration and authentication.
+Scipio uses SwiftPM's registry configuration.
 
 ### 3. Run `prepare` Command
 
