@@ -132,14 +132,22 @@ private struct RegistryResolutionFixture: PackageLocator {
         try json([
             "name": "Consumer", "toolsVersion": ["_version": "6.0.0"],
             "packageKind": ["root": [packageDirectory.path]],
-            "dependencies": [["registry": [[
-                "identity": "example.library", "requirement": ["exact": ["1.0.0"]],
-                "productFilter": NSNull(),
-            ]]]],
+            "dependencies": [
+                [
+                    "registry": [
+                        [
+                            "identity": "example.library", "requirement": ["exact": ["1.0.0"]],
+                            "productFilter": NSNull(),
+                        ],
+                    ],
+                ],
+            ],
             "products": [],
-            "targets": [target("Consumer", dependencies: [
-                ["product": ["RegistryLibrary", "example.library", NSNull(), NSNull()]],
-            ])],
+            "targets": [
+                target("Consumer", dependencies: [
+                    ["product": ["RegistryLibrary", "example.library", NSNull(), NSNull()]],
+                ]),
+            ],
         ])
     }
 
@@ -157,10 +165,12 @@ private struct RegistryResolutionFixture: PackageLocator {
         try json([
             "identity": "consumer", "name": "Consumer", "url": packageDirectory.path,
             "version": "unspecified", "path": packageDirectory.path,
-            "dependencies": [[
-                "identity": "example.library", "name": "RegistryLibrary", "url": "example.library",
-                "version": "1.0.0", "path": dependencyDirectory.path, "dependencies": [],
-            ]],
+            "dependencies": [
+                [
+                    "identity": "example.library", "name": "RegistryLibrary", "url": "example.library",
+                    "version": "1.0.0", "path": dependencyDirectory.path, "dependencies": [],
+                ],
+            ],
         ])
     }
 
