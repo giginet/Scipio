@@ -8,7 +8,14 @@ struct RegistryTests {
     func registryAndCache() async throws {
         // Prepare a consumer and SwiftPM responses for a registry dependency.
         let directory = TemporaryDirectory.url
-        let fixture = try RegistryResolutionFixture(at: directory)
+        let identity = "example.library"
+        let version = "1.0.0"
+        let registryURL = "https://packages.example.com"
+        let targetName = "RegistryLibrary"
+        let fixture = try RegistryResolutionFixture(
+            at: directory, identity: identity, version: version,
+            registryURL: registryURL, targetName: targetName
+        )
         let executor = fixture.makeExecutor()
         let manifest = try await ManifestLoader(executor: executor).loadManifest(for: directory)
         let resolver = await PackageResolver(
@@ -18,10 +25,10 @@ struct RegistryTests {
 
         // Resolve the registry package from SwiftPM output.
         let graph = try await resolver.resolve()
-        let package = try #require(graph.allPackages.values.first { $0.id.packageIdentity == "example.library" })
-        let module = try #require(package.targets.first { $0.name == "RegistryLibrary" })
-        #expect(package.resolvedPackageKind == .registry("example.library"))
-        #expect(package.pinState == .registry(identity: "example.library", version: "1.0.0"))
+        let package = try #require(graph.allPackages.values.first { $0.id.packageIdentity == identity })
+        let module = try #require(package.targets.first { $0.name == targetName })
+        #expect(package.resolvedPackageKind == .registry(identity))
+        #expect(package.pinState == .registry(identity: identity, version: version))
         #expect(module.resolvedModuleType == .swift)
         #expect(await executor.calledArguments.contains { $0.contains("resolve") })
 
@@ -31,19 +38,41 @@ struct RegistryTests {
         let dependencyGraph = try DependencyGraph.resolve(Set([target]), id: \.buildProduct.target.name, childIDs: { _ in [] })
         let keys = try await cache.calculateCacheKeys(for: dependencyGraph)
         let key = try #require(keys[target])
-        #expect(key.pin == .registry(identity: "example.library", version: "1.0.0"))
+        #expect(key.pin == .registry(identity: identity, version: version))
         #expect(key.localPackageCanonicalLocation == nil)
+        #expect(key.registryURL == URL(string: registryURL))
 
         // The saved version file must round-trip and remain valid for the same cache key.
         try await cache.generateVersionFile(for: target, cacheKey: key)
-        #expect(try VersionFileDecoder().decode(versionFile: directory.appendingPathComponent(".RegistryLibrary.version")) == key)
+        #expect(try VersionFileDecoder().decode(versionFile: directory.appendingPathComponent(".\(targetName).version")) == key)
         let valid = await cache.existsValidCache(cacheKey: key)
         #expect(valid)
 
+        // The same identity and version from another registry must not restore this cache.
+        try fixture.writeMetadata(registry: "https://other.example.com")
+        let otherKeys = try await cache.calculateCacheKeys(for: dependencyGraph)
+        let otherKey = try #require(otherKeys[target])
+        #expect(otherKey.pin == key.pin)
+        #expect(try otherKey.calculateChecksum() != key.calculateChecksum())
+        #expect(await cache.existsValidCache(cacheKey: otherKey) == false)
+
+        // Missing and invalid download metadata must not produce an incomplete cache key.
+        for metadata in ["{}", "{", #"{"registry":123}"#] {
+            try metadata.write(
+                to: URL(filePath: package.path).appendingPathComponent(".registry-metadata"),
+                atomically: true, encoding: .utf8
+            )
+            let unavailableKeys = try await cache.calculateCacheKeys(for: dependencyGraph)
+            #expect(unavailableKeys[target] == nil)
+        }
+        try FileManager.default.removeItem(at: URL(filePath: package.path).appendingPathComponent(".registry-metadata"))
+        let missingMetadataKeys = try await cache.calculateCacheKeys(for: dependencyGraph)
+        #expect(missingMetadataKeys[target] == nil)
+
         // A different package version or identity must invalidate the saved cache key.
         for pin in [
-            Pin.State.registry(identity: "example.library", version: "1.0.1"),
-            .registry(identity: "other.library", version: "1.0.0"),
+            Pin.State.registry(identity: identity, version: "1.0.1"),
+            .registry(identity: "other.library", version: version),
         ] {
             var changed = key
             changed.pin = pin
@@ -86,20 +115,28 @@ struct RegistryTests {
 /// Prepares a consumer package and supplies SwiftPM responses for its registry dependency.
 private struct RegistryResolutionFixture: PackageLocator {
     let packageDirectory: URL
+    let identity: String
+    let version: String
+    let targetName: String
 
     private var dependencyDirectory: URL {
-        packageDirectory.appendingPathComponent(".build/registry/downloads/example/library/1.0.0")
+        packageDirectory.appendingPathComponent(".build/registry/downloads/\(identity.replacingOccurrences(of: ".", with: "/"))/\(version)")
     }
 
-    init(at directory: URL) throws {
+    init(at directory: URL, identity: String, version: String, registryURL: String, targetName: String) throws {
         self.packageDirectory = directory
-        for (package, target) in [(packageDirectory, "Consumer"), (dependencyDirectory, "RegistryLibrary")] {
+        self.identity = identity
+        self.version = version
+        self.targetName = targetName
+        for (package, target) in [(packageDirectory, "Consumer"), (dependencyDirectory, targetName)] {
             let sources = package.appendingPathComponent("Sources/\(target)")
             try FileManager.default.createDirectory(at: sources, withIntermediateDirectories: true)
             try "public struct Library {}".write(to: sources.appendingPathComponent("Library.swift"), atomically: true, encoding: .utf8)
         }
-        try #"{"version":3,"pins":[{"identity":"example.library","kind":"registry","location":"","state":{"version":"1.0.0"}}]}"#
-            .write(to: directory.appendingPathComponent("Package.resolved"), atomically: true, encoding: .utf8)
+        try JSONEncoder().encode(ResolvedFileFixture(pins: [
+            .init(identity: identity, state: .init(version: version)),
+        ])).write(to: directory.appendingPathComponent("Package.resolved"))
+        try writeMetadata(registry: registryURL)
     }
 
     func makeExecutor() -> StubbableExecutor {
@@ -129,60 +166,148 @@ private struct RegistryResolutionFixture: PackageLocator {
     }
 
     private func consumerManifest() throws -> String {
-        try json([
-            "name": "Consumer", "toolsVersion": ["_version": "6.0.0"],
-            "packageKind": ["root": [packageDirectory.path]],
-            "dependencies": [
-                [
-                    "registry": [
-                        [
-                            "identity": "example.library", "requirement": ["exact": ["1.0.0"]],
-                            "productFilter": NSNull(),
-                        ],
-                    ],
-                ],
-            ],
-            "products": [],
-            "targets": [
-                target("Consumer", dependencies: [
-                    ["product": ["RegistryLibrary", "example.library", NSNull(), NSNull()]],
-                ]),
-            ],
-        ])
+        try json(ManifestFixture(
+            name: "Consumer", packageKind: .init(root: [packageDirectory.path]),
+            dependencies: [.init(registry: [.init(identity: identity, requirement: .init(exact: [version]))])], products: [],
+            targets: [.init(name: "Consumer", dependencies: [.init(name: targetName, package: identity)])]
+        ))
     }
 
     private func dependencyManifest() throws -> String {
         // dump-package reports root even for a downloaded registry dependency.
-        try json([
-            "name": "RegistryLibrary", "toolsVersion": ["_version": "6.0.0"],
-            "packageKind": ["root": [dependencyDirectory.path]], "dependencies": [],
-            "products": [["name": "RegistryLibrary", "targets": ["RegistryLibrary"], "type": ["library": ["automatic"]]]],
-            "targets": [target("RegistryLibrary")],
-        ])
+        try json(ManifestFixture(
+            name: targetName, packageKind: .init(root: [dependencyDirectory.path]),
+            dependencies: [], products: [.init(name: targetName, targets: [targetName])], targets: [.init(name: targetName)]
+        ))
     }
 
     private func dependencyTree() throws -> String {
-        try json([
-            "identity": "consumer", "name": "Consumer", "url": packageDirectory.path,
-            "version": "unspecified", "path": packageDirectory.path,
-            "dependencies": [
-                [
-                    "identity": "example.library", "name": "RegistryLibrary", "url": "example.library",
-                    "version": "1.0.0", "path": dependencyDirectory.path, "dependencies": [],
-                ],
-            ],
-        ])
+        try json(DependencyFixture(
+            identity: "consumer", name: "Consumer", url: packageDirectory.path,
+            version: "unspecified", path: packageDirectory.path,
+            dependencies: [.init(
+                identity: identity, name: targetName, url: identity,
+                version: version, path: dependencyDirectory.path, dependencies: []
+            )]
+        ))
     }
 
-    private func json(_ object: [String: Any]) throws -> String {
-        String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+    private func json(_ value: some Encodable) throws -> String {
+        String(decoding: try JSONEncoder().encode(value), as: UTF8.self)
     }
 
-    private func target(_ name: String, dependencies: [[String: Any]] = []) -> [String: Any] {
-        [
-            "name": name, "type": "regular", "packageAccess": false,
-            "dependencies": dependencies, "resources": [], "exclude": [], "settings": [],
-        ]
+    func writeMetadata(registry: String) throws {
+        try JSONEncoder().encode(RegistryMetadataFixture(registry: registry))
+            .write(to: dependencyDirectory.appendingPathComponent(".registry-metadata"))
+    }
+
+    private struct ResolvedFileFixture: Encodable {
+        let version = 3
+        let pins: [Pin]
+
+        struct Pin: Encodable {
+            let identity: String
+            let kind = "registry"
+            let location = ""
+            let state: State
+        }
+
+        struct State: Encodable {
+            let version: String
+        }
+    }
+
+    private struct RegistryMetadataFixture: Encodable {
+        let registry: String
+    }
+
+    private struct DependencyFixture: Encodable {
+        let identity: String
+        let name: String
+        let url: String
+        let version: String
+        let path: String
+        let dependencies: [Self]
+    }
+
+    private struct ManifestFixture: Encodable {
+        let name: String
+        var toolsVersion = ToolsVersion()
+        let packageKind: PackageKind
+        let dependencies: [Dependency]
+        let products: [Product]
+        let targets: [Target]
+
+        struct ToolsVersion: Encodable {
+            let _version = "6.0.0"
+        }
+
+        struct PackageKind: Encodable {
+            let root: [String]
+        }
+
+        struct Dependency: Encodable {
+            let registry: [Registry]
+
+            struct Registry: Encodable {
+                let identity: String
+                let requirement: Requirement
+                let productFilter: String? = nil
+
+                enum CodingKeys: String, CodingKey {
+                    case identity, requirement, productFilter
+                }
+
+                func encode(to encoder: any Encoder) throws {
+                    var container = encoder.container(keyedBy: CodingKeys.self)
+                    try container.encode(identity, forKey: .identity)
+                    try container.encode(requirement, forKey: .requirement)
+                    try container.encodeNil(forKey: .productFilter)
+                }
+            }
+
+            struct Requirement: Encodable {
+                let exact: [String]
+            }
+        }
+
+        struct Product: Encodable {
+            let name: String
+            let targets: [String]
+            let type = ProductType()
+
+            struct ProductType: Encodable {
+                let library = ["automatic"]
+            }
+        }
+
+        struct Target: Encodable {
+            let name: String
+            let type = "regular"
+            let packageAccess = false
+            var dependencies: [ProductDependency] = []
+            let resources: [String] = []
+            let exclude: [String] = []
+            let settings: [String] = []
+        }
+
+        struct ProductDependency: Encodable {
+            let name: String
+            let package: String
+
+            enum CodingKeys: String, CodingKey {
+                case product
+            }
+
+            func encode(to encoder: any Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                var product = container.nestedUnkeyedContainer(forKey: .product)
+                try product.encode(name)
+                try product.encode(package)
+                try product.encodeNil()
+                try product.encodeNil()
+            }
+        }
     }
 
     private enum FixtureError: Error {

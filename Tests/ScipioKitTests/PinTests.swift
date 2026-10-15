@@ -63,19 +63,11 @@ struct PinTests {
         }
     }
 
-    @Test("A registry pin round-trips without a revision", arguments: [
-        nil,
-        NSNull(),
-    ] as [NSNull?])
-    func registryPinWithoutRevision(revision: (any Sendable)?) throws {
-        var state: [String: Any] = ["version": "1.2.3"]
-        state["revision"] = revision
-        let data = try JSONSerialization.data(withJSONObject: [
-            "identity": "example.library",
-            "kind": "registry",
-            "location": "",
-            "state": state,
-        ])
+    @Test("A registry pin round-trips without a revision", arguments: [false, true])
+    func registryPinWithoutRevision(explicitNullRevision: Bool) throws {
+        let data = try jsonEncoder.encode(RegistryPinFixture(
+            state: .init(version: "1.2.3", explicitNullRevision: explicitNullRevision)
+        ))
 
         let pin = try jsonDecoder.decode(Pin.self, from: data)
         #expect(pin.state == .registry(identity: "example.library", version: "1.2.3"))
@@ -87,9 +79,7 @@ struct PinTests {
 
     @Test("A registry pin requires a version")
     func registryPinMissingVersion() throws {
-        let data = try JSONSerialization.data(withJSONObject: [
-            "identity": "example.library", "kind": "registry", "location": "", "state": [:],
-        ] as [String: Any])
+        let data = try jsonEncoder.encode(RegistryPinFixture(state: .init(version: nil)))
         #expect {
             try jsonDecoder.decode(Pin.self, from: data)
         } throws: {
@@ -120,5 +110,29 @@ private extension DecodingError {
             return false
         }
         return key.stringValue == name
+    }
+}
+
+private struct RegistryPinFixture: Encodable {
+    let identity = "example.library"
+    let kind = "registry"
+    let location = ""
+    let state: State
+
+    struct State: Encodable {
+        var version: String?
+        var explicitNullRevision = false
+
+        private enum CodingKeys: String, CodingKey {
+            case version, revision
+        }
+
+        func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encodeIfPresent(version, forKey: .version)
+            if explicitNullRevision {
+                try container.encodeNil(forKey: .revision)
+            }
+        }
     }
 }
