@@ -63,6 +63,22 @@ Declare all targets as a dependencies of a first target.
 
 `platforms` must be specified. Scipio decides which SDKs to build based on this.
 
+### Package Registry Dependencies
+
+Scipio also supports dependencies declared with a registry package ID:
+
+```swift
+.package(id: "example.library", exact: "1.0.0")
+```
+
+Configure the registry from your dependency package directory before running Scipio:
+
+```bash
+swift package-registry set --scope example https://packages.example.com
+```
+
+Scipio uses SwiftPM's registry configuration.
+
 ### 3. Run `prepare` Command
 
 Finally, run `prepare` command.
