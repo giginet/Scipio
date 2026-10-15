@@ -56,19 +56,6 @@ struct RegistryTests {
         #expect(try otherKey.calculateChecksum() != key.calculateChecksum())
         #expect(await cache.existsValidCache(cacheKey: otherKey) == false)
 
-        // Missing and invalid download metadata must not produce an incomplete cache key.
-        for metadata in ["{}", "{", #"{"registry":123}"#] {
-            try metadata.write(
-                to: URL(filePath: package.path).appendingPathComponent(".registry-metadata"),
-                atomically: true, encoding: .utf8
-            )
-            let unavailableKeys = try await cache.calculateCacheKeys(for: dependencyGraph)
-            #expect(unavailableKeys[target] == nil)
-        }
-        try FileManager.default.removeItem(at: URL(filePath: package.path).appendingPathComponent(".registry-metadata"))
-        let missingMetadataKeys = try await cache.calculateCacheKeys(for: dependencyGraph)
-        #expect(missingMetadataKeys[target] == nil)
-
         // A different package version or identity must invalidate the saved cache key.
         for pin in [
             Pin.State.registry(identity: identity, version: "1.0.1"),
@@ -80,6 +67,35 @@ struct RegistryTests {
             #expect(!changedValid)
             #expect(try changed.calculateChecksum() != key.calculateChecksum())
         }
+    }
+
+    @Test(
+        "A registry package requires readable metadata with a registry URL",
+        .temporaryDirectory,
+        arguments: [nil, "{}", "{", #"{"registry":123}"#] as [String?]
+    )
+    func registryWithoutMetadataCannotCalculateCacheKey(metadata: String?) async throws {
+        let directory = TemporaryDirectory.url
+        let identity = "example.library"
+        let module = try ResolvedGraphFixtures.resolvedModule(name: "RegistryLibrary")
+        var package = try ResolvedGraphFixtures.package(
+            identity: identity, targets: [module],
+            pinState: .registry(identity: identity, version: "1.0.0")
+        )
+        package.resolvedPackageKind = .registry(identity)
+        package.path = directory.path
+
+        if let metadata {
+            try metadata.write(
+                to: directory.appendingPathComponent(".registry-metadata"),
+                atomically: true, encoding: .utf8
+            )
+        }
+
+        let target = CacheSystem.CacheTarget(buildProduct: BuildProduct(package: package, target: module), buildOptions: buildOptions())
+        let graph = try DependencyGraph.resolve(Set([target]), id: \.buildProduct.target.name, childIDs: { _ in [] })
+        let keys = try await CacheSystem(outputDirectory: directory).calculateCacheKeys(for: graph)
+        #expect(keys[target] == nil)
     }
 
     @Test(.temporaryDirectory)

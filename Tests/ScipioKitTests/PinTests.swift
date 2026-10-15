@@ -65,21 +65,24 @@ struct PinTests {
 
     @Test("A registry pin round-trips without a revision", arguments: [false, true])
     func registryPinWithoutRevision(explicitNullRevision: Bool) throws {
+        let identity = "example.library"
+        let version = "1.2.3"
         let data = try jsonEncoder.encode(RegistryPinFixture(
-            state: .init(version: "1.2.3", explicitNullRevision: explicitNullRevision)
+            identity: identity, state: .init(version: version, explicitNullRevision: explicitNullRevision)
         ))
 
         let pin = try jsonDecoder.decode(Pin.self, from: data)
-        #expect(pin.state == .registry(identity: "example.library", version: "1.2.3"))
+        #expect(pin.state == .registry(identity: identity, version: version))
         #expect(pin.location.isEmpty)
         #expect(try jsonDecoder.decode(Pin.self, from: jsonEncoder.encode(pin)) == pin)
         let object = try #require(try JSONSerialization.jsonObject(with: jsonEncoder.encode(pin)) as? [String: Any])
-        #expect(object["state"] as? [String: String] == ["version": "1.2.3"])
+        #expect(object["state"] as? [String: String] == ["version": version])
     }
 
     @Test("A registry pin requires a version")
     func registryPinMissingVersion() throws {
-        let data = try jsonEncoder.encode(RegistryPinFixture(state: .init(version: nil)))
+        let identity = "example.library"
+        let data = try jsonEncoder.encode(RegistryPinFixture(identity: identity, state: .init(version: nil)))
         #expect {
             try jsonDecoder.decode(Pin.self, from: data)
         } throws: {
@@ -114,7 +117,7 @@ private extension DecodingError {
 }
 
 private struct RegistryPinFixture: Encodable {
-    let identity = "example.library"
+    let identity: String
     let kind = "registry"
     let location = ""
     let state: State
