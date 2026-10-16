@@ -201,10 +201,12 @@ private struct RegistryResolutionFixture: PackageLocator {
         try json(DependencyFixture(
             identity: "consumer", name: "Consumer", url: packageDirectory.path,
             version: "unspecified", path: packageDirectory.path,
-            dependencies: [.init(
-                identity: identity, name: targetName, url: identity,
-                version: version, path: dependencyDirectory.path, dependencies: []
-            )]
+            dependencies: [
+                .init(
+                    identity: identity, name: targetName, url: identity,
+                    version: version, path: dependencyDirectory.path, dependencies: []
+                ),
+            ]
         ))
     }
 
@@ -255,7 +257,11 @@ private struct RegistryResolutionFixture: PackageLocator {
         let targets: [Target]
 
         struct ToolsVersion: Encodable {
-            let _version = "6.0.0"
+            let version = "6.0.0"
+
+            enum CodingKeys: String, CodingKey {
+                case version = "_version"
+            }
         }
 
         struct PackageKind: Encodable {
@@ -264,27 +270,27 @@ private struct RegistryResolutionFixture: PackageLocator {
 
         struct Dependency: Encodable {
             let registry: [Registry]
+        }
 
-            struct Registry: Encodable {
-                let identity: String
-                let requirement: Requirement
-                let productFilter: String? = nil
+        struct Registry: Encodable {
+            let identity: String
+            let requirement: Requirement
+            let productFilter: String? = nil
 
-                enum CodingKeys: String, CodingKey {
-                    case identity, requirement, productFilter
-                }
-
-                func encode(to encoder: any Encoder) throws {
-                    var container = encoder.container(keyedBy: CodingKeys.self)
-                    try container.encode(identity, forKey: .identity)
-                    try container.encode(requirement, forKey: .requirement)
-                    try container.encodeNil(forKey: .productFilter)
-                }
+            enum CodingKeys: String, CodingKey {
+                case identity, requirement, productFilter
             }
 
-            struct Requirement: Encodable {
-                let exact: [String]
+            func encode(to encoder: any Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(identity, forKey: .identity)
+                try container.encode(requirement, forKey: .requirement)
+                try container.encodeNil(forKey: .productFilter)
             }
+        }
+
+        struct Requirement: Encodable {
+            let exact: [String]
         }
 
         struct Product: Encodable {
