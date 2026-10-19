@@ -276,12 +276,20 @@ public struct Pin: Sendable, Codable, Identifiable, Hashable {
         self.identity = try container.decode(String.self, forKey: .identity)
         self.kind = try container.decode(String.self, forKey: .kind)
         self.location = try container.decode(String.self, forKey: .location)
-        let packageResolvedState = try container.decode(PackageResolvedState.self, forKey: .state)
-        self.state = .sourceControl(
-            revision: packageResolvedState.revision,
-            version: packageResolvedState.version,
-            branch: packageResolvedState.branch
-        )
+        if kind == State.Kind.registry.rawValue {
+            let stateContainer = try container.nestedContainer(keyedBy: State.CodingKeys.self, forKey: .state)
+            self.state = .registry(
+                identity: identity,
+                version: try stateContainer.decode(String.self, forKey: .version)
+            )
+        } else {
+            let packageResolvedState = try container.decode(PackageResolvedState.self, forKey: .state)
+            self.state = .sourceControl(
+                revision: packageResolvedState.revision,
+                version: packageResolvedState.version,
+                branch: packageResolvedState.branch
+            )
+        }
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -292,6 +300,9 @@ public struct Pin: Sendable, Codable, Identifiable, Hashable {
         switch state {
         case .sourceControl(let revision, let version, let branch):
             try container.encode(PackageResolvedState(revision: revision, version: version, branch: branch), forKey: .state)
+        case .registry(_, let version):
+            var stateContainer = container.nestedContainer(keyedBy: State.CodingKeys.self, forKey: .state)
+            try stateContainer.encode(version, forKey: .version)
         }
     }
 }
@@ -308,17 +319,24 @@ extension Pin {
         ///   - branch: Branch name.
         case sourceControl(revision: String, version: String? = nil, branch: String? = nil)
 
+        /// The scoped identity and resolved version of a registry package.
+        case registry(identity: String, version: String)
+
         /// The semantic version the package is pinned to, if any.
         public var version: String? {
             switch self {
             case .sourceControl(_, let version, _):
                 version
+            case .registry(_, let version):
+                version
             }
         }
 
-        private enum CodingKeys: String, CodingKey {
+        fileprivate enum CodingKeys: String, CodingKey {
             /// The kind of the state, such as source control, which determines the case to decode.
             case kind
+            /// The scoped identity of a registry package.
+            case identity
 
             /// Git commit revision (SHA) of the pinned package.
             case revision
@@ -329,14 +347,17 @@ extension Pin {
         }
 
         /// The kind of the state as stored in JSON.
-        private enum Kind: String, Codable {
+        fileprivate enum Kind: String, Codable {
             case sourceControl
+            case registry
         }
 
         private var kind: Kind {
             switch self {
             case .sourceControl:
                 .sourceControl
+            case .registry:
+                .registry
             }
         }
 
@@ -349,6 +370,11 @@ extension Pin {
                     version: try container.decodeIfPresent(String.self, forKey: .version),
                     branch: try container.decodeIfPresent(String.self, forKey: .branch)
                 )
+            case .registry:
+                self = .registry(
+                    identity: try container.decode(String.self, forKey: .identity),
+                    version: try container.decode(String.self, forKey: .version)
+                )
             }
         }
 
@@ -360,6 +386,9 @@ extension Pin {
                 try container.encode(revision, forKey: .revision)
                 try container.encodeIfPresent(version, forKey: .version)
                 try container.encodeIfPresent(branch, forKey: .branch)
+            case .registry(let identity, let version):
+                try container.encode(identity, forKey: .identity)
+                try container.encode(version, forKey: .version)
             }
         }
     }

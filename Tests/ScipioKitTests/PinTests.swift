@@ -63,6 +63,53 @@ struct PinTests {
         }
     }
 
+    @Test("A registry pin round-trips without a revision", arguments: [
+        #"""
+        {
+          "identity": "example.library",
+          "kind": "registry",
+          "location": "",
+          "state": {"version": "1.2.3"}
+        }
+        """#,
+        #"""
+        {
+          "identity": "example.library",
+          "kind": "registry",
+          "location": "",
+          "state": {"version": "1.2.3", "revision": null}
+        }
+        """#,
+    ])
+    func registryPinWithoutRevision(json: String) throws {
+        let pin = try jsonDecoder.decode(Pin.self, from: Data(json.utf8))
+        #expect(pin.state == .registry(identity: "example.library", version: "1.2.3"))
+        #expect(pin.location.isEmpty)
+
+        let encodedData = try jsonEncoder.encode(pin)
+        #expect(try jsonDecoder.decode(Pin.self, from: encodedData) == pin)
+
+        let encoded = try jsonDecoder.decode(EncodedPin.self, from: encodedData)
+        #expect(encoded.state == ["version": "1.2.3"])
+    }
+
+    @Test("A registry pin requires a version")
+    func registryPinMissingVersion() throws {
+        let json = #"""
+        {
+          "identity": "example.library",
+          "kind": "registry",
+          "location": "",
+          "state": {}
+        }
+        """#
+        #expect {
+            try jsonDecoder.decode(Pin.self, from: Data(json.utf8))
+        } throws: {
+            ($0 as? DecodingError)?.isKeyNotFound(named: "version") == true
+        }
+    }
+
     private func makePinJSON(state: [String: String]?) throws -> Data {
         var object: [String: Any] = [
             "identity": PackageFixture.identity,
@@ -87,4 +134,8 @@ private extension DecodingError {
         }
         return key.stringValue == name
     }
+}
+
+private struct EncodedPin: Decodable {
+    let state: [String: String]
 }

@@ -19,6 +19,10 @@ struct PinStateTests {
             Pin.State.sourceControl(revision: "0123456789abcdef", branch: "main"),
             ["kind": "sourceControl", "revision": "0123456789abcdef", "branch": "main"]
         ),
+        (
+            Pin.State.registry(identity: "example.library", version: "1.2.3"),
+            ["kind": "registry", "identity": "example.library", "version": "1.2.3"]
+        ),
     ]
 
     @Test(
@@ -59,6 +63,8 @@ struct PinStateTests {
         arguments: [
             (["revision": "0123456789abcdef"], "kind"),
             (["kind": "sourceControl"], "revision"),
+            (["kind": "registry", "version": "1.2.3"], "identity"),
+            (["kind": "registry", "identity": "example.library"], "version"),
         ]
     )
     func rejectsStateWithMissingRequiredKey(json: [String: String], missingKeyName: String) throws {

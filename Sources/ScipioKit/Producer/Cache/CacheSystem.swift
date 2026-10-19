@@ -62,6 +62,8 @@ private func sortDependencyCacheKeyChecksums(
 public struct SwiftPMCacheKey: CacheKey {
     /// The canonical repository URL the manifest was loaded from, for local packages only.
     public var localPackageCanonicalLocation: String?
+    /// The registry that supplied the downloaded package.
+    public var registryURL: URL?
     public var pin: Pin.State
     public var targetName: String
     var buildOptions: BuildOptions
@@ -78,9 +80,11 @@ public struct SwiftPMCacheKey: CacheKey {
         clangVersion: String,
         xcodeVersion: XcodeVersion,
         scipioVersion: String? = nil,
-        dependencyCacheKeyChecksums: [DependencyCacheKeyChecksum] = []
+        dependencyCacheKeyChecksums: [DependencyCacheKeyChecksum] = [],
+        registryURL: URL? = nil
     ) {
         self.localPackageCanonicalLocation = localPackageCanonicalLocation
+        self.registryURL = registryURL
         self.pin = pin
         self.targetName = targetName
         self.buildOptions = buildOptions
@@ -92,6 +96,7 @@ public struct SwiftPMCacheKey: CacheKey {
 
     private enum CodingKeys: String, CodingKey {
         case localPackageCanonicalLocation
+        case registryURL
         case pin
         case targetName
         case buildOptions
@@ -104,6 +109,7 @@ public struct SwiftPMCacheKey: CacheKey {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.localPackageCanonicalLocation = try container.decodeIfPresent(String.self, forKey: .localPackageCanonicalLocation)
+        self.registryURL = try container.decodeIfPresent(URL.self, forKey: .registryURL)
         self.pin = try container.decode(Pin.State.self, forKey: .pin)
         self.targetName = try container.decode(String.self, forKey: .targetName)
         self.buildOptions = try container.decode(BuildOptions.self, forKey: .buildOptions)
@@ -118,6 +124,7 @@ public struct SwiftPMCacheKey: CacheKey {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(localPackageCanonicalLocation, forKey: .localPackageCanonicalLocation)
+        try container.encodeIfPresent(registryURL, forKey: .registryURL)
         try container.encode(pin, forKey: .pin)
         try container.encode(targetName, forKey: .targetName)
         try container.encode(buildOptions, forKey: .buildOptions)
@@ -144,6 +151,10 @@ struct CacheSystem: Sendable {
         var buildOptions: BuildOptions
     }
 
+    private struct RegistryMetadata: Decodable {
+        let registry: URL
+    }
+
     private struct CacheKeyEnvironment: Sendable {
         var clangVersion: String
         var xcodeVersion: XcodeVersion
@@ -156,10 +167,11 @@ struct CacheSystem: Sendable {
 
     private enum CacheKeyCalculationResult: Sendable {
         case calculated(CacheTarget, SwiftPMCacheKey)
-        case revisionNotDetected(CacheTarget, String)
+        case calculationFailed(CacheTarget, packageName: String)
     }
 
     enum Error: LocalizedError {
+        case registryURLNotDetected(String)
         case revisionNotDetected(String)
         case compilerVersionNotDetected
         case xcodeVersionNotDetected
@@ -167,6 +179,8 @@ struct CacheSystem: Sendable {
 
         var errorDescription: String? {
             switch self {
+            case .registryURLNotDetected(let packageName):
+                return "Registry URL is not detected for \(packageName)."
             case .revisionNotDetected(let packageName):
                 return "Repository version is not detected for \(packageName)."
             case .compilerVersionNotDetected:
@@ -324,7 +338,7 @@ struct CacheSystem: Sendable {
                 case .calculated(let target, let cacheKey):
                     cacheKeys[target] = cacheKey
                     remainingTargets.remove(target)
-                case .revisionNotDetected(let target, let packageName):
+                case .calculationFailed(let target, let packageName):
                     unavailableTargets.insert(target)
                     remainingTargets.remove(target)
                     unavailablePackages.insert(packageName)
@@ -334,7 +348,7 @@ struct CacheSystem: Sendable {
             for packageName in unavailablePackages.subtracting(reportedUnavailablePackages).sorted() {
                 logger.warning(
                     // swiftlint:disable:next line_length
-                    "⚠️ Cache key is unavailable because \(packageName) has no revision. Skip cache participation for this package and its dependents.",
+                    "⚠️ Failed to calculate the cache key because \(packageName) has no revision or registry URL. Skip cache participation for this package and its dependents.",
                     metadata: .color(.yellow)
                 )
             }
@@ -373,8 +387,10 @@ struct CacheSystem: Sendable {
                     environment: environment
                 )
                 return CacheKeyCalculationResult.calculated(input.target, cacheKey)
+            } catch Error.registryURLNotDetected(let packageName) {
+                return CacheKeyCalculationResult.calculationFailed(input.target, packageName: packageName)
             } catch Error.revisionNotDetected(let packageName) {
-                return CacheKeyCalculationResult.revisionNotDetected(input.target, packageName)
+                return CacheKeyCalculationResult.calculationFailed(input.target, packageName: packageName)
             }
         }
     }
@@ -393,8 +409,14 @@ struct CacheSystem: Sendable {
             nil
         }
 
-        let pinState = try await retrievePinState(package: package)
+        let pinState: Pin.State
+        if let resolvedPinState = package.pinState {
+            pinState = resolvedPinState
+        } else {
+            pinState = try await retrievePinStateFromSourceControlRevision(package: package)
+        }
 
+        let registryURL = try registryURL(for: package)
         let targetName = target.buildProduct.target.name
         let buildOptions = target.buildOptions
         return SwiftPMCacheKey(
@@ -405,8 +427,20 @@ struct CacheSystem: Sendable {
             clangVersion: environment.clangVersion,
             xcodeVersion: environment.xcodeVersion,
             scipioVersion: currentScipioVersion,
-            dependencyCacheKeyChecksums: dependencyCacheKeyChecksums
+            dependencyCacheKeyChecksums: dependencyCacheKeyChecksums,
+            registryURL: registryURL
         )
+    }
+
+    private func registryURL(for package: ResolvedPackage) throws -> URL? {
+        guard case .registry = package.resolvedPackageKind else { return nil }
+
+        let metadataPath = URL(filePath: package.path).appendingPathComponent(".registry-metadata")
+        guard let contents = try? fileSystem.readFileContents(metadataPath),
+              let metadata = try? JSONDecoder().decode(RegistryMetadata.self, from: Data(contents)) else {
+            throw Error.registryURLNotDetected(package.name)
+        }
+        return metadata.registry
     }
 
     private func cacheKeyEnvironment() async throws -> CacheKeyEnvironment {
@@ -422,13 +456,17 @@ struct CacheSystem: Sendable {
         )
     }
 
-    private func retrievePinState(package: ResolvedPackage) async throws -> Pin.State {
-        if let pinState = package.pinState {
-            return pinState
+    private func retrievePinStateFromSourceControlRevision(package: ResolvedPackage) async throws -> Pin.State {
+        let supportsSourceControlRevision: Bool = switch package.resolvedPackageKind {
+        case .root, .fileSystem, .localSourceControl, .remoteSourceControl:
+            true
+        case .registry:
+            false
+        }
+        guard supportsSourceControlRevision else {
+            throw Error.revisionNotDetected(package.manifest.name)
         }
 
-        // TODO: Once package registry is supported, skip makePinStateFromRevision() only for registry packages,
-        // which have no git repository.
         guard let pinState = await package.makePinStateFromRevision() else {
             throw Error.revisionNotDetected(package.manifest.name)
         }
