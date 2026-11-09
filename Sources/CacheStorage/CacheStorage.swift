@@ -21,6 +21,22 @@ public protocol FrameworkCacheStorage: Sendable {
 @available(*, deprecated, renamed: "FrameworkCacheStorage")
 public typealias CacheStorage = FrameworkCacheStorage
 
+/// Optional storage capability for non-framework build artifacts.
+public protocol ArtifactCacheStorage: Sendable {
+    func existsArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws -> Bool
+    func fetchArtifact(for cacheKey: some CacheKey, kind: ArtifactKind, to destination: URL) async throws
+    func cacheArtifact(_ artifact: URL, for cacheKey: some CacheKey, kind: ArtifactKind) async throws
+    func removeArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws
+}
+
+extension ArtifactCacheStorage {
+    public func removeArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws {}
+}
+
+public enum ArtifactKind: String, Codable, Sendable {
+    case macroPlugin
+}
+
 public protocol ResolvedPackagesCacheStorage: Sendable {
     /// The display name of the cache storage used for logging purpose
     var displayName: String { get }

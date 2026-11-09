@@ -9,6 +9,8 @@ struct PIFGenerator {
     private let toolchainLibDirectory: Foundation.URL
     private let buildOptions: BuildOptions
     private let buildOptionsMatrix: [String: BuildOptions]
+    private let macroPlan: MacroBuildPlan?
+    private let macroPlugins: [String: MacroPlugin]
     private let executor: any Executor
     private let fileSystem: any FileSystem
 
@@ -19,6 +21,8 @@ struct PIFGenerator {
         toolchainLibDirectory: Foundation.URL,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
+        macroPlan: MacroBuildPlan? = nil,
+        macroPlugins: [String: MacroPlugin] = [:],
         executor: some Executor = ProcessExecutor(),
         fileSystem: any FileSystem = LocalFileSystem.default
     ) throws {
@@ -28,6 +32,8 @@ struct PIFGenerator {
         self.toolchainLibDirectory = toolchainLibDirectory
         self.buildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
+        self.macroPlan = macroPlan
+        self.macroPlugins = macroPlugins
         self.executor = executor
         self.fileSystem = fileSystem
     }
@@ -50,6 +56,7 @@ struct PIFGenerator {
 
     func generateJSON(for sdk: SDK) async throws -> Foundation.URL {
         let manipulator = try await buildPIFManipulator()
+        manipulator.removeHostMacroDependencies(macroPlan?.hostOnlyDependencies ?? [:])
 
         manipulator.updateTargets { target in
             updateTarget(&target, sdk: sdk)
@@ -158,6 +165,13 @@ struct PIFGenerator {
         }
 
         appendExtraFlagsByBuildOptionsMatrix(to: &configuration, target: target)
+        for name in macroPlan?.targetDependencies[target.name] ?? [] {
+            guard let plugin = macroPlugins[name] else { continue }
+            configuration.buildSettings["OTHER_SWIFT_FLAGS"].append([
+                "-load-plugin-executable",
+                "\(plugin.executable.path(percentEncoded: false))#\(plugin.moduleName)",
+            ])
+        }
 
         // Original PIFBuilder implementation of SwiftPM generates modulemap for Swift target
         // That modulemap refer a bridging header by a relative path

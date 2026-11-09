@@ -24,6 +24,45 @@ package final class PIFManipulator {
         }
     }
 
+    package func removeHostMacroDependencies(_ namesByTarget: [String: Set<String>]) {
+        let targets = topLevelObject.arrayValue.filter { $0["type"].stringValue == "target" }
+        for index in 0..<topLevelObject.arrayValue.count where topLevelObject[index]["type"].stringValue == "target" {
+            let contents = topLevelObject[index]["contents"]
+            let targetName = contents["name"].stringValue
+            guard let (_, names) = namesByTarget.sorted(by: { $0.key.count > $1.key.count }).first(where: { name, _ in
+                targetName == name || (targetName.hasPrefix("\(name)_") && targetName.hasSuffix("_PackageProduct"))
+            }) else { continue }
+
+            var guids: Set<String> = []
+            for candidate in targets {
+                let candidateName = candidate["contents"]["name"].stringValue
+                if names.contains(candidateName) || names.contains(where: {
+                    candidateName.hasPrefix("\($0)_") && candidateName.hasSuffix("_PackageProduct")
+                }) {
+                    guids.insert(candidate["contents"]["guid"].stringValue)
+                }
+            }
+            func isHostReference(_ guid: String) -> Bool {
+                guids.contains(guid) || names.contains {
+                    guid == "PACKAGE-TARGET:\($0)" || guid.hasPrefix("PACKAGE-TARGET:\($0)@")
+                }
+            }
+            if let dependencies = contents["dependencies"].array {
+                topLevelObject[index]["contents"]["dependencies"].arrayObject = dependencies
+                    .filter { !isHostReference($0["guid"].stringValue) }.map(\.object)
+            }
+            if let phases = contents["buildPhases"].array {
+                var updated = phases
+                for phaseIndex in updated.indices {
+                    guard let files = updated[phaseIndex]["buildFiles"].array else { continue }
+                    updated[phaseIndex]["buildFiles"].arrayObject = files
+                        .filter { !isHostReference($0["targetReference"].stringValue) }.map(\.object)
+                }
+                topLevelObject[index]["contents"]["buildPhases"].arrayObject = updated.map(\.object)
+            }
+        }
+    }
+
     /// Dump manipulating JSON data
     /// - Returns: JSON data
     package func dump() throws -> Data {

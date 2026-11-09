@@ -205,6 +205,33 @@ final class CacheSystemTests: XCTestCase {
         XCTAssertFalse(existsForPreviousFormat)
     }
 
+    func testMacroFingerprintInvalidatesFrameworkAndDependents() async throws {
+        let fixture = try await makeTaggedPartialCacheTestPackagePath()
+        defer { try? LocalFileSystem.default.removeFileTree(fixture.rootPath) }
+        let package = try await DescriptionPackage(
+            packageDirectory: fixture.packagePath,
+            mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
+            onlyUseVersionsFromResolvedFile: true
+        )
+        let graph = try package.resolveBuildProductDependencyGraph().map {
+            CacheSystem.CacheTarget(buildProduct: $0, buildOptions: defaultBuildOptions())
+        }
+        let cache = CacheSystem(outputDirectory: fixture.rootPath)
+        let baseline = try await cache.calculateCacheKeys(for: graph)
+        let changed = try await cache.calculateCacheKeys(
+            for: graph,
+            macroChecksums: ["Base": [.init(targetName: "Plugin", checksum: "macro-revision")]]
+        )
+        let disabled = try await cache.calculateCacheKeys(for: graph, uncacheableTargets: ["Base"])
+        let base = try XCTUnwrap(graph.allNodes.map(\.value).first { $0.buildProduct.target.name == "Base" })
+        let dependent = try XCTUnwrap(graph.allNodes.map(\.value).first { $0.buildProduct.target.name == "Bad" })
+        XCTAssertNotEqual(baseline[base], changed[base])
+        XCTAssertNotEqual(baseline[dependent], changed[dependent])
+        XCTAssertNil(disabled[base])
+        XCTAssertNil(disabled[dependent])
+    }
+
     func testCacheKeysIncludeDirectDependencyChecksums() async throws {
         let taggedFixture = try await makeTaggedPartialCacheTestPackagePath()
         defer { try? LocalFileSystem.default.removeFileTree(taggedFixture.rootPath) }

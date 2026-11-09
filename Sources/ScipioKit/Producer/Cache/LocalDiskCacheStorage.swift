@@ -1,7 +1,7 @@
 import Foundation
 import CacheStorage
 
-struct LocalDiskCacheStorage: FrameworkCacheStorage, Equatable {
+struct LocalDiskCacheStorage: FrameworkCacheStorage, ArtifactCacheStorage, Equatable {
     private let fileSystem: any FileSystem
 
     var parallelNumber: Int? { nil }
@@ -84,5 +84,38 @@ struct LocalDiskCacheStorage: FrameworkCacheStorage, Equatable {
         let source = try cacheFrameworkPath(for: cacheKey)
         let destination = destinationDir.appendingPathComponent(xcFrameworkFileName(for: cacheKey))
         try fileSystem.copy(from: source, to: destination)
+    }
+
+    private func artifactPath(for cacheKey: some CacheKey, kind: ArtifactKind) throws -> URL {
+        let namespace: String = switch kind {
+        case .macroPlugin: "Macros"
+        }
+        return try buildBaseDirectoryPath()
+            .appendingPathComponent(namespace)
+            .appendingPathComponent(cacheKey.targetName.packageNamed())
+            .appendingPathComponent(cacheKey.calculateChecksum())
+            .appendingPathComponent(cacheKey.targetName.packageNamed())
+    }
+
+    func existsArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws -> Bool {
+        fileSystem.exists(try artifactPath(for: cacheKey, kind: kind))
+    }
+
+    func fetchArtifact(for cacheKey: some CacheKey, kind: ArtifactKind, to destination: URL) async throws {
+        try fileSystem.copy(from: artifactPath(for: cacheKey, kind: kind), to: destination)
+    }
+
+    func cacheArtifact(_ artifact: URL, for cacheKey: some CacheKey, kind: ArtifactKind) async throws {
+        let destination = try artifactPath(for: cacheKey, kind: kind)
+        try fileSystem.createDirectory(destination.deletingLastPathComponent(), recursive: true)
+        guard !fileSystem.exists(destination) else { return }
+        try fileSystem.copy(from: artifact, to: destination)
+    }
+
+    func removeArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws {
+        let path = try artifactPath(for: cacheKey, kind: kind)
+        if fileSystem.exists(path) {
+            try fileSystem.removeFileTree(path)
+        }
     }
 }

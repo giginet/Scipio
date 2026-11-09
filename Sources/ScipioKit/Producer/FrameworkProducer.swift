@@ -12,6 +12,9 @@ struct FrameworkProducer {
     private let overwrite: Bool
     private let outputDir: URL
     private let fileSystem: any FileSystem
+    private let macroPlan: MacroBuildPlan?
+    private let macroPlugins: [String: MacroPlugin]
+    private let macroProducer: MacroPluginProducer?
 
     private var shouldGenerateVersionFile: Bool {
         // cache is not disabled
@@ -33,6 +36,9 @@ struct FrameworkProducer {
         cachePolicies: [Runner.Options.FrameworkCachePolicy],
         overwrite: Bool,
         outputDir: URL,
+        macroPlan: MacroBuildPlan? = nil,
+        macroPlugins: [String: MacroPlugin] = [:],
+        macroProducer: MacroPluginProducer? = nil,
         fileSystem: any FileSystem = LocalFileSystem.default
     ) {
         self.descriptionPackage = descriptionPackage
@@ -41,6 +47,9 @@ struct FrameworkProducer {
         self.cachePolicies = cachePolicies
         self.overwrite = overwrite
         self.outputDir = outputDir
+        self.macroPlan = macroPlan
+        self.macroPlugins = macroPlugins
+        self.macroProducer = macroProducer
         self.fileSystem = fileSystem
     }
 
@@ -72,6 +81,9 @@ struct FrameworkProducer {
 
     private func processAllTargets(buildProductDependencyGraph: DependencyGraph<BuildProduct>) async throws {
         guard !buildProductDependencyGraph.rootNodes.isEmpty else {
+            if let macroPlan, let macroProducer {
+                try await macroProducer.produce(macroPlan, plugins: macroPlugins)
+            }
             return
         }
 
@@ -94,14 +106,42 @@ struct FrameworkProducer {
             cacheKeys = [:]
             dependencyGraphToBuild = targetGraph
         } else {
-            cacheKeys = try await cacheSystem.calculateCacheKeys(for: targetGraph)
+            var macroChecksums: [String: [DependencyCacheKeyChecksum]] = [:]
+            var uncacheableMacroTargets: Set<String> = []
+            for (target, names) in macroPlan?.targetDependencies ?? [:] {
+                for name in names {
+                    guard let plugin = macroPlugins[name], let key = plugin.cacheKey else {
+                        uncacheableMacroTargets.insert(target)
+                        continue
+                    }
+                    macroChecksums[target, default: []].append(
+                        DependencyCacheKeyChecksum(targetName: name, checksum: try key.calculateChecksum())
+                    )
+                }
+            }
+            var uncacheableForMacro = uncacheableMacroTargets
+            var changed = true
+            while changed {
+                changed = false
+                for node in targetGraph.allNodes where node.children.contains(where: {
+                    uncacheableForMacro.contains($0.value.buildProduct.target.name)
+                }) {
+                    changed = uncacheableForMacro.insert(node.value.buildProduct.target.name).inserted || changed
+                }
+            }
+            cacheKeys = try await cacheSystem.calculateCacheKeys(
+                for: targetGraph,
+                macroChecksums: macroChecksums,
+                uncacheableTargets: uncacheableMacroTargets
+            )
             let targets = Set(targetGraph.allNodes.map(\.value))
 
             // Validate the existing frameworks in `outputDir` before restoration
             let valid = await validateExistingFrameworks(
                 availableTargets: targets,
                 cacheSystem: cacheSystem,
-                cacheKeys: cacheKeys
+                cacheKeys: cacheKeys,
+                uncacheableMacroTargets: uncacheableForMacro
             )
 
             let storagesWithConsumer = cachePolicies.storages(for: .consumer)
@@ -135,6 +175,9 @@ struct FrameworkProducer {
             dependencyGraphToBuild = targetGraph
         }
 
+        if let macroPlan, let macroProducer {
+            try await macroProducer.produce(macroPlan, plugins: macroPlugins)
+        }
         let targetBuildResult = await buildTargets(dependencyGraphToBuild)
 
         let builtTargets: OrderedSet<CacheSystem.CacheTarget> = switch targetBuildResult {
@@ -169,7 +212,8 @@ struct FrameworkProducer {
     private func validateExistingFrameworks(
         availableTargets: Set<CacheSystem.CacheTarget>,
         cacheSystem: CacheSystem,
-        cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
+        cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey],
+        uncacheableMacroTargets: Set<String>
     ) async -> Set<CacheSystem.CacheTarget> {
         let chunked = availableTargets.chunks(ofCount: CacheSystem.defaultParallelNumber)
 
@@ -183,6 +227,16 @@ struct FrameworkProducer {
                             let frameworkName = product.frameworkName
                             let outputPath = outputDir.appending(component: frameworkName)
                             let exists = fileSystem.exists(outputPath)
+                            if cacheKeys[target] == nil && uncacheableMacroTargets.contains(product.target.name) {
+                                if exists {
+                                    try fileSystem.removeFileTree(outputPath)
+                                }
+                                let versionPath = outputDir.appending(component: ".\(product.target.name).version")
+                                if fileSystem.exists(versionPath) {
+                                    try fileSystem.removeFileTree(versionPath)
+                                }
+                                return nil
+                            }
                             guard exists else { return nil }
 
                             guard let expectedCacheKey = cacheKeys[target] else { return nil }
@@ -381,6 +435,8 @@ struct FrameworkProducer {
                 descriptionPackage: descriptionPackage,
                 buildOptions: buildOptions,
                 buildOptionsMatrix: buildOptionsMatrix,
+                macroPlan: macroPlan,
+                macroPlugins: macroPlugins,
                 keepPublicHeadersStructure: { [baseBuildOptions, buildOptionsMatrix] targetName in
                     (buildOptionsMatrix[targetName] ?? baseBuildOptions).keepPublicHeadersStructure
                 }
@@ -505,7 +561,7 @@ extension FrameworkProducer {
         for chunk in chunked {
             await withTaskGroup(of: Void.self) { group in
                 for target in chunk {
-                    group.addTask {
+                    group.addTask { [outputDir] in
                         do {
                             guard let cacheKey = cacheKeys[target] else { return }
                             let hasCache = try await storage.existsValidCache(for: cacheKey)
