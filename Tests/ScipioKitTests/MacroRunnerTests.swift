@@ -96,9 +96,9 @@ struct MacroRunnerTests {
         #expect(manager.fileExists(atPath: macroVersion.path))
 
         let macroKey = try JSONDecoder().decode(MacroCacheKey.self, from: Data(contentsOf: macroVersion))
-        let cachedExecutable = try cache.appending(path: "Scipio/Macros/FixturePlugin")
-            .appending(path: macroKey.calculateChecksum())
-            .appending(path: "FixturePlugin/FixturePlugin")
+        let cachedExecutable = try cache.appending(
+            components: "Scipio", "Macros", "FixturePlugin", macroKey.calculateChecksum(), "FixturePlugin", "FixturePlugin"
+        )
         try Data("corrupt".utf8).write(to: cachedExecutable)
         try manager.removeItem(at: macroDirectory)
         try manager.removeItem(at: macroVersion)

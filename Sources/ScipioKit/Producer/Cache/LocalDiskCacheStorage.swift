@@ -90,11 +90,12 @@ struct LocalDiskCacheStorage: FrameworkCacheStorage, ArtifactCacheStorage, Equat
         let namespace: String = switch kind {
         case .macroPlugin: "Macros"
         }
-        return try buildBaseDirectoryPath()
-            .appending(path: namespace)
-            .appending(path: cacheKey.targetName.packageNamed())
-            .appending(path: cacheKey.calculateChecksum())
-            .appending(path: cacheKey.targetName.packageNamed())
+        return try buildBaseDirectoryPath().appending(
+            components: namespace,
+            cacheKey.targetName.packageNamed(),
+            cacheKey.calculateChecksum(),
+            cacheKey.targetName.packageNamed()
+        )
     }
 
     func existsArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws -> Bool {

@@ -46,9 +46,9 @@ struct MacroCacheTests {
         let restored = destination.appending(path: "ExamplePlugin")
         #expect(try Data(contentsOf: restored) == Data("plugin".utf8))
         #expect(manager.isExecutableFile(atPath: restored.path))
-        let cachePath = try root.appending(path: "Scipio/Macros/ExamplePlugin")
-            .appending(path: key.calculateChecksum())
-            .appending(path: "ExamplePlugin/ExamplePlugin")
+        let cachePath = try root.appending(
+            components: "Scipio", "Macros", "ExamplePlugin", key.calculateChecksum(), "ExamplePlugin", "ExamplePlugin"
+        )
         #expect(manager.fileExists(atPath: cachePath.path))
     }
 
