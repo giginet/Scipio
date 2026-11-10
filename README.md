@@ -141,6 +141,8 @@ Set `Runner.Options.requireMacroArtifactStorage` to reject producer policies wit
 
 The host build currently uses SwiftPM's deprecated native build system and requires the macro product to be reachable from the resolved package graph. Host architectures and toolchains other than the one running Scipio require separate builds. The current artifact assembly copies all bundles and dylibs in SwiftPM's host products directory; dependency-specific selection and portability of dynamically linked artifacts require further validation.
 
+See [Use Swift Macros](Sources/scipio/scipio.docc/swift-macros.md) for package setup, consumer configuration, and caching details.
+
 ### Create XCFramework from a single Swift Package
 
 Scipio also can generate XCFrameworks from a specific Swift Package. This feature is similar to swift-create-xcframework.
