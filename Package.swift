@@ -4,17 +4,6 @@
 import PackageDescription
 import Foundation
 
-#if compiler(<6.3)
-// swift-log 1.17 uses an attribute that Swift 6.2 does not recognize.
-let swiftLogDependency: Package.Dependency = .package(
-    url: "https://github.com/apple/swift-log.git", "1.10.1"..<"1.17.0"
-)
-#else
-let swiftLogDependency: Package.Dependency = .package(
-    url: "https://github.com/apple/swift-log.git", from: "1.10.1"
-)
-#endif
-
 let swiftSettings: [SwiftSetting] = [
     .enableExperimentalFeature("StrictConcurrency"),
     .unsafeFlags(["-strict-concurrency=complete"]),
@@ -36,7 +25,8 @@ let package = Package(
             targets: ["CacheStorage"]),
     ],
     dependencies: [
-        swiftLogDependency,
+        // swift-log 1.17 uses an attribute that Swift 6.2 does not recognize.
+        .package(url: "https://github.com/apple/swift-log.git", exact: "1.16.2"),
         .package(url: "https://github.com/apple/swift-collections",
                  from: "1.4.0"),
         .package(url: "https://github.com/apple/swift-argument-parser.git",
