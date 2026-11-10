@@ -28,12 +28,12 @@ struct MacroCacheTests {
 
     @Test func localMacroArtifactRoundTripPreservesExecutable() async throws {
         let manager = FileManager.default
-        let root = manager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = manager.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? manager.removeItem(at: root) }
-        let source = root.appendingPathComponent("source")
-        let destination = root.appendingPathComponent("restored")
+        let source = root.appending(path: "source")
+        let destination = root.appending(path: "restored")
         try manager.createDirectory(at: source, withIntermediateDirectories: true)
-        let executable = source.appendingPathComponent("ExamplePlugin")
+        let executable = source.appending(path: "ExamplePlugin")
         try Data("plugin".utf8).write(to: executable)
         try manager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
         let storage = LocalDiskCacheStorage(baseURL: root)
@@ -43,17 +43,17 @@ struct MacroCacheTests {
         try await storage.cacheArtifact(source, for: key, kind: .macroPlugin)
         #expect(try await storage.existsArtifact(for: key, kind: .macroPlugin))
         try await storage.fetchArtifact(for: key, kind: .macroPlugin, to: destination)
-        let restored = destination.appendingPathComponent("ExamplePlugin")
+        let restored = destination.appending(path: "ExamplePlugin")
         #expect(try Data(contentsOf: restored) == Data("plugin".utf8))
         #expect(manager.isExecutableFile(atPath: restored.path))
-        let cachePath = try root.appendingPathComponent("Scipio/Macros/ExamplePlugin")
-            .appendingPathComponent(key.calculateChecksum())
-            .appendingPathComponent("ExamplePlugin/ExamplePlugin")
+        let cachePath = try root.appending(path: "Scipio/Macros/ExamplePlugin")
+            .appending(path: key.calculateChecksum())
+            .appending(path: "ExamplePlugin/ExamplePlugin")
         #expect(manager.fileExists(atPath: cachePath.path))
     }
 
     @Test func versionDecoderRejectsUnknownSchema() throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: url) }
         try JSONEncoder().encode(key()).write(to: url)
         #expect(try MacroVersionFileDecoder().decode(versionFile: url) == key())

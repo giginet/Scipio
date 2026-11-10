@@ -193,10 +193,10 @@ struct MacroPluginProducer {
                 xcodeVersion: xcodeVersion, architecture: architecture
             )
             if key == nil && requireArtifactStorage { throw Error.uncacheable(module.name) }
-            let directory = outputDirectory.appendingPathComponent(module.c99name)
+            let directory = outputDirectory.appending(path: module.c99name)
             let plugin = MacroPlugin(
                 targetName: module.name, moduleName: module.c99name,
-                executable: directory.appendingPathComponent(module.c99name), cacheKey: key
+                executable: directory.appending(path: module.c99name), cacheKey: key
             )
             plugins[module.c99name] = plugin
         }
@@ -205,7 +205,7 @@ struct MacroPluginProducer {
 
     func produce(_ plan: MacroBuildPlan, plugins: [String: MacroPlugin]) async throws {
         if plan.modules.isEmpty {
-            let metadata = outputDirectory.appendingPathComponent("plugins.json")
+            let metadata = outputDirectory.appending(path: "plugins.json")
             if manager.fileExists(atPath: metadata.path) {
                 try JSONEncoder().encode(OutputManifest(plugins: [])).write(to: metadata, options: .atomic)
             }
@@ -215,8 +215,8 @@ struct MacroPluginProducer {
         for module in plan.modules {
             guard let plugin = plugins[module.c99name] else { throw Error.missingExecutable(module.name) }
             let key = plugin.cacheKey
-            let directory = outputDirectory.appendingPathComponent(module.c99name)
-            let versionFile = outputDirectory.appendingPathComponent(".\(module.c99name).version")
+            let directory = outputDirectory.appending(path: module.c99name)
+            let versionFile = outputDirectory.appending(path: ".\(module.c99name).version")
             if !policies.isEmpty, let key, validOutput(directory, versionFile: versionFile, key: key) {
                 try await publish(directory, key: key)
                 continue
@@ -229,7 +229,7 @@ struct MacroPluginProducer {
                         logger.info("Macro cache is not supported by \(policy.storage.displayName); skipping it.")
                         continue
                     }
-                    let staging = outputDirectory.appendingPathComponent(".restore-\(UUID().uuidString)")
+                    let staging = outputDirectory.appending(path: ".restore-\(UUID().uuidString)")
                     defer { try? manager.removeItem(at: staging) }
                     do {
                         guard try await storage.existsArtifact(for: key, kind: .macroPlugin) else { continue }
@@ -248,7 +248,7 @@ struct MacroPluginProducer {
             }
 
             if !restored {
-                let staging = outputDirectory.appendingPathComponent(".build-\(UUID().uuidString)")
+                let staging = outputDirectory.appending(path: ".build-\(UUID().uuidString)")
                 defer { try? manager.removeItem(at: staging) }
                 try await build(module, into: staging)
                 guard validateArtifact(staging, executable: module.c99name) else {
@@ -269,7 +269,7 @@ struct MacroPluginProducer {
         })
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(output).write(to: outputDirectory.appendingPathComponent("plugins.json"), options: .atomic)
+        try encoder.encode(output).write(to: outputDirectory.appending(path: "plugins.json"), options: .atomic)
     }
 
     private func cacheKey(
@@ -334,19 +334,19 @@ struct MacroPluginProducer {
         _ = try await run(common + ["--product", module.name])
         let binPath = try await run(common + ["--show-bin-path"])
         let binDirectory = URL(filePath: binPath)
-        let executable = binDirectory.appendingPathComponent("\(module.name)-tool")
+        let executable = binDirectory.appending(path: "\(module.name)-tool")
         guard manager.isExecutableFile(atPath: executable.path) else {
             throw Error.missingExecutable(module.name)
         }
         try manager.createDirectory(at: directory, withIntermediateDirectories: true)
-        try manager.copyItem(at: executable, to: directory.appendingPathComponent(module.c99name))
+        try manager.copyItem(at: executable, to: directory.appending(path: module.c99name))
         let supportFiles = try manager.contentsOfDirectory(atPath: binDirectory.path)
             .filter { $0.hasSuffix(".bundle") || $0.hasSuffix(".dylib") }.sorted()
         for name in supportFiles {
-            try manager.copyItem(at: binDirectory.appendingPathComponent(name), to: directory.appendingPathComponent(name))
+            try manager.copyItem(at: binDirectory.appending(path: name), to: directory.appending(path: name))
         }
         let manifest = ArtifactManifest(executable: module.c99name, files: try artifactFiles(directory))
-        try JSONEncoder().encode(manifest).write(to: directory.appendingPathComponent("artifact.json"), options: .atomic)
+        try JSONEncoder().encode(manifest).write(to: directory.appending(path: "artifact.json"), options: .atomic)
     }
 
     private func run(_ arguments: [String]) async throws -> String {
@@ -354,10 +354,10 @@ struct MacroPluginProducer {
     }
 
     private func validateArtifact(_ directory: URL, executable: String) -> Bool {
-        guard let data = try? Data(contentsOf: directory.appendingPathComponent("artifact.json")),
+        guard let data = try? Data(contentsOf: directory.appending(path: "artifact.json")),
               let manifest = try? JSONDecoder().decode(ArtifactManifest.self, from: data),
               manifest.executable == executable,
-              manager.isExecutableFile(atPath: directory.appendingPathComponent(executable).path)
+              manager.isExecutableFile(atPath: directory.appending(path: executable).path)
         else { return false }
         do {
             let files = try artifactFiles(directory)
@@ -377,7 +377,7 @@ struct MacroPluginProducer {
         var files: [String: String] = [:]
         for relativePath in try manager.subpathsOfDirectory(atPath: directory.path) {
             if relativePath == "artifact.json" { continue }
-            let url = directory.appendingPathComponent(relativePath)
+            let url = directory.appending(path: relativePath)
             let values = try url.resourceValues(forKeys: Set(keys))
             if values.isSymbolicLink == true {
                 files[relativePath] = "link:" + (try manager.destinationOfSymbolicLink(atPath: url.path))

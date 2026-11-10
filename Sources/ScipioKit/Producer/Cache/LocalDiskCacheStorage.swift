@@ -91,10 +91,10 @@ struct LocalDiskCacheStorage: FrameworkCacheStorage, ArtifactCacheStorage, Equat
         case .macroPlugin: "Macros"
         }
         return try buildBaseDirectoryPath()
-            .appendingPathComponent(namespace)
-            .appendingPathComponent(cacheKey.targetName.packageNamed())
-            .appendingPathComponent(cacheKey.calculateChecksum())
-            .appendingPathComponent(cacheKey.targetName.packageNamed())
+            .appending(path: namespace)
+            .appending(path: cacheKey.targetName.packageNamed())
+            .appending(path: cacheKey.calculateChecksum())
+            .appending(path: cacheKey.targetName.packageNamed())
     }
 
     func existsArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws -> Bool {
