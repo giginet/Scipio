@@ -7,11 +7,13 @@ struct MacroCacheTests {
     private func key(revision: String = "123", swiftVersion: String = "Swift 6", schemaVersion: Int = 1) -> MacroCacheKey {
         MacroCacheKey(
             schemaVersion: schemaVersion, artifactKind: .macroPlugin, targetName: "ExamplePlugin",
-            dependencies: [.init(
-                packageIdentity: "example",
-                pin: .sourceControl(revision: revision),
-                targetName: "ExamplePlugin"
-            )],
+            dependencies: [
+                .init(
+                    packageIdentity: "example",
+                    pin: .sourceControl(revision: revision),
+                    targetName: "ExamplePlugin"
+                ),
+            ],
             swiftVersion: swiftVersion, clangVersion: "Clang", xcodeVersion: "Xcode",
             hostArchitecture: "arm64", deploymentTarget: nil, rootMacOSPlatform: nil, configuration: "debug",
             scipioVersion: "Scipio"

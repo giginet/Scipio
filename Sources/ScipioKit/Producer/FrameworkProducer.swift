@@ -87,7 +87,7 @@ struct FrameworkProducer {
             return
         }
 
-        var targetGraph = buildProductDependencyGraph.map { buildProduct in
+        let targetGraph = buildProductDependencyGraph.map { buildProduct in
             let buildOptionsForProduct = overriddenBuildOption(for: buildProduct)
             return CacheSystem.CacheTarget(
                 buildProduct: buildProduct,
@@ -106,73 +106,9 @@ struct FrameworkProducer {
             cacheKeys = [:]
             dependencyGraphToBuild = targetGraph
         } else {
-            var macroChecksums: [String: [DependencyCacheKeyChecksum]] = [:]
-            var uncacheableMacroTargets: Set<String> = []
-            for (target, names) in macroPlan?.targetDependencies ?? [:] {
-                for name in names {
-                    guard let plugin = macroPlugins[name], let key = plugin.cacheKey else {
-                        uncacheableMacroTargets.insert(target)
-                        continue
-                    }
-                    macroChecksums[target, default: []].append(
-                        DependencyCacheKeyChecksum(targetName: name, checksum: try key.calculateChecksum())
-                    )
-                }
-            }
-            var uncacheableForMacro = uncacheableMacroTargets
-            var changed = true
-            while changed {
-                changed = false
-                for node in targetGraph.allNodes where node.children.contains(where: {
-                    uncacheableForMacro.contains($0.value.buildProduct.target.name)
-                }) {
-                    changed = uncacheableForMacro.insert(node.value.buildProduct.target.name).inserted || changed
-                }
-            }
-            cacheKeys = try await cacheSystem.calculateCacheKeys(
-                for: targetGraph,
-                macroChecksums: macroChecksums,
-                uncacheableTargets: uncacheableMacroTargets
-            )
-            let targets = Set(targetGraph.allNodes.map(\.value))
-
-            // Validate the existing frameworks in `outputDir` before restoration
-            let valid = await validateExistingFrameworks(
-                availableTargets: targets,
-                cacheSystem: cacheSystem,
-                cacheKeys: cacheKeys,
-                uncacheableMacroTargets: uncacheableForMacro
-            )
-
-            let storagesWithConsumer = cachePolicies.storages(for: .consumer)
-            if storagesWithConsumer.isEmpty {
-                // no-op
-                targetGraph.remove(valid)
-            } else {
-                let restoredSetsToSourceStorage = await restoreAllAvailableCachesIfNeeded(
-                    availableTargets: targets.subtracting(valid),
-                    to: storagesWithConsumer,
-                    cacheSystem: cacheSystem,
-                    cacheKeys: cacheKeys
-                )
-
-                let allRestoredTargets = restoredSetsToSourceStorage.keys.reduce(into: Set<CacheSystem.CacheTarget>()) { result, targetSet in
-                    result.formUnion(targetSet)
-                }
-
-                if !allRestoredTargets.isEmpty {
-                    await shareRestoredCachesToProducers(
-                        allRestoredTargets,
-                        restoredSetsToSourceStorage: restoredSetsToSourceStorage,
-                        cacheSystem: cacheSystem,
-                        cacheKeys: cacheKeys
-                    )
-                }
-
-                let skipTargets = valid.union(allRestoredTargets)
-                targetGraph.remove(skipTargets)
-            }
-            dependencyGraphToBuild = targetGraph
+            let cached = try await prepareFrameworkCache(for: targetGraph, cacheSystem: cacheSystem)
+            cacheKeys = cached.cacheKeys
+            dependencyGraphToBuild = cached.graph
         }
 
         if let macroPlan, let macroProducer {
@@ -356,44 +292,6 @@ struct FrameworkProducer {
         return restored
     }
 
-    /// Sendable interface to provide restore caches
-    private struct Restorer: Sendable {
-        let outputDir: URL
-        let fileSystem: any FileSystem
-
-        // Return true if pre-built artifact is available (already existing or restored from cache)
-        func restore(
-            target: CacheSystem.CacheTarget,
-            cacheKey: SwiftPMCacheKey?,
-            cacheSystem: CacheSystem,
-            cacheStorage: any FrameworkCacheStorage
-        ) async throws -> Bool {
-            let product = target.buildProduct
-            let frameworkName = product.frameworkName
-
-            guard let expectedCacheKey = cacheKey else {
-                return false
-            }
-            let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
-
-            let restoreResult = await cacheSystem.restoreCacheIfPossible(cacheKey: expectedCacheKey, storage: cacheStorage)
-            switch restoreResult {
-            case .succeeded:
-                logger.info("✅ Restore \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
-                return true
-            case .failed(let error):
-                logger.warning("⚠️ Restoring \(frameworkName) (\(expectedCacheKeyHash)) is failed", metadata: .color(.yellow))
-                if let description = error?.errorDescription {
-                    logger.warning("\(description)", metadata: .color(.yellow))
-                }
-                return false
-            case .noCache:
-                logger.info("ℹ️ Cache not found for \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
-                return false
-            }
-        }
-    }
-
     private func buildTargets(_ targets: DependencyGraph<CacheSystem.CacheTarget>) async -> TargetBuildResult {
         var builtTargets = OrderedSet<CacheSystem.CacheTarget>()
 
@@ -534,6 +432,80 @@ struct FrameworkProducer {
 }
 
 extension FrameworkProducer {
+    private func prepareFrameworkCache(
+        for graph: DependencyGraph<CacheSystem.CacheTarget>,
+        cacheSystem: CacheSystem
+    ) async throws -> (graph: DependencyGraph<CacheSystem.CacheTarget>, cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]) {
+        var targetGraph = graph
+        var macroChecksums: [String: [DependencyCacheKeyChecksum]] = [:]
+        var uncacheableMacroTargets: Set<String> = []
+        for (target, names) in macroPlan?.targetDependencies ?? [:] {
+            for name in names {
+                guard let plugin = macroPlugins[name], let key = plugin.cacheKey else {
+                    uncacheableMacroTargets.insert(target)
+                    continue
+                }
+                macroChecksums[target, default: []].append(
+                    DependencyCacheKeyChecksum(targetName: name, checksum: try key.calculateChecksum())
+                )
+            }
+        }
+        var uncacheableForMacro = uncacheableMacroTargets
+        var changed = true
+        while changed {
+            changed = false
+            for node in targetGraph.allNodes where node.children.contains(where: {
+                uncacheableForMacro.contains($0.value.buildProduct.target.name)
+            }) {
+                changed = uncacheableForMacro.insert(node.value.buildProduct.target.name).inserted || changed
+            }
+        }
+        let cacheKeys = try await cacheSystem.calculateCacheKeys(
+            for: targetGraph,
+            macroChecksums: macroChecksums,
+            uncacheableTargets: uncacheableMacroTargets
+        )
+        let targets = Set(targetGraph.allNodes.map(\.value))
+
+        // Validate the existing frameworks in `outputDir` before restoration
+        let valid = await validateExistingFrameworks(
+            availableTargets: targets,
+            cacheSystem: cacheSystem,
+            cacheKeys: cacheKeys,
+            uncacheableMacroTargets: uncacheableForMacro
+        )
+
+        let storagesWithConsumer = cachePolicies.storages(for: .consumer)
+        if storagesWithConsumer.isEmpty {
+            // no-op
+            targetGraph.remove(valid)
+        } else {
+            let restoredSetsToSourceStorage = await restoreAllAvailableCachesIfNeeded(
+                availableTargets: targets.subtracting(valid),
+                to: storagesWithConsumer,
+                cacheSystem: cacheSystem,
+                cacheKeys: cacheKeys
+            )
+
+            let allRestoredTargets = restoredSetsToSourceStorage.keys.reduce(into: Set<CacheSystem.CacheTarget>()) { result, targetSet in
+                result.formUnion(targetSet)
+            }
+
+            if !allRestoredTargets.isEmpty {
+                await shareRestoredCachesToProducers(
+                    allRestoredTargets,
+                    restoredSetsToSourceStorage: restoredSetsToSourceStorage,
+                    cacheSystem: cacheSystem,
+                    cacheKeys: cacheKeys
+                )
+            }
+
+            let skipTargets = valid.union(allRestoredTargets)
+            targetGraph.remove(skipTargets)
+        }
+        return (targetGraph, cacheKeys)
+    }
+
     private func areStoragesEqual(_ lhs: any FrameworkCacheStorage, _ rhs: any FrameworkCacheStorage) -> Bool {
         // ProjectCacheStorage instances are always considered the same
         if lhs is ProjectCacheStorage && rhs is ProjectCacheStorage {
@@ -590,17 +562,6 @@ extension FrameworkProducer {
 }
 
 extension FrameworkProducer {
-    enum Error: LocalizedError {
-        case unsupportedTargetType(targetName: String, type: Target.TargetKind)
-
-        var errorDescription: String? {
-            switch self {
-            case .unsupportedTargetType(let targetName, let type):
-                return "Cannot produce an XCFramework for \(targetName): unsupported target type \(type.rawValue)"
-            }
-        }
-    }
-
     fileprivate func packageSystemLibrary(
         _ product: BuildProduct,
         buildOptions: BuildOptions,
