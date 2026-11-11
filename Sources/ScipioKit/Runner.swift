@@ -80,7 +80,7 @@ public struct Runner {
         let buildOptionsMatrix = try options.buildOptionsContainer.makeBuildOptionsMatrix(descriptionPackage: descriptionPackage)
 
         let macroPlan = try MacroBuildPlan(graph: descriptionPackage.resolveBuildProductDependencyGraph())
-        let macroOutputDir = outputDir.deletingLastPathComponent().appending(path: "MacroPlugins")
+        let macroOutputDir = descriptionPackage.workspaceDirectory.appending(path: "MacroPlugins")
         let macroProducer = MacroPluginProducer(
             package: descriptionPackage,
             outputDirectory: macroOutputDir,

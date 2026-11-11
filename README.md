@@ -125,17 +125,17 @@ See [Learn the Cache System](https://giginet.github.io/Scipio/documentation/scip
 
 #### Swift macros
 
-When a selected library target depends on a SwiftPM `.macro` target, Scipio builds the plugin for the host Mac and supplies it when compiling that library. Plugin artifacts are written to `MacroPlugins/<module>/<module>`, next to the XCFramework output directory. `MacroPlugins/plugins.json` maps each plugin module to its relative executable path and dependent library targets.
+When a selected library target depends on a SwiftPM `.macro` target, Scipio builds the plugin for the host Mac and supplies it when compiling that library. Plugin artifacts are written to `<package>/.build/scipio/MacroPlugins/<module>/<module>`, inside the Scipio workspace regardless of the XCFramework output directory. `.build/scipio/MacroPlugins/plugins.json` maps each plugin module to its relative executable path and dependent library targets.
 
 Targets that use the macro must load the plugin when they compile, for example:
 
 ```text
--load-plugin-executable /path/to/MacroPlugins/ExamplePlugin/ExamplePlugin#ExamplePlugin
+-load-plugin-executable /path/to/package/.build/scipio/MacroPlugins/ExamplePlugin/ExamplePlugin#ExamplePlugin
 ```
 
 Declare the library-to-macro dependency in the package manifest; Scipio does not discover macros that are absent from the selected dependency graph. The executable is a build-time host tool and must not be embedded in an app.
 
-Macro artifacts use project and Local Disk caches when the full host dependency graph has pinned revisions. Custom framework cache storages can optionally implement `ArtifactCacheStorage`; older storages continue to cache frameworks only. Existing S3 storage versions require an update to cache macros.
+Macro artifacts use project and Local Disk caches when the full host dependency graph has pinned revisions. Custom framework cache storages can optionally implement `MacroPluginsCacheStorage`; older storages continue to cache frameworks only. Existing S3 storage versions require an update to cache macros.
 
 Set `Runner.Options.requireMacroArtifactStorage` to reject producer policies without macro artifact support when publication is required.
 

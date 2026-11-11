@@ -37,21 +37,37 @@ With the default output directory, the example produces:
 MyAppDependencies/
 ├── XCFrameworks/
 │   └── ExampleLibrary.xcframework/
-└── MacroPlugins/
+└── .build/scipio/MacroPlugins/
     ├── ExamplePlugin/
     │   ├── ExamplePlugin
     │   └── artifact.json
     └── plugins.json
 ```
 
-With a custom XCFramework output directory, `MacroPlugins` is created next to that directory. `plugins.json` lists each plugin module, the executable path relative to `MacroPlugins`, and the library targets that depend on it. The per-plugin `artifact.json` records its files for validation. When a cache key is available and caching is enabled, `MacroPlugins/.ExamplePlugin.version` records the plugin's build context.
+`MacroPlugins` is always created inside the dependency package's Scipio workspace at `.build/scipio/MacroPlugins`, including when using a custom XCFramework output directory. `plugins.json` lists each plugin module, the executable path relative to `MacroPlugins`, and the library targets that depend on it. The per-plugin `artifact.json` records its files for validation. When a cache key is available and caching is enabled, `.build/scipio/MacroPlugins/.ExamplePlugin.version` records the plugin's build context.
+
+For this example, `.build/scipio/MacroPlugins/plugins.json` contains:
+
+```json
+{
+  "plugins": [
+    {
+      "executable": "ExamplePlugin/ExamplePlugin",
+      "module": "ExamplePlugin",
+      "targets": ["ExampleLibrary"]
+    }
+  ]
+}
+```
+
+`executable` is relative to the directory containing `plugins.json`. `module` is the compiler plugin module name passed after `#`. `targets` lists dependency library targets that directly depend on that plugin; consuming application and test targets still need explicit loader flags. The manifest includes prepared plugins restored from cache and uses an empty `plugins` array when no plugins are required.
 
 ## Configure the Consumer
 
 Link the XCFramework in your Xcode target. When compiling source that expands the macro, pass the plugin path and module name from `plugins.json` to the Swift compiler. For example, add the following to the consuming target's **Other Swift Flags**, replacing the path with the actual artifact location:
 
 ```text
-$(inherited) -load-plugin-executable "$(SRCROOT)/MyAppDependencies/MacroPlugins/ExamplePlugin/ExamplePlugin#ExamplePlugin"
+$(inherited) -load-plugin-executable "$(SRCROOT)/MyAppDependencies/.build/scipio/MacroPlugins/ExamplePlugin/ExamplePlugin#ExamplePlugin"
 ```
 
 Configure each target that expands the macro, including test targets. For multiple plugins, pass a separate `-load-plugin-executable` argument for each one. Xcode does not receive these flags automatically from the XCFramework. Keep the executable and its accompanying files on the build host.
@@ -62,7 +78,7 @@ Project and local disk policies can cache macro artifacts. The plugin cache key 
 
 If a macro or any dependency in its host graph has no pinned revision, such as an edited or local package, Scipio builds the plugin without a cache key and does not reuse cached dependent frameworks. With caching disabled, both plugins and frameworks are rebuilt.
 
-Existing custom `FrameworkCacheStorage` implementations continue to cache frameworks. A storage can additionally implement `ArtifactCacheStorage` to cache macro artifacts. Existing versions of [scipio-s3-storage](https://github.com/giginet/scipio-s3-storage) do not support macro artifacts, so a consumer may have to build the plugin even when it restores the XCFramework from S3. To require publication through an artifact-capable producer, set `Runner.Options.requireMacroArtifactStorage` to `true`; Scipio rejects unsupported producer policies and unpinned macro graphs.
+Existing custom `FrameworkCacheStorage` implementations continue to cache frameworks. A storage can additionally implement `MacroPluginsCacheStorage` to cache macro artifacts. Existing versions of [scipio-s3-storage](https://github.com/giginet/scipio-s3-storage) do not support macro artifacts, so a consumer may have to build the plugin even when it restores the XCFramework from S3. To require publication through a macro-capable producer, set `Runner.Options.requireMacroArtifactStorage` to `true`; Scipio rejects unsupported producer policies and unpinned macro graphs.
 
 ## Current Limitations
 

@@ -21,15 +21,15 @@ public protocol FrameworkCacheStorage: Sendable {
 @available(*, deprecated, renamed: "FrameworkCacheStorage")
 public typealias CacheStorage = FrameworkCacheStorage
 
-/// Optional storage capability for non-framework build artifacts.
-public protocol ArtifactCacheStorage: Sendable {
+/// Optional storage capability for macro plugin artifacts.
+public protocol MacroPluginsCacheStorage: Sendable {
     func existsArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws -> Bool
     func fetchArtifact(for cacheKey: some CacheKey, kind: ArtifactKind, to destination: URL) async throws
     func cacheArtifact(_ artifact: URL, for cacheKey: some CacheKey, kind: ArtifactKind) async throws
     func removeArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws
 }
 
-extension ArtifactCacheStorage {
+extension MacroPluginsCacheStorage {
     public func removeArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws {}
 }
 

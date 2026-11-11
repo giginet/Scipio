@@ -141,7 +141,7 @@ struct MacroPluginProducer {
             case .invalidArtifact(let name):
                 "The macro artifact for \(name) is incomplete or not executable."
             case .unsupportedProducer(let name):
-                "Macro artifact publication requires an artifact-capable producer: \(name)."
+                "Macro artifact publication requires a MacroPluginsCacheStorage producer: \(name)."
             case .uncacheable(let name):
                 "Macro artifact publication requires pinned dependencies for \(name)."
             }
@@ -177,7 +177,7 @@ struct MacroPluginProducer {
                 $0.actors.contains(.producer) && !($0.storage is ProjectCacheStorage)
             }
             guard !producers.isEmpty else { throw Error.unsupportedProducer("none configured") }
-            for policy in producers where !(policy.storage is any ArtifactCacheStorage) {
+            for policy in producers where !(policy.storage is any MacroPluginsCacheStorage) {
                 throw Error.unsupportedProducer(policy.storage.displayName)
             }
         }
@@ -225,7 +225,7 @@ struct MacroPluginProducer {
             var restored = false
             if let key {
                 for policy in policies where policy.actors.contains(.consumer) {
-                    guard let storage = policy.storage as? any ArtifactCacheStorage else {
+                    guard let storage = policy.storage as? any MacroPluginsCacheStorage else {
                         logger.info("Macro cache is not supported by \(policy.storage.displayName); skipping it.")
                         continue
                     }
@@ -307,7 +307,7 @@ struct MacroPluginProducer {
 
     private func publish(_ directory: URL, key: MacroCacheKey) async throws {
         for policy in policies where policy.actors.contains(.producer) {
-            guard let storage = policy.storage as? any ArtifactCacheStorage else {
+            guard let storage = policy.storage as? any MacroPluginsCacheStorage else {
                 if !(policy.storage is ProjectCacheStorage) {
                     logger.warning("Macro cache is not supported by \(policy.storage.displayName); skipping upload.")
                 }

@@ -4,6 +4,15 @@ import Testing
 @testable import ScipioKit
 
 struct MacroRunnerTests {
+    private struct PluginManifest: Decodable {
+        struct Plugin: Decodable, Equatable {
+            let module: String
+            let executable: String
+            let targets: [String]
+        }
+        let plugins: [Plugin]
+    }
+
     private struct LegacyStorage: FrameworkCacheStorage {
         func existsValidCache(for cacheKey: some CacheKey) async throws -> Bool { false }
         func fetchArtifacts(for cacheKey: some CacheKey, to destinationDir: URL) async throws {}
@@ -78,9 +87,15 @@ struct MacroRunnerTests {
         try await runner.run(packageDirectory: parent, frameworkOutputDir: .custom(output))
         let framework = output.appending(path: "FixtureLibrary.xcframework")
         let version = output.appending(path: ".FixtureLibrary.version")
-        let macroDirectory = root.appending(path: "MacroPlugins/FixturePlugin")
+        let macroDirectory = parent.appending(components: ".build", "scipio", "MacroPlugins", "FixturePlugin")
         let macroExecutable = macroDirectory.appending(path: "FixturePlugin")
-        let macroVersion = root.appending(path: "MacroPlugins/.FixturePlugin.version")
+        let macroVersion = parent.appending(components: ".build", "scipio", "MacroPlugins", ".FixturePlugin.version")
+        #expect(!manager.fileExists(atPath: root.appending(path: "MacroPlugins").path))
+        let metadata = parent.appending(components: ".build", "scipio", "MacroPlugins", "plugins.json")
+        let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(contentsOf: metadata))
+        #expect(manifest.plugins == [
+            .init(module: "FixturePlugin", executable: "FixturePlugin/FixturePlugin", targets: ["FixtureLibrary"]),
+        ])
         let frameworkVersion = try Data(contentsOf: version)
         let executable = try Data(contentsOf: macroExecutable)
         let modified = try #require(manager.attributesOfItem(atPath: framework.path)[.modificationDate] as? Date)
