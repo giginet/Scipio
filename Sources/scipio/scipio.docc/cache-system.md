@@ -14,12 +14,22 @@ Scipio generates VersionFile to describe built framework details within building
 
 VersionFile contains the following information:
 
-- Revision
-    - Revision of packages. If resolved versions are updated, they may change.
+- Package State
+    - Source control revision or registry package version.
 - Build Options
     - Build options built with.
 - Compiler Version
     - Xcode or Swift compiler version.
+- Scipio Version
+    - Scipio build identifier, when available.
+- Target Name
+    - Name of the framework target.
+- Dependency Cache Keys
+    - Checksums of direct dependency cache keys, when the target has dependencies.
+- Local Package Location
+    - Canonical repository location, for local packages only.
+- Registry URL
+    - Source registry URL, for registry packages only.
 
 They are stored on `$OUTPUT_DIR/.$FRAMEWORK_NAME.version` as a JSON file.
 
@@ -30,15 +40,18 @@ They are stored on `$OUTPUT_DIR/.$FRAMEWORK_NAME.version` as a JSON file.
     "enableLibraryEvolution" : false,
     "frameworkType" : "static",
     "isDebugSymbolsEmbedded" : true,
+    "keepPublicHeadersStructure" : false,
     "sdks" : [
       "iOS",
       "iOSSimulator",
       "watchOS",
       "watchOSSimulator"
-    ]
+    ],
+    "stripStaticDWARFSymbols" : false
   },
   "clangVersion" : "clang-1500.3.9.4",
   "pin" : {
+    "kind" : "sourceControl",
     "revision" : "32e8d724467f8fe623624570367e3d50c5638e46",
     "version" : "1.5.2"
   },
@@ -56,27 +69,29 @@ If the output directory already contains XCFramework and its VersionFile, Scipio
 Then these are matched. Scipio regards the binary as still valid so a building will be skipped.
 
 ```bash
-$ scipio prepare MyDependencies --cache-policy default
+$ scipio prepare MyDependencies --framework-cache-policy project
 🔁 Resolving Dependencies...
-✅ Valid Logging.xcframework (48775a1aee3999b0225737fdc194e852fe1df222a6a8fa2c71e715399ac1b04a) is exists. Skip building.
+✅ Valid Logging.xcframework (48775a1aee3999b0225737fdc194e852fe1df222a6a8fa2c71e715399ac1b04a) exists. Skip restoring or building.
 ❇️ Succeeded.
 ```
 
 ## Cache Policy
 
-You can set a cache policy with `--cache-policy` option.
+Use `--framework-cache-policy` to set how Scipio reuses framework caches. The values are `disabled`, `project`, and `local`. The default is `project`. The `--cache-policy` option is a deprecated alias.
 
 ```bash
-$ scipio prepare MyDependencies --cache-policy default
+$ scipio prepare MyDependencies --framework-cache-policy local
 ```
+
+Use the separate `--resolved-packages-cache-policy` option to control resolved package caches. Its default is `disabled`.
 
 ### Disabled
 
-Never reuse already built frameworks. Overwrite existing frameworks everytime.
+Do not reuse or save framework caches. Scipio does not generate VersionFiles. This policy does not enable overwriting. Use `--overwrite` to replace existing output frameworks.
 
 Use `disabled` for CLI.
 
-### Project Cache(default)
+### Project Cache (Default)
 
 VersionFiles are stored in output directories. Skip re-building when existing XCFramework is valid.
 
@@ -86,13 +101,15 @@ Use `project` for CLI.
 
 By default, Scipio stores build artifacts in `~/Library/Caches/Scipio`. It uses the cache key to select an artifact. If a matching artifact is available, Scipio copies it to the output directory and skips the build.
 
+If an output framework and its VersionFile are valid, Scipio reuses that output. It does not copy that existing output to the local cache.
+
 For both cache writes and restores, Scipio first copies the framework to a unique staging path beside the destination. It moves the staged framework to the final path only after the copy is complete. This keeps the move on one file system and prevents a failed copy from leaving a partial framework at the final path. An existing destination is kept.
 
 On a copy or move error, Scipio tries to remove the staging path. If the process exits before cleanup, staging paths can remain in the cache or output directory. Cache lookups ignore these paths. Scipio does not remove staging paths left by an earlier process.
 
 Existing entries from older versions are not checked for complete framework contents. An interrupted copy from an older version can leave an incomplete entry at the final cache path. To remove that entry, delete its directory at `~/Library/Caches/Scipio/<module name>/<cache key checksum>/` before you run Scipio again.
 
-Scipio starts to save each completed target to local disk storages with the `producer` role while it builds the remaining targets. At most eight targets have pending local cache writes. Scipio waits for all pending writes before it leaves the build stage, including when a target build fails.
+After each target build, Scipio schedules a write to local disk storages with the `producer` role. The build loop can continue while these writes run. At most eight targets have pending local cache writes. Scipio waits for all pending writes before it leaves the build stage, including when a target build fails.
 
 Scipio checks the configured cache storages before it starts to build targets. When a local disk cache has the `consumer` role, Scipio checks it again immediately before each remaining target is built. This lets another process supply a matching artifact during the same run. A target that is already building continues to build. Concurrent processes can still build the same target. The additional check applies only to the built-in local disk storage.
 

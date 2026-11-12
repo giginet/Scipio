@@ -94,7 +94,7 @@ $ scipio prepare path/to/MyAppDependencies
 > ❇️ Succeeded.
 ```
 
-All XCFrameworks are generated into `MyAppDependencies/XCFramework` by default.
+All XCFrameworks are generated into `MyAppDependencies/XCFrameworks` by default.
 
 > Note: You can use built XCFrameworks in a regular way for your project. Refer to this document <https://www.simpleswiftguide.com/how-to-add-xcframework-to-xcode-project/>
 
@@ -109,7 +109,9 @@ All XCFrameworks are generated into `MyAppDependencies/XCFramework` by default.
 | -\-embed-debug-symbols                  | Whether embed debug symbols to frameworks or not                    | -                          |
 | -\-framework-type                       | Framework type to generate Available: dynamic, static or mergeable) | dynamic                    |
 | -\-support-simulators                   | Whether also building for simulators of each SDKs or not            | -                          |
-| -\-cache-policy                         | How to reuse built frameworks                                       | project                    |
+| -\-framework-cache-policy               | How to reuse built frameworks (disabled / project / local)           | project                    |
+| -\-resolved-packages-cache-policy       | How to reuse resolved packages (disabled / project / local)          | disabled                   |
+| -\-overwrite, -f                        | Replace existing output frameworks                                  | false                      |
 | -\-enable-library-evolution             | Whether to enable Library Evolution feature or not                  | -                          |
 | -\-strip-static-lib-dwarf-symbols       | Whether to strip DWARF symbols from built binary or not              | false                      |
 | -\-only-use-versions-from-resolved-file | Whether to disable updating Package.resolved automatically          | false                      |
