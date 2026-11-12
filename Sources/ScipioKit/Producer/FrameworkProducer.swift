@@ -451,13 +451,13 @@ extension FrameworkProducer {
             }
         }
         var uncacheableForMacro = uncacheableMacroTargets
-        var changed = true
-        while changed {
-            changed = false
-            for node in targetGraph.allNodes where node.children.contains(where: {
-                uncacheableForMacro.contains($0.value.buildProduct.target.name)
-            }) {
-                changed = uncacheableForMacro.insert(node.value.buildProduct.target.name).inserted || changed
+        var pending = Deque(targetGraph.allNodes.filter {
+            uncacheableMacroTargets.contains($0.value.buildProduct.target.name)
+        })
+        while let node = pending.popFirst() {
+            for parent in node.parents.compactMap(\.reference)
+            where uncacheableForMacro.insert(parent.value.buildProduct.target.name).inserted {
+                pending.append(parent)
             }
         }
         let cacheKeys = try await cacheSystem.calculateCacheKeys(

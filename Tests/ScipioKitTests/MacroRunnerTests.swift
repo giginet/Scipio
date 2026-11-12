@@ -19,16 +19,17 @@ struct MacroRunnerTests {
         func cacheFramework(_ frameworkPath: URL, for cacheKey: some CacheKey) async throws {}
     }
 
-    @Test func restoresMacroWhenFrameworkIsAlreadyCached() async throws {
+    @Test(.temporaryDirectory)
+    func restoresMacroWhenFrameworkIsAlreadyCached() async throws {
         let manager = FileManager.default
-        let root = manager.temporaryDirectory.appending(path: "ScipioMacroTest-\(UUID().uuidString)")
-        defer { try? manager.removeItem(at: root) }
+        let root = TemporaryDirectory.url
         let source = root.appending(path: "MacroFixture")
         let parent = root.appending(path: "Parent")
         let output = root.appending(path: "XCFrameworks")
         let cache = root.appending(path: "cache")
         try manager.createDirectory(at: source.appending(path: "Sources/FixturePlugin"), withIntermediateDirectories: true)
         try manager.createDirectory(at: source.appending(path: "Sources/FixtureLibrary"), withIntermediateDirectories: true)
+        try manager.createDirectory(at: source.appending(path: "Sources/FixtureConsumer"), withIntermediateDirectories: true)
         try manager.createDirectory(at: parent.appending(path: "Sources/Parent"), withIntermediateDirectories: true)
 
         try """
@@ -36,10 +37,11 @@ struct MacroRunnerTests {
         import PackageDescription
         import CompilerPluginSupport
         let package = Package(name: "MacroFixture", platforms: [.iOS(.v15), .macOS(.v14)],
-            products: [.library(name: "FixtureLibrary", targets: ["FixtureLibrary"])],
+            products: [.library(name: "FixtureConsumer", targets: ["FixtureConsumer"])],
             targets: [
                 .macro(name: "FixturePlugin", dependencies: []),
-                .target(name: "FixtureLibrary", dependencies: ["FixturePlugin"])
+                .target(name: "FixtureLibrary", dependencies: ["FixturePlugin"]),
+                .target(name: "FixtureConsumer", dependencies: ["FixtureLibrary"])
             ])
         """.write(to: source.appending(path: "Package.swift"), atomically: true, encoding: .utf8)
         try "@main struct Plugin { static func main() {} }".write(
@@ -47,6 +49,9 @@ struct MacroRunnerTests {
         )
         try "public struct Fixture {}".write(
             to: source.appending(path: "Sources/FixtureLibrary/Library.swift"), atomically: true, encoding: .utf8
+        )
+        try "public struct Consumer {}".write(
+            to: source.appending(path: "Sources/FixtureConsumer/Consumer.swift"), atomically: true, encoding: .utf8
         )
         try git(["init", "-q", source.path])
         try git(["-C", source.path, "config", "user.email", "test@example.invalid"])
@@ -60,7 +65,7 @@ struct MacroRunnerTests {
         let package = Package(name: "Parent", platforms: [.iOS(.v15)],
             dependencies: [.package(url: "\(source.absoluteString)", exact: "1.0.0")],
             targets: [.target(name: "Parent", dependencies: [
-                .product(name: "FixtureLibrary", package: "MacroFixture")
+                .product(name: "FixtureConsumer", package: "MacroFixture")
             ])])
         """.write(to: parent.appending(path: "Package.swift"), atomically: true, encoding: .utf8)
         try "struct Parent {}".write(
@@ -87,6 +92,10 @@ struct MacroRunnerTests {
         try await runner.run(packageDirectory: parent, frameworkOutputDir: .custom(output))
         let framework = output.appending(path: "FixtureLibrary.xcframework")
         let version = output.appending(path: ".FixtureLibrary.version")
+        let consumerFramework = output.appending(path: "FixtureConsumer.xcframework")
+        let consumerVersion = output.appending(path: ".FixtureConsumer.version")
+        #expect(manager.fileExists(atPath: consumerFramework.path))
+        #expect(manager.fileExists(atPath: consumerVersion.path))
         let macroDirectory = parent.appending(components: ".build", "scipio", "MacroPlugins", "FixturePlugin")
         let macroExecutable = macroDirectory.appending(path: "FixturePlugin")
         let macroVersion = parent.appending(components: ".build", "scipio", "MacroPlugins", ".FixturePlugin.version")
@@ -135,13 +144,15 @@ struct MacroRunnerTests {
         let package = Package(name: "Parent", platforms: [.iOS(.v15)],
             dependencies: [.package(path: "\(source.path)")],
             targets: [.target(name: "Parent", dependencies: [
-                .product(name: "FixtureLibrary", package: "MacroFixture")
+                .product(name: "FixtureConsumer", package: "MacroFixture")
             ])])
         """.write(to: parent.appending(path: "Package.swift"), atomically: true, encoding: .utf8)
 
         try await runner.run(packageDirectory: parent, frameworkOutputDir: .custom(output))
         #expect(manager.fileExists(atPath: framework.path))
         #expect(!manager.fileExists(atPath: version.path))
+        #expect(manager.fileExists(atPath: consumerFramework.path))
+        #expect(!manager.fileExists(atPath: consumerVersion.path))
         #expect(!manager.fileExists(atPath: macroVersion.path))
     }
 

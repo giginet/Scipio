@@ -28,10 +28,10 @@ struct MacroCacheTests {
         #expect(try original.calculateChecksum() != key(swiftVersion: "Swift 7").calculateChecksum())
     }
 
-    @Test func localMacroArtifactRoundTripPreservesExecutable() async throws {
+    @Test(.temporaryDirectory)
+    func localMacroArtifactRoundTripPreservesExecutable() async throws {
         let manager = FileManager.default
-        let root = manager.temporaryDirectory.appending(path: UUID().uuidString)
-        defer { try? manager.removeItem(at: root) }
+        let root = TemporaryDirectory.url
         let source = root.appending(path: "source")
         let destination = root.appending(path: "restored")
         try manager.createDirectory(at: source, withIntermediateDirectories: true)
@@ -54,9 +54,9 @@ struct MacroCacheTests {
         #expect(manager.fileExists(atPath: cachePath.path))
     }
 
-    @Test func versionDecoderRejectsUnknownSchema() throws {
-        let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: url) }
+    @Test(.temporaryDirectory)
+    func versionDecoderRejectsUnknownSchema() throws {
+        let url = TemporaryDirectory.url.appending(path: ".ExamplePlugin.version")
         try JSONEncoder().encode(key()).write(to: url)
         #expect(try MacroVersionFileDecoder().decode(versionFile: url) == key())
         try JSONEncoder().encode(key(schemaVersion: 99)).write(to: url)
