@@ -116,43 +116,29 @@ struct FrameworkProducer {
                     cacheKeys: cacheKeys
                 )
 
-                let allRestoredTargets = restoredSetsToSourceStorage.keys.reduce(into: Set<CacheSystem.CacheTarget>()) { result, targetSet in
-                    result.formUnion(targetSet)
-                }
-
-                if !allRestoredTargets.isEmpty {
-                    await shareRestoredCachesToProducers(
-                        allRestoredTargets,
-                        restoredSetsToSourceStorage: restoredSetsToSourceStorage,
-                        cacheSystem: cacheSystem,
-                        cacheKeys: cacheKeys
-                    )
-                }
-
-                let skipTargets = valid.union(allRestoredTargets)
-                targetGraph.remove(skipTargets)
+                let allRestoredTargets = Set(restoredSetsToSourceStorage.keys.joined())
+                await shareRestoredCachesToProducers(
+                    restoredSetsToSourceStorage: restoredSetsToSourceStorage,
+                    cacheSystem: cacheSystem,
+                    cacheKeys: cacheKeys
+                )
+                targetGraph.remove(valid.union(allRestoredTargets))
             }
             dependencyGraphToBuild = targetGraph
         }
 
         let targetBuildResult = await buildTargets(dependencyGraphToBuild)
 
-        let builtTargets: OrderedSet<CacheSystem.CacheTarget> = switch targetBuildResult {
-            case .completed(let builtTargets),
-                 .interrupted(let builtTargets, _):
-                builtTargets
-            }
-
         // Keep the historical "cache feature is fully off" behavior when no cache policy is provided:
         // no restore, no cache save, and no version file generation.
         guard !cachePolicies.isEmpty else {
-            if case .interrupted(_, let error) = targetBuildResult {
+            if let error = targetBuildResult.error {
                 throw error
             }
             return
         }
 
-        await cacheFrameworksIfNeeded(Set(builtTargets), cacheSystem: cacheSystem, cacheKeys: cacheKeys)
+        await cacheFrameworksIfNeeded(Set(targetBuildResult.builtTargets), cacheSystem: cacheSystem, cacheKeys: cacheKeys)
 
         if shouldGenerateVersionFile {
             // Versionfiles should be generate for all targets
@@ -161,7 +147,7 @@ struct FrameworkProducer {
             }
         }
 
-        if case .interrupted(_, let error) = targetBuildResult {
+        if let error = targetBuildResult.error {
             throw error
         }
     }
@@ -277,12 +263,11 @@ struct FrameworkProducer {
 
         var restored: Set<CacheSystem.CacheTarget> = []
         for chunk in chunked {
-            let restorer = Restorer(outputDir: outputDir, fileSystem: fileSystem)
             await withTaskGroup(of: CacheSystem.CacheTarget?.self) { group in
                 for target in chunk {
                     group.addTask {
                         do {
-                            let restored = try await restorer.restore(
+                            let restored = try await Restorer.restore(
                                 target: target,
                                 cacheKey: cacheKeys[target],
                                 cacheSystem: cacheSystem,
@@ -302,13 +287,8 @@ struct FrameworkProducer {
         return restored
     }
 
-    /// Sendable interface to provide restore caches
-    private struct Restorer: Sendable {
-        let outputDir: URL
-        let fileSystem: any FileSystem
-
-        // Return true if pre-built artifact is available (already existing or restored from cache)
-        func restore(
+    private enum Restorer {
+        static func restore(
             target: CacheSystem.CacheTarget,
             cacheKey: SwiftPMCacheKey?,
             cacheSystem: CacheSystem,
@@ -341,7 +321,7 @@ struct FrameworkProducer {
     }
 
     private func buildTargets(_ targets: DependencyGraph<CacheSystem.CacheTarget>) async -> TargetBuildResult {
-        var builtTargets = OrderedSet<CacheSystem.CacheTarget>()
+        var result = TargetBuildResult()
 
         do {
             var targets = targets
@@ -352,18 +332,18 @@ struct FrameworkProducer {
                     outputDir: outputDir,
                     buildOptionsMatrix: buildOptionsMatrix
                 )
-                builtTargets.append(buildTarget)
+                result.builtTargets.append(buildTarget)
                 targets.remove(buildTarget)
             }
-            return .completed(builtTargets: builtTargets)
         } catch {
-            return .interrupted(builtTargets: builtTargets, error: error)
+            result.error = error
         }
+        return result
     }
 
-    private enum TargetBuildResult {
-        case interrupted(builtTargets: OrderedSet<CacheSystem.CacheTarget>, error: any Swift.Error)
-        case completed(builtTargets: OrderedSet<CacheSystem.CacheTarget>)
+    private struct TargetBuildResult {
+        var builtTargets: OrderedSet<CacheSystem.CacheTarget> = []
+        var error: (any Swift.Error)?
     }
 
     @discardableResult
@@ -444,14 +424,17 @@ struct FrameworkProducer {
         }
     }
 
+}
+
+extension FrameworkProducer {
     private func shareRestoredCachesToProducers(
-        _ allRestoredTargets: Set<CacheSystem.CacheTarget>,
         restoredSetsToSourceStorage: [Set<CacheSystem.CacheTarget>: any FrameworkCacheStorage],
         cacheSystem: CacheSystem,
         cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]
     ) async {
+        let allRestoredTargets = Set(restoredSetsToSourceStorage.keys.joined())
         let storagesWithProducer = cachePolicies.storages(for: .producer)
-        guard !storagesWithProducer.isEmpty else { return }
+        guard !allRestoredTargets.isEmpty, !storagesWithProducer.isEmpty else { return }
 
         logger.info(
             "🔄 Sharing \(allRestoredTargets.count) restored framework(s) to other cache storages",
@@ -475,9 +458,6 @@ struct FrameworkProducer {
         logger.info("⏹️ Sharing to other cache storages finished", metadata: .color(.green))
     }
 
-}
-
-extension FrameworkProducer {
     private func areStoragesEqual(_ lhs: any FrameworkCacheStorage, _ rhs: any FrameworkCacheStorage) -> Bool {
         // ProjectCacheStorage instances are always considered the same
         if lhs is ProjectCacheStorage && rhs is ProjectCacheStorage {
