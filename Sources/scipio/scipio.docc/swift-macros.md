@@ -29,6 +29,12 @@ scipio prepare MyAppDependencies
 
 Scipio resolves the package graph, prepares the plugin for the host, and supplies it when compiling the dependent library. It prepares plugins even when the corresponding XCFramework is already cached.
 
+## Platform Requirements
+
+An iOS dependency package can keep an iOS-only `platforms` declaration. Do not add macOS solely to build a macro. Scipio selects a framework destination for SwiftPM's runtime dependency validation; SwiftPM builds the selected macro and its implementation dependencies for the host.
+
+SwiftPM derives each host target's minimum macOS version from the manifest of the package that defines it, using the toolchain's default minimum when macOS is omitted and raising older declarations to the toolchain's supported minimum. It does not inherit that version from the consuming package's iOS deployment target. The macro package must declare a sufficient macOS minimum for its implementation dependencies. The consuming dependency package must likewise declare a sufficient minimum for its runtime dependencies on the selected destination.
+
 ## Locate the Artifacts
 
 With the default output directory, the example produces:

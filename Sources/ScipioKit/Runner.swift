@@ -67,7 +67,7 @@ public struct Runner {
         }
 
         let buildOptions = try options.buildOptionsContainer.makeBuildOptions(descriptionPackage: descriptionPackage)
-        guard !buildOptions.sdks.isEmpty else {
+        guard let destinationSDK = buildOptions.sdks.first else {
             throw Error.platformNotSpecified
         }
 
@@ -84,6 +84,7 @@ public struct Runner {
         let macroProducer = MacroPluginProducer(
             package: descriptionPackage,
             outputDirectory: macroOutputDir,
+            destinationSDK: destinationSDK,
             policies: options.frameworkCachePolicies,
             requireArtifactStorage: options.requireMacroArtifactStorage
         )

@@ -1,7 +1,7 @@
 import CacheStorage
 import Foundation
 import Testing
-@testable import ScipioKit
+@testable @_spi(Internals) import ScipioKit
 
 struct MacroRunnerTests {
     private struct PluginManifest: Decodable {
@@ -35,7 +35,7 @@ struct MacroRunnerTests {
         // swift-tools-version: 6.0
         import PackageDescription
         import CompilerPluginSupport
-        let package = Package(name: "MacroFixture", platforms: [.iOS(.v15)],
+        let package = Package(name: "MacroFixture", platforms: [.iOS(.v15), .macOS(.v14)],
             products: [.library(name: "FixtureLibrary", targets: ["FixtureLibrary"])],
             targets: [
                 .macro(name: "FixturePlugin", dependencies: []),
@@ -68,7 +68,7 @@ struct MacroRunnerTests {
         )
 
         let requiredRemote = Runner(mode: .prepareDependencies, options: .init(
-            baseBuildOptions: .init(buildConfiguration: .debug, platforms: .specific([.iOS]), frameworkType: .static),
+            baseBuildOptions: .init(buildConfiguration: .debug, frameworkType: .static),
             frameworkCachePolicies: [.init(storage: LegacyStorage(), actors: [.producer])],
             resolvedPackagesCachePolicies: [],
             requireMacroArtifactStorage: true
@@ -80,7 +80,7 @@ struct MacroRunnerTests {
         }
 
         let runner = Runner(mode: .prepareDependencies, options: .init(
-            baseBuildOptions: .init(buildConfiguration: .debug, platforms: .specific([.iOS]), frameworkType: .static),
+            baseBuildOptions: .init(buildConfiguration: .debug, frameworkType: .static),
             frameworkCachePolicies: [.localDisk(baseURL: cache)],
             resolvedPackagesCachePolicies: []
         ))
@@ -98,6 +98,11 @@ struct MacroRunnerTests {
         ])
         let frameworkVersion = try Data(contentsOf: version)
         let executable = try Data(contentsOf: macroExecutable)
+        let buildVersion = try await ProcessExecutor().execute(
+            "/usr/bin/xcrun", "vtool", "-show-build", macroExecutable.path
+        ).unwrapOutput()
+        #expect(buildVersion.contains("platform MACOS"))
+        #expect(buildVersion.contains("minos 14.0"))
         let modified = try #require(manager.attributesOfItem(atPath: framework.path)[.modificationDate] as? Date)
         try manager.removeItem(at: macroDirectory)
         try manager.removeItem(at: macroVersion)

@@ -150,6 +150,7 @@ struct MacroPluginProducer {
 
     private let package: DescriptionPackage
     private let outputDirectory: URL
+    private let destinationSDK: SDK
     private let policies: [Runner.Options.FrameworkCachePolicy]
     private let requireArtifactStorage: Bool
     private let executor: any Executor
@@ -159,12 +160,14 @@ struct MacroPluginProducer {
     init(
         package: DescriptionPackage,
         outputDirectory: URL,
+        destinationSDK: SDK,
         policies: [Runner.Options.FrameworkCachePolicy],
         requireArtifactStorage: Bool = false,
         executor: any Executor = ProcessExecutor(errorDecoder: StandardOutputDecoder())
     ) {
         self.package = package
         self.outputDirectory = outputDirectory
+        self.destinationSDK = destinationSDK
         self.policies = policies
         self.requireArtifactStorage = requireArtifactStorage
         self.executor = executor
@@ -331,7 +334,10 @@ struct MacroPluginProducer {
             "--configuration", configuration, "--disable-automatic-resolution",
         ]
         logger.info("Building macOS macro plugin \(module.name)")
-        _ = try await run(common + ["--product", module.name])
+        // Validate runtime dependencies for the selected destination. SwiftPM still builds macros for the host.
+        let destination = try await destinationArguments()
+        _ = try await run(common + destination + ["--product", module.name])
+        // --show-bin-path with the destination would point at device products instead of host tools.
         let binPath = try await run(common + ["--show-bin-path"])
         let binDirectory = URL(filePath: binPath)
         let executable = binDirectory.appending(path: "\(module.name)-tool")
@@ -347,6 +353,25 @@ struct MacroPluginProducer {
         }
         let manifest = ArtifactManifest(executable: module.c99name, files: try artifactFiles(directory))
         try JSONEncoder().encode(manifest).write(to: directory.appending(path: "artifact.json"), options: .atomic)
+    }
+
+    private func destinationArguments() async throws -> [String] {
+        let triple: String
+        switch destinationSDK {
+        case .macOS: return []
+        case .macCatalyst: triple = "arm64-apple-ios-macabi"
+        case .iOS: triple = "arm64-apple-ios"
+        case .iOSSimulator: triple = "arm64-apple-ios-simulator"
+        case .tvOS: triple = "arm64-apple-tvos"
+        case .tvOSSimulator: triple = "arm64-apple-tvos-simulator"
+        case .watchOS: triple = "arm64_32-apple-watchos"
+        case .watchOSSimulator: triple = "arm64-apple-watchos-simulator"
+        case .visionOS: triple = "arm64-apple-xros"
+        case .visionOSSimulator: triple = "arm64-apple-xros-simulator"
+        }
+        let sdk = destinationSDK == .macCatalyst ? SDK.macOS.settingValue : destinationSDK.settingValue
+        let sdkPath = try await run(["/usr/bin/xcrun", "--sdk", sdk, "--show-sdk-path"])
+        return ["--triple", triple, "--sdk", sdkPath]
     }
 
     private func run(_ arguments: [String]) async throws -> String {
