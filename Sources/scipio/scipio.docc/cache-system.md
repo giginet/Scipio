@@ -92,13 +92,15 @@ On a copy or move error, Scipio tries to remove the staging path. If the process
 
 Existing entries from older versions are not checked for complete framework contents. An interrupted copy from an older version can leave an incomplete entry at the final cache path. To remove that entry, delete its directory at `~/Library/Caches/Scipio/<module name>/<cache key checksum>/` before you run Scipio again.
 
+Scipio starts to save each completed target to local disk storages with the `producer` role while it builds the remaining targets. At most eight targets have pending local cache writes. Scipio waits for all pending writes before it leaves the build stage, including when a target build fails.
+
+Scipio checks the configured cache storages before it starts to build targets. When a local disk cache has the `consumer` role, Scipio checks it again immediately before each remaining target is built. This lets another process supply a matching artifact during the same run. A target that is already building continues to build. Concurrent processes can still build the same target. The additional check applies only to the built-in local disk storage.
+
 Use `local` for CLI.
 
 ### Remote Disk Cache
 
-Same as Local Disk Cache policy, but it uses remote disk cache instead of local.
-
-It helps to share build artifacts among developers.
+Use remote cache storage to share build artifacts among developers. Remote and custom consumers take part in the initial cache scan. Scipio does not check them again before each target. Scipio sends newly built targets to remote and custom producers after the build loop ends. Transfer and cleanup behavior depend on the storage implementation.
 
 You can't use this cache policy with CLI. It's necessary to implement a build script to use a remote disk cache. 
 

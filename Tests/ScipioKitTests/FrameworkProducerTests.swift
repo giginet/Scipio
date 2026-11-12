@@ -3,6 +3,7 @@ import Testing
 @testable @_spi(Internals) import ScipioKit
 import CacheStorage
 import Logging
+import os
 
 struct FrameworkProducerTests {
     init() async {
@@ -152,6 +153,232 @@ struct FrameworkProducerTests {
         let expectedCacheKey = try mockCacheKey.calculateChecksum()
         #expect(needsSharedCacheCalls[0].cacheKey == expectedCacheKey, "Cache key should match the actual cache key used")
     }
+
+    @Test(
+        "Local cache rechecks restore late entries and build after misses or fetch errors",
+        .serialized,
+        .temporaryDirectory,
+        arguments: LateCacheState.allCases
+    )
+    private func localCacheIsRecheckedBeforeBuild(cacheState: LateCacheState) async throws {
+        let baseURL = TemporaryDirectory.url
+        let outputDir = baseURL.appending(component: "output")
+        try LocalFileSystem.default.createDirectory(outputDir, recursive: true)
+        let packagePath = URL(filePath: #filePath)
+            .deletingLastPathComponent()
+            .appending(components: "Resources", "Fixtures", "UsingBinaryPackage")
+        let descriptionPackage = try await DescriptionPackage(
+            packageDirectory: packagePath,
+            mode: .prepareDependencies,
+            resolvedPackagesCachePolicies: [],
+            onlyUseVersionsFromResolvedFile: true
+        )
+        let buildOptions = BuildOptions(
+            buildConfiguration: .debug,
+            isDebugSymbolsEmbedded: false,
+            frameworkType: .dynamic,
+            sdks: [.iOS],
+            extraFlags: nil,
+            extraBuildParameters: nil,
+            enableLibraryEvolution: false,
+            keepPublicHeadersStructure: false,
+            customFrameworkModuleMapContents: nil,
+            stripStaticDWARFSymbols: false
+        )
+        let graph = try descriptionPackage.resolveBuildProductDependencyGraph().map {
+            CacheSystem.CacheTarget(buildProduct: $0, buildOptions: buildOptions)
+        }
+        let target = try #require(graph.allNodes.map(\.value).first { $0.buildProduct.target.name == "SomeBinary" })
+        guard case let .binary(binaryLocation) = target.buildProduct.target.resolvedModuleType else {
+            Issue.record("The fixture must contain a binary target.")
+            return
+        }
+        let cacheSystem = CacheSystem(outputDirectory: outputDir)
+        let cacheKeys = try await cacheSystem.calculateCacheKeys(for: graph)
+        let cacheKey = try #require(cacheKeys[target])
+        let frameworkName = target.buildProduct.frameworkName
+        let cacheEntry = baseURL.appending(
+            components: "Scipio", cacheKey.targetName, try cacheKey.calculateChecksum(), frameworkName
+        )
+        let cachedFramework = baseURL.appending(components: "source", frameworkName)
+        let marker = Data("published by another worktree".utf8)
+        try LocalFileSystem.default.writeFileContents(cachedFramework.appending(component: "Info.plist"), data: marker)
+        let buildSource = baseURL.appending(components: "build-source", frameworkName)
+        let builtMarker = Data("built by this worktree".utf8)
+        try LocalFileSystem.default.writeFileContents(buildSource.appending(component: "Info.plist"), data: builtMarker)
+
+        let publisher = LocalDiskCacheStorage(baseURL: baseURL)
+        if cacheState != .missing {
+            await publisher.cacheFramework(cachedFramework, for: cacheKey)
+            try #require(await publisher.existsValidCache(for: cacheKey))
+        }
+
+        let fileSystem = LateCacheFileSystem(
+            cacheEntry: cacheEntry,
+            binaryArtifact: binaryLocation.artifactURL(rootPackageDirectory: packagePath),
+            buildSource: buildSource,
+            cacheState: cacheState
+        )
+        let consumer = LocalDiskCacheStorage(baseURL: baseURL, fileSystem: fileSystem)
+        let sharingStorage = MockCacheStorage(name: "LateSharedCache")
+        let remoteStorage = MockCacheStorage(name: "RemoteCache")
+        let producer = FrameworkProducer(
+            descriptionPackage: descriptionPackage,
+            buildOptions: buildOptions,
+            buildOptionsMatrix: [:],
+            cachePolicies: [
+                .init(storage: remoteStorage, actors: [.consumer]),
+                .init(storage: consumer, actors: [.consumer, .producer]),
+                .init(storage: sharingStorage, actors: [.producer]),
+            ],
+            overwrite: false,
+            outputDir: outputDir,
+            fileSystem: fileSystem
+        )
+
+        try await producer.produce()
+
+        let shouldRestore = cacheState == .available
+        #expect(fileSystem.cacheEntryCheckCount == (shouldRestore ? 2 : 3))
+        #expect(fileSystem.buildCopyCount == (shouldRestore ? 0 : 1))
+        let restoredContents = try LocalFileSystem.default.readFileContents(
+            outputDir.appending(components: frameworkName, "Info.plist")
+        )
+        #expect(restoredContents == (shouldRestore ? marker : builtMarker))
+        #expect(await cacheSystem.existsValidCache(cacheKey: cacheKey))
+        let checksum = try cacheKey.calculateChecksum()
+        #expect(await remoteStorage.getCacheCheckCalls() == [checksum])
+        let shared = await sharingStorage.getCacheFrameworkCalls()
+        try #require(shared.count == 1)
+        #expect(shared[0].cacheKey == checksum)
+    }
+
+    @Test(
+        "Cache writes keep complete target contents when a build or copy fails",
+        .temporaryDirectory,
+        arguments: [false, true], [false, true]
+    )
+    private func completedTargetsHaveCompleteCaches(failNextBuild: Bool, failFirstCacheCopy: Bool) async throws {
+        let base = LocalFileSystem.default
+        let root = TemporaryDirectory.url
+        let packagePath = try await makeTaggedBinaryPackage()
+        let package = try await DescriptionPackage(
+            packageDirectory: packagePath,
+            mode: .createPackage,
+            resolvedPackagesCachePolicies: [],
+            onlyUseVersionsFromResolvedFile: true
+        )
+        let options = BuildOptions(
+            buildConfiguration: .debug,
+            isDebugSymbolsEmbedded: false,
+            frameworkType: .dynamic,
+            sdks: [.iOS],
+            extraFlags: nil,
+            extraBuildParameters: nil,
+            enableLibraryEvolution: false,
+            keepPublicHeadersStructure: false,
+            customFrameworkModuleMapContents: nil,
+            stripStaticDWARFSymbols: false
+        )
+        let output = root.appending(component: "output")
+        let cacheSystem = CacheSystem(outputDirectory: output)
+        let graph = try package.resolveBuildProductDependencyGraph().map {
+            CacheSystem.CacheTarget(buildProduct: $0, buildOptions: options)
+        }
+        let keys = try await cacheSystem.calculateCacheKeys(for: graph)
+        try #require(keys.count == 2)
+        var cacheEntries: [String: URL] = [:]
+        for (target, key) in keys {
+            let name = target.buildProduct.target.name
+            cacheEntries[name] = root.appending(components: "Scipio", name, try key.calculateChecksum(), target.buildProduct.frameworkName)
+        }
+        let fileSystem = BinaryBuildFileSystem(
+            output: output,
+            cacheEntries: cacheEntries,
+            failNextBuild: failNextBuild,
+            failFirstCacheCopy: failFirstCacheCopy
+        )
+        let local = LocalDiskCacheStorage(baseURL: root, fileSystem: fileSystem)
+        let deferred = MockCacheStorage(name: "DeferredCache")
+        let producer = FrameworkProducer(
+            descriptionPackage: package,
+            buildOptions: options,
+            buildOptionsMatrix: [:],
+            cachePolicies: [
+                .init(storage: deferred, actors: [.producer]),
+                .init(storage: local, actors: [.producer]),
+            ],
+            overwrite: false,
+            outputDir: output,
+            fileSystem: fileSystem
+        )
+        if failNextBuild {
+            await #expect(throws: BinaryBuildFileSystem.BuildFailed.self) { try await producer.produce() }
+        } else {
+            try await producer.produce()
+        }
+        let attempts = fileSystem.buildAttempts
+        try #require(attempts.count == 2)
+        let completed = failNextBuild ? Array(attempts.prefix(1)) : attempts
+        let cached = completed.filter { !failFirstCacheCopy || $0 != attempts[0] }
+        #expect(fileSystem.publicationCount == cached.count)
+        #expect(await deferred.getCacheFrameworkCalls().count == (failNextBuild ? 1 : 2))
+        for (target, key) in keys {
+            let name = target.buildProduct.target.name
+            let entry = try #require(cacheEntries[name])
+            let isPublished = await local.existsValidCache(for: key)
+            #expect(isPublished == cached.contains(name))
+            if isPublished {
+                #expect(try base.readFileContents(entry.appending(component: "Info.plist")) == Data(name.utf8))
+                #expect(try base.readFileContents(entry.appending(component: "payload")) == Data(name.utf8))
+            }
+            let cacheDirectory = entry.deletingLastPathComponent()
+            if base.exists(cacheDirectory) {
+                let expected = isPublished ? [target.buildProduct.frameworkName] : []
+                #expect(try base.getDirectoryContents(cacheDirectory) == expected)
+            }
+        }
+    }
+
+    private func makeTaggedBinaryPackage() async throws -> URL {
+        let base = LocalFileSystem.default
+        let packagePath = TemporaryDirectory.url.appending(component: "package")
+        let fixture = URL(filePath: #filePath).deletingLastPathComponent()
+            .appending(components: "Resources", "Fixtures", "BinaryPackage", "SomeBinary.zip")
+        let packageName = "TwoBinaries"
+        let firstTarget = "First"
+        let secondTarget = "Second"
+        try base.createDirectory(packagePath, recursive: true)
+        for name in [firstTarget, secondTarget] {
+            try base.copy(from: fixture, to: packagePath.appending(component: "\(name).zip"))
+        }
+        let manifest = """
+        // swift-tools-version: 6.0
+        import PackageDescription
+        let package = Package(
+            name: "\(packageName)",
+            platforms: [.iOS(.v13)],
+            products: [.library(name: "\(packageName)", targets: ["\(firstTarget)", "\(secondTarget)"])],
+            targets: [
+                .binaryTarget(name: "\(firstTarget)", path: "\(firstTarget).zip"),
+                .binaryTarget(name: "\(secondTarget)", path: "\(secondTarget).zip"),
+            ]
+        )
+        """
+        try base.writeFileContents(packagePath.appending(component: "Package.swift"), data: Data(manifest.utf8))
+        let executor = ProcessExecutor()
+        let git = ["/usr/bin/xcrun", "git", "-C", packagePath.path(percentEncoded: false)]
+        try await executor.execute(git + ["init"])
+        try await executor.execute(git + ["add", "."])
+        try await executor.execute(git + [
+            "-c", "user.name=Scipio Tests",
+            "-c", "user.email=scipio@example.com",
+            "commit", "-m", "Initial commit",
+        ])
+        try await executor.execute(git + ["tag", "v1.0.0"])
+        return packagePath
+    }
+
 }
 
 // MARK: - Mock Classes
@@ -171,6 +398,7 @@ private actor MockCacheStorage: FrameworkCacheStorage {
     let parallelNumber: Int? = 1
 
     private var hasCacheMap: [String: Bool] = [:]
+    private var cacheCheckCalls: [String] = []
     private var fetchArtifactsCalls: [(cacheKey: String, destinationDir: URL)] = []
     private var cacheFrameworkCalls: [(frameworkPath: URL, cacheKey: String)] = []
 
@@ -180,6 +408,7 @@ private actor MockCacheStorage: FrameworkCacheStorage {
 
     func existsValidCache(for cacheKey: some CacheKey) async throws -> Bool {
         let keyString = try cacheKey.calculateChecksum()
+        cacheCheckCalls.append(keyString)
         return hasCacheMap[keyString] ?? false
     }
 
@@ -205,7 +434,132 @@ private actor MockCacheStorage: FrameworkCacheStorage {
         return fetchArtifactsCalls
     }
 
+    func getCacheCheckCalls() -> [String] {
+        cacheCheckCalls
+    }
+
     func getCacheFrameworkCalls() -> [(frameworkPath: URL, cacheKey: String)] {
         return cacheFrameworkCalls
     }
+}
+
+private enum LateCacheState: CaseIterable, Sendable {
+    case available
+    case missing
+    case unreadable
+}
+
+private struct LateCacheFileSystem: FileSystem {
+    private struct State {
+        var cacheChecks = 0
+        var buildCopies = 0
+    }
+
+    private let base = LocalFileSystem.default
+    let cacheEntry: URL
+    let binaryArtifact: URL
+    let buildSource: URL
+    let cacheState: LateCacheState
+    private let state = OSAllocatedUnfairLock(initialState: State())
+
+    var cacheEntryCheckCount: Int { state.withLock { $0.cacheChecks } }
+    var buildCopyCount: Int { state.withLock { $0.buildCopies } }
+    var tempDirectory: URL { base.tempDirectory }
+    var cachesDirectory: URL? { base.cachesDirectory }
+    var currentWorkingDirectory: URL? { base.currentWorkingDirectory }
+
+    func writeFileContents(_ path: URL, data: Data) throws { try base.writeFileContents(path, data: data) }
+    func readFileContents(_ path: URL) throws -> Data { try base.readFileContents(path) }
+    func exists(_ path: URL, followSymlink: Bool) -> Bool {
+        // Hide the entry from the initial scan; later checks use the real file system.
+        if isCacheEntry(path), state.withLock({ state in state.cacheChecks += 1; return state.cacheChecks == 1 }) {
+            return false
+        }
+        return base.exists(path, followSymlink: followSymlink)
+    }
+    func isDirectory(_ path: URL) -> Bool { base.isDirectory(path) }
+    func isFile(_ path: URL) -> Bool { base.isFile(path) }
+    func isSymlink(_ path: URL) -> Bool { base.isSymlink(path) }
+    func copy(from source: URL, to destination: URL) throws {
+        if isCacheEntry(source), cacheState == .unreadable {
+            try base.writeFileContents(destination.appending(component: "Info.plist"), data: Data("partial".utf8))
+            throw FetchFailed()
+        }
+        if source == binaryArtifact {
+            state.withLock { $0.buildCopies += 1 }
+            try base.copy(from: buildSource, to: destination)
+        } else {
+            try base.copy(from: source, to: destination)
+        }
+    }
+    func createDirectory(_ path: URL, recursive: Bool) throws { try base.createDirectory(path, recursive: recursive) }
+    func move(from source: URL, to destination: URL) throws { try base.move(from: source, to: destination) }
+    func getDirectoryContents(_ path: URL) throws -> [String] { try base.getDirectoryContents(path) }
+    func removeFileTree(_ path: URL) throws { try base.removeFileTree(path) }
+
+    private func isCacheEntry(_ path: URL) -> Bool {
+        path.pathComponents == cacheEntry.pathComponents
+    }
+
+    private struct FetchFailed: Error {}
+}
+
+private struct BinaryBuildFileSystem: FileSystem {
+    private let base = LocalFileSystem.default
+    let output: URL
+    let cacheEntries: [String: URL]
+    let failNextBuild: Bool
+    let failFirstCacheCopy: Bool
+    private let attemptedTargets = OSAllocatedUnfairLock(initialState: [String]())
+    private let publications = OSAllocatedUnfairLock(initialState: 0)
+    var publicationCount: Int { publications.withLock { $0 } }
+    var buildAttempts: [String] { attemptedTargets.withLock { $0 } }
+    var tempDirectory: URL { base.tempDirectory }
+    var cachesDirectory: URL? { base.cachesDirectory }
+    var currentWorkingDirectory: URL? { base.currentWorkingDirectory }
+
+    // `BinaryExtractor` copies a binary target's artifact to the output directory, so this copy acts as one build.
+    func copy(from source: URL, to destination: URL) throws {
+        let name = destination.deletingPathExtension().lastPathComponent
+        guard destination.deletingLastPathComponent().pathComponents == output.pathComponents, cacheEntries[name] != nil else {
+            let sourceName = source.deletingPathExtension().lastPathComponent
+            if source.deletingLastPathComponent().pathComponents == output.pathComponents {
+                #expect(try base.readFileContents(source.appending(component: "Info.plist")) == Data(sourceName.utf8))
+                #expect(try base.readFileContents(source.appending(component: "payload")) == Data(sourceName.utf8))
+                if failFirstCacheCopy, attemptedTargets.withLock({ $0.first == sourceName }) {
+                    try base.writeFileContents(destination.appending(component: "Info.plist"), data: Data("partial".utf8))
+                    throw CopyFailed()
+                }
+            }
+            try base.copy(from: source, to: destination)
+            return
+        }
+        let previous = attemptedTargets.withLock { targets in
+            let previous = targets.last
+            targets.append(name)
+            return previous
+        }
+        if previous != nil, failNextBuild {
+            try base.writeFileContents(destination.appending(component: "Info.plist"), data: Data("unfinished build".utf8))
+            throw BuildFailed()
+        }
+        try base.writeFileContents(output.appending(components: "\(name).xcframework", "Info.plist"), data: Data(name.utf8))
+        try base.writeFileContents(output.appending(components: "\(name).xcframework", "payload"), data: Data(name.utf8))
+    }
+    func writeFileContents(_ path: URL, data: Data) throws { try base.writeFileContents(path, data: data) }
+    func readFileContents(_ path: URL) throws -> Data { try base.readFileContents(path) }
+    func exists(_ path: URL, followSymlink: Bool) -> Bool { base.exists(path, followSymlink: followSymlink) }
+    func isDirectory(_ path: URL) -> Bool { base.isDirectory(path) }
+    func isFile(_ path: URL) -> Bool { base.isFile(path) }
+    func isSymlink(_ path: URL) -> Bool { base.isSymlink(path) }
+    func createDirectory(_ path: URL, recursive: Bool) throws { try base.createDirectory(path, recursive: recursive) }
+    func move(from source: URL, to destination: URL) throws {
+        try base.move(from: source, to: destination)
+        publications.withLock { $0 += 1 }
+    }
+    func getDirectoryContents(_ path: URL) throws -> [String] { try base.getDirectoryContents(path) }
+    func removeFileTree(_ path: URL) throws { try base.removeFileTree(path) }
+
+    struct BuildFailed: Error {}
+    private struct CopyFailed: Error {}
 }

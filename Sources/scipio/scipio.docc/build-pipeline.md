@@ -279,5 +279,5 @@ let runner = Runner(
 )
 ```
 
-In the sample above, if some frameworks' caches are not found on `s3Storage`, those are tried to be fetched from the next `.localDisk` cache policie's storage then. The frameworks not found on the storage of `.localDisk` cache policy will be built and cached into it (since the storage is tied to `.producer` actor).
+In this example, Scipio first tries `s3Storage`, then `.localDisk` for the remaining targets. It checks `.localDisk` again before each target build and saves completed builds there while it builds the remaining targets. See <doc:cache-system> for cache timing, staging, and cleanup behavior.
  
