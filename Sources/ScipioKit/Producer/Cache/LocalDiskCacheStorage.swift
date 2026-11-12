@@ -1,7 +1,7 @@
 import Foundation
 import CacheStorage
 
-struct LocalDiskCacheStorage: FrameworkCacheStorage, MacroPluginsCacheStorage, Equatable {
+struct LocalDiskCacheStorage: FrameworkCacheStorage, Equatable {
     private let fileSystem: any FileSystem
 
     var parallelNumber: Int? { nil }
@@ -85,7 +85,9 @@ struct LocalDiskCacheStorage: FrameworkCacheStorage, MacroPluginsCacheStorage, E
         let destination = destinationDir.appendingPathComponent(xcFrameworkFileName(for: cacheKey))
         try fileSystem.copy(from: source, to: destination)
     }
+}
 
+extension LocalDiskCacheStorage: MacroPluginsCacheStorage {
     private func artifactPath(for cacheKey: some CacheKey, kind: ArtifactKind) throws -> URL {
         let namespace: String = switch kind {
         case .macroPlugin: "Macros"
