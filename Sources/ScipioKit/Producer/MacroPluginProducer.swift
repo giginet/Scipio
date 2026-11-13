@@ -126,6 +126,8 @@ struct MacroBuildContext {
 
 struct MacroPluginProducer {
     private struct ArtifactManifest: Codable {
+        static let fileName = "artifact.json"
+
         let executable: String
         let files: [String: String]
     }
@@ -368,7 +370,7 @@ struct MacroPluginProducer {
             try manager.copyItem(at: binDirectory.appending(path: name), to: directory.appending(path: name))
         }
         let manifest = ArtifactManifest(executable: module.c99name, files: try artifactFiles(directory))
-        try JSONEncoder().encode(manifest).write(to: directory.appending(path: "artifact.json"), options: .atomic)
+        try JSONEncoder().encode(manifest).write(to: directory.appending(path: ArtifactManifest.fileName), options: .atomic)
     }
 
     private func destinationArguments() async throws -> [String] {
@@ -395,7 +397,7 @@ struct MacroPluginProducer {
     }
 
     private func validateArtifact(_ directory: URL, executable: String) -> Bool {
-        guard let data = try? Data(contentsOf: directory.appending(path: "artifact.json")),
+        guard let data = try? Data(contentsOf: directory.appending(path: ArtifactManifest.fileName)),
               let manifest = try? JSONDecoder().decode(ArtifactManifest.self, from: data),
               manifest.executable == executable,
               manager.isExecutableFile(atPath: directory.appending(path: executable).path)
@@ -417,7 +419,7 @@ struct MacroPluginProducer {
         let keys: [URLResourceKey] = [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey]
         var files: [String: String] = [:]
         for relativePath in try manager.subpathsOfDirectory(atPath: directory.path) {
-            if relativePath == "artifact.json" { continue }
+            if relativePath == ArtifactManifest.fileName { continue }
             let url = directory.appending(path: relativePath)
             let values = try url.resourceValues(forKeys: Set(keys))
             if values.isSymbolicLink == true {
