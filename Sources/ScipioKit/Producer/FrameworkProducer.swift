@@ -422,11 +422,13 @@ struct FrameworkProducer {
 }
 
 extension FrameworkProducer {
-    private func prepareFrameworkCache(
-        for graph: DependencyGraph<CacheSystem.CacheTarget>,
-        cacheSystem: CacheSystem
-    ) async throws -> (graph: DependencyGraph<CacheSystem.CacheTarget>, cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]) {
-        var targetGraph = graph
+    private struct MacroCacheInputs {
+        let checksumsByTarget: [String: [DependencyCacheKeyChecksum]]
+        let uncacheableTargets: Set<String>
+        let uncacheableTargetsIncludingDependents: Set<String>
+    }
+
+    private func makeMacroCacheInputs(for graph: DependencyGraph<CacheSystem.CacheTarget>) throws -> MacroCacheInputs {
         var macroChecksums: [String: [DependencyCacheKeyChecksum]] = [:]
         var uncacheableMacroTargets: Set<String> = []
         for (target, names) in macroContext?.plan.targetDependencies ?? [:] {
@@ -441,7 +443,7 @@ extension FrameworkProducer {
             }
         }
         var uncacheableForMacro = uncacheableMacroTargets
-        var pending = Deque(targetGraph.allNodes.filter {
+        var pending = Deque(graph.allNodes.filter {
             uncacheableMacroTargets.contains($0.value.buildProduct.target.name)
         })
         while let node = pending.popFirst() {
@@ -450,10 +452,23 @@ extension FrameworkProducer {
                 pending.append(parent)
             }
         }
+        return MacroCacheInputs(
+            checksumsByTarget: macroChecksums,
+            uncacheableTargets: uncacheableMacroTargets,
+            uncacheableTargetsIncludingDependents: uncacheableForMacro
+        )
+    }
+
+    private func prepareFrameworkCache(
+        for graph: DependencyGraph<CacheSystem.CacheTarget>,
+        cacheSystem: CacheSystem
+    ) async throws -> (graph: DependencyGraph<CacheSystem.CacheTarget>, cacheKeys: [CacheSystem.CacheTarget: SwiftPMCacheKey]) {
+        var targetGraph = graph
+        let macroInputs = try makeMacroCacheInputs(for: graph)
         let cacheKeys = try await cacheSystem.calculateCacheKeys(
             for: targetGraph,
-            macroChecksums: macroChecksums,
-            uncacheableTargets: uncacheableMacroTargets
+            macroChecksums: macroInputs.checksumsByTarget,
+            uncacheableTargets: macroInputs.uncacheableTargets
         )
         let targets = Set(targetGraph.allNodes.map(\.value))
 
@@ -462,7 +477,7 @@ extension FrameworkProducer {
             availableTargets: targets,
             cacheSystem: cacheSystem,
             cacheKeys: cacheKeys,
-            uncacheableMacroTargets: uncacheableForMacro
+            uncacheableMacroTargets: macroInputs.uncacheableTargetsIncludingDependents
         )
 
         let storagesWithConsumer = cachePolicies.storages(for: .consumer)
