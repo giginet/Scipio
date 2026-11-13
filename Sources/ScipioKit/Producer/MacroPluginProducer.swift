@@ -20,7 +20,7 @@ public struct MacroCacheKey: CacheKey {
     public let hostArchitecture: String
     public let deploymentTarget: String?
     public let rootMacOSPlatform: String?
-    public let configuration: String
+    public let configuration: BuildConfiguration
     public let scipioVersion: String?
 }
 
@@ -169,7 +169,7 @@ struct MacroPluginProducer {
     private let requireArtifactStorage: Bool
     private let executor: any Executor
     private let manager = FileManager.default
-    private let configuration = "debug"
+    private let configuration = BuildConfiguration.debug
 
     init(
         package: DescriptionPackage,
@@ -347,7 +347,7 @@ struct MacroPluginProducer {
         let common = [
             "/usr/bin/xcrun", "swift", "build", "--build-system", "native",
             "--package-path", package.packageDirectory.path(percentEncoded: false),
-            "--configuration", configuration, "--disable-automatic-resolution",
+            "--configuration", configuration.rawValue, "--disable-automatic-resolution",
         ]
         logger.info("Building macOS macro plugin \(module.name)")
         // Validate runtime dependencies for the selected destination. SwiftPM still builds macros for the host.

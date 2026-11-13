@@ -45,7 +45,10 @@ struct MacroCacheTests {
         #expect(plan.modules.map(\.name) == ["Plugin"])
     }
 
-    private func key(revision: String = "123", swiftVersion: String = "Swift 6", schemaVersion: Int = 1) -> MacroCacheKey {
+    private func key(
+        revision: String = "123", swiftVersion: String = "Swift 6", schemaVersion: Int = 1,
+        configuration: BuildConfiguration = .debug
+    ) -> MacroCacheKey {
         MacroCacheKey(
             schemaVersion: schemaVersion, artifactKind: .macroPlugin, targetName: "ExamplePlugin",
             dependencies: [
@@ -56,7 +59,7 @@ struct MacroCacheTests {
                 ),
             ],
             swiftVersion: swiftVersion, clangVersion: "Clang", xcodeVersion: "Xcode",
-            hostArchitecture: "arm64", deploymentTarget: nil, rootMacOSPlatform: nil, configuration: "debug",
+            hostArchitecture: "arm64", deploymentTarget: nil, rootMacOSPlatform: nil, configuration: configuration,
             scipioVersion: "Scipio"
         )
     }
@@ -168,6 +171,40 @@ struct MacroCacheTests {
         try await invalidStorage.fetchArtifact(for: key, kind: .macroPlugin, to: stored)
         #expect(manager.fileExists(atPath: stored.appending(path: "artifact.json").path) == canProduce)
         #expect(await executor.calledCount == 0)
+    }
+
+    @Test(.temporaryDirectory, arguments: ["debug", "release"])
+    func configurationPreservesVersionFileAndChecksum(configuration: String) throws {
+        let legacyData = Data("""
+        {
+          "schemaVersion": 1,
+          "artifactKind": "macroPlugin",
+          "targetName": "ExamplePlugin",
+          "dependencies": [{
+            "packageIdentity": "example",
+            "pin": {"kind": "sourceControl", "revision": "123"},
+            "targetName": "ExamplePlugin"
+          }],
+          "swiftVersion": "Swift 6",
+          "clangVersion": "Clang",
+          "xcodeVersion": "Xcode",
+          "hostArchitecture": "arm64",
+          "configuration": "\(configuration)",
+          "scipioVersion": "Scipio"
+        }
+        """.utf8)
+        let versionFile = TemporaryDirectory.url.appending(path: ".ExamplePlugin.version")
+        try legacyData.write(to: versionFile)
+
+        let decoded = try MacroVersionFileDecoder().decode(versionFile: versionFile)
+
+        let expectedConfiguration = try #require(BuildConfiguration(rawValue: configuration))
+        #expect(decoded == key(configuration: expectedConfiguration))
+        let canonicalLegacyData = try JSONSerialization.data(
+            withJSONObject: JSONSerialization.jsonObject(with: legacyData), options: [.prettyPrinted, .sortedKeys]
+        )
+        let legacyChecksum = SHA256.hash(data: canonicalLegacyData).map { String(format: "%02x", $0) }.joined()
+        #expect(try decoded.calculateChecksum() == legacyChecksum)
     }
 
     @Test(.temporaryDirectory)
