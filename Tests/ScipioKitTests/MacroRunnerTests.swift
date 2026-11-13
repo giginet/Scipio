@@ -28,6 +28,7 @@ struct MacroRunnerTests {
         let output = root.appending(path: "XCFrameworks")
         let cache = root.appending(path: "cache")
         try manager.createDirectory(at: source.appending(path: "Sources/FixturePlugin"), withIntermediateDirectories: true)
+        try manager.createDirectory(at: source.appending(path: "Sources/LinuxOnlyPlugin"), withIntermediateDirectories: true)
         try manager.createDirectory(at: source.appending(path: "Sources/FixtureLibrary"), withIntermediateDirectories: true)
         try manager.createDirectory(at: source.appending(path: "Sources/FixtureConsumer"), withIntermediateDirectories: true)
         try manager.createDirectory(at: parent.appending(path: "Sources/Parent"), withIntermediateDirectories: true)
@@ -40,12 +41,19 @@ struct MacroRunnerTests {
             products: [.library(name: "FixtureConsumer", targets: ["FixtureConsumer"])],
             targets: [
                 .macro(name: "FixturePlugin", dependencies: []),
-                .target(name: "FixtureLibrary", dependencies: ["FixturePlugin"]),
+                .macro(name: "LinuxOnlyPlugin", dependencies: []),
+                .target(name: "FixtureLibrary", dependencies: [
+                    "FixturePlugin",
+                    .target(name: "LinuxOnlyPlugin", condition: .when(platforms: [.linux]))
+                ]),
                 .target(name: "FixtureConsumer", dependencies: ["FixtureLibrary"])
             ])
         """.write(to: source.appending(path: "Package.swift"), atomically: true, encoding: .utf8)
         try "@main struct Plugin { static func main() {} }".write(
             to: source.appending(path: "Sources/FixturePlugin/Plugin.swift"), atomically: true, encoding: .utf8
+        )
+        try "import Glibc\n@main struct Plugin { static func main() {} }".write(
+            to: source.appending(path: "Sources/LinuxOnlyPlugin/Plugin.swift"), atomically: true, encoding: .utf8
         )
         try "public struct Fixture {}".write(
             to: source.appending(path: "Sources/FixtureLibrary/Library.swift"), atomically: true, encoding: .utf8

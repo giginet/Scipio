@@ -55,13 +55,19 @@ struct MacroBuildPlan {
     let targetDependencies: [String: [String]]
     let hostOnlyDependencies: [String: Set<String>]
 
-    init(graph: DependencyGraph<BuildProduct>) throws {
+    init(
+        graph: DependencyGraph<BuildProduct>, buildOptions: BuildOptions,
+        buildOptionsMatrix: [String: BuildOptions] = [:]
+    ) throws {
         var plugins: [String: ResolvedModule] = [:]
         var targetDependencies: [String: [String]] = [:]
         var hostOnlyDependencies: [String: Set<String>] = [:]
         for node in graph.allNodes {
             let target = node.value.target
-            let macros = target.dependencies.flatMap(\.modules).filter { $0.underlying.type == .macro }
+            let options = buildOptionsMatrix[target.name] ?? buildOptions
+            let macroDependencies = target.dependencies.filter { $0.modules.contains { $0.underlying.type == .macro } }
+            let macros = macroDependencies.filter { Self.isEnabled($0, buildOptions: options) }
+                .flatMap(\.modules).filter { $0.underlying.type == .macro }
             for macro in macros {
                 if let existing = plugins[macro.c99name],
                    existing.packageID != macro.packageID || existing.name != macro.name {
@@ -71,36 +77,70 @@ struct MacroBuildPlan {
             }
             if !macros.isEmpty {
                 targetDependencies[target.name] = Set(macros.map(\.c99name)).sorted()
-                var hostNames: Set<String> = []
-                var runtimeNames: Set<String> = []
-                var hostVisited: Set<ResolvedModule> = []
-                var runtimeVisited: Set<ResolvedModule> = []
-
-                func collect(
-                    _ dependencies: [ResolvedModule.Dependency], excludingMacros: Bool,
-                    names: inout Set<String>, visited: inout Set<ResolvedModule>
-                ) {
-                    for dependency in dependencies {
-                        let modules = dependency.modules.filter { !excludingMacros || $0.underlying.type != .macro }
-                        guard !modules.isEmpty else { continue }
-                        if let product = dependency.product {
-                            names.insert(product.name)
-                        }
-                        for module in modules where visited.insert(module).inserted {
-                            names.insert(module.name)
-                            collect(module.dependencies, excludingMacros: excludingMacros, names: &names, visited: &visited)
-                        }
-                    }
-                }
-                collect(target.dependencies.filter { $0.modules.contains { $0.underlying.type == .macro } },
-                        excludingMacros: false, names: &hostNames, visited: &hostVisited)
-                collect(target.dependencies, excludingMacros: true, names: &runtimeNames, visited: &runtimeVisited)
-                hostOnlyDependencies[target.name] = hostNames.subtracting(runtimeNames)
+            }
+            if !macroDependencies.isEmpty {
+                hostOnlyDependencies[target.name] = Self.hostOnlyDependencyNames(
+                    for: target, macroDependencies: macroDependencies, buildOptions: options
+                )
             }
         }
         self.modules = plugins.values.sorted { $0.c99name < $1.c99name }
         self.targetDependencies = targetDependencies
         self.hostOnlyDependencies = hostOnlyDependencies
+    }
+
+    private static func hostOnlyDependencyNames(
+        for target: ResolvedModule, macroDependencies: [ResolvedModule.Dependency], buildOptions: BuildOptions
+    ) -> Set<String> {
+        var hostNames: Set<String> = []
+        var runtimeNames: Set<String> = []
+        var hostVisited: Set<ResolvedModule> = []
+        var runtimeVisited: Set<ResolvedModule> = []
+
+        func collect(
+            _ dependencies: [ResolvedModule.Dependency], excludingMacros: Bool,
+            names: inout Set<String>, visited: inout Set<ResolvedModule>
+        ) {
+            for dependency in dependencies {
+                if excludingMacros && !isEnabled(dependency, buildOptions: buildOptions) { continue }
+                let modules = dependency.modules.filter { !excludingMacros || $0.underlying.type != .macro }
+                guard !modules.isEmpty else { continue }
+                if let product = dependency.product {
+                    names.insert(product.name)
+                }
+                for module in modules where visited.insert(module).inserted {
+                    names.insert(module.name)
+                    collect(module.dependencies, excludingMacros: excludingMacros, names: &names, visited: &visited)
+                }
+            }
+        }
+        // dump-pif retains inactive macro edges; they must also be removed from destination builds.
+        collect(macroDependencies, excludingMacros: false, names: &hostNames, visited: &hostVisited)
+        collect(target.dependencies, excludingMacros: true, names: &runtimeNames, visited: &runtimeVisited)
+        return hostNames.subtracting(runtimeNames)
+    }
+
+    private static func isEnabled(_ dependency: ResolvedModule.Dependency, buildOptions: BuildOptions) -> Bool {
+        let conditions = switch dependency {
+        case .module(_, let conditions), .product(_, let conditions): conditions
+        }
+        return buildOptions.sdks.contains { sdk in
+            conditions.allSatisfy { condition in
+                let matchesPlatform = condition.platformNames.isEmpty || condition.platformNames.contains(platformName(for: sdk))
+                return matchesPlatform && (condition.config == nil || condition.config == buildOptions.buildConfiguration.rawValue)
+            }
+        }
+    }
+
+    private static func platformName(for sdk: SDK) -> String {
+        switch sdk {
+        case .macOS: "macos"
+        case .macCatalyst: "maccatalyst"
+        case .iOS, .iOSSimulator: "ios"
+        case .tvOS, .tvOSSimulator: "tvos"
+        case .watchOS, .watchOSSimulator: "watchos"
+        case .visionOS, .visionOSSimulator: "visionos"
+        }
     }
 
     enum Error: LocalizedError {

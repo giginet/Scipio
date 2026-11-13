@@ -79,7 +79,10 @@ public struct Runner {
 
         let buildOptionsMatrix = try options.buildOptionsContainer.makeBuildOptionsMatrix(descriptionPackage: descriptionPackage)
 
-        let macroPlan = try MacroBuildPlan(graph: descriptionPackage.resolveBuildProductDependencyGraph())
+        let macroPlan = try MacroBuildPlan(
+            graph: descriptionPackage.resolveBuildProductDependencyGraph(),
+            buildOptions: buildOptions, buildOptionsMatrix: buildOptionsMatrix
+        )
         let macroOutputDir = descriptionPackage.workspaceDirectory.appending(path: "MacroPlugins")
         let macroProducer = MacroPluginProducer(
             package: descriptionPackage,
