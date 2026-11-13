@@ -33,15 +33,13 @@ package final class PIFManipulator {
                 targetName == name || (targetName.hasPrefix("\(name)_") && targetName.hasSuffix("_PackageProduct"))
             }) else { continue }
 
-            var guids: Set<String> = []
-            for candidate in targets {
+            let guids = Set(targets.compactMap { candidate -> String? in
                 let candidateName = candidate["contents"]["name"].stringValue
-                if names.contains(candidateName) || names.contains(where: {
+                guard names.contains(candidateName) || names.contains(where: {
                     candidateName.hasPrefix("\($0)_") && candidateName.hasSuffix("_PackageProduct")
-                }) {
-                    guids.insert(candidate["contents"]["guid"].stringValue)
-                }
-            }
+                }) else { return nil }
+                return candidate["contents"]["guid"].stringValue
+            })
             func isHostReference(_ guid: String) -> Bool {
                 guids.contains(guid) || names.contains {
                     guid == "PACKAGE-TARGET:\($0)" || guid.hasPrefix("PACKAGE-TARGET:\($0)@")
