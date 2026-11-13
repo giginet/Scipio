@@ -1,4 +1,5 @@
 import CacheStorage
+import CryptoKit
 import Foundation
 import Testing
 @testable import ScipioKit
@@ -92,6 +93,81 @@ struct MacroCacheTests {
             components: "Scipio", "Macros", "ExamplePlugin", key.calculateChecksum(), "ExamplePlugin", "ExamplePlugin"
         )
         #expect(manager.fileExists(atPath: cachePath.path))
+    }
+
+    @Test(.temporaryDirectory)
+    func consumerOnlyPolicyPreservesInvalidCache() async throws {
+        try await invalidCacheFallsBackToNextStorage(canProduce: false)
+    }
+
+    @Test(.temporaryDirectory)
+    func producerPolicyRepairsInvalidCache() async throws {
+        try await invalidCacheFallsBackToNextStorage(canProduce: true)
+    }
+
+    private func invalidCacheFallsBackToNextStorage(canProduce: Bool) async throws {
+        let manager = FileManager.default
+        let root = TemporaryDirectory.url
+        let packageDirectory = root.appending(path: "Package")
+        try manager.createDirectory(at: packageDirectory.appending(path: "Sources/Library"), withIntermediateDirectories: true)
+        try manager.createDirectory(at: packageDirectory.appending(path: "Sources/ExamplePlugin"), withIntermediateDirectories: true)
+        try """
+        // swift-tools-version: 6.0
+        import PackageDescription
+        import CompilerPluginSupport
+        let package = Package(name: "Fixture", products: [.library(name: "Library", targets: ["Library"])],
+            targets: [.macro(name: "ExamplePlugin"), .target(name: "Library", dependencies: ["ExamplePlugin"])])
+        """.write(to: packageDirectory.appending(path: "Package.swift"), atomically: true, encoding: .utf8)
+        try "public struct Library {}".write(
+            to: packageDirectory.appending(path: "Sources/Library/Library.swift"), atomically: true, encoding: .utf8
+        )
+        try "@main struct Plugin { static func main() {} }".write(
+            to: packageDirectory.appending(path: "Sources/ExamplePlugin/Plugin.swift"), atomically: true, encoding: .utf8
+        )
+        let package = try await DescriptionPackage(
+            packageDirectory: packageDirectory, mode: .createPackage,
+            resolvedPackagesCachePolicies: [], onlyUseVersionsFromResolvedFile: false
+        )
+        let plan = try MacroBuildPlan(graph: package.resolveBuildProductDependencyGraph())
+        let output = root.appending(path: "output")
+        let artifact = root.appending(path: "artifact")
+        try manager.createDirectory(at: artifact, withIntermediateDirectories: true)
+        let executable = artifact.appending(path: "ExamplePlugin")
+        let contents = Data("plugin".utf8)
+        try contents.write(to: executable)
+        try manager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
+        let invalidStorage = LocalDiskCacheStorage(baseURL: root.appending(path: "invalid"))
+        let fallbackStorage = LocalDiskCacheStorage(baseURL: root.appending(path: "fallback"))
+        let key = key()
+        try await invalidStorage.cacheArtifact(artifact, for: key, kind: .macroPlugin)
+        let checksum = SHA256.hash(data: contents).map { String(format: "%02x", $0) }.joined()
+        try JSONSerialization.data(withJSONObject: [
+            "executable": "ExamplePlugin", "files": ["ExamplePlugin": checksum],
+        ]).write(to: artifact.appending(path: "artifact.json"))
+        try await fallbackStorage.cacheArtifact(artifact, for: key, kind: .macroPlugin)
+        let executor = StubbableExecutor { _ in throw MacroPluginProducer.Error.missingExecutable("Unexpected build") }
+        let producer = MacroPluginProducer(
+            package: package, outputDirectory: output, destinationSDK: .macOS,
+            policies: [
+                .init(storage: invalidStorage, actors: canProduce ? [.consumer, .producer] : [.consumer]),
+                .init(storage: fallbackStorage, actors: [.consumer]),
+            ], executor: executor
+        )
+        let plugin = MacroPlugin(
+            targetName: "ExamplePlugin", moduleName: "ExamplePlugin",
+            executable: output.appending(components: "ExamplePlugin", "ExamplePlugin"), cacheKey: key
+        )
+
+        try await producer.produce(plan, plugins: ["ExamplePlugin": plugin])
+
+        #expect(try Data(contentsOf: plugin.executable) == contents)
+        #expect(try MacroVersionFileDecoder().decode(versionFile: output.appending(path: ".ExamplePlugin.version")) == key)
+        #expect(try manager.contentsOfDirectory(atPath: output.path).allSatisfy { !$0.hasPrefix(".restore-") })
+        let stored = root.appending(path: "stored")
+        #expect(try await invalidStorage.existsArtifact(for: key, kind: .macroPlugin))
+        try await invalidStorage.fetchArtifact(for: key, kind: .macroPlugin, to: stored)
+        #expect(manager.fileExists(atPath: stored.appending(path: "artifact.json").path) == canProduce)
+        #expect(await executor.calledCount == 0)
     }
 
     @Test(.temporaryDirectory)

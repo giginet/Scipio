@@ -242,7 +242,9 @@ struct MacroPluginProducer {
                         guard try await storage.existsArtifact(for: key, kind: .macroPlugin) else { continue }
                         try await storage.fetchArtifact(for: key, kind: .macroPlugin, to: staging)
                         guard validateArtifact(staging, executable: module.c99name) else {
-                            try await storage.removeArtifact(for: key, kind: .macroPlugin)
+                            if policy.actors.contains(.producer) {
+                                try await storage.removeArtifact(for: key, kind: .macroPlugin)
+                            }
                             continue
                         }
                         try install(staging, at: directory, versionFile: versionFile, key: key)
