@@ -90,7 +90,7 @@ $ scipio prepare path/to/MyAppDependencies
 > ❇️ Succeeded.
 ```
 
-All XCFrameworks are generated into `MyAppDependencies/XCFramework` by default.
+All XCFrameworks are generated into `MyAppDependencies/XCFrameworks` by default.
 
 #### Library Evolution support
 
@@ -109,7 +109,7 @@ However, it means some packages can't be built.
 By default, Scipio checks whether re-building is required or not for existing XCFrameworks.
 
 ```
-$ swift run scipio prepare --cache-policy project path/to/MyAppDependencies
+$ swift run scipio prepare --framework-cache-policy project path/to/MyAppDependencies
 > 🔁 Resolving Dependencies...
 > 🗑️ Cleaning MyAppDependency...
 > ✅ Valid APNGKit.xcframework is exists. Skip building.

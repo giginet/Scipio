@@ -72,9 +72,8 @@ struct LocalDiskCacheStorage: FrameworkCacheStorage, Equatable {
         do {
             let destination = try cacheFrameworkPath(for: cacheKey)
             let directoryPath = destination.deletingLastPathComponent()
-
             try fileSystem.createDirectory(directoryPath, recursive: true)
-            try fileSystem.copy(from: frameworkPath, to: destination)
+            try copyFramework(from: frameworkPath, to: destination)
         } catch {
             // ignore error
         }
@@ -82,8 +81,20 @@ struct LocalDiskCacheStorage: FrameworkCacheStorage, Equatable {
 
     func fetchArtifacts(for cacheKey: some CacheKey, to destinationDir: URL) async throws {
         let source = try cacheFrameworkPath(for: cacheKey)
-        let destination = destinationDir.appendingPathComponent(xcFrameworkFileName(for: cacheKey))
-        try fileSystem.copy(from: source, to: destination)
+        let destination = destinationDir.appending(component: xcFrameworkFileName(for: cacheKey))
+        try copyFramework(from: source, to: destination)
+    }
+
+    private func copyFramework(from source: URL, to destination: URL) throws {
+        guard !fileSystem.exists(destination) else {
+            throw FileSystemError.alreadyExistsAtDestination(path: destination)
+        }
+        // Keep staging beside the destination to use the same file system for publication.
+        let stagingPath = destination.deletingLastPathComponent()
+            .appending(component: ".\(UUID().uuidString)-\(destination.lastPathComponent)")
+        defer { try? fileSystem.removeFileTree(stagingPath) }
+        try fileSystem.copy(from: source, to: stagingPath)
+        try fileSystem.move(from: stagingPath, to: destination)
     }
 }
 

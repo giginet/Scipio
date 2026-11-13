@@ -63,6 +63,22 @@ Declare all targets as a dependencies of a first target.
 
 `platforms` must be specified. Scipio decides which SDKs to build based on this.
 
+### Package Registry Dependencies
+
+Scipio also supports dependencies declared with a registry package ID:
+
+```swift
+.package(id: "example.library", exact: "1.0.0")
+```
+
+Configure the registry from your dependency package directory before running Scipio:
+
+```bash
+swift package-registry set --scope example https://packages.example.com
+```
+
+Scipio uses SwiftPM's registry configuration.
+
 ### 3. Run `prepare` Command
 
 Finally, run `prepare` command.
@@ -78,7 +94,7 @@ $ scipio prepare path/to/MyAppDependencies
 > ❇️ Succeeded.
 ```
 
-All XCFrameworks are generated into `MyAppDependencies/XCFramework` by default.
+All XCFrameworks are generated into `MyAppDependencies/XCFrameworks` by default.
 
 > Note: You can use built XCFrameworks in a regular way for your project. Refer to this document <https://www.simpleswiftguide.com/how-to-add-xcframework-to-xcode-project/>
 
@@ -93,7 +109,9 @@ All XCFrameworks are generated into `MyAppDependencies/XCFramework` by default.
 | -\-embed-debug-symbols                  | Whether embed debug symbols to frameworks or not                    | -                          |
 | -\-framework-type                       | Framework type to generate Available: dynamic, static or mergeable) | dynamic                    |
 | -\-support-simulators                   | Whether also building for simulators of each SDKs or not            | -                          |
-| -\-cache-policy                         | How to reuse built frameworks                                       | project                    |
+| -\-framework-cache-policy               | How to reuse built frameworks (disabled / project / local)           | project                    |
+| -\-resolved-packages-cache-policy       | How to reuse resolved packages (disabled / project / local)          | disabled                   |
+| -\-overwrite, -f                        | Replace existing output frameworks                                  | false                      |
 | -\-enable-library-evolution             | Whether to enable Library Evolution feature or not                  | -                          |
 | -\-strip-static-lib-dwarf-symbols       | Whether to strip DWARF symbols from built binary or not              | false                      |
 | -\-only-use-versions-from-resolved-file | Whether to disable updating Package.resolved automatically          | false                      |

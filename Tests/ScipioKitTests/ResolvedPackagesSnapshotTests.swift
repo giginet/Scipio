@@ -38,6 +38,20 @@ struct ResolvedPackagesSnapshotTests {
         #expect(restoredRoot.dependencies == originalRoot.dependencies)
     }
 
+    @Test("A registry pin round-trips through the snapshot")
+    func roundTripPreservesRegistryPin() throws {
+        var package = try ResolvedGraphFixtures.package(
+            identity: "example.library", targets: [],
+            pinState: .registry(identity: "example.library", version: "1.2.3")
+        )
+        package.resolvedPackageKind = .registry("example.library")
+        let data = try jsonEncoder.encode(ResolvedPackagesSnapshot(resolvedPackages: [package]))
+        let restored = try jsonDecoder.decode(ResolvedPackagesSnapshot.self, from: data).restoreResolvedPackages()
+        let restoredPackage = try #require(restored.first)
+        #expect(restoredPackage.pinState == package.pinState)
+        #expect(restoredPackage.resolvedPackageKind == package.resolvedPackageKind)
+    }
+
     @Test("A system-library module type round-trips through the snapshot")
     func roundTripPreservesSystemModuleType() throws {
         let moduleDirectory = URL(filePath: "/tmp/example-package/Sources/SysShim")

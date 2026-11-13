@@ -47,14 +47,14 @@ Edit the package with Xcode to implement your build script.
 $ xed .
 ```
 
-Remember, **you should remove `Sources/main.swift` first**. Because currently, you can't call top level async function from `main.swift` by swift-driver limitation.
+Remove `Sources/main.swift` before you add the `@main` entry point below.
 
 ### Edit a Package Manifest
 
 Edit `Package.swift` to integrate Scipio as a dependency.
 
 ```swift
-// swift-tools-version: 5.8
+// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -62,12 +62,12 @@ import PackageDescription
 let package = Package(
     name: "my-build-tool",
     platforms: [
-        .macOS(.v12)
+        .macOS(.v13)
     ],
     dependencies: [
         .package(
             url: "https://github.com/giginet/Scipio.git", 
-            revision: "0.15.0" // Use the latest version
+            exact: "0.34.0"
         ),
     ],
     targets: [
@@ -82,7 +82,7 @@ let package = Package(
 )
 ```
 
-> Note: Use `exact` to specify the version of Scipio. Because Scipio depends on swift-package-manager. Unfortunately, it is not following the semantic versioning.
+> Note: Use `exact` to keep the Scipio version fixed. Update this value when you select another release.
 
 ### Implement a Build Script
 
@@ -141,21 +141,24 @@ You can pass custom build flags to the build process.
 
 ```swift
 let runner = Runner(
-    baseBuildOptions: .init(
-        extraFlags: .init(
-            cFlags: ["-D", "DEBUG"],
-            cxxFlags: [],
-            swiftFlags: ["-warn-concurrency"],
-            linkerFlags: []
+    mode: .prepareDependencies,
+    options: .init(
+        baseBuildOptions: .init(
+            extraFlags: .init(
+                cFlags: ["-D", "DEBUG"],
+                cxxFlags: [],
+                swiftFlags: ["-warn-concurrency"],
+                linkerFlags: []
+            ),
+            extraBuildParameters: [
+                "SWIFT_OPTIMIZATION_LEVEL": "-Onone"
+            ],
+            enableLibraryEvolution: false
         ),
-        extraBuildParameters: [
-            "SWIFT_OPTIMIZATION_LEVEL": "-Onone"
-        ],
-        enableLibraryEvolution: false
-        ),
-    cachePolicies: [.project],
-    overwrite: true,
-    verbose: true
+        frameworkCachePolicies: [.project],
+        overwrite: true,
+        verbose: true
+    )
 )
 ```
 
@@ -177,7 +180,7 @@ let runner = Runner(
     options: .init(
         baseBuildOptions: .init(
             buildConfiguration: .release,
-            platforms: [.iOS],
+            platforms: .specific([.iOS]),
             isSimulatorSupported: true,
             frameworkType: .static
         ),
@@ -189,7 +192,7 @@ let runner = Runner(
                 buildConfiguration: .debug
             ),
             "MyWatchFramework": .init(
-                platforms: [iOS, .watchOS]
+                platforms: .specific([.iOS, .watchOS])
             )
         ]
     )
@@ -230,7 +233,7 @@ let runner = Runner(
             buildConfiguration: .release,
             isSimulatorSupported: true
         ),
-        cachePolicies: [
+        frameworkCachePolicies: [
             .init(storage: s3Storage, actors: [.consumer]),
         ]
     )
@@ -271,7 +274,7 @@ let runner = Runner(
             buildConfiguration: .release,
             isSimulatorSupported: true
         ),
-        cachePolicies: [
+        frameworkCachePolicies: [
             .init(storage: s3Storage, actors: [.consumer]),
             .localDisk,
         ]
@@ -279,5 +282,5 @@ let runner = Runner(
 )
 ```
 
-In the sample above, if some frameworks' caches are not found on `s3Storage`, those are tried to be fetched from the next `.localDisk` cache policie's storage then. The frameworks not found on the storage of `.localDisk` cache policy will be built and cached into it (since the storage is tied to `.producer` actor).
+In this example, Scipio first tries `s3Storage`, then `.localDisk` for the remaining targets. It checks `.localDisk` again before each target build. After each completed build, it schedules a local cache write and can continue to the next target. See <doc:cache-system> for cache timing, staging, and cleanup behavior.
  

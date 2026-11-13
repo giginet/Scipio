@@ -1,19 +1,16 @@
 import Foundation
 import CacheStorage
+import OrderedCollections
 import PackageManifestKit
 
 extension FrameworkProducer {
-    /// Sendable interface to provide restore caches
-    struct Restorer: Sendable {
-        let outputDir: URL
-        let fileSystem: any FileSystem
-
-        // Return true if pre-built artifact is available (already existing or restored from cache)
-        func restore(
+    enum Restorer {
+        static func restore(
             target: CacheSystem.CacheTarget,
             cacheKey: SwiftPMCacheKey?,
             cacheSystem: CacheSystem,
-            cacheStorage: any FrameworkCacheStorage
+            cacheStorage: any FrameworkCacheStorage,
+            logCacheMiss: Bool = true
         ) async throws -> Bool {
             let product = target.buildProduct
             let frameworkName = product.frameworkName
@@ -21,9 +18,11 @@ extension FrameworkProducer {
             guard let expectedCacheKey = cacheKey else {
                 return false
             }
-            let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
-
             let restoreResult = await cacheSystem.restoreCacheIfPossible(cacheKey: expectedCacheKey, storage: cacheStorage)
+            if case .noCache = restoreResult, !logCacheMiss {
+                return false
+            }
+            let expectedCacheKeyHash = try expectedCacheKey.calculateChecksum()
             switch restoreResult {
             case .succeeded:
                 logger.info("✅ Restore \(frameworkName) (\(expectedCacheKeyHash)) from cache storage.", metadata: .color(.green))
@@ -39,6 +38,34 @@ extension FrameworkProducer {
                 return false
             }
         }
+    }
+
+    struct TargetBuildResult {
+        var builtTargets: OrderedSet<CacheSystem.CacheTarget> = []
+        var restoredSetsToSourceStorage: [Set<CacheSystem.CacheTarget>: any FrameworkCacheStorage] = [:]
+        var error: (any Swift.Error)?
+    }
+
+    struct MacroCacheInputs {
+        let checksumsByTarget: [String: [DependencyCacheKeyChecksum]]
+        let uncacheableTargets: Set<String>
+        let uncacheableTargetsIncludingDependents: Set<String>
+    }
+
+    static func areStoragesEqual(_ lhs: any FrameworkCacheStorage, _ rhs: any FrameworkCacheStorage) -> Bool {
+        // ProjectCacheStorage instances are always considered the same
+        if lhs is ProjectCacheStorage && rhs is ProjectCacheStorage {
+            return true
+        }
+
+        // For LocalDiskCacheStorage (value type), use Equatable comparison
+        if let lhsLocal = lhs as? LocalDiskCacheStorage,
+           let rhsLocal = rhs as? LocalDiskCacheStorage {
+            return lhsLocal == rhsLocal
+        }
+
+        // For reference types (actors, classes), use ObjectIdentifier comparison
+        return ObjectIdentifier(lhs as AnyObject) == ObjectIdentifier(rhs as AnyObject)
     }
 
     enum Error: LocalizedError {
