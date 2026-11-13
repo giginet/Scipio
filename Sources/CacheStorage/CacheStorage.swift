@@ -25,7 +25,7 @@ public typealias CacheStorage = FrameworkCacheStorage
 public protocol MacroPluginsCacheStorage: Sendable {
     func existsArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws -> Bool
     func fetchArtifact(for cacheKey: some CacheKey, kind: ArtifactKind, to destination: URL) async throws
-    func cacheArtifact(_ artifact: URL, for cacheKey: some CacheKey, kind: ArtifactKind) async throws
+    func cacheArtifact(_ artifactPath: URL, for cacheKey: some CacheKey, kind: ArtifactKind) async throws
     func removeArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws
 }
 

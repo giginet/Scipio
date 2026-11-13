@@ -108,11 +108,11 @@ extension LocalDiskCacheStorage: MacroPluginsCacheStorage {
         try fileSystem.copy(from: artifactPath(for: cacheKey, kind: kind), to: destination)
     }
 
-    func cacheArtifact(_ artifact: URL, for cacheKey: some CacheKey, kind: ArtifactKind) async throws {
-        let destination = try artifactPath(for: cacheKey, kind: kind)
+    func cacheArtifact(_ artifactPath: URL, for cacheKey: some CacheKey, kind: ArtifactKind) async throws {
+        let destination = try self.artifactPath(for: cacheKey, kind: kind)
         try fileSystem.createDirectory(destination.deletingLastPathComponent(), recursive: true)
         guard !fileSystem.exists(destination) else { return }
-        try fileSystem.copy(from: artifact, to: destination)
+        try fileSystem.copy(from: artifactPath, to: destination)
     }
 
     func removeArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws {
