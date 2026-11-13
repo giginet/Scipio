@@ -263,7 +263,10 @@ struct MacroPluginProducer {
                         restored = true
                         break
                     } catch {
-                        logger.warning("Macro cache restore failed for \(module.name): \(error.localizedDescription)")
+                        logger.warning(
+                            "⚠️ Macro cache restore failed for \(module.name): \(error.localizedDescription)",
+                            metadata: .color(.yellow)
+                        )
                     }
                 }
             }
@@ -330,7 +333,10 @@ struct MacroPluginProducer {
         for policy in policies where policy.actors.contains(.producer) {
             guard let storage = policy.storage as? any MacroPluginsCacheStorage else {
                 if !(policy.storage is ProjectCacheStorage) {
-                    logger.warning("Macro cache is not supported by \(policy.storage.displayName); skipping upload.")
+                    logger.warning(
+                        "⚠️ Macro cache is not supported by \(policy.storage.displayName); skipping upload.",
+                        metadata: .color(.yellow)
+                    )
                 }
                 continue
             }
@@ -340,7 +346,10 @@ struct MacroPluginProducer {
                 }
             } catch {
                 if requireArtifactStorage { throw error }
-                logger.warning("Macro cache write failed for \(key.targetName): \(error.localizedDescription)")
+                logger.warning(
+                    "⚠️ Macro cache write failed for \(key.targetName): \(error.localizedDescription)",
+                    metadata: .color(.yellow)
+                )
             }
         }
     }
@@ -405,12 +414,18 @@ struct MacroPluginProducer {
         do {
             let files = try artifactFiles(directory)
             if files != manifest.files {
-                logger.warning("Macro artifact content validation failed at \(directory.path).")
+                logger.warning(
+                    "⚠️ Macro artifact content validation failed at \(directory.path).",
+                    metadata: .color(.yellow)
+                )
                 return false
             }
             return true
         } catch {
-            logger.warning("Macro artifact validation failed: \(error.localizedDescription)")
+            logger.warning(
+                "⚠️ Macro artifact validation failed: \(error.localizedDescription)",
+                metadata: .color(.yellow)
+            )
             return false
         }
     }
