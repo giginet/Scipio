@@ -76,21 +76,25 @@ struct MacroBuildPlan {
                 var hostVisited: Set<ResolvedModule> = []
                 var runtimeVisited: Set<ResolvedModule> = []
 
-                func collect(_ dependencies: [ResolvedModule.Dependency], names: inout Set<String>, visited: inout Set<ResolvedModule>) {
+                func collect(
+                    _ dependencies: [ResolvedModule.Dependency], excludingMacros: Bool,
+                    names: inout Set<String>, visited: inout Set<ResolvedModule>
+                ) {
                     for dependency in dependencies {
+                        let modules = dependency.modules.filter { !excludingMacros || $0.underlying.type != .macro }
+                        guard !modules.isEmpty else { continue }
                         if let product = dependency.product {
                             names.insert(product.name)
                         }
-                        for module in dependency.modules where visited.insert(module).inserted {
+                        for module in modules where visited.insert(module).inserted {
                             names.insert(module.name)
-                            collect(module.dependencies, names: &names, visited: &visited)
+                            collect(module.dependencies, excludingMacros: excludingMacros, names: &names, visited: &visited)
                         }
                     }
                 }
                 collect(target.dependencies.filter { $0.modules.contains { $0.underlying.type == .macro } },
-                        names: &hostNames, visited: &hostVisited)
-                collect(target.dependencies.filter { !$0.modules.contains { $0.underlying.type == .macro } },
-                        names: &runtimeNames, visited: &runtimeVisited)
+                        excludingMacros: false, names: &hostNames, visited: &hostVisited)
+                collect(target.dependencies, excludingMacros: true, names: &runtimeNames, visited: &runtimeVisited)
                 hostOnlyDependencies[target.name] = hostNames.subtracting(runtimeNames)
             }
         }

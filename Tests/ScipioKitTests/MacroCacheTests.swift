@@ -4,6 +4,46 @@ import Testing
 @testable import ScipioKit
 
 struct MacroCacheTests {
+    @Test(arguments: [false, true], [false, true])
+    func runtimeTraversalStopsAtSharedMacroTargets(usesProduct: Bool, sharesRuntimeDependency: Bool) throws {
+        let hostSupport = try ResolvedGraphFixtures.resolvedModule(name: "HostSupport")
+        let sharedSupport = try ResolvedGraphFixtures.resolvedModule(name: "SharedSupport")
+        let plugin = try ResolvedGraphFixtures.resolvedModule(
+            name: "Plugin", targetType: "macro",
+            dependencies: [.module(hostSupport, conditions: []), .module(sharedSupport, conditions: [])]
+        )
+        let library = try ResolvedGraphFixtures.resolvedModule(
+            name: "Library",
+            dependencies: [.module(plugin, conditions: [])] + (sharesRuntimeDependency ? [.module(sharedSupport, conditions: [])] : [])
+        )
+        let libraryDependency: ResolvedModule.Dependency
+        if usesProduct {
+            libraryDependency = .product(
+                try ResolvedGraphFixtures.resolvedProduct(name: "LibraryProduct", modules: [library]), conditions: []
+            )
+        } else {
+            libraryDependency = .module(library, conditions: [])
+        }
+        let consumer = try ResolvedGraphFixtures.resolvedModule(
+            name: "Consumer", dependencies: [.module(plugin, conditions: []), libraryDependency]
+        )
+        let package = try ResolvedGraphFixtures.package(targets: [consumer, library, plugin, hostSupport, sharedSupport])
+        let products = Set([consumer, library].map { BuildProduct(package: package, target: $0) })
+        let productNames = Set(products.map(\.target.name))
+        let graph = try DependencyGraph.resolve(
+            products, id: \.target.name,
+            childIDs: { $0.target.dependencies.flatMap(\.modules).map(\.name).filter(productNames.contains) }
+        )
+
+        let plan = try MacroBuildPlan(graph: graph)
+
+        let expectedHostOnly: Set<String> = sharesRuntimeDependency ? ["Plugin", "HostSupport"] : ["Plugin", "HostSupport", "SharedSupport"]
+        #expect(plan.hostOnlyDependencies["Consumer"] == expectedHostOnly)
+        #expect(plan.hostOnlyDependencies["Library"] == expectedHostOnly)
+        #expect(plan.targetDependencies == ["Consumer": ["Plugin"], "Library": ["Plugin"]])
+        #expect(plan.modules.map(\.name) == ["Plugin"])
+    }
+
     private func key(revision: String = "123", swiftVersion: String = "Swift 6", schemaVersion: Int = 1) -> MacroCacheKey {
         MacroCacheKey(
             schemaVersion: schemaVersion, artifactKind: .macroPlugin, targetName: "ExamplePlugin",
