@@ -34,11 +34,11 @@ It's all to do to convert a Swift Package into XCFrameworks.
 
 ### Options
 
-Basically, this command can take the same options as the `prepare` command. See <doc:prepare-cache-for-applications#Options>
+The `create` command shares build options such as `--configuration`, `--output`, and `--overwrite` with `prepare`. Cache policy options apply only to `prepare`. See <doc:prepare-cache-for-applications#Options>.
 
 #### Specify Target Platforms
 
-In the create command, you can create an XCFramework that contains only arbitrary platforms with the `-platforms` option.
+Use `--platforms` to select the platforms in the XCFramework.
 
 ```bash
 $ scipio create --platforms iOS --platforms watchOS path/to/swift-log
