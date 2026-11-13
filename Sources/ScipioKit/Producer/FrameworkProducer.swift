@@ -12,9 +12,7 @@ struct FrameworkProducer {
     private let overwrite: Bool
     private let outputDir: URL
     private let fileSystem: any FileSystem
-    private let macroPlan: MacroBuildPlan?
-    private let macroPlugins: [String: MacroPlugin]
-    private let macroProducer: MacroPluginProducer?
+    private let macroContext: MacroBuildContext?
 
     private var shouldGenerateVersionFile: Bool {
         // cache is not disabled
@@ -36,9 +34,7 @@ struct FrameworkProducer {
         cachePolicies: [Runner.Options.FrameworkCachePolicy],
         overwrite: Bool,
         outputDir: URL,
-        macroPlan: MacroBuildPlan? = nil,
-        macroPlugins: [String: MacroPlugin] = [:],
-        macroProducer: MacroPluginProducer? = nil,
+        macroContext: MacroBuildContext? = nil,
         fileSystem: any FileSystem = LocalFileSystem.default
     ) {
         self.descriptionPackage = descriptionPackage
@@ -47,9 +43,7 @@ struct FrameworkProducer {
         self.cachePolicies = cachePolicies
         self.overwrite = overwrite
         self.outputDir = outputDir
-        self.macroPlan = macroPlan
-        self.macroPlugins = macroPlugins
-        self.macroProducer = macroProducer
+        self.macroContext = macroContext
         self.fileSystem = fileSystem
     }
 
@@ -81,9 +75,7 @@ struct FrameworkProducer {
 
     private func processAllTargets(buildProductDependencyGraph: DependencyGraph<BuildProduct>) async throws {
         guard !buildProductDependencyGraph.rootNodes.isEmpty else {
-            if let macroPlan, let macroProducer {
-                try await macroProducer.produce(macroPlan, plugins: macroPlugins)
-            }
+            try await macroContext?.produce()
             return
         }
 
@@ -111,9 +103,7 @@ struct FrameworkProducer {
             dependencyGraphToBuild = cached.graph
         }
 
-        if let macroPlan, let macroProducer {
-            try await macroProducer.produce(macroPlan, plugins: macroPlugins)
-        }
+        try await macroContext?.produce()
         let targetBuildResult = await buildTargets(dependencyGraphToBuild)
 
         let builtTargets: OrderedSet<CacheSystem.CacheTarget> = switch targetBuildResult {
@@ -333,8 +323,8 @@ struct FrameworkProducer {
                 descriptionPackage: descriptionPackage,
                 buildOptions: buildOptions,
                 buildOptionsMatrix: buildOptionsMatrix,
-                macroPlan: macroPlan,
-                macroPlugins: macroPlugins,
+                macroPlan: macroContext?.plan,
+                macroPlugins: macroContext?.plugins ?? [:],
                 keepPublicHeadersStructure: { [baseBuildOptions, buildOptionsMatrix] targetName in
                     (buildOptionsMatrix[targetName] ?? baseBuildOptions).keepPublicHeadersStructure
                 }
@@ -439,9 +429,9 @@ extension FrameworkProducer {
         var targetGraph = graph
         var macroChecksums: [String: [DependencyCacheKeyChecksum]] = [:]
         var uncacheableMacroTargets: Set<String> = []
-        for (target, names) in macroPlan?.targetDependencies ?? [:] {
+        for (target, names) in macroContext?.plan.targetDependencies ?? [:] {
             for name in names {
-                guard let plugin = macroPlugins[name], let key = plugin.cacheKey else {
+                guard let plugin = macroContext?.plugins[name], let key = plugin.cacheKey else {
                     uncacheableMacroTargets.insert(target)
                     continue
                 }

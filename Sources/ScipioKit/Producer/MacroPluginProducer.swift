@@ -114,6 +114,16 @@ struct MacroBuildPlan {
     }
 }
 
+struct MacroBuildContext {
+    let plan: MacroBuildPlan
+    let plugins: [String: MacroPlugin]
+    let producer: MacroPluginProducer
+
+    func produce() async throws {
+        try await producer.produce(plan, plugins: plugins)
+    }
+}
+
 struct MacroPluginProducer {
     private struct ArtifactManifest: Codable {
         let executable: String

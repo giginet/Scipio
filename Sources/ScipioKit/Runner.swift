@@ -97,9 +97,7 @@ public struct Runner {
             cachePolicies: options.frameworkCachePolicies,
             overwrite: options.overwrite,
             outputDir: outputDir,
-            macroPlan: macroPlan,
-            macroPlugins: macroPlugins,
-            macroProducer: macroProducer
+            macroContext: MacroBuildContext(plan: macroPlan, plugins: macroPlugins, producer: macroProducer)
         )
         do {
             try await producer.produce()
