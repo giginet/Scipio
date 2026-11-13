@@ -97,3 +97,39 @@ struct LocalDiskCacheStorage: FrameworkCacheStorage, Equatable {
         try fileSystem.move(from: stagingPath, to: destination)
     }
 }
+
+extension LocalDiskCacheStorage: MacroPluginsCacheStorage {
+    private func artifactPath(for cacheKey: some CacheKey, kind: ArtifactKind) throws -> URL {
+        let namespace: String = switch kind {
+        case .macroPlugin: "Macros"
+        }
+        return try buildBaseDirectoryPath().appending(
+            components: namespace,
+            cacheKey.targetName.packageNamed(),
+            cacheKey.calculateChecksum(),
+            cacheKey.targetName.packageNamed()
+        )
+    }
+
+    func existsArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws -> Bool {
+        fileSystem.exists(try artifactPath(for: cacheKey, kind: kind))
+    }
+
+    func fetchArtifact(for cacheKey: some CacheKey, kind: ArtifactKind, to destination: URL) async throws {
+        try fileSystem.copy(from: artifactPath(for: cacheKey, kind: kind), to: destination)
+    }
+
+    func cacheArtifact(_ artifactPath: URL, for cacheKey: some CacheKey, kind: ArtifactKind) async throws {
+        let destination = try self.artifactPath(for: cacheKey, kind: kind)
+        try fileSystem.createDirectory(destination.deletingLastPathComponent(), recursive: true)
+        guard !fileSystem.exists(destination) else { return }
+        try fileSystem.copy(from: artifactPath, to: destination)
+    }
+
+    func removeArtifact(for cacheKey: some CacheKey, kind: ArtifactKind) async throws {
+        let path = try artifactPath(for: cacheKey, kind: kind)
+        if fileSystem.exists(path) {
+            try fileSystem.removeFileTree(path)
+        }
+    }
+}
