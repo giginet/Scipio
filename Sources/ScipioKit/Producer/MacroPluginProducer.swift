@@ -236,10 +236,28 @@ struct MacroPluginProducer {
         for module: ResolvedModule, swiftVersion: String, clangVersion: String,
         xcodeVersion: String, architecture: String
     ) throws -> MacroCacheKey? {
-        let modules = [module] + (try module.recursiveModuleDependencies())
+        guard let dependencies = try Self.cacheDependencies(for: module, graph: package.graph) else { return nil }
+        return MacroCacheKey(
+            schemaVersion: 1, artifactKind: .macroPlugin, targetName: module.c99name,
+            dependencies: dependencies, swiftVersion: swiftVersion, clangVersion: clangVersion,
+            xcodeVersion: xcodeVersion, hostArchitecture: architecture,
+            deploymentTarget: ProcessInfo.processInfo.environment["MACOSX_DEPLOYMENT_TARGET"],
+            rootMacOSPlatform: package.manifest.platforms?
+                .first(where: { $0.platformName.lowercased() == "macos" })?.version,
+            configuration: configuration, scipioVersion: currentScipioVersion
+        )
+    }
+
+    static func cacheDependencies(for module: ResolvedModule, graph: ModulesGraph) throws -> [MacroCacheKey.Dependency]? {
+        var modules: Set<ResolvedModule> = []
+        var pending = [module]
+        while let dependency = pending.popLast() {
+            guard modules.insert(dependency).inserted else { continue }
+            pending.append(contentsOf: (dependency.dependencies + dependency.pluginDependencies).flatMap(\.modules))
+        }
         var dependencies: [MacroCacheKey.Dependency] = []
-        for dependency in Set(modules) {
-            guard let resolvedPackage = package.graph.package(for: dependency) else {
+        for dependency in modules {
+            guard let resolvedPackage = graph.package(for: dependency) else {
                 throw Error.unresolvedPackage(dependency.name)
             }
             guard let pin = resolvedPackage.pinState else {
@@ -254,15 +272,7 @@ struct MacroPluginProducer {
         dependencies.sort {
             ($0.packageIdentity, $0.targetName) < ($1.packageIdentity, $1.targetName)
         }
-        return MacroCacheKey(
-            schemaVersion: 1, artifactKind: .macroPlugin, targetName: module.c99name,
-            dependencies: dependencies, swiftVersion: swiftVersion, clangVersion: clangVersion,
-            xcodeVersion: xcodeVersion, hostArchitecture: architecture,
-            deploymentTarget: ProcessInfo.processInfo.environment["MACOSX_DEPLOYMENT_TARGET"],
-            rootMacOSPlatform: package.manifest.platforms?
-                .first(where: { $0.platformName.lowercased() == "macos" })?.version,
-            configuration: configuration, scipioVersion: currentScipioVersion
-        )
+        return dependencies
     }
 
     private func publish(_ directory: URL, key: MacroCacheKey) async throws {

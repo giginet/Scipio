@@ -6,6 +6,46 @@ import Testing
 @testable import ScipioKit
 
 struct MacroCacheTests {
+    @Test("Macro fingerprints include plugin tools and their host dependencies", arguments: [true, false])
+    func buildToolPluginInputsArePinned(isToolPinned: Bool) throws {
+        let toolPackageID = ResolvedGraphFixtures.packageID("tools")
+        let generatorPackageID = ResolvedGraphFixtures.packageID("generator")
+        let support = try ResolvedGraphFixtures.resolvedModule(name: "ToolSupport", packageID: toolPackageID)
+        let tool = try ResolvedGraphFixtures.resolvedModule(
+            name: "GeneratorTool", targetType: "executable", packageID: generatorPackageID, dependencies: [.module(support, conditions: [])]
+        )
+        let plugin = try ResolvedGraphFixtures.resolvedModule(
+            name: "GenerateSources", targetType: "plugin", packageID: generatorPackageID, dependencies: [.module(tool, conditions: [])]
+        )
+        let product = try ResolvedGraphFixtures.resolvedProduct(name: "ImplementationGenerator", modules: [plugin], packageID: generatorPackageID)
+        var macro = try ResolvedGraphFixtures.resolvedModule(name: "Macro", targetType: "macro")
+        macro.pluginDependencies = [.product(product, conditions: []), .module(plugin, conditions: [])]
+        let package = try ResolvedGraphFixtures.package(targets: [macro], pinState: .sourceControl(revision: "macro"))
+        let generator = try ResolvedGraphFixtures.package(
+            identity: "generator", targets: [tool], products: [product], pinState: .sourceControl(revision: "generator-1")
+        )
+        let tools = try ResolvedGraphFixtures.package(
+            identity: "tools", targets: [support], pinState: isToolPinned ? .sourceControl(revision: "tools") : nil
+        )
+        var graph = ModulesGraph(
+            rootPackage: package, allPackages: [package.id: package, generator.id: generator, tools.id: tools],
+            allModules: [macro, plugin, tool, support]
+        )
+
+        let dependencies = try MacroPluginProducer.cacheDependencies(for: macro, graph: graph)
+        if isToolPinned {
+            #expect(dependencies?.map(\.targetName) == ["Macro", "GenerateSources", "GeneratorTool", "ToolSupport"])
+            graph.allPackages[generator.id]?.pinState = .sourceControl(revision: "generator-2")
+            let updated = try MacroPluginProducer.cacheDependencies(for: macro, graph: graph)
+            #expect(updated != dependencies)
+            #expect(updated?.first { $0.targetName == "GenerateSources" }?.pin == .sourceControl(revision: "generator-2"))
+            graph.allPackages[generator.id]?.pinState = nil
+            #expect(try MacroPluginProducer.cacheDependencies(for: macro, graph: graph) == nil)
+        } else {
+            #expect(dependencies == nil)
+        }
+    }
+
     private func key(
         revision: String = "123", swiftVersion: String = "Swift 6", schemaVersion: Int = 1,
         configuration: BuildConfiguration = .debug

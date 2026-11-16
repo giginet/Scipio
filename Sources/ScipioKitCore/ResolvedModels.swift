@@ -115,8 +115,11 @@ public struct ResolvedModule: Hashable, Sendable, Codable {
     /// The underlying target from the package manifest.
     public var underlying: PackageManifestKit.Target
 
-    /// All resolved dependencies of this module (both modules and products).
+    /// Runtime module and product dependencies.
     public var dependencies: [Dependency]
+
+    /// Build tool plugins used to generate this module's sources.
+    public var pluginDependencies: [Dependency]
 
     /// URL to the local package directory containing this module.
     public var localPackageURL: URL
@@ -132,10 +135,12 @@ public struct ResolvedModule: Hashable, Sendable, Codable {
         dependencies: [Dependency],
         localPackageURL: URL,
         packageID: PackageID,
-        resolvedModuleType: ResolvedModuleType
+        resolvedModuleType: ResolvedModuleType,
+        pluginDependencies: [Dependency] = []
     ) {
         self.underlying = underlying
         self.dependencies = dependencies
+        self.pluginDependencies = pluginDependencies
         self.localPackageURL = localPackageURL
         self.packageID = packageID
         self.resolvedModuleType = resolvedModuleType
