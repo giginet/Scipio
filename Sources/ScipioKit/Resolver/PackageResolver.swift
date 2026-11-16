@@ -423,7 +423,7 @@ actor PackageResolver {
     }
 
     private func shouldBuild(_ target: Target.TargetKind) -> Bool {
-        target == .regular || target == .binary
+        target == .regular || target == .binary || target == .macro
     }
 }
 

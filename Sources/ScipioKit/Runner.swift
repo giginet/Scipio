@@ -67,7 +67,7 @@ public struct Runner {
         }
 
         let buildOptions = try options.buildOptionsContainer.makeBuildOptions(descriptionPackage: descriptionPackage)
-        guard !buildOptions.sdks.isEmpty else {
+        guard let destinationSDK = buildOptions.sdks.first else {
             throw Error.platformNotSpecified
         }
 
@@ -79,13 +79,28 @@ public struct Runner {
 
         let buildOptionsMatrix = try options.buildOptionsContainer.makeBuildOptionsMatrix(descriptionPackage: descriptionPackage)
 
+        let macroPlan = try MacroBuildPlan(
+            graph: descriptionPackage.resolveBuildProductDependencyGraph(),
+            buildOptions: buildOptions, buildOptionsMatrix: buildOptionsMatrix
+        )
+        let macroOutputDir = descriptionPackage.workspaceDirectory.appending(path: "MacroPlugins")
+        let macroProducer = MacroPluginProducer(
+            package: descriptionPackage,
+            outputDirectory: macroOutputDir,
+            destinationSDK: destinationSDK,
+            policies: options.frameworkCachePolicies,
+            requireArtifactStorage: options.requireMacroArtifactStorage
+        )
+        let macroPlugins = try await macroProducer.planPlugins(macroPlan)
+
         let producer = FrameworkProducer(
             descriptionPackage: descriptionPackage,
             buildOptions: buildOptions,
             buildOptionsMatrix: buildOptionsMatrix,
             cachePolicies: options.frameworkCachePolicies,
             overwrite: options.overwrite,
-            outputDir: outputDir
+            outputDir: outputDir,
+            macroContext: MacroBuildContext(plan: macroPlan, plugins: macroPlugins, producer: macroProducer)
         )
         do {
             try await producer.produce()
@@ -311,6 +326,7 @@ extension Runner {
         public var resolvedPackagesCachePolicies: [ResolvedPackagesCachePolicy]
         public var overwrite: Bool
         public var verbose: Bool
+        public var requireMacroArtifactStorage: Bool
 
         @available(*, deprecated, message: "Use `frameworkCachePolicies` instead.")
         public var cachePolicies: [FrameworkCachePolicy] {
@@ -324,7 +340,8 @@ extension Runner {
             frameworkCachePolicies: [FrameworkCachePolicy] = [.project],
             resolvedPackagesCachePolicies: [ResolvedPackagesCachePolicy] = [.project],
             overwrite: Bool = false,
-            verbose: Bool = false
+            verbose: Bool = false,
+            requireMacroArtifactStorage: Bool = false
         ) {
             self.buildOptionsContainer = BuildOptionsContainer(
                 baseBuildOptions: baseBuildOptions,
@@ -335,6 +352,7 @@ extension Runner {
             self.resolvedPackagesCachePolicies = resolvedPackagesCachePolicies
             self.overwrite = overwrite
             self.verbose = verbose
+            self.requireMacroArtifactStorage = requireMacroArtifactStorage
         }
 
         // swiftlint:disable line_length

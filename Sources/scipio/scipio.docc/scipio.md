@@ -22,5 +22,6 @@ A new build tool to generate XCFramework from Swift Package
 
 - <doc:cache-system>
 - <doc:build-pipeline>
+- <doc:swift-macros>
 - <doc:using-s3-storage>
 - <doc:mergeable-library>

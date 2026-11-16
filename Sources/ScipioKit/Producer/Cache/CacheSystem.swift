@@ -289,7 +289,11 @@ struct CacheSystem: Sendable {
         }
     }
 
-    func calculateCacheKeys(for graph: DependencyGraph<CacheTarget>) async throws -> [CacheTarget: SwiftPMCacheKey] {
+    func calculateCacheKeys(
+        for graph: DependencyGraph<CacheTarget>,
+        macroChecksums: [String: [DependencyCacheKeyChecksum]] = [:],
+        uncacheableTargets: Set<String> = []
+    ) async throws -> [CacheTarget: SwiftPMCacheKey] {
         let environment = try await cacheKeyEnvironment()
         var cacheKeys: [CacheTarget: SwiftPMCacheKey] = [:]
         var unavailableTargets: Set<CacheTarget> = []
@@ -306,6 +310,11 @@ struct CacheSystem: Sendable {
             var inputs: [CacheKeyCalculationInput] = []
             var unavailablePackages: Set<String> = []
             for node in nodes {
+                if uncacheableTargets.contains(node.value.buildProduct.target.name) {
+                    unavailableTargets.insert(node.value)
+                    remainingTargets.remove(node.value)
+                    continue
+                }
                 if node.children.contains(where: { unavailableTargets.contains($0.value) }) {
                     unavailableTargets.insert(node.value)
                     remainingTargets.remove(node.value)
@@ -322,7 +331,7 @@ struct CacheSystem: Sendable {
                         targetName: child.value.buildProduct.target.name,
                         checksum: try childCacheKey.calculateChecksum()
                     )
-                }
+                } + (macroChecksums[node.value.buildProduct.target.name] ?? [])
                 inputs.append(
                     CacheKeyCalculationInput(
                         target: node.value,

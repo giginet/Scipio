@@ -172,6 +172,95 @@ struct LocalDiskCacheStorageConcurrencyTests {
         try expectOnlyPublishedFramework(in: baseURL, cacheKey: cacheKey)
         try await expectRestoredFramework(from: secondStorage, cacheKey: cacheKey, in: baseURL, contents: secondContents)
     }
+
+    @Test("A concurrent reader cannot observe an incomplete macro cache", .temporaryDirectory)
+    func incompleteMacroIsNotPublished() async throws {
+        let baseURL = TemporaryDirectory.url
+        let artifact = try makeFramework(in: baseURL, worktree: "output")
+        let copyGate = CopyGate()
+        let storage = LocalDiskCacheStorage(
+            baseURL: baseURL,
+            fileSystem: ControlledFrameworkFileSystem(framework: artifact, copyGate: copyGate)
+        )
+        let reader = LocalDiskCacheStorage(baseURL: baseURL)
+        let cacheKey = ConcurrencyTestCacheKey(targetName: frameworkName)
+
+        async let writer: Void = storage.cacheArtifact(artifact, for: cacheKey, kind: .macroPlugin)
+        let didPause = await copyGate.waitUntilPaused()
+        if didPause {
+            #expect(try await !reader.existsArtifact(for: cacheKey, kind: .macroPlugin))
+        }
+        copyGate.resume()
+        try await writer
+
+        #expect(didPause)
+        #expect(try await reader.existsArtifact(for: cacheKey, kind: .macroPlugin))
+        try expectPublishedMacro(in: baseURL, cacheKey: cacheKey)
+    }
+
+    @Test("A failed macro copy leaves no published cache and allows a retry", .temporaryDirectory)
+    func failedMacroCopyDoesNotBlockRetry() async throws {
+        let baseURL = TemporaryDirectory.url
+        let artifact = try makeFramework(in: baseURL, worktree: "output")
+        let failedStorage = LocalDiskCacheStorage(
+            baseURL: baseURL,
+            fileSystem: ControlledFrameworkFileSystem(framework: artifact, failAfterPartialCopy: true)
+        )
+        let storage = LocalDiskCacheStorage(baseURL: baseURL)
+        let cacheKey = ConcurrencyTestCacheKey(targetName: frameworkName)
+
+        await #expect(throws: ControlledFrameworkFileSystem.CopyFailed.self) {
+            try await failedStorage.cacheArtifact(artifact, for: cacheKey, kind: .macroPlugin)
+        }
+        #expect(try await !storage.existsArtifact(for: cacheKey, kind: .macroPlugin))
+        let directory = try macroCacheDirectory(in: baseURL, cacheKey: cacheKey)
+        #expect(try LocalFileSystem.default.getDirectoryContents(directory).isEmpty)
+
+        try await storage.cacheArtifact(artifact, for: cacheKey, kind: .macroPlugin)
+
+        #expect(try await storage.existsArtifact(for: cacheKey, kind: .macroPlugin))
+        try expectPublishedMacro(in: baseURL, cacheKey: cacheKey)
+    }
+
+    @Test("Overlapping macro writers preserve the first complete cache and skip existing entries", .temporaryDirectory)
+    func concurrentWritersPublishOneMacro() async throws {
+        let baseURL = TemporaryDirectory.url
+        let secondContents = Data("second writer".utf8)
+        let firstArtifact = try makeFramework(in: baseURL, worktree: "worktree-a", contents: Data("first writer".utf8))
+        let secondArtifact = try makeFramework(in: baseURL, worktree: "worktree-b", contents: secondContents)
+        let firstGate = CopyGate()
+        let firstFileSystem = ControlledFrameworkFileSystem(framework: firstArtifact, copyGate: firstGate)
+        let firstStorage = LocalDiskCacheStorage(baseURL: baseURL, fileSystem: firstFileSystem)
+        let secondStorage = LocalDiskCacheStorage(baseURL: baseURL)
+        let cacheKey = ConcurrencyTestCacheKey(targetName: frameworkName)
+
+        async let firstWriter: Void = firstStorage.cacheArtifact(firstArtifact, for: cacheKey, kind: .macroPlugin)
+        let didPause = await firstGate.waitUntilPaused()
+        try await secondStorage.cacheArtifact(secondArtifact, for: cacheKey, kind: .macroPlugin)
+        firstGate.resume()
+        try await firstWriter
+
+        #expect(didPause)
+        try expectPublishedMacro(in: baseURL, cacheKey: cacheKey, contents: secondContents)
+        try await firstStorage.cacheArtifact(firstArtifact, for: cacheKey, kind: .macroPlugin)
+        #expect(firstFileSystem.copyCount == 1)
+        try expectPublishedMacro(in: baseURL, cacheKey: cacheKey, contents: secondContents)
+    }
+}
+
+private func macroCacheDirectory(in baseURL: URL, cacheKey: ConcurrencyTestCacheKey) throws -> URL {
+    baseURL.appending(components: "Scipio", "Macros", cacheKey.targetName, try cacheKey.calculateChecksum())
+}
+
+private func expectPublishedMacro(
+    in baseURL: URL, cacheKey: ConcurrencyTestCacheKey, contents: Data = frameworkContents
+) throws {
+    let directory = try macroCacheDirectory(in: baseURL, cacheKey: cacheKey)
+    let artifact = directory.appending(component: cacheKey.targetName)
+    #expect(try LocalFileSystem.default.getDirectoryContents(directory) == [cacheKey.targetName])
+    #expect(try LocalFileSystem.default.readFileContents(artifact.appending(component: "Info.plist")) == contents)
+    let payload = artifact.appending(components: frameworkBundleName, frameworkName)
+    #expect(try LocalFileSystem.default.readFileContents(payload) == contents)
 }
 
 private func makeFramework(in baseURL: URL, worktree: String, contents: Data = frameworkContents) throws -> URL {

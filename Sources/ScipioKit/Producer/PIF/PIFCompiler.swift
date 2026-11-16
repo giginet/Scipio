@@ -9,6 +9,8 @@ struct PIFCompiler: Compiler {
     private let fileSystem: any FileSystem
     private let executor: any Executor
     private let buildOptionsMatrix: [String: BuildOptions]
+    private let macroPlan: MacroBuildPlan?
+    private let macroPlugins: [String: MacroPlugin]
 
     private let buildParametersGenerator: BuildParametersGenerator
 
@@ -16,6 +18,8 @@ struct PIFCompiler: Compiler {
         descriptionPackage: DescriptionPackage,
         buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions],
+        macroPlan: MacroBuildPlan? = nil,
+        macroPlugins: [String: MacroPlugin] = [:],
         keepPublicHeadersStructure: @escaping @Sendable (_ targetName: String) -> Bool,
         fileSystem: any FileSystem = LocalFileSystem.default,
         executor: any Executor = ProcessExecutor()
@@ -23,6 +27,8 @@ struct PIFCompiler: Compiler {
         self.descriptionPackage = descriptionPackage
         self.buildOptions = buildOptions
         self.buildOptionsMatrix = buildOptionsMatrix
+        self.macroPlan = macroPlan
+        self.macroPlugins = macroPlugins
         self.keepPublicHeadersStructure = keepPublicHeadersStructure
         self.fileSystem = fileSystem
         self.executor = executor
@@ -78,7 +84,9 @@ struct PIFCompiler: Compiler {
                 allModules: descriptionPackage.graph.allModules,
                 toolchainLibDirectory: buildParameters.toolchain.toolchainLibDir,
                 buildOptions: buildOptions,
-                buildOptionsMatrix: buildOptionsMatrix
+                buildOptionsMatrix: buildOptionsMatrix,
+                macroPlan: macroPlan,
+                macroPlugins: macroPlugins
             )
             let pifPath = try await generator.generateJSON(for: sdk)
             let buildParametersPath = try buildParametersGenerator.generate(
