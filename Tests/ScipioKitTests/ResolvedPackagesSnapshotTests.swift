@@ -10,9 +10,49 @@ struct ResolvedPackagesSnapshotTests {
 
     private static let formatFixtureURL = URL(filePath: #filePath)
         .deletingLastPathComponent()
-        .appending(components: "Resources", "Fixtures", "ResolvedPackagesSnapshotTests", "ResolvedPackagesSnapshot_v2.json")
+        .appending(components: "Resources", "Fixtures", "ResolvedPackagesSnapshotTests", "ResolvedPackagesSnapshot_v3.json")
 
     // MARK: Round trip
+
+    @Test("Build tool plugin products and their tools round-trip separately from runtime dependencies")
+    func roundTripPreservesPluginDependencies() throws {
+        let tool = try ResolvedGraphFixtures.resolvedModule(name: "Generator", targetType: "executable")
+        let plugin = try ResolvedGraphFixtures.resolvedModule(
+            name: "BuildPlugin", targetType: "plugin", dependencies: [.module(tool, conditions: [])]
+        )
+        let product = try ResolvedGraphFixtures.resolvedProduct(name: "GenerateSources", modules: [plugin])
+        var macro = try ResolvedGraphFixtures.resolvedModule(name: "Macro", targetType: "macro")
+        macro.pluginDependencies = [.product(product, conditions: []), .module(plugin, conditions: [])]
+        let package = try ResolvedGraphFixtures.package(targets: [macro], products: [product])
+        var snapshot = ResolvedPackagesSnapshot(resolvedPackages: [package])
+        let encoded = try jsonEncoder.encode(snapshot)
+
+        let restored = try jsonDecoder.decode(ResolvedPackagesSnapshot.self, from: encoded).restoreResolvedPackages()
+        let restoredMacro = try #require(restored.first?.targets.first)
+        #expect(restoredMacro.dependencies.isEmpty)
+        #expect(restoredMacro.pluginDependencies.count == 2)
+        let restoredPlugin = try #require(restoredMacro.pluginDependencies.first?.product?.modules.first)
+        #expect(restoredPlugin.dependencies.first?.module?.name == "Generator")
+        #expect(try jsonEncoder.encode(ResolvedPackagesSnapshot(resolvedPackages: restored)) == encoded)
+
+        let macroIndex = try #require(snapshot.modules.firstIndex { $0.underlying.name == "Macro" })
+        snapshot.modules[macroIndex].pluginDependencies = [.init(kind: .module, index: macroIndex, conditions: [])]
+        #expect(throws: ResolvedPackagesSnapshot.RestoreError.dependencyCycleDetected) {
+            try snapshot.restoreResolvedPackages()
+        }
+        snapshot.modules[macroIndex].pluginDependencies = [.init(kind: .product, index: 99, conditions: [])]
+        #expect(throws: ResolvedPackagesSnapshot.RestoreError.invalidProductReference(index: 99)) {
+            try snapshot.restoreResolvedPackages()
+        }
+    }
+
+    @Test("Snapshots written before plugin dependency resolution are rejected")
+    func rejectsSnapshotWithoutPluginDependencies() throws {
+        let legacy = Self.formatFixtureURL.deletingLastPathComponent().appending(component: "ResolvedPackagesSnapshot_v2.json")
+        #expect(throws: DecodingError.self) {
+            try jsonDecoder.decode(ResolvedPackagesSnapshot.self, from: Data(contentsOf: legacy))
+        }
+    }
 
     @Test("A resolved graph round-trips through encoding and restoring")
     func roundTripPreservesGraph() throws {
@@ -105,11 +145,11 @@ struct ResolvedPackagesSnapshotTests {
 
     // MARK: Format stability
 
-    /// Pins the encoded JSON of version 2 with a fixture so an unversioned format change fails here.
+    /// Pins the encoded JSON of version 3 with a fixture so an unversioned format change fails here.
     /// On mismatch, writes the current output as `.actual`; to adopt it,
     /// bump the version and replace the fixture with that file.
-    @Test("The stored format matches the checked-in version 2 fixture")
-    func formatVersion2MatchesFixture() throws {
+    @Test("The stored format matches the checked-in version 3 fixture")
+    func formatVersion3MatchesFixture() throws {
         let original = [try ResolvedGraphFixtures.diamondChainPackage(depth: 3)]
         let encoded = try jsonEncoder.encode(ResolvedPackagesSnapshot(resolvedPackages: original))
 
@@ -122,8 +162,8 @@ struct ResolvedPackagesSnapshotTests {
             "The stored format changed: bump `currentFormatVersion` and adopt the recorded .actual file as the new fixture."
         )
 
-        // Files written in the version 2 format must keep restoring for as
-        // long as `currentFormatVersion` stays 2.
+        // Files written in the version 3 format must keep restoring for as
+        // long as `currentFormatVersion` stays 3.
         let restored = try jsonDecoder.decode(ResolvedPackagesSnapshot.self, from: fixtureData).restoreResolvedPackages()
         #expect(restored == original)
     }
@@ -146,12 +186,12 @@ struct ResolvedPackagesSnapshotTests {
 
     // MARK: Validation of untrusted snapshots
 
-    @Test("Restoring rejects an unsupported format version", arguments: [1, 99])
+    @Test("Restoring rejects an unsupported format version", arguments: [1, 2, 99])
     func rejectsUnsupportedFormatVersion(version: Int) throws {
         var snapshot = try makeSnapshot()
         snapshot.formatVersion = version
 
-        #expect(throws: ResolvedPackagesSnapshot.RestoreError.unsupportedFormatVersion(found: version, supported: 2)) {
+        #expect(throws: ResolvedPackagesSnapshot.RestoreError.unsupportedFormatVersion(found: version, supported: 3)) {
             try snapshot.restoreResolvedPackages()
         }
     }
@@ -273,6 +313,7 @@ struct ResolvedPackagesSnapshotTests {
             ResolvedPackagesSnapshot.ModuleRecord(
                 underlying: try ResolvedGraphFixtures.target(name: "Module\(index)"),
                 dependencies: index + 1 < depth ? [.init(kind: .module, index: index + 1, conditions: [])] : [],
+                pluginDependencies: [],
                 localPackageURL: URL(filePath: "/tmp/example-package"),
                 packageID: packageID,
                 resolvedModuleType: .swift

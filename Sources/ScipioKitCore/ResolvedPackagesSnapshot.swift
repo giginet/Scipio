@@ -13,7 +13,7 @@ package struct ResolvedPackagesSnapshot: Codable, Sendable, Equatable {
     /// different version fails to restore, which storages treat as a miss.
     /// `ResolvedPackagesSnapshotTests` pins the encoded bytes of the current
     /// version with a fixture, so an unnoticed format change fails there.
-    package static let currentFormatVersion = 2
+    package static let currentFormatVersion = 3
 
     /// Deeper snapshots are rejected: consumers traverse the restored graph
     /// recursively, so a crafted, extremely deep snapshot could overflow the
@@ -29,6 +29,7 @@ package struct ResolvedPackagesSnapshot: Codable, Sendable, Equatable {
     struct ModuleRecord: Codable, Sendable, Equatable {
         var underlying: PackageManifestKit.Target
         var dependencies: [DependencyRecord]
+        var pluginDependencies: [DependencyRecord]
         var localPackageURL: URL
         var packageID: PackageID
         var resolvedModuleType: ResolvedModuleType
@@ -154,18 +155,23 @@ extension ResolvedPackagesSnapshot {
                 if nextModule < pendingModules.count {
                     let (module, index) = pendingModules[nextModule]
                     nextModule += 1
-                    modules[index].dependencies = module.dependencies.map { dependency in
-                        switch dependency {
-                        case .module(let module, let conditions):
-                            DependencyRecord(kind: .module, index: register(module), conditions: conditions)
-                        case .product(let product, let conditions):
-                            DependencyRecord(kind: .product, index: register(product), conditions: conditions)
-                        }
-                    }
+                    modules[index].dependencies = flatten(module.dependencies)
+                    modules[index].pluginDependencies = flatten(module.pluginDependencies)
                 } else {
                     let (product, index) = pendingProducts[nextProduct]
                     nextProduct += 1
                     products[index].moduleIndices = product.modules.map { register($0) }
+                }
+            }
+        }
+
+        private mutating func flatten(_ dependencies: [ResolvedModule.Dependency]) -> [DependencyRecord] {
+            dependencies.map { dependency in
+                switch dependency {
+                case .module(let module, let conditions):
+                    DependencyRecord(kind: .module, index: register(module), conditions: conditions)
+                case .product(let product, let conditions):
+                    DependencyRecord(kind: .product, index: register(product), conditions: conditions)
                 }
             }
         }
@@ -184,6 +190,7 @@ extension ResolvedPackagesSnapshot {
                 ModuleRecord(
                     underlying: module.underlying,
                     dependencies: [],
+                    pluginDependencies: [],
                     localPackageURL: module.localPackageURL,
                     packageID: module.packageID,
                     resolvedModuleType: module.resolvedModuleType
@@ -291,7 +298,7 @@ extension ResolvedPackagesSnapshot {
         /// degrade to a miss instead of a crash.
         private func validateReferences() throws {
             for module in snapshot.modules {
-                for dependency in module.dependencies {
+                for dependency in module.dependencies + module.pluginDependencies {
                     switch dependency.kind {
                     case .module:
                         try validateModuleReference(dependency.index)
@@ -336,8 +343,8 @@ extension ResolvedPackagesSnapshot {
             var dependents = [[Int]](repeating: [], count: nodeCount)
 
             for (index, module) in snapshot.modules.enumerated() {
-                pendingDependencies[index] = module.dependencies.count
-                for dependency in module.dependencies {
+                pendingDependencies[index] = module.dependencies.count + module.pluginDependencies.count
+                for dependency in module.dependencies + module.pluginDependencies {
                     dependents[nodeIndex(of: dependency)].append(index)
                 }
             }
@@ -361,7 +368,7 @@ extension ResolvedPackagesSnapshot {
 
                 let dependencyNodes: [Int]
                 if node < moduleCount {
-                    dependencyNodes = snapshot.modules[node].dependencies.map { nodeIndex(of: $0) }
+                    dependencyNodes = (snapshot.modules[node].dependencies + snapshot.modules[node].pluginDependencies).map { nodeIndex(of: $0) }
                     builtModules[node] = try buildModule(at: node, modules: builtModules, products: builtProducts)
                 } else {
                     let productIndex = node - moduleCount
@@ -404,27 +411,30 @@ extension ResolvedPackagesSnapshot {
             products builtProducts: [ResolvedProduct?]
         ) throws -> ResolvedModule {
             let record = snapshot.modules[index]
-            let dependencies: [ResolvedModule.Dependency] = try record.dependencies.map { dependency in
-                // Dependencies of a ready node are always materialized.
-                switch dependency.kind {
-                case .module:
-                    guard let module = builtModules[dependency.index] else {
-                        throw RestoreError.dependencyCycleDetected
+            func dependencies(_ records: [DependencyRecord]) throws -> [ResolvedModule.Dependency] {
+                try records.map { dependency in
+                    // Dependencies of a ready node are always materialized.
+                    switch dependency.kind {
+                    case .module:
+                        guard let module = builtModules[dependency.index] else {
+                            throw RestoreError.dependencyCycleDetected
+                        }
+                        return .module(module, conditions: dependency.conditions)
+                    case .product:
+                        guard let product = builtProducts[dependency.index] else {
+                            throw RestoreError.dependencyCycleDetected
+                        }
+                        return .product(product, conditions: dependency.conditions)
                     }
-                    return .module(module, conditions: dependency.conditions)
-                case .product:
-                    guard let product = builtProducts[dependency.index] else {
-                        throw RestoreError.dependencyCycleDetected
-                    }
-                    return .product(product, conditions: dependency.conditions)
                 }
             }
             return ResolvedModule(
                 underlying: record.underlying,
-                dependencies: dependencies,
+                dependencies: try dependencies(record.dependencies),
                 localPackageURL: record.localPackageURL,
                 packageID: record.packageID,
-                resolvedModuleType: record.resolvedModuleType
+                resolvedModuleType: record.resolvedModuleType,
+                pluginDependencies: try dependencies(record.pluginDependencies)
             )
         }
 

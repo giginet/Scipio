@@ -18,6 +18,8 @@ extension PackageResolver {
             dependencyPackage: DependencyPackage
         ) -> ResolvedModuleType {
             switch target.type {
+            case .plugin:
+                .swift
             case .binary:
                 resolveModuleTypeForBinaryTarget(
                     target,

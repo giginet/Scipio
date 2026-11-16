@@ -29,6 +29,8 @@ scipio prepare MyAppDependencies
 
 Scipio resolves the package graph, prepares the plugin for the host, and supplies it when compiling the dependent library. It prepares plugins even when the corresponding XCFramework is already cached.
 
+Libraries that expand a public macro from another library also receive the plugin, including through product dependencies whose names differ from their targets. Scipio follows dependency conditions for each requested platform and build configuration and keeps macro implementation dependencies out of destination builds while preserving shared runtime dependencies.
+
 ## Platform Requirements
 
 An iOS dependency package can keep an iOS-only `platforms` declaration. Do not add macOS solely to build a macro. Scipio selects a framework destination for SwiftPM's runtime dependency validation; SwiftPM builds the selected macro and its implementation dependencies for the host.
@@ -66,7 +68,7 @@ For this example, `.build/scipio/MacroPlugins/plugins.json` contains:
 }
 ```
 
-`executable` is relative to the directory containing `plugins.json`. `module` is the compiler plugin module name passed after `#`. `targets` lists dependency library targets that directly depend on that plugin; consuming application and test targets still need explicit loader flags. The manifest includes prepared plugins restored from cache and uses an empty `plugins` array when no plugins are required.
+`executable` is relative to the directory containing `plugins.json`. `module` is the compiler plugin module name passed after `#`. `targets` lists dependency library targets that directly or transitively depend on that plugin; consuming application and test targets still need explicit loader flags. The manifest includes prepared plugins restored from cache and uses an empty `plugins` array when no plugins are required.
 
 ## Configure the Consumer
 
@@ -81,6 +83,8 @@ Configure each target that expands the macro, including test targets. For multip
 ## Caching
 
 Project and local disk policies can cache macro artifacts. The plugin cache key includes the pinned host dependency graph, toolchain versions, host architecture, deployment target, and Scipio version. The plugin fingerprint also contributes to the cache keys of dependent frameworks.
+
+The host graph includes build tool plugins used by a macro or its implementation dependencies, together with their executable tools and host dependencies. Updating a generator package invalidates the macro and dependent framework caches even when the macro package itself has not changed. Resolved-package snapshots written before build tool plugin tracking are discarded and regenerated.
 
 If a macro or any dependency in its host graph has no pinned revision, such as an edited or local package, Scipio builds the plugin without a cache key and does not reuse cached dependent frameworks. With caching disabled, both plugins and frameworks are rebuilt.
 
