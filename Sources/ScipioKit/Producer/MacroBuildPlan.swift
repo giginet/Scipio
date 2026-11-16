@@ -5,6 +5,7 @@ struct MacroBuildPlan {
     let modules: [ResolvedModule]
     let targetDependencies: [String: [String]]
     let hostOnlyDependencies: [String: Set<String>]
+    let hostOnlyProductDependencies: [String: Set<String>]
 
     init(
         graph: DependencyGraph<BuildProduct>, buildOptions: BuildOptions,
@@ -40,6 +41,16 @@ struct MacroBuildPlan {
         self.modules = plugins.values.sorted { $0.c99name < $1.c99name }
         self.targetDependencies = targetDependencies
         self.hostOnlyDependencies = hostOnlyDependencies
+        var productDependencies: [String: Set<String>] = [:]
+        let packages = Dictionary(graph.allNodes.map { ($0.value.package.id, $0.value.package) }, uniquingKeysWith: { first, _ in first })
+        for package in packages.values {
+            for product in package.products where product.modules.contains(where: { hostOnlyDependencies[$0.name] != nil }) {
+                productDependencies[product.name] = Self.hostOnlyDependencyNames(
+                    for: product.modules, buildOptions: buildOptions, buildOptionsMatrix: buildOptionsMatrix
+                )
+            }
+        }
+        self.hostOnlyProductDependencies = productDependencies
     }
 
     private static func macroDependencies(
