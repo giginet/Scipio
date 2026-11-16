@@ -101,17 +101,23 @@ actor PackageResolver {
         let allPackages = packages.reduce(into: [PackageID: ResolvedPackage]()) { partialResult, resolvedPackage in
             partialResult[resolvedPackage.id] = resolvedPackage
         }
-        let allModules = Set(
-            packages.flatMap(\.targets).flatMap { target in
-                [target] + ((try? target.recursiveModuleDependencies()) ?? [])
-            }
-        )
+        var allModules: Set<ResolvedModule> = []
+        var pending = packages.flatMap { $0.targets + $0.products.flatMap(\.modules) }
+        while let module = pending.popLast() {
+            guard allModules.insert(module).inserted else { continue }
+            pending.append(contentsOf: (module.dependencies + module.pluginDependencies).flatMap(\.modules))
+        }
 
         if Self.containsStaleSystemModule(in: allModules) {
             logger.warning(
                 "⚠️ Discarding a resolved packages cache written without system-library support",
                 metadata: .color(.yellow)
             )
+            return nil
+        }
+
+        guard packages.allSatisfy({ $0.pinState == pins[$0.id.packageIdentity]?.state }) else {
+            logger.info("Discarding resolved packages whose pins no longer match Package.resolved.")
             return nil
         }
 
@@ -274,7 +280,7 @@ actor PackageResolver {
             underlying: product,
             modules: try await product.targets
                 .compactMap { targetName in manifest.targets.first(where: { $0.name == targetName }) }
-                .filter { shouldBuild($0.type) }
+                .filter { shouldBuild($0.type) || $0.type == .plugin || $0.type == .executable }
                 .asyncMap(numberOfConcurrentTasks: numberOfConcurrentTasks) { try await self.resolve(target: $0, in: manifest) },
             type: product.type,
             packageID: PackageID(packageKind: manifest.packageKind, packageIdentity: packageIdentity)
@@ -342,7 +348,8 @@ actor PackageResolver {
                 dependencies: resolve(dependencies: target.dependencies, in: manifest),
                 localPackageURL: localPackageURL,
                 packageID: PackageID(packageKind: manifest.packageKind, packageIdentity: dependencyPackage.identity),
-                resolvedModuleType: resolveModuleType(of: target, dependencyPackage: dependencyPackage)
+                resolvedModuleType: resolveModuleType(of: target, dependencyPackage: dependencyPackage),
+                pluginDependencies: resolve(plugins: target.pluginUsages ?? [], in: manifest)
             )
         }
 
@@ -358,6 +365,32 @@ actor PackageResolver {
         } catch {
             cachedResolvedModules[target] = nil
             throw error
+        }
+    }
+
+    private func resolve(plugins: [Target.PluginUsage], in manifest: Manifest) async throws -> [ResolvedModule.Dependency] {
+        try await plugins.asyncMap(numberOfConcurrentTasks: numberOfConcurrentTasks) { usage in
+            switch usage {
+            case .plugin(let name, let package):
+                if package == nil, let target = manifest.targets.first(where: { $0.name == name && $0.type == .plugin }) {
+                    return try await .module(self.resolve(target: target, in: manifest), conditions: [])
+                }
+                guard let product = try await self.resolve(productName: name, packageName: package, in: manifest),
+                      !product.modules.isEmpty, product.modules.allSatisfy({ $0.underlying.type == .plugin }) else {
+                    throw PluginResolutionError.pluginNotFound(name)
+                }
+                return .product(product, conditions: [])
+            }
+        }
+    }
+
+    enum PluginResolutionError: LocalizedError {
+        case pluginNotFound(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .pluginNotFound(let name): "Could not resolve build tool plugin \(name)."
+            }
         }
     }
 

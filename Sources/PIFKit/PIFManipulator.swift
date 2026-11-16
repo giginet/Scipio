@@ -24,25 +24,34 @@ package final class PIFManipulator {
         }
     }
 
-    package func removeHostMacroDependencies(_ namesByTarget: [String: Set<String>]) {
+    package func removeHostMacroDependencies(
+        _ namesByTarget: [String: Set<String>], productDependencies: [String: Set<String>] = [:]
+    ) {
         let targets = topLevelObject.arrayValue.filter { $0["type"].stringValue == "target" }
         for index in 0..<topLevelObject.arrayValue.count where topLevelObject[index]["type"].stringValue == "target" {
             let contents = topLevelObject[index]["contents"]
             let targetName = contents["name"].stringValue
-            guard let (_, names) = namesByTarget.sorted(by: { $0.key.count > $1.key.count }).first(where: { name, _ in
-                targetName == name || (targetName.hasPrefix("\(name)_") && targetName.hasSuffix("_PackageProduct"))
-            }) else { continue }
+            let guid = contents["guid"].stringValue
+            let names: Set<String>
+            if let product = productDependencies.first(where: { Self.matches(guid, kind: "PRODUCT", name: $0.key) }) {
+                names = product.value
+            } else if let targetNames = namesByTarget[targetName] {
+                names = targetNames
+            } else {
+                continue
+            }
 
             let guids = Set(targets.compactMap { candidate -> String? in
                 let candidateName = candidate["contents"]["name"].stringValue
+                let candidateGUID = candidate["contents"]["guid"].stringValue
                 guard names.contains(candidateName) || names.contains(where: {
-                    candidateName.hasPrefix("\($0)_") && candidateName.hasSuffix("_PackageProduct")
+                    Self.matches(candidateGUID, kind: "PRODUCT", name: $0)
                 }) else { return nil }
-                return candidate["contents"]["guid"].stringValue
+                return candidateGUID
             })
             func isHostReference(_ guid: String) -> Bool {
                 guids.contains(guid) || names.contains {
-                    guid == "PACKAGE-TARGET:\($0)" || guid.hasPrefix("PACKAGE-TARGET:\($0)@")
+                    Self.matches(guid, kind: "TARGET", name: $0) || Self.matches(guid, kind: "PRODUCT", name: $0)
                 }
             }
             if let dependencies = contents["dependencies"].array {
@@ -59,6 +68,11 @@ package final class PIFManipulator {
                 topLevelObject[index]["contents"]["buildPhases"].arrayObject = updated.map(\.object)
             }
         }
+    }
+
+    private static func matches(_ guid: String, kind: String, name: String) -> Bool {
+        let prefix = "PACKAGE-\(kind):\(name)"
+        return guid == prefix || guid.hasPrefix("\(prefix)@")
     }
 
     /// Dump manipulating JSON data

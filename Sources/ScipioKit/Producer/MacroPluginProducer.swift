@@ -50,110 +50,6 @@ struct MacroPlugin: Sendable {
     let cacheKey: MacroCacheKey?
 }
 
-struct MacroBuildPlan {
-    let modules: [ResolvedModule]
-    let targetDependencies: [String: [String]]
-    let hostOnlyDependencies: [String: Set<String>]
-
-    init(
-        graph: DependencyGraph<BuildProduct>, buildOptions: BuildOptions,
-        buildOptionsMatrix: [String: BuildOptions] = [:]
-    ) throws {
-        var plugins: [String: ResolvedModule] = [:]
-        var targetDependencies: [String: [String]] = [:]
-        var hostOnlyDependencies: [String: Set<String>] = [:]
-        for node in graph.allNodes {
-            let target = node.value.target
-            let options = buildOptionsMatrix[target.name] ?? buildOptions
-            let macroDependencies = target.dependencies.filter { $0.modules.contains { $0.underlying.type == .macro } }
-            let macros = macroDependencies.filter { Self.isEnabled($0, buildOptions: options) }
-                .flatMap(\.modules).filter { $0.underlying.type == .macro }
-            for macro in macros {
-                if let existing = plugins[macro.c99name],
-                   existing.packageID != macro.packageID || existing.name != macro.name {
-                    throw Error.duplicateModule(macro.c99name)
-                }
-                plugins[macro.c99name] = macro
-            }
-            if !macros.isEmpty {
-                targetDependencies[target.name] = Set(macros.map(\.c99name)).sorted()
-            }
-            if !macroDependencies.isEmpty {
-                hostOnlyDependencies[target.name] = Self.hostOnlyDependencyNames(
-                    for: target, macroDependencies: macroDependencies, buildOptions: options
-                )
-            }
-        }
-        self.modules = plugins.values.sorted { $0.c99name < $1.c99name }
-        self.targetDependencies = targetDependencies
-        self.hostOnlyDependencies = hostOnlyDependencies
-    }
-
-    private static func hostOnlyDependencyNames(
-        for target: ResolvedModule, macroDependencies: [ResolvedModule.Dependency], buildOptions: BuildOptions
-    ) -> Set<String> {
-        var hostNames: Set<String> = []
-        var runtimeNames: Set<String> = []
-        var hostVisited: Set<ResolvedModule> = []
-        var runtimeVisited: Set<ResolvedModule> = []
-
-        func collect(
-            _ dependencies: [ResolvedModule.Dependency], excludingMacros: Bool,
-            names: inout Set<String>, visited: inout Set<ResolvedModule>
-        ) {
-            for dependency in dependencies {
-                if excludingMacros && !isEnabled(dependency, buildOptions: buildOptions) { continue }
-                let modules = dependency.modules.filter { !excludingMacros || $0.underlying.type != .macro }
-                guard !modules.isEmpty else { continue }
-                if let product = dependency.product {
-                    names.insert(product.name)
-                }
-                for module in modules where visited.insert(module).inserted {
-                    names.insert(module.name)
-                    collect(module.dependencies, excludingMacros: excludingMacros, names: &names, visited: &visited)
-                }
-            }
-        }
-        // dump-pif retains inactive macro edges; they must also be removed from destination builds.
-        collect(macroDependencies, excludingMacros: false, names: &hostNames, visited: &hostVisited)
-        collect(target.dependencies, excludingMacros: true, names: &runtimeNames, visited: &runtimeVisited)
-        return hostNames.subtracting(runtimeNames)
-    }
-
-    private static func isEnabled(_ dependency: ResolvedModule.Dependency, buildOptions: BuildOptions) -> Bool {
-        let conditions = switch dependency {
-        case .module(_, let conditions), .product(_, let conditions): conditions
-        }
-        return buildOptions.sdks.contains { sdk in
-            conditions.allSatisfy { condition in
-                let matchesPlatform = condition.platformNames.isEmpty || condition.platformNames.contains(platformName(for: sdk))
-                return matchesPlatform && (condition.config == nil || condition.config == buildOptions.buildConfiguration.rawValue)
-            }
-        }
-    }
-
-    private static func platformName(for sdk: SDK) -> String {
-        switch sdk {
-        case .macOS: "macos"
-        case .macCatalyst: "maccatalyst"
-        case .iOS, .iOSSimulator: "ios"
-        case .tvOS, .tvOSSimulator: "tvos"
-        case .watchOS, .watchOSSimulator: "watchos"
-        case .visionOS, .visionOSSimulator: "visionos"
-        }
-    }
-
-    enum Error: LocalizedError {
-        case duplicateModule(String)
-
-        var errorDescription: String? {
-            switch self {
-            case .duplicateModule(let name): "Multiple macro targets use the module name \(name)."
-            }
-        }
-    }
-}
-
 struct MacroBuildContext {
     let plan: MacroBuildPlan
     let plugins: [String: MacroPlugin]
@@ -340,10 +236,28 @@ struct MacroPluginProducer {
         for module: ResolvedModule, swiftVersion: String, clangVersion: String,
         xcodeVersion: String, architecture: String
     ) throws -> MacroCacheKey? {
-        let modules = [module] + (try module.recursiveModuleDependencies())
+        guard let dependencies = try Self.cacheDependencies(for: module, graph: package.graph) else { return nil }
+        return MacroCacheKey(
+            schemaVersion: 1, artifactKind: .macroPlugin, targetName: module.c99name,
+            dependencies: dependencies, swiftVersion: swiftVersion, clangVersion: clangVersion,
+            xcodeVersion: xcodeVersion, hostArchitecture: architecture,
+            deploymentTarget: ProcessInfo.processInfo.environment["MACOSX_DEPLOYMENT_TARGET"],
+            rootMacOSPlatform: package.manifest.platforms?
+                .first(where: { $0.platformName.lowercased() == "macos" })?.version,
+            configuration: configuration, scipioVersion: currentScipioVersion
+        )
+    }
+
+    static func cacheDependencies(for module: ResolvedModule, graph: ModulesGraph) throws -> [MacroCacheKey.Dependency]? {
+        var modules: Set<ResolvedModule> = []
+        var pending = [module]
+        while let dependency = pending.popLast() {
+            guard modules.insert(dependency).inserted else { continue }
+            pending.append(contentsOf: (dependency.dependencies + dependency.pluginDependencies).flatMap(\.modules))
+        }
         var dependencies: [MacroCacheKey.Dependency] = []
-        for dependency in Set(modules) {
-            guard let resolvedPackage = package.graph.package(for: dependency) else {
+        for dependency in modules {
+            guard let resolvedPackage = graph.package(for: dependency) else {
                 throw Error.unresolvedPackage(dependency.name)
             }
             guard let pin = resolvedPackage.pinState else {
@@ -358,15 +272,7 @@ struct MacroPluginProducer {
         dependencies.sort {
             ($0.packageIdentity, $0.targetName) < ($1.packageIdentity, $1.targetName)
         }
-        return MacroCacheKey(
-            schemaVersion: 1, artifactKind: .macroPlugin, targetName: module.c99name,
-            dependencies: dependencies, swiftVersion: swiftVersion, clangVersion: clangVersion,
-            xcodeVersion: xcodeVersion, hostArchitecture: architecture,
-            deploymentTarget: ProcessInfo.processInfo.environment["MACOSX_DEPLOYMENT_TARGET"],
-            rootMacOSPlatform: package.manifest.platforms?
-                .first(where: { $0.platformName.lowercased() == "macos" })?.version,
-            configuration: configuration, scipioVersion: currentScipioVersion
-        )
+        return dependencies
     }
 
     private func publish(_ directory: URL, key: MacroCacheKey) async throws {
