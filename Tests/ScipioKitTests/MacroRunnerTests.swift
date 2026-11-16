@@ -111,7 +111,7 @@ struct MacroRunnerTests {
         let metadata = parent.appending(components: ".build", "scipio", "MacroPlugins", "plugins.json")
         let manifest = try JSONDecoder().decode(PluginManifest.self, from: Data(contentsOf: metadata))
         #expect(manifest.plugins == [
-            .init(module: "FixturePlugin", executable: "FixturePlugin/FixturePlugin", targets: ["FixtureLibrary"]),
+            .init(module: "FixturePlugin", executable: "FixturePlugin/FixturePlugin", targets: ["FixtureConsumer", "FixtureLibrary"]),
         ])
         let frameworkVersion = try Data(contentsOf: version)
         let executable = try Data(contentsOf: macroExecutable)
