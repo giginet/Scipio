@@ -5,6 +5,29 @@ import Testing
 @testable import ScipioKit
 
 struct MacroBuildPlanTests {
+    @Test("Product cleanup uses its actual modules and preserves shared runtime dependencies", arguments: [false, true])
+    func productModulesPreserveRuntimeDependencies(sharesRuntimeDependency: Bool) throws {
+        let support = try ResolvedGraphFixtures.resolvedModule(name: "HostSupport")
+        let plugin = try ResolvedGraphFixtures.resolvedModule(
+            name: "Plugin", targetType: "macro", dependencies: [.module(support, conditions: [])]
+        )
+        let declarations = try ResolvedGraphFixtures.resolvedModule(name: "Declarations", dependencies: [.module(plugin, conditions: [])])
+        let runtime = try ResolvedGraphFixtures.resolvedModule(
+            name: "Runtime", dependencies: sharesRuntimeDependency ? [.module(support, conditions: [])] : []
+        )
+        let product = try ResolvedGraphFixtures.resolvedProduct(name: "PublicDeclarations", modules: [declarations, runtime])
+        let client = try ResolvedGraphFixtures.resolvedModule(name: "Client", dependencies: [.product(product, conditions: [])])
+        let package = try ResolvedGraphFixtures.package(targets: [client, declarations, runtime, support, plugin], products: [product])
+        let graph = try DependencyGraph.resolve(
+            Set([client, declarations, runtime].map { BuildProduct(package: package, target: $0) }), id: \.target.name, childIDs: { _ in [] }
+        )
+
+        let plan = try MacroBuildPlan(graph: graph, buildOptions: makeBuildOptions())
+
+        #expect(plan.hostOnlyDependencies["Declarations"] == ["Plugin", "HostSupport"])
+        #expect(plan.hostOnlyProductDependencies == ["PublicDeclarations": sharesRuntimeDependency ? ["Plugin"] : ["Plugin", "HostSupport"]])
+    }
+
     @Test("Public macros are loaded through enabled transitive target and product dependencies", arguments: [false, true])
     func transitiveMacros(usesProduct: Bool) throws {
         let hostOnly = try ResolvedGraphFixtures.resolvedModule(name: "HostPlugin", targetType: "macro")

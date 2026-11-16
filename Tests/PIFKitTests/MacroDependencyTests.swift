@@ -8,16 +8,18 @@ struct MacroDependencyTests {
         [
           {"type":"target","contents":{"name":"Plugin","guid":"plugin","productTypeIdentifier":"com.apple.product-type.tool.host-build"}},
           {"type":"target","contents":{"name":"Other","guid":"other","productTypeIdentifier":"com.apple.product-type.tool.host-build"}},
-          {"type":"target","contents":{"name":"SwiftSyntax_123_PackageProduct","guid":"syntax-product"}},
-          {"type":"target","contents":{"name":"Library_123_PackageProduct","guid":"library-product",
-             "dependencies":[{"guid":"syntax-product"},{"guid":"PACKAGE-TARGET:Plugin@11"},{"guid":"framework"}],
-             "buildPhases":[{"buildFiles":[{"targetReference":"syntax-product"},{"targetReference":"framework"}]}]}},
+          {"type":"target","contents":{"name":"SwiftSyntax_123_PackageProduct","guid":"PACKAGE-PRODUCT:SwiftSyntax@11"}},
+          {"type":"target","contents":{"name":"PublicDeclarations_123_PackageProduct","guid":"PACKAGE-PRODUCT:PublicDeclarations@11",
+             "dependencies":[{"guid":"PACKAGE-PRODUCT:SwiftSyntax@11"},{"guid":"PACKAGE-TARGET:Plugin@11"},{"guid":"framework"}],
+             "buildPhases":[{"buildFiles":[{"targetReference":"PACKAGE-PRODUCT:SwiftSyntax@11"},{"targetReference":"framework"}]}]}},
           {"type":"target","contents":{"name":"Library","guid":"library",
-             "dependencies":[{"guid":"plugin"},{"guid":"syntax-product"},{"guid":"other"},{"guid":"framework"}]}}
+             "dependencies":[{"guid":"plugin"},{"guid":"PACKAGE-PRODUCT:SwiftSyntax@11"},{"guid":"other"},{"guid":"framework"}]}}
         ]
         """
         let manipulator = try PIFManipulator(jsonData: Data(input.utf8))
-        manipulator.removeHostMacroDependencies(["Library": ["Plugin", "SwiftSyntax"]])
+        manipulator.removeHostMacroDependencies(
+            ["Library": ["Plugin", "SwiftSyntax"]], productDependencies: ["PublicDeclarations": ["Plugin", "SwiftSyntax"]]
+        )
         let output = try JSONSerialization.jsonObject(with: manipulator.dump()) as? [[String: Any]]
         let library = try #require(output?.last?["contents"] as? [String: Any])
         let dependencies = try #require(library["dependencies"] as? [[String: Any]])
