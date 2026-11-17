@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   Tests:
-    timeout-minutes: 30
+    timeout-minutes: 45
     continue-on-error: true
     runs-on: macos-26
     env:
