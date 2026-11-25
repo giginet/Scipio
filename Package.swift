@@ -26,7 +26,7 @@ let package = Package(
     ],
     dependencies: [
         // swift-log 1.17 uses an attribute that Swift 6.2 does not recognize.
-        .package(url: "https://github.com/apple/swift-log.git", exact: "1.16.2"),
+        .package(url: "https://github.com/apple/swift-log.git", exact: "1.17.2"),
         .package(url: "https://github.com/apple/swift-collections",
                  from: "1.4.0"),
         .package(url: "https://github.com/apple/swift-argument-parser.git",
