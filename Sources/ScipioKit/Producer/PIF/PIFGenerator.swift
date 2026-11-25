@@ -56,7 +56,9 @@ struct PIFGenerator {
 
     func generateJSON(for sdk: SDK) async throws -> Foundation.URL {
         let manipulator = try await buildPIFManipulator()
-        manipulator.removeHostMacroDependencies(macroPlan?.hostOnlyDependencies ?? [:])
+        manipulator.removeHostMacroDependencies(
+            macroPlan?.hostOnlyDependencies ?? [:], productDependencies: macroPlan?.hostOnlyProductDependencies ?? [:]
+        )
 
         manipulator.updateTargets { target in
             updateTarget(&target, sdk: sdk)
