@@ -1,6 +1,11 @@
 import Foundation
 import SwiftyJSON
 
+package enum PIFDependency: Hashable {
+    case target(String)
+    case product(String)
+}
+
 /// Manipulates PIF JSON data
 package final class PIFManipulator {
     private var topLevelObject: JSON
@@ -25,18 +30,18 @@ package final class PIFManipulator {
     }
 
     package func removeHostMacroDependencies(
-        _ namesByTarget: [String: Set<String>], productDependencies: [String: Set<String>] = [:]
+        _ dependenciesByTarget: [String: Set<PIFDependency>], productDependencies: [String: Set<PIFDependency>] = [:]
     ) {
         let targets = topLevelObject.arrayValue.filter { $0["type"].stringValue == "target" }
         for index in 0..<topLevelObject.arrayValue.count where topLevelObject[index]["type"].stringValue == "target" {
             let contents = topLevelObject[index]["contents"]
             let targetName = contents["name"].stringValue
             let guid = contents["guid"].stringValue
-            let names: Set<String>
-            if let product = productDependencies.first(where: { Self.matches(guid, kind: "PRODUCT", name: $0.key) }) {
-                names = product.value
-            } else if let targetNames = namesByTarget[targetName] {
-                names = targetNames
+            let hostDependencies: Set<PIFDependency>
+            if let product = productDependencies.first(where: { Self.guidMatches(guid, dependency: .product($0.key)) }) {
+                hostDependencies = product.value
+            } else if !guid.hasPrefix("PACKAGE-PRODUCT:"), let dependencies = dependenciesByTarget[targetName] {
+                hostDependencies = dependencies
             } else {
                 continue
             }
@@ -44,14 +49,19 @@ package final class PIFManipulator {
             let guids = Set(targets.compactMap { candidate -> String? in
                 let candidateName = candidate["contents"]["name"].stringValue
                 let candidateGUID = candidate["contents"]["guid"].stringValue
-                guard names.contains(candidateName) || names.contains(where: {
-                    Self.matches(candidateGUID, kind: "PRODUCT", name: $0)
+                guard hostDependencies.contains(where: { dependency in
+                    switch dependency {
+                    case .target(let name):
+                        candidateName == name && !candidateGUID.hasPrefix("PACKAGE-PRODUCT:")
+                    case .product:
+                        Self.guidMatches(candidateGUID, dependency: dependency)
+                    }
                 }) else { return nil }
                 return candidateGUID
             })
             func isHostReference(_ guid: String) -> Bool {
-                guids.contains(guid) || names.contains {
-                    Self.matches(guid, kind: "TARGET", name: $0) || Self.matches(guid, kind: "PRODUCT", name: $0)
+                guids.contains(guid) || hostDependencies.contains {
+                    Self.guidMatches(guid, dependency: $0)
                 }
             }
             if let dependencies = contents["dependencies"].array {
@@ -70,8 +80,11 @@ package final class PIFManipulator {
         }
     }
 
-    private static func matches(_ guid: String, kind: String, name: String) -> Bool {
-        let prefix = "PACKAGE-\(kind):\(name)"
+    private static func guidMatches(_ guid: String, dependency: PIFDependency) -> Bool {
+        let prefix = switch dependency {
+        case .target(let name): "PACKAGE-TARGET:\(name)"
+        case .product(let name): "PACKAGE-PRODUCT:\(name)"
+        }
         return guid == prefix || guid.hasPrefix("\(prefix)@")
     }
 

@@ -1,10 +1,39 @@
 import CacheStorage
 import Foundation
 import PackageManifestKit
+import enum PIFKit.PIFDependency
 import Testing
 @testable import ScipioKit
 
 struct MacroBuildPlanTests {
+    @Test("Host and runtime dependencies distinguish products from same-named targets", arguments: [false, true])
+    func sameNamedTargetAndProduct(hostUsesProduct: Bool) throws {
+        let shared = try ResolvedGraphFixtures.resolvedModule(name: "Shared")
+        let support = try ResolvedGraphFixtures.resolvedModule(
+            name: "Support", packageID: ResolvedGraphFixtures.packageID("support-package")
+        )
+        let product = try ResolvedGraphFixtures.resolvedProduct(name: "Shared", modules: [support], packageID: support.packageID)
+        let hostDependency: ResolvedModule.Dependency = hostUsesProduct
+            ? .product(product, conditions: []) : .module(shared, conditions: [])
+        let runtimeDependency: ResolvedModule.Dependency = hostUsesProduct
+            ? .module(shared, conditions: []) : .product(product, conditions: [])
+        let plugin = try ResolvedGraphFixtures.resolvedModule(name: "Plugin", targetType: "macro", dependencies: [hostDependency])
+        let client = try ResolvedGraphFixtures.resolvedModule(
+            name: "Client", dependencies: [runtimeDependency, .module(plugin, conditions: [])]
+        )
+        let clientProduct = try ResolvedGraphFixtures.resolvedProduct(name: "PublicClient", modules: [client])
+        let package = try ResolvedGraphFixtures.package(targets: [client, plugin, shared], products: [clientProduct])
+        let graph = try DependencyGraph.resolve(Set([BuildProduct(package: package, target: client)]), id: \.target.name, childIDs: { _ in [] })
+
+        let plan = try MacroBuildPlan(graph: graph, buildOptions: makeBuildOptions())
+
+        let expected: Set<PIFDependency> = hostUsesProduct
+            ? [.target("Plugin"), .product("Shared"), .target("Support")]
+            : [.target("Plugin"), .target("Shared")]
+        #expect(plan.hostOnlyDependencies["Client"] == expected)
+        #expect(plan.hostOnlyProductDependencies["PublicClient"] == expected)
+    }
+
     @Test("Product cleanup uses its actual modules and preserves shared runtime dependencies", arguments: [false, true])
     func productModulesPreserveRuntimeDependencies(sharesRuntimeDependency: Bool) throws {
         let support = try ResolvedGraphFixtures.resolvedModule(name: "HostSupport")
@@ -24,8 +53,10 @@ struct MacroBuildPlanTests {
 
         let plan = try MacroBuildPlan(graph: graph, buildOptions: makeBuildOptions())
 
-        #expect(plan.hostOnlyDependencies["Declarations"] == ["Plugin", "HostSupport"])
-        #expect(plan.hostOnlyProductDependencies == ["PublicDeclarations": sharesRuntimeDependency ? ["Plugin"] : ["Plugin", "HostSupport"]])
+        #expect(plan.hostOnlyDependencies["Declarations"] == [.target("Plugin"), .target("HostSupport")])
+        let expected: Set<PIFDependency> = sharesRuntimeDependency
+            ? [.target("Plugin")] : [.target("Plugin"), .target("HostSupport")]
+        #expect(plan.hostOnlyProductDependencies == ["PublicDeclarations": expected])
     }
 
     @Test("Public macros are loaded through enabled transitive target and product dependencies", arguments: [false, true])
@@ -46,7 +77,7 @@ struct MacroBuildPlanTests {
 
         #expect(plan.modules.map(\.name) == ["Plugin"])
         #expect(plan.targetDependencies == ["Client": ["Plugin"]])
-        #expect(plan.hostOnlyDependencies["Client"] == ["Plugin", "HostPlugin"])
+        #expect(plan.hostOnlyDependencies["Client"] == [.target("Plugin"), .target("HostPlugin")])
     }
 
     @Test("Transitive macro paths must be enabled for the same destination", arguments: [false, true])
@@ -104,8 +135,8 @@ struct MacroBuildPlanTests {
 
         #expect(plan.modules.map(\.name) == ["AlwaysPlugin", "SelectedPlugin"])
         #expect(plan.targetDependencies == ["Library": ["AlwaysPlugin", "SelectedPlugin"]])
-        #expect(plan.hostOnlyDependencies["Library"]?.contains("LinuxOnlyPlugin") == true)
-        #expect(plan.hostOnlyDependencies["Library"]?.contains("OtherPlugin") == true)
+        #expect(plan.hostOnlyDependencies["Library"]?.contains(.target("LinuxOnlyPlugin")) == true)
+        #expect(plan.hostOnlyDependencies["Library"]?.contains(.target("OtherPlugin")) == true)
     }
 
     @Test(arguments: [BuildConfiguration.debug, .release], [false, true])
@@ -127,7 +158,7 @@ struct MacroBuildPlanTests {
 
         #expect(plan.modules.map(\.name) == (configuration == .release ? ["ReleasePlugin"] : []))
         #expect(plan.targetDependencies["Library"] == (configuration == .release ? ["ReleasePlugin"] : nil))
-        #expect(plan.hostOnlyDependencies["Library"] == ["ReleasePlugin"])
+        #expect(plan.hostOnlyDependencies["Library"] == [.target("ReleasePlugin")])
     }
 
     @Test(arguments: [BuildConfiguration.debug, .release])
@@ -149,7 +180,7 @@ struct MacroBuildPlanTests {
 
         let plan = try MacroBuildPlan(graph: graph, buildOptions: makeBuildOptions(configuration: configuration))
 
-        #expect(plan.hostOnlyDependencies["Library"] == (configuration == .release ? ["Plugin"] : ["Plugin", "Shared"]))
+        #expect(plan.hostOnlyDependencies["Library"] == (configuration == .release ? [.target("Plugin")] : [.target("Plugin"), .target("Shared")]))
     }
 
     @Test
@@ -206,7 +237,9 @@ struct MacroBuildPlanTests {
 
         let plan = try MacroBuildPlan(graph: graph, buildOptions: makeBuildOptions())
 
-        let expectedHostOnly: Set<String> = sharesRuntimeDependency ? ["Plugin", "HostSupport"] : ["Plugin", "HostSupport", "SharedSupport"]
+        let expectedHostOnly: Set<PIFDependency> = sharesRuntimeDependency
+            ? [.target("Plugin"), .target("HostSupport")]
+            : [.target("Plugin"), .target("HostSupport"), .target("SharedSupport")]
         #expect(plan.hostOnlyDependencies["Consumer"] == expectedHostOnly)
         #expect(plan.hostOnlyDependencies["Library"] == expectedHostOnly)
         #expect(plan.targetDependencies == ["Consumer": ["Plugin"], "Library": ["Plugin"]])

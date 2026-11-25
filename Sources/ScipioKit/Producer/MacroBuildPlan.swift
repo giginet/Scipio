@@ -1,20 +1,22 @@
 import Foundation
+import enum PIFKit.PIFDependency
 import ScipioKitCore
 
 struct MacroBuildPlan {
     let modules: [ResolvedModule]
     let targetDependencies: [String: [String]]
-    let hostOnlyDependencies: [String: Set<String>]
-    let hostOnlyProductDependencies: [String: Set<String>]
+    let hostOnlyDependencies: [String: Set<PIFDependency>]
+    let hostOnlyProductDependencies: [String: Set<PIFDependency>]
 
     init(
         graph: DependencyGraph<BuildProduct>, buildOptions: BuildOptions,
         buildOptionsMatrix: [String: BuildOptions] = [:]
     ) throws {
-        var plugins: [String: ResolvedModule] = [:]
-        var targetDependencies: [String: [String]] = [:]
-        var hostOnlyDependencies: [String: Set<String>] = [:]
-        for node in graph.allNodes {
+        let dependencies = try graph.allNodes.reduce(into: (
+            plugins: [String: ResolvedModule](),
+            targets: [String: [String]](),
+            hostOnly: [String: Set<PIFDependency>]()
+        )) { dependencies, node in
             let target = node.value.target
             let options = buildOptionsMatrix[target.name] ?? buildOptions
             let macroDependencies = Self.macroDependencies(for: target)
@@ -23,34 +25,31 @@ struct MacroBuildPlan {
                     .flatMap(\.modules).filter { $0.underlying.type == .macro }
             }
             for macro in macros {
-                if let existing = plugins[macro.c99name],
+                if let existing = dependencies.plugins[macro.c99name],
                    existing.packageID != macro.packageID || existing.name != macro.name {
                     throw Error.duplicateModule(macro.c99name)
                 }
-                plugins[macro.c99name] = macro
+                dependencies.plugins[macro.c99name] = macro
             }
             if !macros.isEmpty {
-                targetDependencies[target.name] = Set(macros.map(\.c99name)).sorted()
+                dependencies.targets[target.name] = Set(macros.map(\.c99name)).sorted()
             }
             if !macroDependencies.isEmpty {
-                hostOnlyDependencies[target.name] = Self.hostOnlyDependencyNames(
+                dependencies.hostOnly[target.name] = Self.hostOnlyDependencyReferences(
                     for: [target], buildOptions: options
                 )
             }
         }
-        self.modules = plugins.values.sorted { $0.c99name < $1.c99name }
-        self.targetDependencies = targetDependencies
-        self.hostOnlyDependencies = hostOnlyDependencies
-        var productDependencies: [String: Set<String>] = [:]
+        self.modules = dependencies.plugins.values.sorted { $0.c99name < $1.c99name }
+        self.targetDependencies = dependencies.targets
+        self.hostOnlyDependencies = dependencies.hostOnly
         let packages = Dictionary(graph.allNodes.map { ($0.value.package.id, $0.value.package) }, uniquingKeysWith: { first, _ in first })
-        for package in packages.values {
-            for product in package.products where product.modules.contains(where: { hostOnlyDependencies[$0.name] != nil }) {
-                productDependencies[product.name] = Self.hostOnlyDependencyNames(
-                    for: product.modules, buildOptions: buildOptions, buildOptionsMatrix: buildOptionsMatrix
-                )
-            }
+        self.hostOnlyProductDependencies = packages.values.flatMap(\.products).reduce(into: [:]) { result, product in
+            guard product.modules.contains(where: { dependencies.hostOnly[$0.name] != nil }) else { return }
+            result[product.name] = Self.hostOnlyDependencyReferences(
+                for: product.modules, buildOptions: buildOptions, buildOptionsMatrix: buildOptionsMatrix
+            )
         }
-        self.hostOnlyProductDependencies = productDependencies
     }
 
     private static func macroDependencies(
@@ -74,41 +73,44 @@ struct MacroBuildPlan {
         return macros
     }
 
-    private static func hostOnlyDependencyNames(
+    private static func hostOnlyDependencyReferences(
         for targets: [ResolvedModule], buildOptions: BuildOptions, buildOptionsMatrix: [String: BuildOptions] = [:]
-    ) -> Set<String> {
-        var hostNames: Set<String> = []
-        var runtimeNames: Set<String> = []
-        var hostVisited: Set<ResolvedModule> = []
-
-        func collect(
-            _ dependencies: [ResolvedModule.Dependency], sdk: SDK? = nil, configuration: BuildConfiguration = .debug,
-            names: inout Set<String>, visited: inout Set<ResolvedModule>
-        ) {
-            for dependency in dependencies {
-                if let sdk, !isEnabled(dependency, sdk: sdk, configuration: configuration) { continue }
-                let modules = dependency.modules.filter { sdk == nil || $0.underlying.type != .macro }
-                guard !modules.isEmpty else { continue }
-                if let product = dependency.product {
-                    names.insert(product.name)
-                }
-                for module in modules where visited.insert(module).inserted {
-                    names.insert(module.name)
-                    collect(module.dependencies, sdk: sdk, configuration: configuration, names: &names, visited: &visited)
-                }
-            }
-        }
+    ) -> Set<PIFDependency> {
         // dump-pif retains inactive macro edges; they must also be removed from destination builds.
-        for target in targets {
-            collect(macroDependencies(for: target), names: &hostNames, visited: &hostVisited)
-            runtimeNames.insert(target.name)
+        let hostReferences = dependencyReferences(for: targets.flatMap { macroDependencies(for: $0) })
+        let runtimeReferences = targets.reduce(into: Set(targets.map { PIFDependency.target($0.name) })) { references, target in
             let options = buildOptionsMatrix[target.name] ?? buildOptions
             for sdk in options.sdks {
-                var runtimeVisited: Set<ResolvedModule> = [target]
-                collect(target.dependencies, sdk: sdk, configuration: options.buildConfiguration, names: &runtimeNames, visited: &runtimeVisited)
+                references.formUnion(dependencyReferences(
+                    for: target.dependencies, sdk: sdk, configuration: options.buildConfiguration, excluding: [target]
+                ))
             }
         }
-        return hostNames.subtracting(runtimeNames)
+        return hostReferences.subtracting(runtimeReferences)
+    }
+
+    private static func dependencyReferences(
+        for dependencies: [ResolvedModule.Dependency], sdk: SDK? = nil, configuration: BuildConfiguration = .debug,
+        excluding modules: Set<ResolvedModule> = []
+    ) -> Set<PIFDependency> {
+        var visited = modules
+        func collect(_ dependency: ResolvedModule.Dependency, into references: inout Set<PIFDependency>) {
+            if let sdk, !isEnabled(dependency, sdk: sdk, configuration: configuration) { return }
+            let modules = dependency.modules.filter { sdk == nil || $0.underlying.type != .macro }
+            guard !modules.isEmpty else { return }
+            if let product = dependency.product {
+                references.insert(.product(product.name))
+            }
+            for module in modules where visited.insert(module).inserted {
+                references.insert(.target(module.name))
+                for child in module.dependencies {
+                    collect(child, into: &references)
+                }
+            }
+        }
+        return dependencies.reduce(into: []) { references, dependency in
+            collect(dependency, into: &references)
+        }
     }
 
     private static func isEnabled(_ dependency: ResolvedModule.Dependency, sdk: SDK, configuration: BuildConfiguration) -> Bool {
