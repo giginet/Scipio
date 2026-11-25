@@ -9,7 +9,7 @@ on:
       - '*'
 jobs:
   Tests:
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       matrix:
         include:
